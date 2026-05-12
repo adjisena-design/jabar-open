@@ -755,6 +755,44 @@ section, div[id] {
   .athlete-inner { padding: 80px 5vw 60px; }
 }
 
+
+/* ── Collapsible disciplines mobile fix ── */
+@media (max-width: 960px) {
+  /* Info section: stack to single column */
+  .info-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Force details to block so desc never sits beside the summary */
+  details.disc-item {
+    display: block !important;
+  }
+  details.disc-item summary {
+    display: flex !important;
+    flex-wrap: nowrap;
+    align-items: center;
+    width: 100%;
+  }
+  .disc-name {
+    flex: 1;
+    min-width: 0;
+  }
+  .disc-arrow {
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+  /* Description sits cleanly below summary */
+  .disc-desc {
+    display: block !important;
+    width: 100% !important;
+    padding: 0 16px 16px 16px !important;
+    box-sizing: border-box;
+    font-size: .84rem !important;
+    line-height: 1.65 !important;
+    word-break: break-word;
+  }
+}
+
 </style>
 </head>
 <body>
