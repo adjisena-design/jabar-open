@@ -629,6 +629,132 @@ details.disc-item[open] .disc-arrow{transform:rotate(180deg);color:var(--og1)}
   .athlete-bg::after{background:rgba(11,21,37,.85)}
 }
 
+
+/* ═══════════════════════════════════════════════
+   COMPREHENSIVE MOBILE FIXES
+═══════════════════════════════════════════════ */
+
+/* 1. Lock horizontal scroll globally */
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* 2. Stats ribbon — clean 2×3 wrap on mobile */
+@media (max-width: 700px) {
+  .stats-ribbon {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+  }
+  .stat-item {
+    border-right: 1px solid rgba(255,255,255,.1);
+    border-bottom: 1px solid rgba(255,255,255,.1);
+    padding: 16px 8px;
+    min-width: 0;
+  }
+  /* last row: center the lone item */
+  .stat-item:nth-child(4) { grid-column: 1; }
+  .stat-item:nth-child(5) { grid-column: 2 / span 2; }
+  .stat-num {
+    font-size: clamp(.95rem, 4.5vw, 1.4rem);
+    white-space: normal;
+    word-break: break-word;
+  }
+  .stat-label { font-size: .5rem; letter-spacing: 1px; }
+}
+
+/* 3. Lanyard section — show image on mobile, animate instead of hover */
+@media (max-width: 960px) {
+  #lanyard { padding: 60px 5vw; }
+  .lanyard-inner {
+    grid-template-columns: 1fr !important;
+    gap: 36px;
+  }
+  .lanyard-img {
+    display: flex !important;   /* override the old display:none */
+    justify-content: center;
+    align-items: center;
+  }
+  .lanyard-img img {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    transform: none !important;
+    /* auto-float animation so mobile users feel the energy */
+    animation: lanyardFloat 3.5s ease-in-out infinite;
+    border-radius: 8px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.25);
+  }
+  @keyframes lanyardFloat {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50%       { transform: translateY(-10px) rotate(1deg); }
+  }
+}
+
+/* 4. Hero section — prevent shapes from overflowing */
+.hero-shape, .hero-shape2 {
+  max-width: 100%;
+}
+@media (max-width: 700px) {
+  .hero { padding: 100px 5vw 60px; overflow: hidden; }
+  .hero-shape  { width: 80%; right: -15%; }
+  .hero-shape2 { display: none; }
+}
+
+/* 5. General section overflow guard */
+section, div[id] {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* 6. Jagat grid text order fix on mobile */
+@media (max-width: 960px) {
+  .jagat-grid { grid-template-columns: 1fr !important; }
+  .jagat-img-main { order: 1 !important; }
+  .jagat-text    { order: 2 !important; }
+}
+
+/* 7. Nav org logos — don't overflow on small screens */
+@media (max-width: 700px) {
+  .nav-org { display: none; }
+  nav { padding: 12px 4vw; }
+}
+
+/* 8. Sponsorship grid on small mobile */
+@media (max-width: 600px) {
+  .sp-grid { grid-template-columns: 1fr !important; }
+  .sp-card.title-card { grid-column: span 1 !important; }
+}
+
+/* 9. Contact grid */
+@media (max-width: 700px) {
+  .contact-grid { grid-template-columns: 1fr !important; gap: 40px; }
+}
+
+/* 10. Flexa grid */
+@media (max-width: 700px) {
+  .flexa-grid { grid-template-columns: 1fr !important; }
+}
+
+/* 11. About grid + Jagat sticker */
+@media (max-width: 700px) {
+  .about-grid { grid-template-columns: 1fr !important; gap: 32px; }
+  .audience-grid { grid-template-columns: 1fr !important; }
+}
+
+/* 12. Merch + medals images — constrain on mobile */
+@media (max-width: 700px) {
+  .medals-single img, .merch-single img {
+    border-radius: 8px;
+  }
+}
+
+/* 13. Athlete section text padding on mobile */
+@media (max-width: 700px) {
+  .athlete-inner { padding: 80px 5vw 60px; }
+}
+
 </style>
 </head>
 <body>
