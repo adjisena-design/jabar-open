@@ -108,6 +108,119 @@
     strip.removeAttribute('tabindex');
   }
   if (saved === 'en') setLang('en');
+  // galeri tanpa animasi (gerak dikurangi) memakai gulir bawaan: jaga agar tidak pernah bergeser vertikal
+  if (strip) strip.addEventListener('scroll', () => { if (strip.scrollTop) strip.scrollTop = 0; }, { passive: true });
+
+  // ---------- baris geser di ponsel ----------
+  // Bukan gulir bawaan: .rail memotong, .swipe digeser ke samping dengan translateX.
+  // Gerakan vertikal diserahkan ke halaman, jadi baris tidak pernah bisa bergeser naik-turun.
+  const railMq = window.matchMedia('(max-width:700px)');
+  const rails = [];
+  document.querySelectorAll('.rail').forEach((rail) => {
+    const track = rail.querySelector('.swipe');
+    if (!track || !track.children.length) return;
+    const items = Array.from(track.children);
+    let x = 0; let pts = [0]; let max = 0; let on = false; let st = null; let justDragged = false; let wheelT = 0;
+
+    const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+    function put(v, animate) {
+      x = v;
+      track.style.transition = animate ? '' : 'none';
+      track.style.transform = v ? 'translate3d(' + (-v).toFixed(1) + 'px,0,0)' : '';
+    }
+    function nearest(v) {
+      let k = 0;
+      pts.forEach((p, i) => { if (Math.abs(p - v) < Math.abs(pts[k] - v)) k = i; });
+      return k;
+    }
+    function go(i, animate = true) { put(pts[clamp(i, 0, pts.length - 1)], animate); }
+    function measure() {
+      const cs = getComputedStyle(track);
+      const pl = parseFloat(cs.paddingLeft) || 0; const pr = parseFloat(cs.paddingRight) || 0;
+      const last = items[items.length - 1];
+      max = Math.max(0, Math.round(last.offsetLeft + last.offsetWidth + pr - track.clientWidth));
+      const all = items.map((it) => clamp(Math.round(it.offsetLeft - pl), 0, max));
+      pts = all.filter((p, i) => i === 0 || p > all[i - 1] + 1);
+    }
+    function apply() {
+      const was = on ? nearest(x) : 0;
+      on = railMq.matches;
+      if (on) { rail.tabIndex = 0; measure(); go(was, false); }
+      else { rail.removeAttribute('tabindex'); put(0, false); }
+      rail.scrollLeft = 0; rail.scrollTop = 0;
+    }
+    rails.push(apply);
+
+    rail.addEventListener('pointerdown', (e) => {
+      if (!on || !e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      st = { id: e.pointerId, x0: e.clientX, y0: e.clientY, base: x, from: nearest(x), lock: '', s: [[e.timeStamp, e.clientX]] };
+    });
+    rail.addEventListener('pointermove', (e) => {
+      if (!st || e.pointerId !== st.id) return;
+      const dx = e.clientX - st.x0; const dy = e.clientY - st.y0;
+      if (!st.lock) {
+        if (Math.abs(dx) < 7 && Math.abs(dy) < 7) return;
+        if (Math.abs(dx) <= Math.abs(dy)) { st = null; return; } // gerakan vertikal: biarkan halaman bergulir
+        st.lock = 'x';
+        track.classList.add('drag');
+        try { rail.setPointerCapture(e.pointerId); } catch (err) { /* abaikan */ }
+      }
+      let v = st.base - dx;
+      if (v < 0) v *= 0.3; else if (v > max) v = max + (v - max) * 0.3;
+      put(v, false);
+      st.s.push([e.timeStamp, e.clientX]);
+      while (st.s.length > 2 && e.timeStamp - st.s[0][0] > 100) st.s.shift();
+    });
+    function release(e, cancelled) {
+      if (!st || e.pointerId !== st.id) return;
+      const s = st; st = null;
+      if (s.lock !== 'x') return;
+      track.classList.remove('drag');
+      justDragged = true; setTimeout(() => { justDragged = false; }, 0);
+      const a = s.s[0]; const b = s.s[s.s.length - 1];
+      // px/ms, positif = maju; nol bila jari sempat diam sebelum diangkat
+      const vel = b[0] > a[0] && e.timeStamp - b[0] < 120 ? (a[1] - b[1]) / (b[0] - a[0]) : 0;
+      const moved = x - s.base;
+      let k = nearest(clamp(x + vel * 180, 0, max));
+      if (!cancelled && k === s.from && (Math.abs(vel) > 0.25 || Math.abs(moved) > rail.clientWidth * 0.18)) {
+        k = s.from + ((Math.abs(vel) > 0.25 ? vel : moved) > 0 ? 1 : -1);
+      }
+      go(k);
+    }
+    rail.addEventListener('pointerup', (e) => release(e, false));
+    rail.addEventListener('pointercancel', (e) => release(e, true));
+    // saat menggeser ke samping, halaman tidak ikut bergulir
+    rail.addEventListener('touchmove', (e) => { if (st && st.lock === 'x' && e.cancelable) e.preventDefault(); }, { passive: false });
+    rail.addEventListener('click', (e) => { if (justDragged) { e.preventDefault(); e.stopPropagation(); } }, true);
+    rail.addEventListener('dragstart', (e) => { if (on) e.preventDefault(); });
+    // trackpad: gulir menyamping
+    rail.addEventListener('wheel', (e) => {
+      if (!on || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      put(clamp(x + e.deltaX, 0, max), false);
+      clearTimeout(wheelT); wheelT = setTimeout(() => go(nearest(x)), 140);
+    }, { passive: false });
+    // papan ketik
+    rail.addEventListener('keydown', (e) => {
+      if (!on) return;
+      if (e.key === 'ArrowRight') { e.preventDefault(); go(nearest(x) + 1); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); go(nearest(x) - 1); }
+    });
+    rail.addEventListener('focusin', (e) => {
+      if (!on) return;
+      const i = items.findIndex((it) => it.contains(e.target));
+      if (i >= 0) { measure(); go(nearest(clamp(items[i].offsetLeft - (parseFloat(getComputedStyle(track).paddingLeft) || 0), 0, max))); }
+    });
+    // cadangan untuk peramban tanpa overflow:clip: jendela tidak boleh tergulir
+    rail.addEventListener('scroll', () => { if (on) { rail.scrollLeft = 0; rail.scrollTop = 0; } }, { passive: true });
+  });
+  const applyRails = () => rails.forEach((f) => f());
+  applyRails();
+  let railT = 0;
+  window.addEventListener('resize', () => { clearTimeout(railT); railT = setTimeout(applyRails, 120); });
+  if (railMq.addEventListener) railMq.addEventListener('change', applyRails); else if (railMq.addListener) railMq.addListener(applyRails);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(applyRails);
+  window.addEventListener('load', applyRails);
 
   // ---------- navigasi ----------
   const nav = document.getElementById('nav');
@@ -140,7 +253,12 @@
 
     // animasi muncul
     const rvObs = new IntersectionObserver((entries) => {
-      entries.forEach((en) => { if (en.isIntersecting) { en.target.classList.add('in'); rvObs.unobserve(en.target); } });
+      entries.forEach((en) => {
+        if (!en.isIntersecting) return;
+        // kartu dalam baris geser muncul bersamaan, termasuk yang masih di luar layar
+        const row = en.target.parentElement && en.target.parentElement.classList.contains('swipe') ? Array.from(en.target.parentElement.children) : [en.target];
+        row.forEach((el) => { el.classList.add('in'); rvObs.unobserve(el); });
+      });
     }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
     document.querySelectorAll('.rv').forEach((el) => rvObs.observe(el));
   } else {
