@@ -1,1707 +1,427 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Jabar Open 2026 · Kejuaraan Gimnastik · Bandung, 12–20 Desember 2026</title>
-  <meta name="description" content="Jabar Open 2026: kejuaraan gimnastik nasional Artistik Putra, Artistik Putri, Ritmik, dan Aerobik di Gymnasium Arcamanik, Bandung, 12–20 Desember 2026. Pendaftaran daring hingga 12 November 2026."/>
-  <meta property="og:title" content="Jabar Open 2026"/>
-  <meta property="og:description" content="Kejuaraan gimnastik nasional di Gymnasium Arcamanik, Bandung, 12–20 Desember 2026. Daftar daring sekarang."/>
-  <meta property="og:image" content="https://adjisena-design.github.io/jabar-open/assets/img/hero-athlete.jpg"/>
-  <meta name="theme-color" content="#0b1525"/>
-  <link rel="icon" href="assets/img/favicon.png"/>
-  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png"/>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,600;12..96,700;12..96,800;12..96,900&display=swap" rel="stylesheet"/>
-  <link href="https://fonts.cdnfonts.com/css/glacial-indifference-2" rel="stylesheet"/>
-  <style>
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    :root{
-      --navy:     #0b1525;
-      --navy2:    #111e35;
-      --blue:     #2d5099;
-      --blue-d:   #1e3a6e;
-      --blue-lt:  #a8bfe0;
-      --og1:      #ff3131;
-      --og2:      #ff914d;
-      --og-grad:  linear-gradient(90deg,#ff3131,#ff914d);
-      --white:    #ffffff;
-      --grey-bg:  #f2f4f8;
-      --grey-lt:  #e4e8f0;
-      --grey-mid: #b0bac8;
-      --grey-dk:  #6b7a92;
-      --text:     #1a2236;
-      --text-m:   #7a8499;
-    }
-    html{scroll-behavior:smooth}
-    body{background:var(--white);color:var(--text);font-family:'Glacial Indifference','DM Sans',sans-serif;overflow-x:hidden}
-    h1,h2,h3,h4,h5,.heading{font-family:'Bricolage Grotesque',sans-serif;font-weight:800}
-
-    /* NAV */
-    nav{
-      position:fixed;top:0;left:0;right:0;z-index:100;
-      display:flex;align-items:center;justify-content:space-between;
-      padding:12px 5vw;
-      background:rgba(255,255,255,.97);
-      border-bottom:1px solid rgba(0,0,0,.07);
-      backdrop-filter:blur(12px);
-    }
-    .nav-logo img{height:42px;width:auto}
-    .nav-links{display:flex;gap:26px;list-style:none}
-    .nav-links a{
-      color:var(--grey-dk);text-decoration:none;
-      font-family:'Glacial Indifference',sans-serif;
-      font-size:.7rem;font-weight:700;letter-spacing:1.5px;
-      text-transform:uppercase;transition:color .2s;
-    }
-    .nav-links a:hover{color:var(--og1)}
-    .nav-right{display:flex;align-items:center;gap:16px}
-    .nav-org img{
-      height:38px;width:auto;
-      /* KONI image is now transparent-bg, just display it */
-    }
-    .nav-cta{
-      background:var(--og-grad);color:white;
-      padding:10px 22px;border-radius:3px;
-      font-family:'Bricolage Grotesque',sans-serif;
-      font-size:.75rem;font-weight:700;letter-spacing:1px;
-      text-transform:uppercase;text-decoration:none;
-      transition:opacity .2s;white-space:nowrap;
-    }
-    .nav-cta:hover{opacity:.88}
-
-    /* HERO */
-    .hero{
-      min-height:100vh;background:var(--white);
-      position:relative;overflow:hidden;
-      display:flex;align-items:center;
-      padding:100px 5vw 100px;
-    }
-    .hero-shape{
-      position:absolute;z-index:0;
-      top:-10%;right:-5%;width:55%;height:120%;
-      background:linear-gradient(160deg,#eceff4 0%,#f0f3f8 100%);
-      transform:skewX(-8deg);
-    }
-    .hero-shape2{
-      position:absolute;z-index:0;
-      top:15%;right:8%;width:28%;height:55%;
-      background:rgba(45,80,153,.04);
-      transform:skewX(-8deg) rotate(-2deg);
-    }
-    
-    
-    
-    
-
-    .hero-inner{
-      position:relative;z-index:2;
-      display:grid;grid-template-columns:1fr 1fr;
-      align-items:center;gap:40px;width:100%;
-    }
-    .hero-badge{
-      display:inline-flex;align-items:center;gap:8px;
-      border:1.5px solid var(--blue-lt);
-      padding:5px 16px;border-radius:100px;
-      font-family:'Glacial Indifference',sans-serif;
-      font-size:.68rem;font-weight:700;letter-spacing:2px;
-      color:var(--blue-d);text-transform:uppercase;
-      margin-bottom:24px;animation:fadeUp .7s .1s both;
-    }
-    .hero-badge::before{
-      content:'';width:6px;height:6px;border-radius:50%;
-      background:var(--og1);animation:pulse 1.6s infinite;
-    }
-.hero-event-logo{
-  width:70%;max-width:340px;height:auto;
-  filter:drop-shadow(0 12px 40px rgba(45,80,153,.2));
-  animation:fadeUp .7s .2s both;
-  margin-bottom:8px;
-}
-.hero-logo-text{margin-bottom:16px}
-    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.6)}}
-
-    .hero-title{line-height:.92;text-transform:uppercase;margin-bottom:24px;animation:fadeUp .7s .2s both}
-    .hero-title .t-eyebrow{
-      display:block;font-family:'Glacial Indifference',sans-serif;
-      font-size:clamp(.75rem,1.5vw,1rem);font-weight:700;
-      letter-spacing:4px;color:var(--grey-dk);margin-bottom:8px;
-    }
-    .hero-title .t-jabar{display:block;font-size:clamp(4rem,10vw,8.5rem);color:var(--blue-d);letter-spacing:-2px}
-    .hero-title .t-open{display:block;font-size:clamp(4rem,10vw,8.5rem);color:var(--text);letter-spacing:-2px}
-    .hero-title .t-year{
-      display:block;font-family:'Glacial Indifference',sans-serif;
-      font-size:clamp(1rem,2.5vw,1.6rem);
-      background:var(--og-grad);-webkit-background-clip:text;
-      -webkit-text-fill-color:transparent;background-clip:text;
-      font-weight:700;letter-spacing:8px;margin-top:10px;
-    }
-    .hero-desc{font-size:.92rem;line-height:1.8;color:var(--text-m);max-width:460px;margin-bottom:32px;animation:fadeUp .7s .35s both}
-    .hero-cta{display:flex;gap:14px;flex-wrap:wrap;animation:fadeUp .7s .5s both}
-    .btn{
-      display:inline-flex;align-items:center;gap:8px;
-      padding:13px 28px;border-radius:3px;
-      font-family:'Bricolage Grotesque',sans-serif;
-      font-size:.8rem;font-weight:700;letter-spacing:1px;
-      text-transform:uppercase;text-decoration:none;
-      cursor:pointer;border:none;transition:all .22s;
-    }
-    .btn-og{background:var(--og-grad);color:white;box-shadow:0 6px 24px rgba(255,49,49,.25)}
-    .btn-og:hover{opacity:.88;transform:translateY(-2px);box-shadow:0 10px 32px rgba(255,49,49,.4)}
-    .btn-outline{background:transparent;color:var(--blue-d);border:1.5px solid var(--blue-d)}
-    .btn-outline:hover{background:var(--blue-d);color:white}
-
-    .hero-logo-side{display:flex;align-items:center;justify-content:center;animation:fadeUp .7s .3s both}
-    .hero-logo-side img{width:90%;max-width:480px;height:auto;filter:drop-shadow(0 20px 60px rgba(45,80,153,.15))}
-    @keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
-
-    /* STATS RIBBON */
-    .stats-ribbon{background:var(--blue-d);display:flex;align-items:stretch}
-    .stat-item{
-      flex:1;min-width:0;padding:22px 16px;
-      text-align:center;border-right:1px solid rgba(255,255,255,.1);
-      display:flex;flex-direction:column;align-items:center;justify-content:center;
-    }
-    .stat-item:last-child{border-right:none}
-    .stat-num{
-      font-family:'Bricolage Grotesque',sans-serif;
-      font-size:clamp(1.3rem,2.5vw,2.2rem);font-weight:900;
-      line-height:1;white-space:nowrap;
-      background:var(--og-grad);-webkit-background-clip:text;
-      -webkit-text-fill-color:transparent;background-clip:text;
-    }
-    .stat-label{
-      font-family:'Glacial Indifference',sans-serif;
-      font-size:.58rem;font-weight:700;letter-spacing:1.5px;
-      text-transform:uppercase;color:rgba(255,255,255,.45);margin-top:5px;
-    }
-
-    /* SECTION BASE */
-    section{padding:80px 5vw}
-    .section-eyebrow{
-      font-family:'Glacial Indifference',sans-serif;
-      font-size:.65rem;font-weight:700;letter-spacing:3px;
-      text-transform:uppercase;color:var(--og1);margin-bottom:10px;
-    }
-    .section-title{font-size:clamp(2rem,4vw,3rem);text-transform:uppercase;line-height:1;color:var(--blue-d);margin-bottom:14px}
-    .section-rule{width:48px;height:4px;border-radius:2px;background:var(--og-grad);margin-bottom:48px}
-    .reveal{opacity:0;transform:translateY(30px);transition:opacity .75s,transform .75s}
-    .reveal.visible{opacity:1;transform:none}
-    .rd1{transition-delay:.1s}.rd2{transition-delay:.2s}.rd3{transition-delay:.3s}.rd4{transition-delay:.4s}
-
-    /* ABOUT */
-    #about{background:var(--grey-bg);position:relative;overflow:hidden}
-    .about-grid{display:grid;grid-template-columns:1fr 1.1fr;gap:60px;align-items:start}
-    .dika-card{position:relative}
-    /* No background wrapper — show section bg through transparent image */
-    .dika-img-wrap{position:relative;border-radius:6px;overflow:hidden}
-    .dika-img-wrap img{width:100%;height:auto;display:block;border-radius:6px}
-    .dika-band{
-      position:absolute;bottom:0;left:0;right:0;
-      background:linear-gradient(90deg,#ff3131,#ff914d);
-      padding:20px 26px;border-radius:0 0 6px 6px;
-    }
-    .dika-name{font-family:'Bricolage Grotesque',sans-serif;font-size:1.5rem;font-weight:800;color:white;line-height:1.1}
-    .dika-role{font-family:'Glacial Indifference',sans-serif;font-size:.72rem;font-weight:700;color:rgba(255,255,255,.85);margin-top:5px;line-height:1.4;letter-spacing:.3px}
-    .about-text p{font-size:.9rem;line-height:1.7;color:var(--text-m);margin-bottom:14px}
-    .about-text strong{color:var(--blue-d);font-weight:700}
-    .about-pillars{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:28px}
-    .pillar{background:white;border:1px solid var(--grey-lt);border-left:3px solid;padding:18px 16px;border-radius:3px;transition:transform .2s,box-shadow .2s}
-    .pillar:nth-child(odd){border-left-color:var(--og1)}
-    .pillar:nth-child(even){border-left-color:var(--blue)}
-    .pillar:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(30,58,110,.1)}
-    .pillar-title{font-family:'Bricolage Grotesque',sans-serif;font-size:.82rem;font-weight:700;color:var(--blue-d);margin-bottom:4px}
-    .pillar-desc{font-size:.75rem;color:var(--text-m);line-height:1.5}
-
-    /* JAGAT */
-    #jagat{background:var(--navy);position:relative;overflow:hidden}
-    #jagat::before{
-      content:'JAGAT';position:absolute;
-      font-family:'Bricolage Grotesque',sans-serif;
-      font-size:22vw;font-weight:900;color:rgba(255,255,255,.018);
-      top:50%;left:50%;transform:translate(-50%,-50%);
-      white-space:nowrap;pointer-events:none;
-    }
-    .jagat-grid{display:grid;grid-template-columns:1fr 1.3fr;gap:60px;align-items:center;position:relative;z-index:1}
-    .jagat-text .section-eyebrow{color:var(--og2)}
-    .jagat-text .section-title{color:white}
-    .jagat-text p{font-size:.92rem;line-height:1.85;color:rgba(255,255,255,.6);margin-bottom:16px}
-    .jagat-text strong{color:var(--og2);font-weight:700}
-    /* No background on jagat img — transparent PNG over dark navy looks great */
-    .jagat-img-main img{
-      width:100%;height:auto;border-radius:10px;
-      box-shadow:0 20px 60px rgba(0,0,0,.5);
-      animation:float 4s ease-in-out infinite;
-    }
-    @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
-    .jagat-stickers{margin-top:60px;position:relative;z-index:1}
-    .jagat-stickers-label{font-family:'Glacial Indifference',sans-serif;font-size:.65rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.3);text-align:center;margin-bottom:16px}
-    .jagat-stickers img{width:100%;height:auto}
-
-    /* INFO */
-    #info{background:white}
-    .info-layout{display:grid;grid-template-columns:1.2fr 1fr;gap:60px;align-items:start}
-    .info-table-wrap{border:1px solid var(--grey-lt);border-radius:6px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.05)}
-    table{width:100%;border-collapse:collapse}
-    thead{background:var(--blue-d)}
-    thead th{padding:16px 22px;text-align:left;font-family:'Bricolage Grotesque',sans-serif;font-size:.72rem;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:white}
-    tbody tr{border-bottom:1px solid var(--grey-lt);transition:background .15s}
-    tbody tr:last-child{border-bottom:none}
-    tbody tr:hover{background:#f7f9fc}
-    td{font-family:'Glacial Indifference',sans-serif;padding:15px 22px;font-size:.88rem}
-    td:first-child{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;color:var(--blue);font-size:.72rem;letter-spacing:.5px;text-transform:uppercase;width:200px}
-    td:last-child{color:var(--text)}
-    .disc-label{font-family:'Bricolage Grotesque',sans-serif;font-size:.65rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--grey-dk);margin-bottom:16px}
-    .disc-list{display:flex;flex-direction:column;gap:10px}
-    .disc-item{display:flex;align-items:center;gap:14px;background:var(--grey-bg);border:1px solid var(--grey-lt);border-radius:4px;padding:14px 18px;transition:all .2s}
-    .disc-item:hover{background:white;border-color:var(--blue-lt);box-shadow:0 4px 16px rgba(30,58,110,.1)}
-    .disc-dot{width:10px;height:10px;border-radius:50%;background:var(--og-grad);flex-shrink:0}
-    .disc-name{font-family:'Bricolage Grotesque',sans-serif;font-size:.85rem;font-weight:700;color:var(--blue-d)}
-
-    /* MEDALS */
-    #medals{background:var(--navy);position:relative;overflow:hidden}
-    .medals-intro{position:relative;z-index:1;margin-bottom:60px}
-    .medals-intro .section-eyebrow{color:var(--og2)}
-    .medals-intro .section-title{color:white}
-    .medals-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;position:relative;z-index:1}
-    .medal-card{
-      text-align:center;padding:32px 20px;
-      border-radius:8px;position:relative;
-      transition:transform .3s;
-      /* NO background — transparent PNG over dark navy */
-    }
-    .medal-card:hover{transform:translateY(-10px)}
-    .medal-card img{
-      width:100%;height:auto;max-width:280px;
-      filter:drop-shadow(0 10px 40px rgba(0,0,0,.6));
-    }
-    .medal-label{
-      font-family:'Bricolage Grotesque',sans-serif;
-      font-size:.8rem;font-weight:800;letter-spacing:3px;
-      text-transform:uppercase;margin-top:20px;
-    }
-    .medal-card.gold .medal-label{color:#f5d07a}
-    .medal-card.silver .medal-label{color:#d0d8e4}
-    .medal-card.bronze .medal-label{color:#cd8050}
-
-    /* LANYARD */
-    #lanyard{
-      background:linear-gradient(135deg,var(--og1) 0%,var(--og2) 100%);
-      padding:80px 5vw;overflow:hidden;position:relative;
-    }
-    .lanyard-inner{display:grid;grid-template-columns:1fr 1.6fr;align-items:center;gap:60px;}
-    .lanyard-text{position:relative;z-index:2}
-    .lanyard-text .section-eyebrow{color:rgba(255,255,255,.6)}
-    .lanyard-text .section-title{color:white;font-size:clamp(2rem,4vw,3.2rem)}
-    .lanyard-text .section-rule{background:rgba(255,255,255,.5)}
-    .lanyard-text p{font-size:.95rem;line-height:1.8;color:rgba(255,255,255,.8);max-width:480px}
-    .lanyard-img{display:flex;align-items:center;justify-content:center}
-    .lanyard-img img{
-      height:auto;width:100%;max-width:800px;
-      transform:rotate(-12deg) translateY(30px);
-      filter:drop-shadow(-20px 20px 60px rgba(0,0,0,.4));
-      transition:transform .4s;
-      /* transparent PNG over orange bg — perfect */
-    }
-    .lanyard-img img:hover{transform:scale(1.02)}
-
-    /* AUDIENCE */
-    #audience{background:var(--grey-bg)}
-    .audience-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;margin-bottom:52px}
-    .audience-card{background:white;border:1px solid var(--grey-lt);padding:32px 28px;border-radius:6px;position:relative;overflow:hidden;transition:transform .25s,box-shadow .25s;box-shadow:0 2px 12px rgba(0,0,0,.04)}
-    .audience-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--og-grad)}
-    .audience-card:hover{transform:translateY(-5px);box-shadow:0 16px 40px rgba(30,58,110,.12)}
-    .ac-num{font-family:'Bricolage Grotesque',sans-serif;font-size:3rem;font-weight:900;color:rgba(45,80,153,.06);line-height:1;position:absolute;top:12px;right:18px;font-style:italic}
-    .ac-title{font-family:'Bricolage Grotesque',sans-serif;font-size:.85rem;font-weight:800;color:var(--blue-d);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px}
-    .ac-desc{font-size:.82rem;color:var(--text-m);line-height:1.65}
-    .sponsor-why{background:var(--blue-d);border-radius:6px;padding:52px 48px;position:relative;overflow:hidden}
-    .sw-title{font-family:'Bricolage Grotesque',sans-serif;font-size:1rem;font-weight:900;text-transform:uppercase;letter-spacing:2px;margin-bottom:32px;background:var(--og-grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-    .sw-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:32px}
-    .sw-item-title{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;color:white;margin-bottom:8px;font-size:.88rem}
-    .sw-item-desc{font-size:.8rem;color:rgba(255,255,255,.5);line-height:1.65}
-
-    /* SPONSORSHIP */
-    #sponsorship{background:white}
-    .sp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:50px}
-    .sp-card{border-radius:6px;padding:32px 24px;position:relative;overflow:hidden;transition:transform .25s,box-shadow .25s;box-shadow:0 3px 14px rgba(0,0,0,.07)}
-    .sp-card:hover{transform:translateY(-6px);box-shadow:0 18px 44px rgba(0,0,0,.1)}
-    .sp-card.title-card{grid-column:span 4;background:var(--blue-d);display:grid;grid-template-columns:1fr auto;align-items:center;gap:40px;padding:40px 48px}
-    .sp-card.gold-card{background:white;border:1px solid rgba(255,145,77,.25);border-top:3px solid var(--og1)}
-    .sp-card.silver-card{background:white;border:1px solid var(--grey-lt);border-top:3px solid var(--grey-mid)}
-    .sp-card.support-card{background:white;border:1px dashed var(--grey-lt);border-top:3px solid var(--blue-lt)}
-    .sp-tier{font-family:'Bricolage Grotesque',sans-serif;font-size:.65rem;font-weight:800;letter-spacing:3px;text-transform:uppercase;margin-bottom:12px}
-    .title-card .sp-tier{color:rgba(255,255,255,.5)}
-    .gold-card .sp-tier,.silver-card .sp-tier,.support-card .sp-tier{color:var(--grey-dk)}
-    .sp-heading{font-family:'Bricolage Grotesque',sans-serif;font-size:1.6rem;font-weight:900;line-height:1.1;margin-bottom:10px;color:white}
-    .sp-sub{font-family:'Glacial Indifference',sans-serif;font-size:.82rem;color:rgba(255,255,255,.5);line-height:1.6}
-    .sp-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
-    .sp-chip{display:inline-block;font-family:'Glacial Indifference',sans-serif;font-size:.65rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:4px 12px;border-radius:100px}
-    .title-card .sp-chip{background:rgba(255,255,255,.1);color:rgba(255,255,255,.7)}
-    .gold-card .sp-chip{background:rgba(255,49,49,.08);color:var(--og1);border:1px solid rgba(255,49,49,.2)}
-    .silver-card .sp-chip{background:var(--grey-bg);color:var(--grey-dk)}
-    .support-card .sp-chip{background:rgba(45,80,153,.08);color:var(--blue)}
-    .sp-exclusive{background:var(--og-grad);color:white;font-family:'Bricolage Grotesque',sans-serif;font-size:.72rem;font-weight:900;letter-spacing:2px;text-transform:uppercase;padding:10px 22px;border-radius:3px;white-space:nowrap}
-    .sp-card-body{font-family:'Bricolage Grotesque',sans-serif;font-size:1.3rem;font-weight:700;line-height:1.2;margin-bottom:12px;color:var(--blue-d)}
-    .sp-card-desc{font-family:'Glacial Indifference',sans-serif;font-size:.8rem;color:var(--text-m);line-height:1.6;margin-bottom:14px}
-    .exposure-wrap{background:var(--grey-bg);border:1px solid var(--grey-lt);border-radius:6px;padding:44px}
-    .exposure-title{font-family:'Bricolage Grotesque',sans-serif;font-size:.88rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--blue-d);margin-bottom:24px}
-    .exposure-list{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px}
-    .exp-item{display:flex;align-items:center;gap:8px;background:white;border:1px solid var(--grey-lt);padding:9px 16px;border-radius:100px;font-family:'Glacial Indifference',sans-serif;font-size:.78rem;font-weight:600;color:var(--text);transition:all .2s}
-    .exp-item:hover{border-color:var(--og2)}
-    .exp-item::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--og-grad);flex-shrink:0}
-    .exp-note{font-family:'Glacial Indifference',sans-serif;font-size:.75rem;color:var(--text-m);font-style:italic}
-
-    /* MERCH */
-    #merch{background:var(--grey-bg);position:relative;overflow:hidden}
-    .merch-coming{display:inline-flex;align-items:center;gap:8px;background:var(--og-grad);color:white;padding:6px 18px;border-radius:100px;font-family:'Bricolage Grotesque',sans-serif;font-size:.68rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;box-shadow:0 4px 16px rgba(255,49,49,.3)}
-    .merch-coming::before{content:'';width:6px;height:6px;border-radius:50%;background:white;animation:pulse 1.5s infinite}
-    .merch-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:28px}
-    .merch-card{background:white;border:1px solid var(--grey-lt);border-radius:8px;overflow:hidden;text-align:center;transition:transform .3s,box-shadow .3s;box-shadow:0 4px 16px rgba(0,0,0,.06)}
-    .merch-card:hover{transform:translateY(-8px);box-shadow:0 20px 50px rgba(0,0,0,.12)}
-    /* Light background for merch images — transparent PNGs will show white cleanly */
-    .merch-img-wrap{background:var(--grey-bg);padding:32px;display:flex;align-items:center;justify-content:center;min-height:260px}
-    .merch-img-wrap img{max-height:200px;width:auto;filter:drop-shadow(0 8px 20px rgba(0,0,0,.15))}
-    .merch-info{padding:24px}
-    .merch-name{font-family:'Bricolage Grotesque',sans-serif;font-size:.88rem;font-weight:800;color:var(--blue-d);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
-    .merch-desc{font-size:.78rem;color:var(--text-m);line-height:1.5}
-    .merch-tag{display:inline-block;margin-top:12px;background:var(--og-grad);color:white;font-family:'Bricolage Grotesque',sans-serif;font-size:.6rem;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:3px 10px;border-radius:100px}
-
-    /* CONTACT */
-    #contact{background:var(--blue-d);position:relative;overflow:hidden}
-    #contact::before{content:'';position:absolute;width:500px;height:500px;border-radius:50%;border:1px solid rgba(255,255,255,.05);top:-200px;right:-80px}
-    .contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;position:relative;z-index:1}
-    .contact-left .section-eyebrow{color:rgba(255,145,77,.8)}
-    .contact-left .section-title{color:white}
-    .contact-left .section-rule{background:var(--og-grad)}
-    .contact-lead{font-size:.92rem;color:rgba(255,255,255,.55);line-height:1.8;margin-bottom:32px}
-    .contact-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:44px}
-    .cc-name{font-family:'Bricolage Grotesque',sans-serif;font-size:1.7rem;font-weight:900;color:white;line-height:1.1;margin-bottom:4px}
-    .cc-name span{background:var(--og-grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-    .cc-role{font-family:'Glacial Indifference',sans-serif;font-size:.65rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:32px;background:var(--og-grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-    .cc-items{display:flex;flex-direction:column;gap:18px}
-    .cc-item{display:flex;align-items:center;gap:16px}
-    .cc-icon{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0}
-    .cc-icon svg{width:16px;height:16px;stroke:rgba(255,255,255,.6);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-    .cc-value{font-family:'Glacial Indifference',sans-serif;font-size:.9rem;color:rgba(255,255,255,.7)}
-    .cc-value a{color:rgba(255,255,255,.7);text-decoration:none;transition:color .2s}
-    .cc-value a:hover{color:var(--og2)}
-    .cc-audit{margin-top:28px;padding-top:24px;border-top:1px solid rgba(255,255,255,.08);font-family:'Glacial Indifference',sans-serif;font-size:.72rem;color:rgba(255,255,255,.25);font-style:italic}
-
-    /* FOOTER */
-    footer{background:#070f1b;padding:28px 5vw;display:flex;align-items:center;justify-content:space-between;border-top:1px solid rgba(255,255,255,.05)}
-    .footer-logo img{height:32px;width:auto}
-    .footer-copy{font-family:'Glacial Indifference',sans-serif;font-size:.72rem;color:rgba(255,255,255,.25)}
-    .footer-org img{height:28px;width:auto}
-
-    @media(max-width:960px){
-      .nav-links{display:none}
-      .hero-inner{grid-template-columns:1fr}
-      .hero-logo-side{display:none}
-      .about-grid,.jagat-grid,.info-layout,.contact-grid{grid-template-columns:1fr}
-      .sp-grid{grid-template-columns:1fr 1fr}
-      .sp-card.title-card{grid-column:span 2;grid-template-columns:1fr;gap:20px}
-      .sw-grid{grid-template-columns:1fr}
-      .medals-grid{grid-template-columns:1fr}
-      .merch-grid{grid-template-columns:1fr}
-      .audience-grid{grid-template-columns:1fr}
-      .lanyard-inner{grid-template-columns:1fr}
-      .lanyard-img{display:none}
-      footer{flex-direction:column;gap:10px;text-align:center}
-      .footer-org{text-align:center}
-    }
-  
-.medals-single{text-align:center}
-.medals-single img{
-  width:100%;max-width:1000px;height:auto;
-  border-radius:12px;
-  box-shadow:0 24px 80px rgba(0,0,0,.5);
-  filter:drop-shadow(0 0 40px rgba(255,145,77,.15));
-}
-.merch-single{text-align:center}
-.merch-single img{
-  width:100%;max-width:1000px;height:auto;
-  border-radius:12px;
-  filter:drop-shadow(0 16px 40px rgba(30,58,110,.15));
-}
-
-/* FLEXA */
-#flexa{background:white}
-.flexa-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
-.flexa-venue{border-radius:10px;overflow:hidden;box-shadow:0 16px 48px rgba(30,58,110,.15)}
-.flexa-venue img{width:100%;height:auto;display:block}
-.flexa-text .section-eyebrow{color:var(--og1)}
-.flexa-text p{font-size:.9rem;line-height:1.75;color:var(--text-m);margin-bottom:28px}
-.flexa-btns{display:flex;gap:14px;flex-wrap:wrap}
-.btn-loc{background:white;color:var(--blue-d);border:1.5px solid var(--blue-d)}
-.btn-loc:hover{background:var(--blue-d);color:white}
-@media(max-width:960px){.flexa-grid{grid-template-columns:1fr}}
-
-details.disc-item{
-  background:var(--grey-bg);border:1px solid var(--grey-lt);
-  border-radius:4px;overflow:hidden;cursor:pointer;
-  transition:border-color .2s;
-}
-details.disc-item[open]{border-color:var(--blue-lt);background:white}
-details.disc-item summary{
-  display:flex;align-items:center;gap:14px;
-  padding:14px 18px;list-style:none;user-select:none;
-  transition:background .15s;
-}
-details.disc-item summary::-webkit-details-marker{display:none}
-details.disc-item summary:hover{background:rgba(45,80,153,.04)}
-details.disc-item[open] summary{background:rgba(45,80,153,.04)}
-.disc-arrow{
-  margin-left:auto;font-size:.65rem;color:var(--grey-mid);
-  transition:transform .25s;
-}
-details.disc-item[open] .disc-arrow{transform:rotate(180deg);color:var(--og1)}
-.disc-desc{
-  padding:0 18px 16px 46px;
-  font-family:"Glacial Indifference",sans-serif;
-  font-size:.82rem;line-height:1.65;color:var(--text-m);
-  animation:fadeDescIn .25s ease;
-}
-@keyframes fadeDescIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
-
-/* ATHLETE REGISTRATION */
-#athlete{
-  background:var(--navy);
-  position:relative;overflow:hidden;padding:0;
-  min-height:560px;display:flex;align-items:center;
-}
-/* diagonal orange slash accents */
-#athlete::before{
-  content:'';position:absolute;
-  top:-60px;right:28%;width:4px;height:130%;
-  background:linear-gradient(180deg,transparent,#ff3131 30%,#ff914d 70%,transparent);
-  transform:rotate(12deg);opacity:.4;
-}
-#athlete::after{
-  content:'';position:absolute;
-  top:-60px;right:30%;width:2px;height:130%;
-  background:linear-gradient(180deg,transparent,#ff914d 40%,transparent);
-  transform:rotate(12deg);opacity:.2;
-}
-/* glowing bg orb */
-.athlete-orb{
-  position:absolute;width:700px;height:700px;border-radius:50%;
-  background:radial-gradient(ellipse,rgba(255,49,49,.12) 0%,transparent 70%);
-  right:-100px;top:-100px;pointer-events:none;
-}
-.athlete-inner{
-  display:grid;grid-template-columns:1fr 1fr;
-  align-items:center;width:100%;
-  padding:80px 5vw;
-  position:relative;z-index:2;
-  gap:40px;
-}
-.athlete-text .section-eyebrow{color:var(--og2)}
-.athlete-text .section-title{
-  color:white;font-size:clamp(2.2rem,5vw,3.8rem);
-  line-height:.95;margin-bottom:16px;
-}
-.athlete-text .section-title span{
-  background:var(--og-grad);-webkit-background-clip:text;
-  -webkit-text-fill-color:transparent;background-clip:text;
-  display:block;
-}
-.athlete-text .section-rule{background:var(--og-grad)}
-.athlete-lead{
-  font-family:'Glacial Indifference',sans-serif;
-  font-size:.95rem;line-height:1.8;color:rgba(255,255,255,.65);
-  max-width:480px;margin-bottom:36px;
-}
-.athlete-btns{display:flex;gap:14px;flex-wrap:wrap}
-.btn-white{
-  background:white;color:var(--blue-d);
-  font-family:'Bricolage Grotesque',sans-serif;
-  font-size:.8rem;font-weight:700;letter-spacing:1px;
-  text-transform:uppercase;padding:13px 28px;border-radius:3px;
-  text-decoration:none;transition:all .22s;display:inline-flex;align-items:center;gap:8px;
-  box-shadow:0 4px 20px rgba(0,0,0,.2);
-}
-.btn-white:hover{background:var(--og-grad);color:white;transform:translateY(-2px)}
-.btn-ghost-white{
-  background:transparent;color:rgba(255,255,255,.8);
-  border:1.5px solid rgba(255,255,255,.3);
-  font-family:'Bricolage Grotesque',sans-serif;
-  font-size:.8rem;font-weight:700;letter-spacing:1px;
-  text-transform:uppercase;padding:13px 28px;border-radius:3px;
-  text-decoration:none;transition:all .22s;display:inline-flex;align-items:center;
-}
-.btn-ghost-white:hover{border-color:var(--og2);color:var(--og2)}
-.athlete-visual{
-  display:flex;align-items:center;justify-content:center;
-  position:relative;
-}
-/* background ring decorations */
-.athlete-ring{
-  position:absolute;border-radius:50%;border:1px solid rgba(255,255,255,.06);
-}
-.ar-1{width:420px;height:420px}
-.ar-2{width:300px;height:300px;border-color:rgba(255,49,49,.1)}
-.ar-3{width:180px;height:180px;border-color:rgba(255,145,77,.12)}
-/* stat badges floating around the figure */
-.athlete-stat{
-  position:absolute;
-  background:rgba(255,255,255,.07);
-  border:1px solid rgba(255,255,255,.12);
-  backdrop-filter:blur(8px);
-  padding:10px 18px;border-radius:6px;
-  text-align:center;
-}
-.as-num{
-  font-family:'Bricolage Grotesque',sans-serif;
-  font-size:1.6rem;font-weight:900;
-  background:var(--og-grad);-webkit-background-clip:text;
-  -webkit-text-fill-color:transparent;background-clip:text;
-  line-height:1;
-}
-.as-label{
-  font-family:'Glacial Indifference',sans-serif;
-  font-size:.58rem;font-weight:700;letter-spacing:1.5px;
-  text-transform:uppercase;color:rgba(255,255,255,.45);margin-top:2px;
-}
-.as-top-left{top:20px;left:10px}
-.as-top-right{top:20px;right:10px}
-.as-bottom{bottom:20px;left:50%;transform:translateX(-50%);white-space:nowrap}
-@media(max-width:960px){
-  .athlete-inner{grid-template-columns:1fr;padding:64px 5vw}
-  .athlete-visual{display:none}
-}
-
-
-/* ATHLETE REGISTRATION */
-#athlete{
-  position:relative;overflow:hidden;padding:0;
-  min-height:600px;display:flex;align-items:stretch;
-}
-.athlete-bg{
-  position:absolute;inset:0;
-  background-image:url('assets/img/hero-athlete.jpg');
-  background-size:cover;background-position:center 30%;
-  background-repeat:no-repeat;
-}
-/* dark gradient overlay — heavier on left for text, fades right */
-.athlete-bg::after{
-  content:'';position:absolute;inset:0;
-  background:linear-gradient(90deg,
-    rgba(11,21,37,.95) 0%,
-    rgba(11,21,37,.85) 38%,
-    rgba(11,21,37,.35) 65%,
-    rgba(11,21,37,.05) 100%
-  );
-}
-.athlete-inner{
-  position:relative;z-index:2;
-  max-width:640px;
-  padding:96px 5vw 80px;
-  display:flex;flex-direction:column;justify-content:center;
-}
-.athlete-inner .section-eyebrow{color:var(--og2)}
-.athlete-inner .section-title{
-  color:white;font-size:clamp(2.2rem,5vw,3.8rem);
-  line-height:.95;margin-bottom:16px;
-}
-.athlete-inner .section-title span{
-  background:var(--og-grad);-webkit-background-clip:text;
-  -webkit-text-fill-color:transparent;background-clip:text;
-  display:block;
-}
-.athlete-inner .section-rule{background:var(--og-grad)}
-.athlete-lead{
-  font-family:'Glacial Indifference',sans-serif;
-  font-size:.95rem;line-height:1.8;color:rgba(255,255,255,.7);
-  max-width:480px;margin-bottom:36px;
-}
-.athlete-btns{display:flex;gap:12px;flex-wrap:wrap}
-.btn-ghost-white{
-  background:transparent;color:rgba(255,255,255,.8);
-  border:1.5px solid rgba(255,255,255,.3);
-  font-family:'Bricolage Grotesque',sans-serif;
-  font-size:.8rem;font-weight:700;letter-spacing:1px;
-  text-transform:uppercase;padding:13px 28px;border-radius:3px;
-  text-decoration:none;transition:all .22s;display:inline-flex;align-items:center;
-}
-.btn-ghost-white:hover{border-color:var(--og2);color:var(--og2)}
-.athlete-credit{
-  position:absolute;bottom:12px;right:16px;z-index:3;
-  font-family:'Glacial Indifference',sans-serif;
-  font-size:.6rem;color:rgba(255,255,255,.3);
-}
-.athlete-credit a{color:rgba(255,255,255,.35);text-decoration:none}
-.athlete-credit a:hover{color:rgba(255,255,255,.65)}
-@media(max-width:960px){
-  .athlete-inner{padding:64px 5vw}
-  .athlete-bg::after{background:rgba(11,21,37,.85)}
-}
-
-
-/* ═══════════════════════════════════════════════
-   COMPREHENSIVE MOBILE FIXES
-═══════════════════════════════════════════════ */
-
-/* 1. Lock horizontal scroll globally */
-html, body {
-  overflow-x: hidden;
-  max-width: 100%;
-}
-
-/* 2. Stats ribbon — clean 2×3 wrap on mobile */
-@media (max-width: 700px) {
-  .stats-ribbon {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0;
-  }
-  .stat-item {
-    border-right: 1px solid rgba(255,255,255,.1);
-    border-bottom: 1px solid rgba(255,255,255,.1);
-    padding: 16px 8px;
-    min-width: 0;
-  }
-  /* last row: center the lone item */
-  .stat-item:nth-child(4) { grid-column: 1; }
-  .stat-item:nth-child(5) { grid-column: 2 / span 2; }
-  .stat-num {
-    font-size: clamp(.95rem, 4.5vw, 1.4rem);
-    white-space: normal;
-    word-break: break-word;
-  }
-  .stat-label { font-size: .5rem; letter-spacing: 1px; }
-}
-
-/* 3. Lanyard section — show image on mobile, animate instead of hover */
-@media (max-width: 960px) {
-  #lanyard { padding: 60px 5vw; }
-  .lanyard-inner {
-    grid-template-columns: 1fr !important;
-    gap: 36px;
-  }
-  .lanyard-img {
-    display: flex !important;   /* override the old display:none */
-    justify-content: center;
-    align-items: center;
-  }
-  .lanyard-img img {
-    width: 100%;
-    max-width: 100%;
-    height: auto;
-    transform: none !important;
-    /* auto-float animation so mobile users feel the energy */
-    animation: lanyardFloat 3.5s ease-in-out infinite;
-    border-radius: 8px;
-    box-shadow: 0 12px 40px rgba(0,0,0,.25);
-  }
-  @keyframes lanyardFloat {
-    0%, 100% { transform: translateY(0) rotate(0deg); }
-    50%       { transform: translateY(-10px) rotate(1deg); }
-  }
-}
-
-/* 4. Hero section — prevent shapes from overflowing */
-.hero-shape, .hero-shape2 {
-  max-width: 100%;
-}
-@media (max-width: 700px) {
-  .hero { padding: 100px 5vw 60px; overflow: hidden; }
-  .hero-shape  { width: 80%; right: -15%; }
-  .hero-shape2 { display: none; }
-}
-
-/* 5. General section overflow guard */
-section, div[id] {
-  max-width: 100%;
-  overflow-x: hidden;
-}
-
-/* 6. Jagat grid text order fix on mobile */
-@media (max-width: 960px) {
-  .jagat-grid { grid-template-columns: 1fr !important; }
-  .jagat-img-main { order: 1 !important; }
-  .jagat-text    { order: 2 !important; }
-}
-
-/* 7. Nav org logos — don't overflow on small screens */
-@media (max-width: 700px) {
-  .nav-org { display: none; }
-  nav { padding: 12px 4vw; }
-}
-
-/* 8. Sponsorship grid on small mobile */
-@media (max-width: 600px) {
-  .sp-grid { grid-template-columns: 1fr !important; }
-  .sp-card.title-card { grid-column: span 1 !important; }
-}
-
-/* 9. Contact grid */
-@media (max-width: 700px) {
-  .contact-grid { grid-template-columns: 1fr !important; gap: 40px; }
-}
-
-/* 10. Flexa grid */
-@media (max-width: 700px) {
-  .flexa-grid { grid-template-columns: 1fr !important; }
-}
-
-/* 11. About grid + Jagat sticker */
-@media (max-width: 700px) {
-  .about-grid { grid-template-columns: 1fr !important; gap: 32px; }
-  .audience-grid { grid-template-columns: 1fr !important; }
-}
-
-/* 12. Merch + medals images — constrain on mobile */
-@media (max-width: 700px) {
-  .medals-single img, .merch-single img {
-    border-radius: 8px;
-  }
-}
-
-/* 13. Athlete section text padding on mobile */
-@media (max-width: 700px) {
-  .athlete-inner { padding: 80px 5vw 60px; }
-}
-
-
-/* ── Collapsible disciplines mobile fix ── */
-@media (max-width: 960px) {
-  /* Info section: stack to single column */
-  .info-layout {
-    grid-template-columns: 1fr !important;
-  }
-
-  /* Force details to block so desc never sits beside the summary */
-  details.disc-item {
-    display: block !important;
-  }
-  details.disc-item summary {
-    display: flex !important;
-    flex-wrap: nowrap;
-    align-items: center;
-    width: 100%;
-  }
-  .disc-name {
-    flex: 1;
-    min-width: 0;
-  }
-  .disc-arrow {
-    flex-shrink: 0;
-    margin-left: auto;
-  }
-  /* Description sits cleanly below summary */
-  .disc-desc {
-    display: block !important;
-    width: 100% !important;
-    padding: 0 16px 16px 16px !important;
-    box-sizing: border-box;
-    font-size: .84rem !important;
-    line-height: 1.65 !important;
-    word-break: break-word;
-  }
-}
-
-
-
-/* Stage: perspective container gives the cylinder feel */
-.mem-stage {
-  perspective: 1200px;
-  perspective-origin: 50% 50%;
-  overflow: hidden;
-  width: 100%;
-}
-
-/* Track scrolls continuously */
-.mem-track {
-  display: flex;
-  gap: 20px;
-  width: max-content;
-  animation: memScroll 42s linear infinite;
-  padding: 20px 10px 28px;
-  transform-style: preserve-3d;
-}
-.mem-track:hover { animation-play-state: paused; }
-
-@keyframes memScroll {
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-
-/* Individual cards */
-.mem-card {
-  flex-shrink: 0;
-  width: 300px;
-  height: 370px;
-  border-radius: 10px;
-  overflow: hidden;
-  position: relative;
-  cursor: default;
-  box-shadow: 0 8px 30px rgba(0,0,0,.5);
-  transition:
-    transform .35s cubic-bezier(.34,1.56,.64,1),
-    box-shadow .35s ease;
-  /* JS will add rotateY via inline style */
-  transform-style: preserve-3d;
-  user-select: none;
-}
-.mem-card img {
-  width: 100%; height: 100%;
-  object-fit: cover;
-  display: block;
-  pointer-events: none;
-  transition: transform .5s ease;
-}
-.mem-card:hover img { transform: scale(1.06); }
-.mem-card:hover {
-  box-shadow: 0 20px 60px rgba(255,49,49,.3), 0 0 0 2px rgba(255,145,77,.4);
-  z-index: 10;
-}
-.mem-card:active {
-  transform: scale(.96) translateY(2px) !important;
-  box-shadow: 0 4px 16px rgba(0,0,0,.5) !important;
-  transition: transform .1s, box-shadow .1s;
-}
-
-.mem-caption {
-  position: absolute; bottom: 0; left: 0; right: 0;
-  background: linear-gradient(0deg, rgba(11,21,37,.9) 0%, transparent 100%);
-  padding: 28px 14px 12px;
-  font-family: 'Glacial Indifference', sans-serif;
-  font-size: .72rem; font-weight: 700; letter-spacing: 1px;
-  text-transform: uppercase; color: rgba(255,255,255,.75);
-  opacity: 0; transition: opacity .3s;
-}
-.mem-card:hover .mem-caption { opacity: 1; }
-
-/* ── Mobile: smaller cards, slower ── */
-@media (max-width: 700px) {
-  .mem-card { width: 220px; height: 270px; }
-  .mem-track { animation-duration: 30s; }
-}
-
-
-
-/* track: JS drives translateX, CSS handles nothing */
-.mem-track {
-  display: flex;
-  gap: 18px;
-  width: max-content;
-  padding: 24px 10px 32px;
-  transform-style: preserve-3d;
-  will-change: transform;
-}
-
-.mem-card {
-  flex-shrink: 0;
-  width: 280px;
-  height: 350px;
-  border-radius: 10px;
-  overflow: hidden;
-  position: relative;
-  cursor: default;
-  box-shadow: 0 8px 28px rgba(0,0,0,.55);
-  transition: box-shadow .3s ease;
-  transform-style: preserve-3d;
-  user-select: none;
-  -webkit-user-drag: none;
-}
-.mem-card img {
-  width: 100%; height: 100%;
-  object-fit: cover; display: block;
-  pointer-events: none;
-  transition: transform .45s ease;
-}
-.mem-card:hover img  { transform: scale(1.07); }
-.mem-card:hover {
-  box-shadow: 0 22px 60px rgba(255,49,49,.35), 0 0 0 2px rgba(255,145,77,.45);
-}
-.mem-card:active {
-  transition: transform .08s, box-shadow .08s;
-}
-.mem-caption {
-  position: absolute; bottom: 0; left: 0; right: 0;
-  background: linear-gradient(0deg, rgba(11,21,37,.92) 0%, transparent 100%);
-  padding: 30px 14px 12px;
-  font-family: 'Glacial Indifference', sans-serif;
-  font-size: .7rem; font-weight: 700; letter-spacing: 1.2px;
-  text-transform: uppercase; color: rgba(255,255,255,.8);
-  opacity: 0; transition: opacity .28s;
-}
-.mem-card:hover .mem-caption { opacity: 1; }
-
-@media (max-width: 700px) {
-  .mem-card { width: 210px; height: 260px; }
-}
-
-
-
-#memories {
-  background: var(--navy);
-  padding: 80px 0;
-  overflow: hidden;
-  position: relative;
-}
-#memories::before {
-  content: '';
-  position: absolute; inset: 0;
-  background: radial-gradient(ellipse 70% 50% at 50% 50%, rgba(255,49,49,.06), transparent);
-  pointer-events: none;
-}
-.mem-header { padding: 0 5vw 48px; position: relative; z-index: 1; }
-.mem-header .section-eyebrow { color: var(--og2); }
-.mem-header .section-title   { color: white; }
-.mem-header p { color: rgba(255,255,255,.5); font-family:'Glacial Indifference',sans-serif; font-size:.9rem; max-width:500px; line-height:1.7; }
-
-/* Stage: perspective lives here, overflow clips */
-.mem-stage {
-  overflow: hidden;          /* single value → clips both axes equally */
-  padding: 32px 0;           /* vertical room so drop-shadow isn't hard-clipped */
-  width: 100%;
-  perspective: 1400px;
-  perspective-origin: 50% 50%;
-  position: relative;
-}
-/* Gradient overlays replace mask-image — they don't clip filters */
-.mem-stage::before,
-.mem-stage::after {
-  content: '';
-  position: absolute;
-  top: 0; bottom: 0;
-  width: 8%;
-  z-index: 5;
-  pointer-events: none;
-}
-.mem-stage::before {
-  left: 0;
-  background: linear-gradient(to right, var(--navy) 0%, transparent 100%);
-}
-.mem-stage::after {
-  right: 0;
-  background: linear-gradient(to left, var(--navy) 0%, transparent 100%);
-}
-
-/* Inner scrolls via CSS animation — PARENT of cards */
-.mem-inner {
-  display: flex;
-  width: max-content;
-  will-change: transform;
-  cursor: grab;
-}
-
-
-
-  100% { transform: translateX(-50%); }
-}
-
-/* Each set is a flex row */
-.mem-set {
-  display: flex;
-  gap: 18px;
-  padding-right: 18px;   /* matches gap so loop is gapless */
-  flex-shrink: 0;
-}
-
-/* Cards: JS applies rotateY (never touches translateX) */
-.mem-card {
-  flex-shrink: 0;
-  width: 280px;
-  height: 350px;
-  border-radius: 10px;
-  overflow: hidden;
-  position: relative;
-  cursor: default;
-  box-shadow: 0 8px 28px rgba(0,0,0,.55);
-  /* transition only for hover lift */
-  transition: transform .32s cubic-bezier(.34,1.4,.64,1), box-shadow .32s;
-  user-select: none;
-}
-.mem-card img {
-  width: 100%; height: 100%;
-  object-fit: cover; display: block;
-  pointer-events: none;
-  transition: transform .45s ease;
-}
-.mem-card:hover img  { transform: scale(1.07); }
-.mem-card:hover {
-  box-shadow: 0 12px 36px rgba(255,49,49,.28);
-  filter: drop-shadow(0 0 7px rgba(255,80,15,.7));
-}
-.mem-card:active { transform: scale(.96) !important; transition: transform .08s; }
-
-.mem-caption {
-  position: absolute; bottom: 0; left: 0; right: 0;
-  background: linear-gradient(0deg, rgba(11,21,37,.92) 0%, transparent 100%);
-  padding: 30px 14px 12px;
-  font-family: 'Glacial Indifference', sans-serif;
-  font-size: .7rem; font-weight: 700; letter-spacing: 1.2px;
-  text-transform: uppercase; color: rgba(255,255,255,.8);
-  opacity: 0; transition: opacity .28s;
-}
-.mem-card:hover .mem-caption { opacity: 1; }
-
-@media (max-width: 700px) {
-  .mem-card { width: 200px; height: 250px; }
-}
-
-
-/* Nav org logos — side by side, not stacked */
-.nav-org {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center;
-  gap: 6px;
-}
-.nav-org img { height: 34px !important; width: auto !important; }
-
-/* Shrink nav at medium widths */
-@media (max-width: 1280px) {
-  .nav-links { gap: 14px; }
-  .nav-links a { font-size: .62rem; letter-spacing: .8px; }
-  .nav-logo img { height: 34px; }
-}
-@media (max-width: 1060px) {
-  /* Hide lower-priority links */
-  .nav-links li:nth-child(n+6) { display: none; }
-}
-
-
-
-
-/* ═══ MEMORIES — simple CSS marquee ═══ */
-#memories {
-  background: var(--navy);
-  padding: 80px 0;
-  overflow: hidden;
-  position: relative;
-}
-#memories::before {
-  content: '';
-  position: absolute; inset: 0;
-  background: radial-gradient(ellipse 70% 50% at 50% 50%, rgba(255,49,49,.06), transparent);
-  pointer-events: none;
-}
-.mem-header { padding: 0 5vw 48px; position: relative; z-index: 1; }
-.mem-header .section-eyebrow { color: var(--og2); }
-.mem-header .section-title   { color: white; }
-.mem-header p {
-  color: rgba(255,255,255,.5);
-  font-family: 'Glacial Indifference', sans-serif;
-  font-size: .9rem; max-width: 500px; line-height: 1.7;
-}
-/* Fade edges with overlaid pseudo-elements */
-#memories .mem-wrap {
-  position: relative;
-  overflow: hidden;
-}
-#memories .mem-wrap::before,
-#memories .mem-wrap::after {
-  content: '';
-  position: absolute; top: 0; bottom: 0; z-index: 2;
-  width: 80px; pointer-events: none;
-}
-#memories .mem-wrap::before { left:  0; background: linear-gradient(to right, var(--navy), transparent); }
-#memories .mem-wrap::after  { right: 0; background: linear-gradient(to left,  var(--navy), transparent); }
-
-/* The scrolling track — animation lives here */
-.mt {
-  display: flex;
-  flex-wrap: nowrap;
-  animation: memRoll 38s linear infinite;
-  padding: 20px 0 24px;   /* vertical room for hover shadow */
-}
-.mt:hover { animation-play-state: paused; }
-@keyframes memRoll {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
-}
-
-/* Each set */
-.ms {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 20px;
-  flex-shrink: 0;
-  padding-right: 20px;   /* close the gap at the seam */
-}
-
-/* Individual card */
-.mc {
-  flex-shrink: 0;
-  width: 270px;
-  height: 340px;
-  border-radius: 10px;
-  overflow: hidden;
-  position: relative;
-  box-shadow: 0 6px 24px rgba(0,0,0,.5);
-  cursor: default;
-  transition: transform .32s cubic-bezier(.34,1.4,.64,1),
-              box-shadow .32s ease,
-              filter .32s ease;
-}
-.mc img {
-  width: 100%; height: 100%;
-  object-fit: cover; display: block;
-  transition: transform .45s ease;
-}
-.mc:hover {
-  transform: scale(1.07) translateY(-6px);
-  box-shadow: 0 14px 40px rgba(255,49,49,.28);
-  filter: drop-shadow(0 0 8px rgba(255,80,20,.55));
-}
-.mc:hover img { transform: scale(1.05); }
-.mc:active { transform: scale(.97) translateY(0); transition: transform .1s; }
-
-.mc-cap {
-  position: absolute; bottom: 0; left: 0; right: 0;
-  background: linear-gradient(0deg, rgba(11,21,37,.9) 0%, transparent 100%);
-  padding: 28px 14px 12px;
-  font-family: 'Glacial Indifference', sans-serif;
-  font-size: .7rem; font-weight: 700; letter-spacing: 1.2px;
-  text-transform: uppercase; color: rgba(255,255,255,.8);
-  opacity: 0; transition: opacity .25s;
-}
-.mc:hover .mc-cap { opacity: 1; }
-
-@media (max-width: 700px) {
-  .mc { width: 200px; height: 250px; }
-  .mt { animation-duration: 28s; }
-}
-
-
-    /* ---- tambahan pembaruan konten Oktober 2026 ---- */
-    .lang-sw{display:inline-flex;border:1.5px solid var(--grey-lt);border-radius:4px;overflow:hidden;margin-right:10px}
-    .lang-sw button{background:none;border:0;padding:6px 9px;font:700 .72rem 'Bricolage Grotesque',sans-serif;color:var(--grey-dk);cursor:pointer}
-    .lang-sw button[aria-pressed="true"]{background:var(--blue-d);color:#fff}
-    .nav-status{font-family:'Bricolage Grotesque',sans-serif;font-size:.78rem;font-weight:700;color:var(--blue-d);text-decoration:none;margin-right:14px}
-    .countdown{display:flex;gap:10px;margin:0 0 26px;animation:fadeUp .7s .45s both}
-    .countdown div{background:var(--blue-d);color:#fff;border-radius:6px;padding:10px 12px;min-width:66px;text-align:center}
-    .countdown b{display:block;font-family:'Bricolage Grotesque',sans-serif;font-size:1.6rem;line-height:1;font-variant-numeric:tabular-nums}
-    .countdown span{font-size:.68rem;color:var(--blue-lt)}
-    .countdown-label{font-size:.8rem;color:var(--text-m);margin-bottom:8px;animation:fadeUp .7s .4s both}
-    .btn-soon{background:transparent;color:var(--grey-dk);border:1.5px dashed var(--grey-mid);cursor:not-allowed}
-    .about-grid.single{grid-template-columns:1fr;max-width:860px}
-    .sched-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
-    .sched-card{border:1px solid var(--grey-lt);border-radius:8px;overflow:hidden;background:#fff}
-    .sched-card h3{font-size:1.15rem;padding:16px 18px 4px;color:var(--blue-d)}
-    .sched-card .when{padding:0 18px 12px;font-size:.85rem;color:var(--text-m)}
-    .sched-card table{width:100%;border-collapse:collapse;font-size:.86rem}
-    .sched-card td{padding:9px 18px;border-top:1px solid var(--grey-lt);vertical-align:top}
-    .sched-card td:first-child{white-space:nowrap;font-weight:700;color:var(--text);width:1%}
-    .note-prov{font-size:.82rem;color:var(--text-m);margin-top:16px}
-    .fee-layout{display:grid;grid-template-columns:1.1fr 1fr;gap:48px;align-items:start}
-    .fee-table{width:100%;border-collapse:collapse;font-size:.92rem}
-    .fee-table td{padding:12px 16px;border-bottom:1px solid var(--grey-lt)}
-    .fee-table td:last-child{text-align:right;font-weight:800;font-family:'Bricolage Grotesque',sans-serif;white-space:nowrap}
-    .pri-box{margin-top:18px;border-left:4px solid var(--og2);background:#fff6f0;padding:14px 18px;font-size:.88rem;line-height:1.7;color:var(--text)}
-    .steps-list{list-style:none;padding:0;margin:0;counter-reset:st}
-    .steps-list li{counter-increment:st;position:relative;padding:0 0 18px 48px;font-size:.92rem;line-height:1.6;color:var(--text)}
-    .steps-list li::before{content:counter(st);position:absolute;left:0;top:-2px;width:32px;height:32px;border-radius:50%;background:var(--blue-d);color:#fff;display:grid;place-items:center;font:800 .9rem 'Bricolage Grotesque',sans-serif}
-    .steps-list li b{display:block;color:var(--blue-d)}
-    .docs-req{font-size:.86rem;color:var(--text-m);line-height:1.7;margin-top:6px}
-    .cp-list{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:22px}
-    .cp{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:12px 14px;color:#fff}
-    .cp small{display:block;color:rgba(255,255,255,.55);font-size:.72rem}
-    .cp a{color:#fff;text-decoration:none;font-weight:700}
-    .footer-links{display:flex;gap:16px;flex-wrap:wrap}
-    .footer-links a{color:rgba(255,255,255,.6);font-size:.8rem;text-decoration:none}
-    .footer-links a:hover{color:#fff}
-    .live{font-variant-numeric:tabular-nums}
-    @media(max-width:960px){
-      .sched-grid,.fee-layout,.cp-list{grid-template-columns:1fr}
-      .nav-status{display:none}
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jabar Open 2026 · Kejuaraan Gimnastik · Bandung, 12–20 Desember 2026</title>
+<meta name="description" content="Jabar Open 2026: kejuaraan gimnastik terbuka Artistik Putra, Artistik Putri, Ritmik, dan Aerobik di Gymnasium Arcamanik, Bandung, 12–20 Desember 2026. Pendaftaran daring dibuka hingga 12 November 2026.">
+<meta property="og:title" content="Jabar Open 2026">
+<meta property="og:description" content="Satu arena. Empat disiplin. Ratusan mimpi. Gymnasium Arcamanik, Bandung, 12–20 Desember 2026.">
+<meta property="og:image" content="https://adjisena-design.github.io/jabar-open/assets/img/og.jpg">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" href="assets/img/favicon.png">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300..800;1,300..800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="assets/img/hero/medals.webp" imagesrcset="assets/img/hero/medals-800.webp 800w, assets/img/hero/medals.webp 1502w" imagesizes="(max-width:900px) 96vw, 62vw">
+<link rel="stylesheet" href="assets/css/landing.css">
+<script>document.documentElement.classList.add('js')</script>
 </head>
 <body>
+<a class="sr-only" href="#main">Lewati ke konten</a>
 
-<nav>
-  <div class="nav-logo"><a href="https://www.instagram.com/gimnastikjabar/" target="_blank" rel="noopener"><img src="assets/img/logo-gi-jabar.png" alt="Gimnastik Indonesia Jawa Barat"/></a></div>
-  <ul class="nav-links">
-    <li><a href="#about" data-i18n="n_about">Tentang</a></li>
-    <li><a href="#info" data-i18n="n_info">Informasi</a></li>
-    <li><a href="#jadwal" data-i18n="n_sched">Jadwal</a></li>
-    <li><a href="#biaya" data-i18n="n_fee">Biaya & cara daftar</a></li>
-    <li><a href="startlist.html" data-i18n="n_startlist">Start list</a></li>
-    <li><a href="hasil.html" data-i18n="n_results">Hasil</a></li>
-    <li><a href="#contact" data-i18n="n_contact">Kontak</a></li>
-  </ul>
-  <div class="nav-right">
-    <span class="lang-sw" role="group" aria-label="Bahasa / Language"><button type="button" data-lang="id" aria-pressed="true">ID</button><button type="button" data-lang="en" aria-pressed="false">EN</button></span>
-    <a href="status.html" class="nav-status" data-i18n="n_status">Cek status</a>
-    <a href="daftar.html" class="nav-cta" data-i18n="n_register">Daftar</a>
-  </div>
-</nav>
-
-<section class="hero" id="hero">
-  <div class="hero-shape"></div>
-  <div class="hero-shape2"></div>
-  <div class="hero-inner">
-    <div class="hero-text">
-      <div class="hero-badge" data-i18n="h_badge">Kejuaraan Gimnastik Nasional</div>
-      <div class="hero-logo-text">
-        <img src="assets/img/logo-jabar-open.png" alt="Jabar Open 2026" class="hero-event-logo"/>
-      </div>
-      <p class="hero-desc" data-i18n="h_desc">Artistik Putra, Artistik Putri, Ritmik, dan Aerobik di Gymnasium Arcamanik, Bandung, 12–20 Desember 2026. Terbuka untuk sekolah, klub, perkumpulan, dan atlet perorangan dari seluruh Indonesia maupun luar negeri.</p>
-      <div class="countdown-label" data-i18n="h_count">Menuju hari pertama kompetisi, Sabtu 12 Desember 2026</div>
-      <div class="countdown" id="countdown" aria-live="off">
-        <div><b id="cd-d">0</b><span data-i18n="cd_d">hari</span></div>
-        <div><b id="cd-h">0</b><span data-i18n="cd_h">jam</span></div>
-        <div><b id="cd-m">0</b><span data-i18n="cd_m">menit</span></div>
-      </div>
-      <div class="hero-cta">
-        <a href="daftar.html" class="btn btn-og" data-i18n="h_cta1">Daftar sekarang</a>
-        <a href="#biaya" class="btn btn-outline" data-i18n="h_cta2">Biaya & cara daftar</a>
-        <span class="btn btn-soon" aria-disabled="true" title="Segera" data-i18n="h_cta3">Tiket penonton (segera)</span>
-      </div>
+<header class="nav" id="nav">
+  <div class="nav-in">
+    <a class="brand" href="#top" aria-label="Jabar Open 2026, ke atas">
+      <img class="jo" src="assets/img/brand/jabar-open.webp" alt="Jabar Open" width="360" height="246">
+      <span class="sep" aria-hidden="true"></span>
+      <img class="gi" src="assets/img/brand/gi-jabar.webp" alt="Gimnastik Indonesia Jawa Barat" width="520" height="248">
+    </a>
+    <ul class="nav-links" id="nav-links">
+      <li><a href="#tentang" data-i18n="n_about">Tentang</a></li>
+      <li><a href="#jadwal" data-i18n="n_sched">Jadwal</a></li>
+      <li><a href="#biaya" data-i18n="n_fee">Biaya</a></li>
+      <li><a href="startlist.html" data-i18n="n_startlist">Start list</a></li>
+      <li><a href="hasil.html" data-i18n="n_results">Hasil</a></li>
+      <li><a href="#merch" data-i18n="n_merch">Merch</a></li>
+      <li><a href="#kontak" data-i18n="n_contact">Kontak</a></li>
+      <li class="m-only"><a href="status.html" data-i18n="n_status">Cek status</a></li>
+    </ul>
+    <div class="nav-right">
+      <span class="lang-sw" role="group" aria-label="Bahasa / Language"><button type="button" data-lang="id" aria-pressed="true">ID</button><button type="button" data-lang="en" aria-pressed="false">EN</button></span>
+      <a href="status.html" class="nav-status" data-i18n="n_status">Cek status</a>
+      <a href="daftar.html" class="btn btn-primary" data-i18n="n_register">Daftar</a>
+      <button class="burger" type="button" aria-expanded="false" aria-controls="nav-links" aria-label="Menu"><span></span></button>
     </div>
-    <div class="hero-logo-side"><img src="assets/img/logo-gi-jabar.png" alt="Gimnastik Indonesia Jawa Barat"/></div>
   </div>
-</section>
+</header>
 
-<div class="stats-ribbon">
-  <div class="stat-item"><div class="stat-num live" id="st-ath">–</div><div class="stat-label" data-i18n="s_ath">Atlet terdaftar</div></div>
-  <div class="stat-item"><div class="stat-num live" id="st-club">–</div><div class="stat-label" data-i18n="s_club">Klub & sekolah</div></div>
-  <div class="stat-item"><div class="stat-num">4</div><div class="stat-label" data-i18n="s_disc">Disiplin</div></div>
-  <div class="stat-item"><div class="stat-num">12–20</div><div class="stat-label" data-i18n="s_date">Desember 2026</div></div>
-  <div class="stat-item"><div class="stat-num">Bandung</div><div class="stat-label" data-i18n="s_venue">Gymnasium Arcamanik</div></div>
-</div>
+<main id="main">
 
-<section id="about">
-  <div class="about-grid single">
-    <div class="about-text reveal">
-      <div class="section-eyebrow" data-i18n="a_eyebrow">Pendahuluan</div>
-      <h2 class="section-title" data-i18n="a_title">Membangun ekosistem olahraga prestasi</h2>
-      <div class="section-rule"></div>
-      <p data-i18n-html="a_p1"><strong>Jabar Open 2026</strong> adalah kejuaraan gimnastik tingkat nasional yang diselenggarakan Gimnastik Indonesia (GI) Jawa Barat. Kejuaraan ini mempertemukan atlet dari berbagai kabupaten, kota, dan provinsi dalam empat disiplin: Artistik Putra, Artistik Putri, Ritmik, dan Aerobik.</p>
-      <p data-i18n-html="a_p2">Melanjutkan penyelenggaraan sebelumnya, Jabar Open 2026 hadir dengan perencanaan yang lebih <strong>terstruktur dan profesional</strong>: pendaftaran daring, verifikasi pembayaran yang tercatat, start list dan hasil resmi yang diumumkan di situs ini.</p>
-      <p data-i18n="a_p3">Kejuaraan ini juga menjadi wadah pembinaan dan silaturahmi bagi atlet, pelatih, juri, dan keluarga pegiat gimnastik di Jawa Barat dan Indonesia.</p>
-      <div class="about-pillars">
-        <div class="pillar"><div class="pillar-title" data-i18n="p1_t">Mempertemukan atlet</div><div class="pillar-desc" data-i18n="p1_d">Atlet dari seluruh Indonesia dan mancanegara bertanding di arena, jadwal, dan penjurian yang sama.</div></div>
-        <div class="pillar"><div class="pillar-title" data-i18n="p2_t">Jam terbang</div><div class="pillar-desc" data-i18n="p2_d">Kategori usia dan level dari pemula hingga junior memberi pengalaman kompetisi bagi atlet muda.</div></div>
-        <div class="pillar"><div class="pillar-title" data-i18n="p3_t">Penghargaan Priangan</div><div class="pillar-desc" data-i18n="p3_d">Atlet Jawa Barat dapat ikut diperingkat ulang untuk penghargaan khusus kategori Priangan.</div></div>
-        <div class="pillar"><div class="pillar-title" data-i18n="p4_t">Sportivitas</div><div class="pillar-desc" data-i18n="p4_d">Penjurian berstandar Code of Points FIG 2025–2028 oleh juri berlisensi FIG, nasional, dan daerah.</div></div>
+<!-- ============ HERO ============ -->
+<section class="hero" id="top">
+  <img class="deco dc1 spin" src="assets/img/deco/star-navy.webp" alt="" width="600" height="600">
+  <div class="hero-grid">
+    <p class="kicker"><span class="dot" aria-hidden="true"></span><b data-i18n="h_kick1">Kejuaraan gimnastik terbuka</b><span class="bar" aria-hidden="true"></span><span class="k2" data-i18n="h_kick2">12–20 Desember 2026 · Bandung</span></p>
+    <h1 class="hero-title">
+      <span data-i18n="h_t1">Satu arena.</span>
+      <span><em data-i18n="h_t2">Empat disiplin.</em></span>
+      <span><span data-i18n="h_t3">Ratusan mimpi.</span><img class="star" src="assets/img/deco/star-red.webp" alt="" width="420" height="420"></span>
+    </h1>
+    <div class="hero-side">
+      <p class="lead" data-i18n="h_lead">Artistik Putra, Artistik Putri, Ritmik, dan Aerobik bertemu di Gymnasium Arcamanik. Terbuka untuk sekolah, klub, perkumpulan, dan atlet perorangan dari seluruh Indonesia maupun mancanegara.</p>
+      <div class="btns hero-cta">
+        <a href="daftar.html" class="btn btn-primary"><span data-i18n="cta_reg">Daftar sekarang</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a>
+        <a href="#biaya" class="btn btn-ghost" data-i18n="cta_fee">Biaya &amp; cara daftar</a>
+      </div>
+      <div class="hero-row2">
+        <span class="btn btn-soon" aria-disabled="true"><span data-i18n="cta_ticket">Tiket penonton</span><span class="tag" data-i18n="soon">segera</span></span>
+        <p class="hero-meta" data-i18n="h_meta">Daftar hingga 12 November</p>
       </div>
     </div>
-  </div>
-</section>
-
-<section id="jagat">
-  <div class="jagat-grid">
-    <div class="jagat-img-main reveal" style="order:2"><img src="assets/img/jagat.jpg" alt="Jagat — Maskot Jabar Open 2026"/></div>
-    <div class="jagat-text reveal rd2" style="order:1">
-      <div class="section-eyebrow" data-i18n="j_eyebrow">Maskot resmi</div>
-      <h2 class="section-title" data-i18n="j_title">Kenalkan, Jagat</h2>
-      <div class="section-rule"></div>
-      <p data-i18n-html="j_p1"><strong>Jagat, sang Macan Tutul Jawa</strong>, adalah simbol kekuatan dan prestise Jabar Open 2026. Diambil dari filosofi "Jagabaya" atau sang penjaga, Jagat merepresentasikan presisi teknis dan ketangguhan mental yang dibutuhkan setiap atlet untuk menaklukkan arena.</p>
-      <p data-i18n-html="j_p2">Tatapan tajam dan tenaga eksplosifnya mewakili presisi <strong>Artistik</strong>, keluwesan <strong>Ritmik</strong>, dan energi <strong>Aerobik</strong> yang akan tampil di Gymnasium Arcamanik.</p>
-      <p style="color:rgba(255,145,77,.9);font-style:italic;font-size:.9rem"><strong data-i18n="j_p3">Saatnya mengaum bersama Jagat!</strong></p>
+    <div class="hero-stage">
+      <img class="hero-ribbon" src="assets/img/hero/ribbon.webp" srcset="assets/img/hero/ribbon-1000.webp 1000w, assets/img/hero/ribbon.webp 2000w" sizes="(max-width:900px) 185vw, 104vw" alt="" width="2000" height="569" fetchpriority="high">
+      <img class="hero-medals" src="assets/img/hero/medals.webp" srcset="assets/img/hero/medals-800.webp 800w, assets/img/hero/medals.webp 1502w" sizes="(max-width:900px) 96vw, 62vw" alt="Medali perak, emas, dan perunggu Jabar Open 2026" data-i18n-alt="h_medals_alt" width="1502" height="659" fetchpriority="high">
     </div>
   </div>
 </section>
 
-<section id="info">
-  <div class="reveal">
-    <div class="section-eyebrow" data-i18n="i_eyebrow">Detail kegiatan</div>
-    <h2 class="section-title" data-i18n="i_title">Informasi kegiatan</h2>
-    <div class="section-rule"></div>
+<!-- ============ STATS ============ -->
+<section class="stats" aria-label="Angka Jabar Open 2026">
+  <div class="stats-in">
+    <div class="stat"><b id="st-ath">–</b><span><span data-i18n="s_ath">Atlet terdaftar</span><span class="live" data-i18n="s_live">langsung</span></span></div>
+    <div class="stat"><b id="st-club">–</b><span data-i18n="s_club">Klub dan sekolah</span></div>
+    <div class="stat"><b>4</b><span data-i18n="s_disc">Disiplin dipertandingkan</span></div>
+    <div class="stat"><b><i id="st-days">–</i></b><span data-i18n="s_days">Hari menuju 12 Desember</span></div>
   </div>
-  <div class="info-layout">
-    <div class="info-table-wrap reveal rd1">
-      <table>
-        <thead><tr><th data-i18n="i_item">Item</th><th data-i18n="i_val">Keterangan</th></tr></thead>
-        <tbody>
-          <tr><td data-i18n="i_r1">Nama kegiatan</td><td>Jabar Open 2026</td></tr>
-          <tr><td data-i18n="i_r2">Disiplin</td><td data-i18n="i_r2v">Artistik Putra (MAG), Artistik Putri (WAG), Ritmik (RG), Aerobik (AER)</td></tr>
-          <tr><td data-i18n="i_r3">Waktu</td><td data-i18n="i_r3v">12–20 Desember 2026</td></tr>
-          <tr><td data-i18n="i_r4">Lokasi</td><td>Gymnasium Arcamanik, Jl. Pacuan Kuda No. 15b, Sukamiskin, Arcamanik, Kota Bandung 40231</td></tr>
-          <tr><td data-i18n="i_r5">Peserta</td><td data-i18n="i_r5v">Sekolah, klub, perkumpulan, pengkab/pengkot, dan atlet perorangan dari seluruh Indonesia dan luar negeri</td></tr>
-          <tr><td data-i18n="i_r6">Pendaftaran</td><td data-i18n="i_r6v">Daring melalui situs ini, paling lambat 12 November 2026</td></tr>
-          <tr><td data-i18n="i_r7">Peraturan</td><td data-i18n="i_r7v">Code of Points FIG 2025–2028, Technical Regulation 2025, ALP MAG & WAG (tanpa bonus), peraturan khusus Aerobik</td></tr>
-          <tr><td data-i18n="i_r8">Protes</td><td data-i18n="i_r8v">Tidak ada</td></tr>
-          <tr><td data-i18n="i_r9">Penyelenggara</td><td>Gimnastik Indonesia (GI) Jawa Barat</td></tr>
-        </tbody>
-      </table>
+</section>
+
+<!-- ============ CAUSE ============ -->
+<section class="sec cause" id="tentang">
+  <img class="deco dc3 float" src="assets/img/deco/string-navy.webp" alt="" width="600" height="238">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="rv">
+        <p class="eyebrow" data-i18n="c_eyebrow">Mengapa kita bertanding</p>
+        <h2 class="h2" data-i18n-html="c_title">Bertanding untuk <em>tumbuh,</em> bukan sekadar menang.</h2>
+      </div>
+      <p class="lead rv d1" data-i18n="c_lead">Kompetisi adalah cermin yang jujur. Latihan berbulan-bulan diuji dalam satu rutinitas, dinilai dengan aturan yang sama untuk semua, lalu menjadi bekal untuk langkah berikutnya. Jabar Open hadir untuk menyediakan cermin itu bagi pesenam Jawa Barat dan Indonesia.</p>
     </div>
-    <div class="reveal rd2">
-      <div class="disc-label" data-i18n="i_disc">Disiplin yang dipertandingkan</div>
-      <div class="disc-list">
-        <details class="disc-item" open>
-          <summary><div class="disc-dot"></div><div class="disc-name" data-i18n="d1_n">Artistik Putra (MAG)</div><span class="disc-arrow">&#9660;</span></summary>
-          <div class="disc-desc" data-i18n-html="d1_d">ALP Level 1–4 dan Junior (CoP), serba bisa perorangan. Alat: Lantai, Kuda Pelana, Gelang-gelang, Meja Lompat, Palang Sejajar, Palang Tunggal. Maksimal 10 pesenam per kategori per klub.</div>
-        </details>
-        <details class="disc-item">
-          <summary><div class="disc-dot"></div><div class="disc-name" data-i18n="d2_n">Artistik Putri (WAG)</div><span class="disc-arrow">&#9660;</span></summary>
-          <div class="disc-desc" data-i18n-html="d2_d">ALP Level 1–6, Pre Junior, dan Junior (CoP), serba bisa perorangan. Alat: Meja Lompat, Palang Bertingkat, Balok Keseimbangan, Lantai. Musik Level 4–6 disediakan panitia.</div>
-        </details>
-        <details class="disc-item">
-          <summary><div class="disc-dot"></div><div class="disc-name" data-i18n="d3_n">Ritmik (RG)</div><span class="disc-arrow">&#9660;</span></summary>
-          <div class="disc-desc" data-i18n-html="d3_d">Kategori Profesional dan Amatir untuk KU 5–6, 7–8, 9–10, 11–12, dan Junior. Nomor sesuai kelompok umur: tanpa alat (floor), simpai, bola, gada, pita. Kelompok umur memakai sistem festival.</div>
-        </details>
-        <details class="disc-item">
-          <summary><div class="disc-dot"></div><div class="disc-name" data-i18n="d4_n">Aerobik (AER)</div><span class="disc-arrow">&#9660;</span></summary>
-          <div class="disc-desc" data-i18n-html="d4_d">Junior (15–17), Youth (12–14): perorangan putra, perorangan putri, pasangan campuran. National Development (9–11) dan Pre National Development (6–8): perorangan putra dan putri. Langsung babak final.</div>
-        </details>
+    <div class="pillars">
+      <article class="pillar rv">
+        <span class="no">01</span>
+        <h3 data-i18n="c1_t">Sportivitas</h3>
+        <p data-i18n="c1_d">Setiap atlet tampil di arena, jadwal, dan penjurian yang sama, dengan Code of Points FIG sebagai acuan. Menghormati lawan, juri, dan hasil adalah bagian dari pertandingan itu sendiri.</p>
+      </article>
+      <article class="pillar rv d1">
+        <span class="no">02</span>
+        <h3 data-i18n="c2_t">Progres</h3>
+        <p data-i18n="c2_d">Medali hanya untuk tiga besar, tetapi nilai berlaku untuk semua. Setiap skor menunjukkan dengan jelas apa yang sudah dikuasai dan apa yang perlu dilatih lagi. Jam terbang di kompetisi resmi adalah bagian dari pembinaan.</p>
+      </article>
+      <article class="pillar rv d2">
+        <span class="no">03</span>
+        <h3 data-i18n-html="c3_t">Ibu dari <em>semua olahraga</em></h3>
+        <p data-i18n="c3_d">Gimnastik membangun kemampuan gerak dasar: kekuatan, kelenturan, keseimbangan, koordinasi, dan kesadaran tubuh. Fondasi ini terbawa ke hampir semua cabang olahraga lain, karena itu gimnastik disebut ibu dari semua olahraga.</p>
+      </article>
+    </div>
+    <figure class="motto rv">
+      <img class="deco dc4 spin" src="assets/img/deco/star-red.webp" alt="" width="420" height="420">
+      <img class="deco dc5 float" src="assets/img/deco/string-navy.webp" alt="" width="600" height="238">
+      <blockquote>
+        <p class="q" lang="la"><span>Tace et ostende.</span><span>Ad astra per aspera.</span></p>
+        <p class="tr" data-i18n="m_tr">Diam dan buktikan. Menuju bintang, melalui jalan yang terjal.</p>
+      </blockquote>
+      <figcaption><cite data-i18n="m_cite">Semboyan Gimnastik Indonesia Jawa Barat</cite></figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============ INFO & DISCIPLINES ============ -->
+<section class="sec mist" id="info">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="rv">
+        <p class="eyebrow" data-i18n="i_eyebrow">Tentang kejuaraan</p>
+        <h2 class="h2" data-i18n-html="i_title">Terbuka untuk semua, <em>dinilai dengan standar yang sama.</em></h2>
+      </div>
+      <p class="lead rv d1" data-i18n="i_lead">Jabar Open 2026 adalah kejuaraan gimnastik terbuka tingkat nasional yang diselenggarakan Gimnastik Indonesia (GI) Jawa Barat. Pendaftaran, verifikasi pembayaran, start list, dan hasil resmi dikelola melalui situs ini.</p>
+    </div>
+    <div class="info-grid">
+      <dl class="facts rv">
+        <div><dt data-i18n="i_r3">Waktu</dt><dd data-i18n="i_r3v">12–20 Desember 2026</dd></div>
+        <div><dt data-i18n="i_r4">Lokasi</dt><dd>Gymnasium Arcamanik, Jl. Pacuan Kuda No. 15b, Sukamiskin, Arcamanik, Kota Bandung 40231</dd></div>
+        <div><dt data-i18n="i_r5">Peserta</dt><dd data-i18n="i_r5v">Sekolah, klub, perkumpulan, pengkab/pengkot, dan atlet perorangan dari seluruh Indonesia dan luar negeri</dd></div>
+        <div><dt data-i18n="i_r6">Pendaftaran</dt><dd data-i18n="i_r6v">Daring melalui situs ini, paling lambat 12 November 2026</dd></div>
+        <div><dt data-i18n="i_r7">Peraturan</dt><dd data-i18n="i_r7v">Code of Points FIG 2025–2028, Technical Regulation 2025, ALP MAG &amp; WAG (tanpa bonus), peraturan khusus Aerobik</dd></div>
+        <div><dt data-i18n="i_r8">Protes</dt><dd data-i18n="i_r8v">Tidak ada</dd></div>
+        <div><dt data-i18n="i_r9">Penyelenggara</dt><dd>Gimnastik Indonesia (GI) Jawa Barat</dd></div>
+      </dl>
+      <div class="discs">
+        <article class="disc rv">
+          <div class="disc-top"><span class="disc-code">MAG</span><span class="disc-date" data-i18n="d1_w">12–15 Des</span></div>
+          <h3 data-i18n="d1_n">Artistik Putra</h3>
+          <p data-i18n="d1_d">ALP Level 1–4 dan Junior (CoP), serba bisa perorangan. Alat: lantai, kuda pelana, gelang-gelang, meja lompat, palang sejajar, palang tunggal. Maksimal 10 pesenam per kategori per klub.</p>
+        </article>
+        <article class="disc rv d1">
+          <div class="disc-top"><span class="disc-code">WAG</span><span class="disc-date" data-i18n="d2_w">12–15 Des</span></div>
+          <h3 data-i18n="d2_n">Artistik Putri</h3>
+          <p data-i18n="d2_d">ALP Level 1–6, Pre Junior, dan Junior (CoP), serba bisa perorangan. Alat: meja lompat, palang bertingkat, balok keseimbangan, lantai. Musik Level 4–6 disediakan panitia.</p>
+        </article>
+        <article class="disc rv">
+          <div class="disc-top"><span class="disc-code">RG</span><span class="disc-date" data-i18n="d3_w">16–18 Des</span></div>
+          <h3 data-i18n="d3_n">Ritmik</h3>
+          <p data-i18n="d3_d">Kategori Profesional dan Amatir untuk KU 5–6, 7–8, 9–10, 11–12, dan Junior. Nomor sesuai kelompok umur: tanpa alat, simpai, bola, gada, pita. Kelompok umur memakai sistem festival.</p>
+        </article>
+        <article class="disc rv d1">
+          <div class="disc-top"><span class="disc-code">AER</span><span class="disc-date" data-i18n="d4_w">19–20 Des</span></div>
+          <h3 data-i18n="d4_n">Aerobik</h3>
+          <p data-i18n="d4_d">Junior (15–17) dan Youth (12–14): perorangan putra, perorangan putri, pasangan campuran. National Development (9–11) dan Pre National Development (6–8): perorangan putra dan putri. Langsung babak final.</p>
+        </article>
       </div>
     </div>
   </div>
 </section>
 
-<section id="jadwal">
-  <div class="reveal">
-    <div class="section-eyebrow" data-i18n="sc_eyebrow">Jadwal</div>
-    <h2 class="section-title" data-i18n="sc_title">Jadwal sementara</h2>
-    <div class="section-rule"></div>
-  </div>
-  <div class="sched-grid reveal rd1">
-    <div class="sched-card"><h3 data-i18n="sc_art">Artistik Putra & Putri</h3><div class="when">12–15 Desember 2026</div><table>
-      <tr><td data-i18n="day_sat12">Sab, 12 Des</td><td data-i18n="sc_a1">Pertemuan juri, podium training MAG Level 4, WAG Level 4, dan Junior</td></tr>
-      <tr><td data-i18n="day_sun13">Min, 13 Des</td><td data-i18n="sc_comp">Kompetisi</td></tr>
-      <tr><td data-i18n="day_mon14">Sen, 14 Des</td><td data-i18n="sc_upp">Upacara penyerahan penghargaan (UPP)</td></tr>
-      <tr><td data-i18n="day_tue15">Sel, 15 Des</td><td data-i18n="sc_tba">Menyusul</td></tr></table></div>
-    <div class="sched-card"><h3 data-i18n="sc_rg">Ritmik</h3><div class="when">16–18 Desember 2026</div><table>
-      <tr><td data-i18n="day_wed16">Rab, 16 Des</td><td data-i18n="sc_r1">Pertemuan juri, podium training, kompetisi</td></tr>
-      <tr><td data-i18n="day_thu17">Kam, 17 Des</td><td data-i18n="sc_comp">Kompetisi</td></tr>
-      <tr><td data-i18n="day_fri18">Jum, 18 Des</td><td data-i18n="sc_upp">Upacara penyerahan penghargaan (UPP)</td></tr></table></div>
-    <div class="sched-card"><h3 data-i18n="sc_aer">Aerobik</h3><div class="when">19–20 Desember 2026</div><table>
-      <tr><td data-i18n="day_sat19">Sab, 19 Des</td><td data-i18n="sc_e1">Rapat orientasi (maks. 1 pelatih dan/atau 1 manajer per delegasi), penyegaran juri, latihan resmi</td></tr>
-      <tr><td data-i18n="day_sun20">Min, 20 Des</td><td data-i18n="sc_e2">Perlombaan dan UPP</td></tr></table></div>
-  </div>
-  <p class="note-prov" data-i18n-html="sc_note">Jadwal dapat berubah. Tidak ada registrasi ulang di lokasi: sesi, grup, dan urutan tampil setiap atlet diumumkan di <a href="startlist.html">halaman start list</a> dan Instagram <a href="https://www.instagram.com/gimnastikjabar/" target="_blank" rel="noopener">@gimnastikjabar</a>.</p>
-</section>
-
-<section id="biaya">
-  <div class="reveal">
-    <div class="section-eyebrow" data-i18n="f_eyebrow">Pendaftaran</div>
-    <h2 class="section-title" data-i18n="f_title">Biaya & cara daftar</h2>
-    <div class="section-rule"></div>
-  </div>
-  <div class="fee-layout">
-    <div class="reveal rd1">
-      <div class="info-table-wrap"><table class="fee-table">
-        <tr><td data-i18n="f_r1">Artistik Putra (MAG), per pesenam</td><td>Rp750.000</td></tr>
-        <tr><td data-i18n="f_r2">Artistik Putri (WAG), per pesenam</td><td>Rp750.000</td></tr>
-        <tr><td data-i18n="f_r3">Ritmik perorangan, per pesenam</td><td>Rp750.000</td></tr>
-        <tr><td data-i18n="f_r4">Aerobik perorangan (IM / IW), per pesenam</td><td>Rp300.000</td></tr>
-        <tr><td data-i18n="f_r5">Aerobik pasangan campuran (MP), per pasangan</td><td>Rp400.000</td></tr>
-        <tr><td data-i18n="f_r6">Tambahan kategori Priangan, per entri (opsional)</td><td>Rp150.000</td></tr>
-      </table></div>
-      <div class="pri-box" data-i18n-html="f_pri"><strong>Kategori Priangan.</strong> Semua atlet bertanding di lapangan, jadwal, dan penjurian Jabar Open yang sama. Atlet WNI beralamat (sesuai identitas) di Jawa Barat dari klub di Jawa Barat dapat mencentang Priangan saat mendaftar. Hasil mereka diperingkat ulang di antara peserta Priangan untuk penghargaan dan tabel medali tersendiri.</div>
+<!-- ============ SCHEDULE ============ -->
+<section class="sec sched" id="jadwal">
+  <img class="deco dc6 spin" src="assets/img/deco/star-navy.webp" alt="" width="600" height="600">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="rv">
+        <p class="eyebrow" data-i18n="sc_eyebrow">Jadwal</p>
+        <h2 class="h2" data-i18n-html="sc_title">Sembilan hari, <em>tiga babak.</em></h2>
+      </div>
+      <p class="lead rv d1" data-i18n="sc_lead">Jadwal sementara. Sesi, grup, dan urutan tampil setiap atlet diumumkan di halaman start list setelah pendaftaran ditutup.</p>
     </div>
-    <div class="reveal rd2">
-      <ol class="steps-list">
-        <li data-i18n-html="f_s1"><b>Isi formulir daring</b>Pilih disiplin, klub, data atlet, dan kategori. Kategori menyesuaikan tanggal lahir otomatis. Satu pendaftaran klub memuat hingga 5 atlet.</li>
-        <li data-i18n-html="f_s2"><b>Bayar lewat QRIS</b>Ketik nominal tepat yang tertera, termasuk tiga digit kode unik, agar pembayaran langsung cocok dengan pendaftaran Anda.</li>
-        <li data-i18n-html="f_s3"><b>Unggah bukti bayar</b>Dari halaman tagihan atau halaman status. Panitia memverifikasi pembayaran dan dokumen.</li>
-        <li data-i18n-html="f_s4"><b>Terima e-ticket</b>E-ticket PDF setiap atlet dikirim lewat email dan bisa diunduh dari halaman status.</li>
-      </ol>
-      <p class="docs-req" data-i18n-html="f_docs"><strong>Siapkan:</strong> foto atau PDF identitas atlet (KTP, Akte Kelahiran, Ijazah, atau paspor), data orang tua/wali untuk atlet di bawah 18 tahun. Peserta wajib memiliki BPJS atau asuransi sesuai Undangan. Batas pendaftaran dan pembayaran: <strong>12 November 2026</strong>.</p>
-      <div class="hero-cta" style="margin-top:18px;animation:none"><a href="daftar.html" class="btn btn-og" data-i18n="h_cta1">Daftar sekarang</a><a href="status.html" class="btn btn-outline" data-i18n="n_status">Cek status</a></div>
+    <div class="sched-grid">
+      <div class="sched-col rv">
+        <div class="when">12–15<small data-i18n="dec26">Desember 2026</small></div>
+        <h3 data-i18n-html="sc_art">Artistik <em>Putra &amp; Putri</em></h3>
+        <ol>
+          <li><b data-i18n="day_sat12">Sab, 12 Des</b><span data-i18n="sc_a1">Pertemuan juri, podium training MAG Level 4, WAG Level 4, dan Junior</span></li>
+          <li><b data-i18n="day_sun13">Min, 13 Des</b><span data-i18n="sc_comp">Kompetisi</span></li>
+          <li><b data-i18n="day_mon14">Sen, 14 Des</b><span data-i18n="sc_upp">Upacara penyerahan penghargaan (UPP)</span></li>
+          <li><b data-i18n="day_tue15">Sel, 15 Des</b><span data-i18n="sc_tba">Menyusul</span></li>
+        </ol>
+      </div>
+      <div class="sched-col rv d1">
+        <div class="when">16–18<small data-i18n="dec26">Desember 2026</small></div>
+        <h3 data-i18n-html="sc_rg"><em>Ritmik</em></h3>
+        <ol>
+          <li><b data-i18n="day_wed16">Rab, 16 Des</b><span data-i18n="sc_r1">Pertemuan juri, podium training, kompetisi</span></li>
+          <li><b data-i18n="day_thu17">Kam, 17 Des</b><span data-i18n="sc_comp">Kompetisi</span></li>
+          <li><b data-i18n="day_fri18">Jum, 18 Des</b><span data-i18n="sc_upp">Upacara penyerahan penghargaan (UPP)</span></li>
+        </ol>
+      </div>
+      <div class="sched-col rv d2">
+        <div class="when">19–20<small data-i18n="dec26">Desember 2026</small></div>
+        <h3 data-i18n-html="sc_aer"><em>Aerobik</em></h3>
+        <ol>
+          <li><b data-i18n="day_sat19">Sab, 19 Des</b><span data-i18n="sc_e1">Rapat orientasi (maks. 1 pelatih dan/atau 1 manajer per delegasi), penyegaran juri, latihan resmi</span></li>
+          <li><b data-i18n="day_sun20">Min, 20 Des</b><span data-i18n="sc_e2">Perlombaan dan UPP</span></li>
+        </ol>
+      </div>
     </div>
+    <p class="sched-note rv" data-i18n-html="sc_note">Jadwal dapat berubah. Tidak ada registrasi ulang di lokasi: pantau <a href="startlist.html">start list</a> dan Instagram <a href="https://www.instagram.com/gimnastikjabar/" target="_blank" rel="noopener">@gimnastikjabar</a> untuk pengumuman resmi.</p>
   </div>
 </section>
 
-<section id="medals">
-  <div class="medals-intro reveal">
-    <div class="section-eyebrow">Penghargaan</div>
-    <h2 class="section-title">Medali Resmi Jabar Open 2026</h2>
-    <div class="section-rule"></div>
-  </div>
-  <div class="medals-single reveal">
-    <img src="assets/img/medali.jpg" alt="Medali Resmi Jabar Open 2026"/>
-  </div>
-</section>
-
-<div id="lanyard">
-  <div class="lanyard-inner">
-    <div class="lanyard-text">
-      <div class="section-eyebrow">Official Event Item</div>
-      <h2 class="section-title">Lanyard Resmi</h2>
-      <div class="section-rule"></div>
-      <p>Setiap peserta, official, dan panitia akan mengenakan lanyard resmi Jabar Open 2026 — identitas kebanggaan yang menyatukan seluruh ekosistem acara dalam satu simbol yang kuat dan berkarakter.</p>
+<!-- ============ FEES ============ -->
+<section class="sec" id="biaya" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="rv">
+        <p class="eyebrow" data-i18n="f_eyebrow">Pendaftaran</p>
+        <h2 class="h2" data-i18n-html="f_title">Biaya dan <em>cara mendaftar.</em></h2>
+      </div>
+      <p class="lead rv d1" data-i18n="f_lead">Daftar perorangan atau sebagai klub dan sekolah (hingga lima atlet sekaligus). Biaya per atlet atau per pasangan, dibayar sekali lewat QRIS.</p>
     </div>
-    <div class="lanyard-img"><img src="assets/img/lanyard.jpg" alt="Lanyard Resmi Jabar Open 2026"/></div>
-  </div>
-</div>
-
-
-
-
-
-<section id="athlete">
-  <div class="athlete-bg"></div>
-  <div class="athlete-inner">
-    <div class="section-eyebrow" data-i18n="at_eyebrow">Pendaftaran atlet</div>
-    <h2 class="section-title">
-      <span data-i18n="at_t1">Ini panggungmu.</span>
-      <span data-i18n="at_t2">Tunjukkan dirimu.</span>
-    </h2>
-    <div class="section-rule"></div>
-    <p class="athlete-lead" data-i18n="at_lead">Ukir namamu di podium Gymnasium Arcamanik, Bandung, 12–20 Desember 2026. Pendaftaran daring dibuka hingga 12 November 2026.</p>
-    <div class="athlete-btns">
-      <a href="daftar.html" class="btn btn-og" data-i18n="h_cta1">Daftar sekarang</a>
-      <a href="startlist.html" class="btn-ghost-white" data-i18n="n_startlist">Start list</a>
-      <a href="hasil.html" class="btn-ghost-white" data-i18n="n_results">Hasil</a>
-    </div>
-  </div>
-  <div class="athlete-credit">
-    Foto: <a href="https://jogja.antaranews.com/berita/777841/tim-senam-putri-indonesia-gagal-ke-final-semua-alat" target="_blank" rel="noopener">Antara News</a>
-  </div>
-</section>
-
-<section id="memories">
-  <div class="mem-header reveal">
-    <div class="section-eyebrow">Sekilas Kenangan</div>
-    <h2 class="section-title">Jabar Open 2025 Memories</h2>
-    <div class="section-rule"></div>
-    <p>Momen-momen berharga dari penyelenggaraan sebelumnya — energi, semangat, dan kebersamaan yang selalu hidup di setiap kompetisi.</p>
-  </div>
-  <div class="mem-wrap">
-    <div class="mt">
-      <div class="ms"><div class="mc"><img src="assets/img/memories/rhythmic-clubs.jpg" alt="Rhythmic — Clubs" draggable="false"/><div class="mc-cap">Rhythmic — Clubs</div></div>
-<div class="mc"><img src="assets/img/memories/rhythmic-ribbon.jpg" alt="Rhythmic — Ribbon" draggable="false"/><div class="mc-cap">Rhythmic — Ribbon</div></div>
-<div class="mc"><img src="assets/img/memories/rhythmic-floor.jpg" alt="Rhythmic — Floor" draggable="false"/><div class="mc-cap">Rhythmic — Floor</div></div>
-<div class="mc"><img src="assets/img/memories/pelatih-atlet.jpg" alt="Pelatih & Atlet" draggable="false"/><div class="mc-cap">Pelatih & Atlet</div></div>
-<div class="mc"><img src="assets/img/memories/opening-ceremony.jpg" alt="Opening Ceremony" draggable="false"/><div class="mc-cap">Opening Ceremony</div></div>
-<div class="mc"><img src="assets/img/memories/tim-jawa-barat.jpg" alt="Tim Jawa Barat" draggable="false"/><div class="mc-cap">Tim Jawa Barat</div></div>
-<div class="mc"><img src="assets/img/memories/artistic-pommel.jpg" alt="Artistic — Pommel" draggable="false"/><div class="mc-cap">Artistic — Pommel</div></div>
-<div class="mc"><img src="assets/img/memories/team-spirit.jpg" alt="Team Spirit" draggable="false"/><div class="mc-cap">Team Spirit</div></div>
-<div class="mc"><img src="assets/img/memories/artistic-rings.jpg" alt="Artistic — Rings" draggable="false"/><div class="mc-cap">Artistic — Rings</div></div>
-<div class="mc"><img src="assets/img/memories/artistic-floor.jpg" alt="Artistic — Floor" draggable="false"/><div class="mc-cap">Artistic — Floor</div></div>
-</div>
-      <div class="ms" aria-hidden="true"><div class="mc"><img src="assets/img/memories/rhythmic-clubs.jpg" alt="Rhythmic — Clubs" draggable="false"/><div class="mc-cap">Rhythmic — Clubs</div></div>
-<div class="mc"><img src="assets/img/memories/rhythmic-ribbon.jpg" alt="Rhythmic — Ribbon" draggable="false"/><div class="mc-cap">Rhythmic — Ribbon</div></div>
-<div class="mc"><img src="assets/img/memories/rhythmic-floor.jpg" alt="Rhythmic — Floor" draggable="false"/><div class="mc-cap">Rhythmic — Floor</div></div>
-<div class="mc"><img src="assets/img/memories/pelatih-atlet.jpg" alt="Pelatih & Atlet" draggable="false"/><div class="mc-cap">Pelatih & Atlet</div></div>
-<div class="mc"><img src="assets/img/memories/opening-ceremony.jpg" alt="Opening Ceremony" draggable="false"/><div class="mc-cap">Opening Ceremony</div></div>
-<div class="mc"><img src="assets/img/memories/tim-jawa-barat.jpg" alt="Tim Jawa Barat" draggable="false"/><div class="mc-cap">Tim Jawa Barat</div></div>
-<div class="mc"><img src="assets/img/memories/artistic-pommel.jpg" alt="Artistic — Pommel" draggable="false"/><div class="mc-cap">Artistic — Pommel</div></div>
-<div class="mc"><img src="assets/img/memories/team-spirit.jpg" alt="Team Spirit" draggable="false"/><div class="mc-cap">Team Spirit</div></div>
-<div class="mc"><img src="assets/img/memories/artistic-rings.jpg" alt="Artistic — Rings" draggable="false"/><div class="mc-cap">Artistic — Rings</div></div>
-<div class="mc"><img src="assets/img/memories/artistic-floor.jpg" alt="Artistic — Floor" draggable="false"/><div class="mc-cap">Artistic — Floor</div></div>
-</div>
-    </div>
-  </div>
-</section>
-
-
-<section id="contact">
-  <div class="contact-grid">
-    <div class="contact-left reveal">
-      <div class="section-eyebrow" data-i18n="c_eyebrow">Hubungi kami</div>
-      <h2 class="section-title" data-i18n="c_title">Kontak panitia</h2>
-      <div class="section-rule"></div>
-      <p class="contact-lead" data-i18n="c_lead">Pertanyaan tentang pendaftaran, pembayaran, atau data atlet dapat dikirim lewat email. Pertanyaan teknis per disiplin dapat diajukan ke narahubung masing-masing.</p>
-      <a href="mailto:adjisena.daffa@gmail.com" class="btn btn-og" data-i18n="c_mail">Kirim email</a>
-    </div>
-    <div class="reveal rd2">
-      <div class="contact-card">
-        <div class="cc-name">Jabar Open <span>2026</span></div>
-        <div class="cc-role">Gimnastik Indonesia (GI) Jawa Barat</div>
-        <div class="cc-items">
-          <div class="cc-item"><div class="cc-icon"><svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div><div class="cc-value"><a href="mailto:adjisena.daffa@gmail.com">adjisena.daffa@gmail.com</a></div></div>
-          <div class="cc-item"><div class="cc-icon"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg></div><div class="cc-value">Gymnasium Arcamanik, Kota Bandung</div></div>
+    <div class="fee-grid">
+      <div class="rv">
+        <ul class="fees">
+          <li><span class="lbl" data-i18n-html="f_r1">Artistik Putra <small>per pesenam</small></span><span class="amt">Rp750.000</span></li>
+          <li><span class="lbl" data-i18n-html="f_r2">Artistik Putri <small>per pesenam</small></span><span class="amt">Rp750.000</span></li>
+          <li><span class="lbl" data-i18n-html="f_r3">Ritmik perorangan <small>per pesenam</small></span><span class="amt">Rp750.000</span></li>
+          <li><span class="lbl" data-i18n-html="f_r4">Aerobik perorangan <small>IM / IW, per pesenam</small></span><span class="amt">Rp300.000</span></li>
+          <li><span class="lbl" data-i18n-html="f_r5">Aerobik pasangan campuran <small>MP, per pasangan</small></span><span class="amt">Rp400.000</span></li>
+          <li class="opt"><span class="lbl" data-i18n-html="f_r6">Tambahan kategori Priangan <small>per entri, opsional</small></span><span class="amt">+Rp150.000</span></li>
+        </ul>
+        <div class="pri">
+          <span class="tag" data-i18n="f_pri_t">Kategori Priangan</span>
+          <p data-i18n="f_pri">Semua atlet bertanding di arena, jadwal, dan penjurian Jabar Open yang sama. Atlet WNI beralamat (sesuai identitas) di Jawa Barat dari klub di Jawa Barat dapat memilih Priangan saat mendaftar. Hasil mereka diperingkat ulang di antara peserta Priangan untuk penghargaan dan tabel medali tersendiri.</p>
         </div>
-        <div class="cp-list">
-          <div class="cp"><small data-i18n="cp1">Artistik Putra</small>Fegie Rizkia Mulyana<br><a href="https://wa.me/628112348753" target="_blank" rel="noopener">0811-2348-753</a></div>
-          <div class="cp"><small data-i18n="cp2">Artistik Putri</small>Vicy Ayu<br><a href="https://wa.me/628562383455" target="_blank" rel="noopener">0856-2383-455</a></div>
-          <div class="cp"><small data-i18n="cp3">Ritmik</small>Yuanita Vidya M<br><a href="https://wa.me/6281563611403" target="_blank" rel="noopener">0815-6361-1403</a></div>
-          <div class="cp"><small data-i18n="cp4">Aerobik</small>Mustika Fitri<br><a href="https://wa.me/62816605281" target="_blank" rel="noopener">0816-605-281</a></div>
+      </div>
+      <div class="rv d1">
+        <ol class="steps">
+          <li><div><b data-i18n="f_s1t">Isi formulir daring</b><span data-i18n="f_s1">Pilih disiplin, klub, data atlet, dan kategori. Kategori menyesuaikan tanggal lahir secara otomatis.</span></div></li>
+          <li><div><b data-i18n="f_s2t">Bayar lewat QRIS</b><span data-i18n="f_s2">Ketik nominal tepat yang tertera, termasuk kode unik di tiga digit terakhir, agar pembayaran langsung cocok dengan pendaftaran Anda.</span></div></li>
+          <li><div><b data-i18n="f_s3t">Unggah bukti bayar</b><span data-i18n="f_s3">Dari halaman tagihan atau halaman status. Panitia memverifikasi pembayaran dan dokumen.</span></div></li>
+          <li><div><b data-i18n="f_s4t">Terima e-ticket</b><span data-i18n="f_s4">E-ticket PDF setiap atlet dikirim lewat email dan bisa diunduh dari halaman status.</span></div></li>
+        </ol>
+        <p class="docs" data-i18n-html="f_docs"><strong>Siapkan:</strong> foto atau PDF identitas atlet (KTP, akta kelahiran, ijazah, atau paspor) dan data orang tua/wali untuk atlet di bawah 18 tahun. Peserta wajib memiliki BPJS atau asuransi sesuai Undangan. Batas pendaftaran dan pembayaran: <strong>12 November 2026</strong>.</p>
+        <div class="btns">
+          <a href="daftar.html" class="btn btn-primary"><span data-i18n="cta_reg">Daftar sekarang</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a>
+          <a href="status.html" class="btn btn-ghost" data-i18n="n_status">Cek status</a>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<footer>
-  <div class="footer-logo"><a href="https://www.instagram.com/gimnastikjabar/" target="_blank" rel="noopener"><img src="assets/img/logo-gi-jabar.png" alt="Gimnastik Indonesia Jawa Barat"/></a></div>
-  <div>
-    <div class="footer-links"><a href="daftar.html" data-i18n="n_register">Daftar</a><a href="status.html" data-i18n="n_status">Cek status</a><a href="startlist.html" data-i18n="n_startlist">Start list</a><a href="hasil.html" data-i18n="n_results">Hasil</a><a href="verifikasi.html" data-i18n="n_verify">Verifikasi sertifikat</a></div>
-    <div class="footer-copy" style="margin-top:8px">2026 Jabar Open. Dibangun dan dikelola oleh Daffa Adjisena, M.B.A.</div>
+<!-- ============ ATHLETE CALL ============ -->
+<section class="athlete" id="atlet">
+  <div class="athlete-photo"><img src="assets/img/hero-athlete.jpg" alt="Pesenam putri melakukan lompatan split di atas balok" data-i18n-alt="at_alt" width="1600" height="900" loading="lazy"></div>
+  <div class="athlete-in">
+    <div class="athlete-text rv">
+      <p class="eyebrow" data-i18n="at_eyebrow">Pendaftaran atlet dibuka</p>
+      <h2><span data-i18n="at_t1">Ini panggungmu.</span><span><em data-i18n="at_t2">Tunjukkan dirimu.</em></span></h2>
+      <p class="lead" data-i18n="at_lead">Ukir namamu di podium Gymnasium Arcamanik. Daftar sendiri atau bersama klub, bayar sekali, dan terima e-ticket untuk setiap atlet.</p>
+      <ul class="a-facts">
+        <li><b data-i18n="at_f1b">12 November</b><span data-i18n="at_f1">Batas pendaftaran</span></li>
+        <li><b data-i18n="at_f2b">4 disiplin</b><span data-i18n="at_f2">MAG, WAG, RG, AER</span></li>
+        <li><b data-i18n="at_f3b">Mulai Rp300.000</b><span data-i18n="at_f3">Biaya per atlet</span></li>
+        <li><b data-i18n="at_f4b">Priangan</b><span data-i18n="at_f4">Peringkat khusus atlet Jawa Barat</span></li>
+      </ul>
+      <div class="btns">
+        <a href="daftar.html" class="btn btn-gold"><span data-i18n="cta_reg">Daftar sekarang</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a>
+        <a href="status.html" class="btn btn-line-w" data-i18n="n_status">Cek status</a>
+      </div>
+    </div>
   </div>
-  <div class="footer-org"><a href="https://konijabar.or.id/" target="_blank" rel="noopener"><img src="assets/img/logo-koni-gi.png" alt="KONI &amp; Gimnastik Indonesia Jawa Barat"/></a></div>
+  <p class="athlete-credit"><span data-i18n="photo">Foto</span>: <a href="https://jogja.antaranews.com/berita/777841/tim-senam-putri-indonesia-gagal-ke-final-semua-alat" target="_blank" rel="noopener">Antara News</a></p>
+</section>
+
+<!-- ============ MEMORIES ============ -->
+<section class="sec" id="kenangan">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="rv">
+        <p class="eyebrow" data-i18n="mem_eyebrow">Jabar Open 2025</p>
+        <h2 class="h2" data-i18n-html="mem_title">Momen yang <em>membawa kita ke sini.</em></h2>
+      </div>
+      <p class="lead rv d1" data-i18n="mem_lead">Sekilas penyelenggaraan sebelumnya: keberanian di atas matras, pelatih di pinggir arena, dan kebersamaan yang ingin kami hadirkan lagi di Arcamanik.</p>
+    </div>
+  </div>
+  <div class="mem-strip rv" tabindex="0" aria-label="Galeri foto Jabar Open 2025">
+    <div class="mem-track">
+      <div class="mem-set">
+        <figure><img src="assets/img/memories/rhythmic-clubs.jpg" alt="Pesenam ritmik dengan gada" width="427" height="640" loading="lazy"><figcaption><em data-i18n="m1a">Ritmik,</em> <span data-i18n="m1b">gada</span></figcaption></figure>
+        <figure><img src="assets/img/memories/opening-ceremony.jpg" alt="Upacara pembukaan" width="640" height="427" loading="lazy"><figcaption><em data-i18n="m2a">Upacara</em> <span data-i18n="m2b">pembukaan</span></figcaption></figure>
+        <figure><img src="assets/img/memories/artistic-rings.jpg" alt="Pesenam artistik di gelang-gelang" width="427" height="640" loading="lazy"><figcaption><em data-i18n="m3a">Artistik,</em> <span data-i18n="m3b">gelang-gelang</span></figcaption></figure>
+        <figure><img src="assets/img/memories/rhythmic-ribbon.jpg" alt="Pesenam ritmik dengan pita" width="640" height="427" loading="lazy"><figcaption><em data-i18n="m1a">Ritmik,</em> <span data-i18n="m4b">pita</span></figcaption></figure>
+        <figure><img src="assets/img/memories/pelatih-atlet.jpg" alt="Pelatih mendampingi atlet" width="640" height="427" loading="lazy"><figcaption><em data-i18n="m5a">Pelatih</em> <span data-i18n="m5b">dan atlet</span></figcaption></figure>
+        <figure><img src="assets/img/memories/artistic-floor.jpg" alt="Pesenam artistik di lantai" width="427" height="640" loading="lazy"><figcaption><em data-i18n="m3a">Artistik,</em> <span data-i18n="m6b">lantai</span></figcaption></figure>
+        <figure><img src="assets/img/memories/team-spirit.jpg" alt="Kebersamaan tim" width="640" height="427" loading="lazy"><figcaption><em data-i18n="m7a">Kebersamaan</em> <span data-i18n="m7b">tim</span></figcaption></figure>
+        <figure><img src="assets/img/memories/artistic-pommel.jpg" alt="Pesenam artistik di kuda pelana" width="640" height="427" loading="lazy"><figcaption><em data-i18n="m3a">Artistik,</em> <span data-i18n="m8b">kuda pelana</span></figcaption></figure>
+        <figure><img src="assets/img/memories/rhythmic-floor.jpg" alt="Pesenam ritmik tanpa alat" width="640" height="427" loading="lazy"><figcaption><em data-i18n="m1a">Ritmik,</em> <span data-i18n="m9b">tanpa alat</span></figcaption></figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MERCH ============ -->
+<section class="sec mist merch" id="merch">
+  <div class="wrap merch-grid">
+    <div class="rv">
+      <p class="eyebrow" data-i18n="mc_eyebrow">Merchandise resmi</p>
+      <p class="soon" data-i18n="mc_soon">Segera hadir</p>
+      <h2 class="h2" data-i18n-html="mc_title">Edisi terbatas. <em>Dipakai dengan bangga.</em></h2>
+      <p class="lead" data-i18n="mc_lead">Koleksi resmi Jabar Open 2026 sedang kami siapkan. Dirancang dari identitas kejuaraan dan dibuat dalam jumlah terbatas, untuk atlet, pelatih, keluarga, dan siapa saja yang ingin membawa pulang sepotong cerita dari arena.</p>
+      <ul class="merch-points">
+        <li><i>i.</i><span data-i18n="mc_p1">Diproduksi terbatas untuk edisi 2026, tidak dicetak ulang.</span></li>
+        <li><i>ii.</i><span data-i18n="mc_p2">Detail koleksi, harga, dan cara pemesanan diumumkan di situs ini.</span></li>
+        <li><i>iii.</i><span data-i18n="mc_p3">Kabar pertama selalu di Instagram @gimnastikjabar.</span></li>
+      </ul>
+      <a href="https://www.instagram.com/gimnastikjabar/" target="_blank" rel="noopener" class="btn btn-ghost"><span data-i18n="mc_cta">Ikuti kabarnya</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 12L12 4M5.5 4H12v6.5"/></svg></a>
+    </div>
+    <div class="merch-visual rv d1">
+      <img class="deco dc7 spin" src="assets/img/deco/star-navy.webp" alt="" width="600" height="600">
+      <img class="deco dc8 float" src="assets/img/deco/string-red.webp" alt="" width="700" height="512">
+      <span class="badge" data-i18n="mc_badge">Pratinjau koleksi</span>
+      <img class="mock" src="assets/img/merch/merch-preview.webp" alt="Pratinjau merchandise Jabar Open 2026: bendera, kaus, dan botol minum" data-i18n-alt="mc_alt" width="700" height="1540" loading="lazy">
+    </div>
+  </div>
+</section>
+
+<!-- ============ INSTAGRAM + CONTACT ============ -->
+<section class="sec" id="kontak">
+  <div class="wrap">
+    <div class="ig rv">
+      <img class="deco dc9 float" src="assets/img/deco/string-navy.webp" alt="" width="600" height="238">
+      <img class="gi" src="assets/img/brand/gi-jabar.webp" alt="Gimnastik Indonesia Jawa Barat" width="520" height="248" loading="lazy">
+      <div class="ig-text">
+        <a class="ig-handle" href="https://www.instagram.com/gimnastikjabar/" target="_blank" rel="noopener">@gimnastikjabar</a>
+        <p data-i18n="ig_lead">Akun resmi Gimnastik Indonesia Jawa Barat di Instagram. Pengumuman, start list, dan momen dari arena dibagikan di sana lebih dulu.</p>
+      </div>
+      <a class="btn btn-primary" href="https://www.instagram.com/gimnastikjabar/" target="_blank" rel="noopener"><span data-i18n="ig_cta">Ikuti di Instagram</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 12L12 4M5.5 4H12v6.5"/></svg></a>
+    </div>
+
+    <div class="sec-head" style="margin-top:clamp(80px,10vw,140px)">
+      <div class="rv">
+        <p class="eyebrow" data-i18n="k_eyebrow">Hubungi kami</p>
+        <h2 class="h2" data-i18n-html="k_title">Ada pertanyaan? <em>Kami siap membantu.</em></h2>
+      </div>
+      <p class="lead rv d1" data-i18n="k_lead">Pertanyaan tentang pendaftaran, pembayaran, atau data atlet dikirim lewat email. Pertanyaan teknis per disiplin dapat diajukan ke narahubung masing-masing lewat WhatsApp.</p>
+    </div>
+    <div class="contacts">
+      <div class="c-card c-mail rv">
+        <div>
+          <small data-i18n="k_mail_t">Pendaftaran dan pembayaran</small>
+          <a class="mail" href="mailto:adjisena.daffa@gmail.com">adjisena.daffa@gmail.com</a>
+        </div>
+        <p data-i18n="k_mail_d">Sertakan kode pendaftaran (JO26-…) agar pertanyaan Anda cepat ditangani.</p>
+        <a href="mailto:adjisena.daffa@gmail.com" class="btn btn-gold" data-i18n="k_mail_cta">Kirim email</a>
+      </div>
+      <div class="c-card rv d1"><small data-i18n="cp1">Artistik Putra</small><span class="nm">Fegie Rizkia Mulyana</span><a href="https://wa.me/628112348753" target="_blank" rel="noopener">WhatsApp 0811-2348-753</a></div>
+      <div class="c-card rv d2"><small data-i18n="cp2">Artistik Putri</small><span class="nm">Vicy Ayu</span><a href="https://wa.me/628562383455" target="_blank" rel="noopener">WhatsApp 0856-2383-455</a></div>
+      <div class="c-card rv d1"><small data-i18n="cp3">Ritmik</small><span class="nm">Yuanita Vidya M</span><a href="https://wa.me/6281563611403" target="_blank" rel="noopener">WhatsApp 0815-6361-1403</a></div>
+      <div class="c-card rv d2"><small data-i18n="cp4">Aerobik</small><span class="nm">Mustika Fitri</span><a href="https://wa.me/62816605281" target="_blank" rel="noopener">WhatsApp 0816-605-281</a></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CLOSING ============ -->
+<section class="closing">
+  <h2 class="rv"><span data-i18n="cl_t1">Sampai jumpa di</span> <em>Arcamanik.</em><img src="assets/img/deco/star-red.webp" alt="" width="420" height="420"></h2>
+  <p class="rv d1" data-i18n="cl_d">Gymnasium Arcamanik, Bandung · 12–20 Desember 2026</p>
+  <div class="btns rv d2">
+    <a href="daftar.html" class="btn btn-primary"><span data-i18n="cta_reg">Daftar sekarang</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a>
+    <a href="startlist.html" class="btn btn-ghost" data-i18n="n_startlist">Start list</a>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="footer-in">
+    <div class="f-brand">
+      <div class="logos">
+        <img class="jo" src="assets/img/brand/jabar-open.webp" alt="Jabar Open" width="360" height="246" loading="lazy">
+        <img class="kg" src="assets/img/logo-koni-gi.png" alt="KONI Jawa Barat dan Gimnastik Indonesia Jawa Barat" width="520" height="172" loading="lazy">
+      </div>
+      <p data-i18n="ft_org">Diselenggarakan oleh Gimnastik Indonesia (GI) Jawa Barat di bawah KONI Jawa Barat.</p>
+    </div>
+    <div class="f-addr">
+      <h4 data-i18n="ft_sec">Sekretariat</h4>
+      <address><b>KONI Jawa Barat &amp; GI Jawa Barat</b><br>Jl. Padjajaran No. 37A, Pasir Kaliki, Kec. Cicendo, Kota Bandung, Jawa Barat 40171</address>
+      <a class="f-map" href="https://www.google.com/maps/search/?api=1&amp;query=KONI+Jawa+Barat+Jl.+Padjajaran+No.37A+Pasir+Kaliki+Cicendo+Bandung+40171" target="_blank" rel="noopener"><span data-i18n="ft_map">Lihat di peta</span> <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12L12 4M5.5 4H12v6.5"/></svg></a>
+    </div>
+    <div>
+      <h4 data-i18n="ft_links">Tautan</h4>
+      <ul>
+        <li><a href="daftar.html" data-i18n="n_register">Daftar</a></li>
+        <li><a href="status.html" data-i18n="n_status">Cek status</a></li>
+        <li><a href="startlist.html" data-i18n="n_startlist">Start list</a></li>
+        <li><a href="hasil.html" data-i18n="n_results">Hasil</a></li>
+        <li><a href="verifikasi.html" data-i18n="n_verify">Verifikasi sertifikat</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4 data-i18n="ft_contact">Kontak</h4>
+      <ul>
+        <li><a href="mailto:adjisena.daffa@gmail.com">adjisena.daffa@gmail.com</a></li>
+        <li><a href="https://www.instagram.com/gimnastikjabar/" target="_blank" rel="noopener">Instagram @gimnastikjabar</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2026 Jabar Open</span>
+    <span data-i18n="ft_credit">Dibangun dan dikelola oleh Daffa Adjisena, M.B.A.</span>
+  </div>
 </footer>
 
-<script>
-  const reveals=document.querySelectorAll('.reveal');
-  const obs=new IntersectionObserver(e=>{e.forEach(el=>{if(el.isIntersecting)el.target.classList.add('visible')})},{threshold:0.1});
-  reveals.forEach(el=>obs.observe(el));
-  const sections=document.querySelectorAll('section[id],div[id]');
-  const navLinks=document.querySelectorAll('.nav-links a');
-  window.addEventListener('scroll',()=>{
-    let cur='';
-    sections.forEach(s=>{if(window.scrollY>=s.offsetTop-130)cur=s.id});
-    navLinks.forEach(a=>{a.style.color=a.getAttribute('href')==='#'+cur?'var(--og1)':''});
-  });
-</script>
-<script>
-(function() {
-  const stage = document.querySelector('.mem-stage');
-  const track = document.querySelector('.mem-track');
-  if (!stage || !track) return;
-
-  // Cylindrical rotation: cards near edges rotate in Y axis
-  function updateCylinder() {
-    const sr = stage.getBoundingClientRect();
-    const sc = sr.left + sr.width / 2;
-    const cards = track.querySelectorAll('.mem-card');
-
-    cards.forEach(card => {
-      if (card.matches(':hover') || card.matches(':active')) return;
-      const cr = card.getBoundingClientRect();
-      const cc = cr.left + cr.width / 2;
-      const offset = (cc - sc) / (sr.width * 0.55); // normalised -1..1
-      const ry = offset * 28;          // max ±28 deg
-      const tz = -Math.abs(offset) * 40; // depth: edges push back
-      const scale = 1 - Math.abs(offset) * 0.06;
-      card.style.transform = `rotateY(${ry}deg) translateZ(${tz}px) scale(${scale})`;
-    });
-
-    requestAnimationFrame(updateCylinder);
-  }
-  requestAnimationFrame(updateCylinder);
-
-  // Click: brief scale down, no navigation
-  track.querySelectorAll('.mem-card').forEach(card => {
-    card.addEventListener('click', e => { e.preventDefault(); });
-  });
-})();
-</script>
-<script>
-(function(){
-  var stage = document.querySelector('.mem-stage');
-  var inner = document.querySelector('.mem-inner');
-  if(!stage || !inner) return;
-
-  /* Card dimensions — MUST match CSS */
-  var N      = 10;     /* cards per set */
-  var GAP    = 18;     /* px, matches CSS gap */
-  var PADSET = 18;     /* padding-right on each .mem-set */
-  var SPEED  = 0.7;
-
-  var cardW  = 0;
-  var halfW  = 0;
-  var offset = 0;
-  var paused = false;
-  var dragging = false;
-  var lastX    = 0;
-  var isMobile = ('ontouchstart' in window);
-
-  function computeDims(){
-    /* Read actual rendered card width (accounts for mobile CSS) */
-    var sample = inner.querySelector('.mem-card');
-    cardW = sample ? sample.getBoundingClientRect().width : 280;
-    /* One set = N cards + (N-1) gaps + padding-right */
-    halfW = N * cardW + (N - 1) * GAP + PADSET;
-  }
-
-  function wrap(v){
-    if(!halfW) return v;
-    v = v % halfW;
-    return v < 0 ? v + halfW : v;
-  }
-
-  function tick(){
-    if(!dragging && !paused){
-      offset = wrap(offset + SPEED);
-    }
-    inner.style.transform = 'translateX(-' + offset + 'px)';
-
-    /* Cylinder */
-    var sr = stage.getBoundingClientRect();
-    var sc = sr.left + sr.width / 2;
-    inner.querySelectorAll('.mem-card').forEach(function(card){
-      if(card._hov) return;
-      var cr = card.getBoundingClientRect();
-      if(cr.right < sr.left - 60 || cr.left > sr.right + 60) return;
-      var rel = Math.max(-1.2, Math.min(1.2,
-        (cr.left + cr.width / 2 - sc) / (sr.width * 0.55)));
-      card.style.transform =
-        'rotateY(' + (rel*22) + 'deg) ' +
-        'translateZ(' + (-Math.abs(rel)*32) + 'px) ' +
-        'scale(' + (1 - Math.abs(rel)*0.05) + ')';
-    });
-
-    requestAnimationFrame(tick);
-  }
-
-  function init(){
-    /* Kill any leftover CSS animation */
-    inner.style.animation = 'none';
-    inner.style.webkitAnimation = 'none';
-    computeDims();
-    requestAnimationFrame(tick);
-  }
-
-  /* Desktop */
-  if(!isMobile){
-    stage.addEventListener('mouseenter', function(){ paused = true; });
-    stage.addEventListener('mouseleave', function(){
-      paused = false; dragging = false; stage.style.cursor = 'grab';
-    });
-    stage.addEventListener('mousedown', function(e){
-      dragging = true; lastX = e.clientX;
-      stage.style.cursor = 'grabbing'; e.preventDefault();
-    });
-    window.addEventListener('mousemove', function(e){
-      if(!dragging) return;
-      offset = wrap(offset + (lastX - e.clientX));
-      lastX = e.clientX;
-    });
-    window.addEventListener('mouseup', function(){
-      if(!dragging) return;
-      dragging = false; stage.style.cursor = 'grab';
-      setTimeout(function(){ paused = false; }, 600);
-    });
-    inner.querySelectorAll('.mem-card').forEach(function(card){
-      card.addEventListener('mouseenter', function(){
-        card._hov = true;
-        card.style.transform = 'rotateY(0deg) translateZ(26px) scale(1.09)';
-      });
-      card.addEventListener('mouseleave', function(){ card._hov = false; });
-    });
-  }
-
-  /* Mobile touch */
-  if(isMobile){
-    stage.addEventListener('touchstart', function(e){
-      dragging = true; lastX = e.touches[0].clientX; paused = true;
-    },{passive:true});
-    stage.addEventListener('touchmove', function(e){
-      if(!dragging) return;
-      offset = wrap(offset + (lastX - e.touches[0].clientX));
-      lastX = e.touches[0].clientX;
-    },{passive:true});
-    stage.addEventListener('touchend', function(){
-      dragging = false;
-      setTimeout(function(){ paused = false; }, 400);
-    },{passive:true});
-    inner.querySelectorAll('.mem-card').forEach(function(card){
-      card.addEventListener('touchstart', function(){
-        card._hov = true;
-        card.style.transform = 'rotateY(0deg) translateZ(20px) scale(1.06)';
-        card.style.filter = 'drop-shadow(0 0 7px rgba(255,80,15,.7))';
-      },{passive:true});
-      card.addEventListener('touchend', function(){
-        setTimeout(function(){
-          card._hov = false; card.style.filter = '';
-        }, 350);
-      },{passive:true});
-    });
-  }
-
-  inner.querySelectorAll('.mem-card').forEach(function(card){
-    card.addEventListener('click', function(e){ e.preventDefault(); });
-  });
-
-  /* Wait for images before measuring card size */
-  if(document.readyState === 'complete') init();
-  else window.addEventListener('load', init);
-
-  /* Also recompute on resize */
-  window.addEventListener('resize', function(){
-    computeDims(); offset = wrap(offset);
-  });
-})();
-</script>
 <script src="assets/js/config.js"></script>
 <script src="assets/js/landing.js"></script>
 </body>

@@ -32,15 +32,15 @@ $$;
 create or replace function jo.email_layout(p_title text, p_body text, p_lang text) returns text
 language sql stable set search_path = '' as $$
   select
-  '<!doctype html><html><body style="margin:0;padding:0;background:#f2f4f8;font-family:Arial,Helvetica,sans-serif;color:#1a2236">'
-  || '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f2f4f8;padding:24px 0"><tr><td align="center">'
+  '<!doctype html><html><body style="margin:0;padding:0;background:#f4f6fa;font-family:Arial,Helvetica,sans-serif;color:#34476a">'
+  || '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fa;padding:24px 0"><tr><td align="center">'
   || '<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:10px;overflow:hidden">'
-  || '<tr><td style="background:#0b1525;padding:22px 28px;color:#ffffff">'
-  || '<div style="font-size:13px;color:#a8bfe0">' || jo.h(coalesce(jo.setting_text('event_name'),'Jabar Open 2026')) || '</div>'
+  || '<tr><td style="background:#13284a;padding:22px 28px;color:#ffffff">'
+  || '<div style="font-size:13px;color:#e4c87d">' || jo.h(coalesce(jo.setting_text('event_name'),'Jabar Open 2026')) || '</div>'
   || '<div style="font-size:21px;font-weight:bold;margin-top:4px">' || jo.h(p_title) || '</div></td></tr>'
-  || '<tr><td style="height:4px;background:#ff5a3c"></td></tr>'
+  || '<tr><td style="height:4px;background:#e4c87d"></td></tr>'
   || '<tr><td style="padding:26px 28px;font-size:15px;line-height:1.6">' || p_body || '</td></tr>'
-  || '<tr><td style="padding:18px 28px;background:#f2f4f8;font-size:12px;color:#6b7a92;line-height:1.5">'
+  || '<tr><td style="padding:18px 28px;background:#f4f6fa;font-size:12px;color:#5b6b88;line-height:1.5">'
   || jo.h(coalesce(jo.setting_text('event_name'),'Jabar Open 2026')) || ' &middot; Gimnastik Indonesia (GI) Jawa Barat<br>'
   || jo.tr(p_lang, 'Pertanyaan: ', 'Questions: ') || jo.h(coalesce(jo.setting_text('contact_email'),'')) || '<br>'
   || jo.tr(p_lang, 'Email ini dikirim otomatis. Simpan email ini sebagai bukti pendaftaran.',
@@ -50,7 +50,7 @@ $$;
 
 create or replace function jo.email_button(p_url text, p_label text) returns text
 language sql immutable set search_path = '' as $$
-  select '<p style="margin:22px 0"><a href="' || jo.h(p_url) || '" style="display:inline-block;background:#ff5a3c;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:8px">'
+  select '<p style="margin:22px 0"><a href="' || jo.h(p_url) || '" style="display:inline-block;background:#2c4c7b;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:999px">'
     || jo.h(p_label) || '</a></p>'
 $$;
 
@@ -59,9 +59,9 @@ create or replace function jo.email_roster(p_sub uuid, p_lang text) returns text
 language sql stable set search_path = '' as $$
   select '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:8px 0 4px">'
     || coalesce(string_agg(
-      '<tr><td style="padding:8px 0;border-bottom:1px solid #e4e8f0;vertical-align:top"><b>' || jo.h(a.full_name) || '</b>'
-      || '<div style="font-size:13px;color:#6b7a92">' || jo.h(coalesce(a.athlete_no,'')) || '</div></td>'
-      || '<td style="padding:8px 0;border-bottom:1px solid #e4e8f0;text-align:right;font-size:13px;vertical-align:top">'
+      '<tr><td style="padding:8px 0;border-bottom:1px solid #e2e8f1;vertical-align:top"><b>' || jo.h(a.full_name) || '</b>'
+      || '<div style="font-size:13px;color:#5b6b88">' || jo.h(coalesce(a.athlete_no,'')) || '</div></td>'
+      || '<td style="padding:8px 0;border-bottom:1px solid #e2e8f1;text-align:right;font-size:13px;vertical-align:top">'
       || coalesce((select string_agg(jo.h(case when p_lang = 'en' then c.name_en else c.name_id end)
                      || case when e.priangan_requested then ' + Priangan' else '' end, '<br>')
                    from jo.entry_athletes ea join jo.entries e on e.id = ea.entry_id
@@ -97,7 +97,7 @@ begin
     || case when s.priangan_amount > 0 then '<tr><td style="padding:3px 0">' || jo.tr(l,'Kategori Priangan','Priangan category') || '</td><td align="right">' || jo.fmt_rp(s.priangan_amount) || '</td></tr>' else '' end
     || case when s.unique_code > 0 then '<tr><td style="padding:3px 0">' || jo.tr(l,'Kode unik','Unique code') || '</td><td align="right">' || jo.fmt_rp(s.unique_code) || '</td></tr>' else '' end
     || '<tr><td style="padding:10px 0 0;font-weight:bold;font-size:16px">' || jo.tr(l,'Total yang harus dibayar','Total to pay') || '</td>'
-    || '<td align="right" style="padding:10px 0 0;font-weight:bold;font-size:20px;color:#ff3131">' || jo.fmt_rp(s.total_amount) || '</td></tr></table>';
+    || '<td align="right" style="padding:10px 0 0;font-weight:bold;font-size:20px;color:#13284a">' || jo.fmt_rp(s.total_amount) || '</td></tr></table>';
   if s.payment_method = 'qris' then
     body := body || '<p>' || jo.tr(l,
       'Bayar lewat QRIS Jabar Open 2026 yang tampil di halaman status, lalu ketik nominal <b>tepat ',
@@ -113,7 +113,7 @@ begin
       || '</p>';
   end if;
   body := body || jo.email_button(link, jo.tr(l,'Buka halaman status','Open status page'))
-    || '<p style="font-size:13px;color:#6b7a92">' || jo.tr(l,'Batas pembayaran: ','Payment deadline: ')
+    || '<p style="font-size:13px;color:#5b6b88">' || jo.tr(l,'Batas pembayaran: ','Payment deadline: ')
     || jo.h(coalesce(jo.setting_text('payment_deadline_label'), '12 November 2026')) || '<br>'
     || jo.tr(l,'Simpan tautan di atas. Siapa pun yang memegang tautan ini dapat melihat data pendaftaran Anda.',
                'Keep the link above private. Anyone with it can see your registration details.')
@@ -155,7 +155,7 @@ begin
   body := '<p>' || jo.tr(l,'Halo ','Hello ') || jo.h(s.contact_name) || ',</p>'
     || '<p>' || jo.tr(l,'Bukti pembayaran untuk ','The payment proof for ') || '<b>' || jo.h(s.code) || '</b> '
     || jo.tr(l,'belum bisa kami verifikasi. Catatan panitia:','could not be verified yet. Committee note:') || '</p>'
-    || '<p style="background:#fff4ee;border-left:4px solid #ff914d;padding:10px 14px">' || jo.h(coalesce(s.verify_note,'-')) || '</p>'
+    || '<p style="background:#fbf4e1;border-left:4px solid #e4c87d;padding:10px 14px">' || jo.h(coalesce(s.verify_note,'-')) || '</p>'
     || '<p>' || jo.tr(l,'Nominal yang harus dibayar: ','Amount due: ') || '<b>' || jo.fmt_rp(s.total_amount) || '</b>. '
     || jo.tr(l,'Silakan unggah ulang bukti yang benar di halaman status.','Please upload the correct proof on the status page.') || '</p>'
     || jo.email_button(jo.status_link(s.code, s.token), jo.tr(l,'Unggah ulang bukti','Upload proof again'));
@@ -174,7 +174,7 @@ begin
     || '<p>' || jo.tr(l,'Berikut tautan halaman status untuk pendaftaran ','Here is the status page link for registration ')
     || '<b>' || jo.h(s.code) || '</b>.</p>'
     || jo.email_button(jo.status_link(s.code, s.token), jo.tr(l,'Buka halaman status','Open status page'))
-    || '<p style="font-size:13px;color:#6b7a92">' || jo.tr(l,'Jika Anda tidak meminta email ini, abaikan saja.','If you did not request this email, you can ignore it.') || '</p>';
+    || '<p style="font-size:13px;color:#5b6b88">' || jo.tr(l,'Jika Anda tidak meminta email ini, abaikan saja.','If you did not request this email, you can ignore it.') || '</p>';
   perform jo.queue_email(s.id, 'tautan', s.contact_email, null,
     jo.tr(l,'Tautan status pendaftaran — ','Registration status link — ') || s.code,
     jo.email_layout(jo.tr(l,'Tautan halaman status','Status page link'), body, l));

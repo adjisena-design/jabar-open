@@ -47,6 +47,7 @@
     menu: ['Menu', 'Menu'],
     footer_org: ['Diselenggarakan oleh Gimnastik Indonesia (GI) Jawa Barat', 'Organised by Gimnastik Indonesia (GI) West Java'],
     footer_contact: ['Pertanyaan pendaftaran', 'Registration questions'],
+    footer_sec: ['Sekretariat KONI & GI Jawa Barat', 'KONI & GI West Java secretariat'],
     loading: ['Memuat…', 'Loading…'],
     err_network: ['Tidak bisa terhubung ke server. Periksa koneksi internet lalu coba lagi.', 'Cannot reach the server. Check your connection and try again.'],
     err_session: ['Sesi browser tidak bisa dibuat. Muat ulang halaman. Jika berulang, coba beberapa menit lagi.', 'Could not start a browser session. Reload the page; if it keeps happening, try again in a few minutes.'],
@@ -171,7 +172,7 @@
     const h = document.createElement('header');
     h.className = 'topbar';
     h.innerHTML = `<div class="topbar-in">
-      <a class="brand" href="${base}index.html"><img src="${base}assets/img/logo-jabar-open.png" alt=""><span>Jabar Open 2026</span></a>
+      <a class="brand" href="${base}index.html"><img src="${base}assets/img/brand/jabar-open.webp" alt="" width="360" height="246"><span>Jabar Open 2026</span></a>
       <button class="menu-btn" type="button" aria-expanded="false" aria-controls="topnav" data-i18n="menu">Menu</button>
       <nav class="topnav" id="topnav">
         ${links.map(([href, key]) => `<a href="${base}${href}" data-i18n="${key}" ${active === href ? 'aria-current="page"' : ''}></a>`).join('')}
@@ -189,10 +190,10 @@
     const f = document.createElement('footer');
     f.className = 'footer';
     f.innerHTML = `<div class="footer-in">
-      <img src="${base}assets/img/logo-koni-gi.png" alt="KONI Jawa Barat dan Gimnastik Indonesia Jawa Barat">
+      <div class="logos"><img class="jo" src="${base}assets/img/brand/jabar-open.webp" alt="Jabar Open" width="360" height="246"><img src="${base}assets/img/logo-koni-gi.png" alt="KONI Jawa Barat dan Gimnastik Indonesia Jawa Barat" width="520" height="172"></div>
       <div><div data-i18n="footer_org"></div>
-      <div><span data-i18n="footer_contact"></span>: <a href="mailto:adjisena.daffa@gmail.com">adjisena.daffa@gmail.com</a></div>
-      <div>Instagram <a href="https://www.instagram.com/gimnastikjabar/" target="_blank" rel="noopener">@gimnastikjabar</a></div></div>
+      <div><span data-i18n="footer_contact"></span>: <a href="mailto:adjisena.daffa@gmail.com">adjisena.daffa@gmail.com</a> · Instagram <a href="https://www.instagram.com/gimnastikjabar/" target="_blank" rel="noopener">@gimnastikjabar</a></div>
+      <address><span data-i18n="footer_sec"></span>: Jl. Padjajaran No. 37A, Pasir Kaliki, Kec. Cicendo, Kota Bandung 40171</address></div>
       </div>`;
     document.body.appendChild(f);
   }
@@ -211,12 +212,12 @@
     const m = qrMatrix(text); const n = m.length; const q = 2; const s = size || 160;
     let rects = '';
     for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (m[r][c]) rects += `M${c + q},${r + q}h1v1h-1z`;
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n + 2 * q} ${n + 2 * q}" width="${s}" height="${s}" shape-rendering="crispEdges" role="img" aria-label="QR"><rect width="100%" height="100%" fill="#fff"/><path d="${rects}" fill="#0b1525"/></svg>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n + 2 * q} ${n + 2 * q}" width="${s}" height="${s}" shape-rendering="crispEdges" role="img" aria-label="QR"><rect width="100%" height="100%" fill="#fff"/><path d="${rects}" fill="#13284a"/></svg>`;
   }
   function pdfQr(doc, text, x, y, size) {
     const m = qrMatrix(text); const n = m.length; const cell = size / n;
     doc.setFillColor(255, 255, 255); doc.rect(x - 1.5, y - 1.5, size + 3, size + 3, 'F');
-    doc.setFillColor(11, 21, 37);
+    doc.setFillColor(19, 40, 74);
     for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (m[r][c]) doc.rect(x + c * cell, y + r * cell, cell + 0.02, cell + 0.02, 'F');
   }
   const imgCache = {};
@@ -237,41 +238,41 @@
     if (docIn) doc.addPage('a5', 'portrait');
     const W = 148, H = 210;
     const logo = await imgData(relRoot() + 'assets/img/logo-jabar-open.png');
-    doc.setFillColor(11, 21, 37); doc.rect(0, 0, W, 46, 'F');
-    doc.setFillColor(255, 90, 60); doc.rect(0, 46, W, 2.2, 'F');
+    doc.setFillColor(19, 40, 74); doc.rect(0, 0, W, 46, 'F');
+    doc.setFillColor(228, 200, 125); doc.rect(0, 46, W, 2.2, 'F');
     doc.setFillColor(255, 255, 255); doc.roundedRect(10, 9, 44, 30, 2, 2, 'F');
     const lw = 38, lh = lw * logo.h / logo.w; doc.addImage(logo.data, 'PNG', 13, 9 + (30 - lh) / 2, lw, lh, 'jo-logo', 'FAST');
     doc.setTextColor(168, 191, 224); doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
-    doc.text('E-TICKET ATLET', 62, 17);
+    doc.text('E-ticket atlet', 62, 17);
     doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(17);
     doc.text('Jabar Open 2026', 62, 26);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
     doc.text(DISC_NAME[t_.discipline] || t_.discipline, 62, 33);
     doc.text(DISC_DATES[t_.discipline] || '', 62, 38.5);
 
-    doc.setTextColor(93, 107, 132); doc.setFontSize(9); doc.text('Nomor atlet', 12, 62);
-    doc.setTextColor(11, 21, 37); doc.setFont('helvetica', 'bold'); doc.setFontSize(40);
+    doc.setTextColor(91, 107, 136); doc.setFontSize(9); doc.text('Nomor atlet', 12, 62);
+    doc.setTextColor(19, 40, 74); doc.setFont('helvetica', 'bold'); doc.setFontSize(40);
     doc.text(t_.athlete_no || '-', 12, 78);
     doc.setFontSize(15); const nameLines = doc.splitTextToSize(t_.name, 124); doc.text(nameLines, 12, 90);
     let y = 90 + nameLines.length * 6.5;
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(26, 34, 54);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(52, 71, 106);
     doc.text(t_.club || 'Perorangan', 12, y); y += 9;
-    doc.setTextColor(93, 107, 132); doc.setFontSize(8.5); doc.text('Kategori', 12, y); y += 5;
-    doc.setTextColor(11, 21, 37); doc.setFontSize(10.5);
+    doc.setTextColor(91, 107, 136); doc.setFontSize(8.5); doc.text('Kategori', 12, y); y += 5;
+    doc.setTextColor(19, 40, 74); doc.setFontSize(10.5);
     (t_.categories || []).forEach((c) => { const l = doc.splitTextToSize(c, 124); doc.text(l, 12, y); y += l.length * 5 + 1.5; });
     y += 3;
     if (t_.start) {
-      doc.setTextColor(93, 107, 132); doc.setFontSize(8.5); doc.text('Jadwal tampil', 12, y); y += 5;
-      doc.setTextColor(11, 21, 37); doc.setFontSize(10.5); doc.text(t_.start, 12, y); y += 7;
+      doc.setTextColor(91, 107, 136); doc.setFontSize(8.5); doc.text('Jadwal tampil', 12, y); y += 5;
+      doc.setTextColor(19, 40, 74); doc.setFontSize(10.5); doc.text(t_.start, 12, y); y += 7;
     }
     // QR + status
     const qy = 150; pdfQr(doc, siteUrl() + 'verifikasi.html?c=' + t_.ticket_code, 12, qy, 38);
     doc.setFillColor(230, 245, 236); doc.roundedRect(58, qy, 78, 14, 2, 2, 'F');
     doc.setTextColor(27, 127, 71); doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
-    doc.text('LUNAS', 63, qy + 9.2);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(26, 34, 54);
+    doc.text('Lunas', 63, qy + 9.2);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(52, 71, 106);
     doc.text('Kode pendaftaran ' + t_.submission_code, 82, qy + 9);
-    doc.setTextColor(93, 107, 132); doc.setFontSize(8);
+    doc.setTextColor(91, 107, 136); doc.setFontSize(8);
     doc.text(doc.splitTextToSize('Kode verifikasi ' + t_.ticket_code + '. Pindai QR untuk memeriksa keaslian tiket.', 78), 58, qy + 21);
     doc.text(doc.splitTextToSize('Gymnasium Arcamanik, Jl. Pacuan Kuda No. 15b, Kota Bandung.', 78), 58, qy + 30);
     doc.setDrawColor(223, 228, 238); doc.line(12, 196, W - 12, 196);
@@ -287,49 +288,49 @@
     const W = 297, H = 210;
     const logo = await imgData(relRoot() + 'assets/img/logo-jabar-open.png');
     const org = await imgData(relRoot() + 'assets/img/logo-koni-gi.png');
-    doc.setFillColor(11, 21, 37); doc.rect(0, 0, W, H, 'F');
+    doc.setFillColor(19, 40, 74); doc.rect(0, 0, W, H, 'F');
     doc.setFillColor(255, 255, 255); doc.rect(9, 9, W - 18, H - 18, 'F');
-    doc.setFillColor(255, 90, 60); doc.rect(9, 9, W - 18, 2.5, 'F');
+    doc.setFillColor(228, 200, 125); doc.rect(9, 9, W - 18, 2.5, 'F');
     const lw = 46, lh = lw * logo.h / logo.w; doc.addImage(logo.data, 'PNG', 24, 22, lw, lh, 'jo-logo', 'FAST');
     const ow = 62, oh = ow * org.h / org.w; doc.addImage(org.data, 'PNG', W - 24 - ow, 26, ow, oh, 'jo-org', 'FAST');
     const winner = !!c.medal || !!c.priangan_medal;
-    doc.setTextColor(11, 21, 37); doc.setFont('helvetica', 'bold'); doc.setFontSize(34);
-    doc.text('SERTIFIKAT', W / 2, 62, { align: 'center' });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(13); doc.setTextColor(93, 107, 132);
+    doc.setTextColor(19, 40, 74); doc.setFont('helvetica', 'bold'); doc.setFontSize(34);
+    doc.text('Sertifikat', W / 2, 62, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(13); doc.setTextColor(91, 107, 136);
     doc.text(winner ? 'Pemenang' : 'Peserta', W / 2, 71, { align: 'center' });
     doc.setFontSize(11); doc.text('diberikan kepada', W / 2, 84, { align: 'center' });
-    doc.setTextColor(11, 21, 37); doc.setFont('helvetica', 'bold'); doc.setFontSize(28);
+    doc.setTextColor(19, 40, 74); doc.setFont('helvetica', 'bold'); doc.setFontSize(28);
     doc.text(c.name, W / 2, 98, { align: 'center' });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(12); doc.setTextColor(26, 34, 54);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(12); doc.setTextColor(52, 71, 106);
     doc.text(c.club || '', W / 2, 106, { align: 'center' });
     let line;
     const mName = { emas: 'Medali Emas', perak: 'Medali Perak', perunggu: 'Medali Perunggu' };
     if (c.medal) line = `sebagai Juara ${c.rank} (${mName[c.medal]})`;
     else if (c.rank) line = `meraih peringkat ${c.rank}`;
     else line = 'atas partisipasinya';
-    doc.setFontSize(14); doc.setTextColor(11, 21, 37); doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14); doc.setTextColor(19, 40, 74); doc.setFont('helvetica', 'bold');
     doc.text(line, W / 2, 119, { align: 'center' });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(12); doc.setTextColor(26, 34, 54);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(12); doc.setTextColor(52, 71, 106);
     doc.text(c.category, W / 2, 127, { align: 'center' });
     let yy = 134;
     if (c.priangan_rank) {
       const pl = c.priangan_medal ? `Kategori Priangan: Juara ${c.priangan_rank} (${mName[c.priangan_medal]})` : `Kategori Priangan: peringkat ${c.priangan_rank}`;
-      doc.setTextColor(217, 61, 32); doc.text(pl, W / 2, yy, { align: 'center' }); yy += 7;
+      doc.setTextColor(138, 106, 31); doc.text(pl, W / 2, yy, { align: 'center' }); yy += 7;
     }
-    doc.setTextColor(93, 107, 132); doc.setFontSize(10.5);
+    doc.setTextColor(91, 107, 136); doc.setFontSize(10.5);
     doc.text(`Jabar Open 2026, ${DISC_NAME[c.discipline] || ''}, Gymnasium Arcamanik Bandung, ${DISC_DATES[c.discipline] || 'Desember 2026'}`, W / 2, yy + 1, { align: 'center' });
     // tanda tangan
     const sig = c.signatories || [];
     const xs = [W / 2 - 62, W / 2 + 62];
     sig.slice(0, 2).forEach((s, i) => {
       doc.setDrawColor(201, 209, 224); doc.line(xs[i] - 40, 176, xs[i] + 40, 176);
-      doc.setTextColor(11, 21, 37); doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5);
+      doc.setTextColor(19, 40, 74); doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5);
       doc.text(s.name, xs[i], 182, { align: 'center' });
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(93, 107, 132);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(91, 107, 136);
       doc.text(s.title, xs[i], 187, { align: 'center' });
     });
     pdfQr(doc, siteUrl() + 'verifikasi.html?c=' + c.cert_code, 24, 160, 24);
-    doc.setFontSize(7); doc.setTextColor(93, 107, 132);
+    doc.setFontSize(7); doc.setTextColor(91, 107, 136);
     doc.text('Verifikasi: ' + c.cert_code, 24, 190);
     return doc;
   }

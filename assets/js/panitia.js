@@ -101,7 +101,7 @@
   // ---------------- masuk ----------------
   function showLogin(msg) {
     root.innerHTML = `<div class="login"><div class="card">
-      <img class="logo" src="../assets/img/logo-jabar-open.png" alt="Jabar Open 2026">
+      <img class="logo" src="../assets/img/brand/jabar-open.webp" alt="Jabar Open 2026" width="360" height="246">
       <h1 style="font-size:1.5rem">Konsol panitia</h1>
       <p class="muted">Masukkan kode akses pribadi dari koordinator. Satu kode untuk satu orang; setiap tindakan tercatat atas nama pemegang kode.</p>
       ${msg ? `<p class="note warn">${esc(msg)}</p>` : ''}

@@ -75,7 +75,7 @@ Atlet WNA: tanpa QRIS dan kode unik; panitia menghubungi lewat email, superadmin
 
 1. Buka beranda di proyektor: angka atlet terdaftar langsung dari database, hitung mundur, tombol Daftar.
 2. Peserta uji (ponsel masing-masing) membuka `daftar.html`, mendaftarkan atlet fiktif. Tunjukkan kategori abu-abu saat tanggal lahir diisi, dan opsi Priangan.
-3. Tagihan muncul dengan tiga digit kode unik oranye. Unggah tangkapan layar apa pun sebagai bukti.
+3. Tagihan muncul dengan tiga digit kode unik bergaris bawah emas. Unggah tangkapan layar apa pun sebagai bukti.
 4. Di laptop, konsol owner: Ringkasan → pendaftaran baru muncul → buka → lihat bukti & dokumen → Tandai lunas.
 5. Di ponsel peserta: halaman status menjadi Lunas → unduh e-ticket PDF → pindai QR-nya → halaman verifikasi.
 6. Buat kode juri di depan audiens → juri masuk di ponselnya → isi nilai.
