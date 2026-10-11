@@ -94,6 +94,46 @@
   // galeri tanpa animasi (gerak dikurangi) memakai gulir bawaan: jaga agar tidak pernah bergeser vertikal
   if (strip) strip.addEventListener('scroll', () => { if (strip.scrollTop) strip.scrollTop = 0; }, { passive: true });
 
+  // ---------- lipatan: buka-tutup halus ----------
+  // <details> bawaan langsung melompat. Di sini tingginya dianimasikan, isinya memudar masuk.
+  document.querySelectorAll('details').forEach((d) => {
+    const sum = d.querySelector(':scope > summary');
+    const body = d.querySelector(':scope > :not(summary)');
+    if (!sum || !body || reduce || typeof d.animate !== 'function') return;
+    let anim = null; let fade = null; let closing = false;
+    const edge = () => d.offsetHeight - d.clientHeight; // garis tepi details
+    function done(isOpen) {
+      d.open = isOpen;
+      d.classList.remove('closing');
+      anim = null; closing = false;
+      d.style.height = ''; d.style.overflow = '';
+    }
+    function run(from, to, isOpen) {
+      if (anim) { anim.onfinish = null; anim.cancel(); }
+      if (fade) fade.cancel();
+      anim = d.animate({ height: [from + 'px', to + 'px'] }, { duration: isOpen ? 420 : 320, easing: isOpen ? 'cubic-bezier(.22,.8,.24,1)' : 'cubic-bezier(.4,0,.2,1)' });
+      fade = body.animate(isOpen ? { opacity: [0, 1], transform: ['translateY(-6px)', 'none'] } : { opacity: [1, 0] },
+        { duration: isOpen ? 360 : 220, delay: isOpen ? 60 : 0, easing: 'ease-out', fill: 'both' });
+      anim.onfinish = () => { done(isOpen); if (fade) { fade.cancel(); fade = null; } };
+    }
+    sum.addEventListener('click', (e) => {
+      e.preventDefault();
+      d.style.overflow = 'hidden';
+      if (closing || !d.open) {
+        // buka: kunci tinggi sekarang, tampilkan isi, lalu tumbuh ke tinggi penuh
+        const from = d.offsetHeight;
+        d.style.height = from + 'px';
+        d.open = true; d.classList.remove('closing');
+        closing = false;
+        requestAnimationFrame(() => run(from, sum.offsetHeight + body.offsetHeight + edge(), true));
+      } else {
+        closing = true;
+        d.classList.add('closing');
+        run(d.offsetHeight, sum.offsetHeight + edge(), false);
+      }
+    });
+  });
+
   // ---------- navigasi ----------
   const nav = document.getElementById('nav');
   const burger = document.querySelector('.burger');

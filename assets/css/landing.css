@@ -105,6 +105,7 @@ em{font-style:normal;font-weight:250;color:var(--blue-2)}
 @media (max-width:1060px){
   .nav-in{height:68px}
   .burger{display:grid}
+  .nav-right{margin-left:auto}
   .brand img.jo{height:38px}
   .nav-links{position:absolute;left:0;right:0;top:100%;flex-direction:column;gap:0;margin:0;padding:10px var(--pad) 22px;background:#fff;border-bottom:1px solid var(--line);
     box-shadow:0 30px 40px -30px rgba(19,40,74,.35);display:none}
@@ -143,7 +144,7 @@ em{font-style:normal;font-weight:250;color:var(--blue-2)}
   .hero-text{position:relative;top:auto;left:auto;width:auto;padding:0 var(--pad)}
   .hero-title{font-size:clamp(44px,9vw,84px)}
   .hero-stage{position:relative;inset:auto;height:calc(min(120vw,960px) * 1290 / 1570);margin-top:8px}
-  .hero-athletes{left:auto;right:-6vw;width:min(120vw,960px)}
+  .hero-athletes{left:auto;right:calc(min(120vw,960px) * -.105);width:min(120vw,960px)}
   .hero-strip{top:63.95%;width:min(170vw,1360px)}
   .hero-star{left:auto;right:var(--pad);top:-40px;width:56px}
 }
@@ -170,7 +171,7 @@ details > summary:focus-visible{outline-offset:2px}
 .tog{position:relative;display:inline-block;flex:none;width:24px;height:24px;border-radius:50%;border:1.5px solid currentColor;font-style:normal}
 .tog::before,.tog::after{content:'';position:absolute;left:50%;top:50%;width:10px;height:1.5px;margin:-.75px 0 0 -5px;background:currentColor;transition:transform .25s var(--ease)}
 .tog::after{transform:rotate(90deg)}
-details[open] > summary .tog::after{transform:rotate(0)}
+details[open]:not(.closing) > summary .tog::after{transform:rotate(0)}
 .more > summary{display:flex;align-items:center;gap:10px;padding:12px 0;font-size:14.5px;font-weight:700;color:var(--blue)}
 .more > summary small{font-size:13px;font-weight:600;color:var(--muted)}
 .more > summary .tog{margin-left:auto}
@@ -209,7 +210,7 @@ details[open] > summary .tog::after{transform:rotate(0)}
 .facts dt{font-size:12.5px;font-weight:700;color:var(--blue-2);margin-bottom:2px}
 .facts dd{margin:0;color:var(--ink);font-weight:600;font-size:14.5px;line-height:1.35}
 .facts-box .more{border-bottom:1px solid var(--line-2)}
-.facts-box .more .facts{border-top:0;margin-top:-4px}
+.facts-box .more .facts{border-top:0;padding-bottom:4px}
 .facts-box .more .facts div:last-child,.facts-box .more .facts div:nth-last-child(2){border-bottom:0}
 .discs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:start}
 .disc{position:relative;overflow:hidden;overflow:clip;border-radius:var(--r);padding:18px 20px 8px;color:rgba(255,255,255,.86);display:flex;flex-direction:column;min-height:clamp(330px,25vw,390px);
@@ -226,7 +227,7 @@ details[open] > summary .tog::after{transform:rotate(0)}
 .disc-more{border-top:1px solid rgba(255,255,255,.18)}
 .disc-more > summary{display:flex;align-items:center;justify-content:space-between;padding:10px 0;font-size:14px;font-weight:700;color:#fff}
 .disc-more > summary .tog{color:var(--gold);width:22px;height:22px}
-.disc-more dl{margin:0 0 8px}
+.disc-more dl{margin:0;padding-bottom:8px}
 .disc-more dl div{padding:7px 0;border-top:1px solid rgba(255,255,255,.14)}
 .disc-more dt{font-size:12px;font-weight:700;color:var(--gold);margin-bottom:2px}
 .disc-more dd{margin:0;color:#fff;font-size:14px;font-weight:500;line-height:1.38}
@@ -263,7 +264,7 @@ details[open] > summary .tog::after{transform:rotate(0)}
 .days-tog{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:13.5px;font-weight:600;color:rgba(255,255,255,.72)}
 .days-tog .tog{color:var(--gold);width:22px;height:22px}
 .sched-col > summary:hover .days-tog{color:#fff}
-.sched-col ol{list-style:none;margin:4px 0 0;padding:0}
+.sched-col ol{list-style:none;margin:0;padding:4px 0 0}
 .sched-col li{padding:8px 0;border-top:1px solid rgba(255,255,255,.14);font-size:14.5px;line-height:1.4;color:rgba(255,255,255,.9)}
 .sched-col li b{display:block;font-weight:700;color:var(--gold);font-size:12.5px;margin-bottom:1px}
 @media (max-width:1000px){.sched-in{grid-template-columns:minmax(0,.35fr) minmax(0,1fr)}.sched-photo{width:38%}}
@@ -281,7 +282,7 @@ details[open] > summary .tog::after{transform:rotate(0)}
   .sched-col h3{margin:0;font-size:18px}
   .days-tog{margin:0}
   .days-tog > span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
-  .sched-col ol{margin:0 0 12px}
+  .sched-col ol{padding:0 0 12px}
 }
 
 /* ---------- dari arena (strip bergerak, tanpa keterangan) ---------- */
@@ -365,7 +366,7 @@ details[open] > summary .tog::after{transform:rotate(0)}
 .ig-handle:hover{color:var(--blue)}
 .c-ig p{margin-bottom:8px}
 .more.wa{margin-top:18px;border-bottom:1px solid var(--line-2);position:relative;z-index:1}
-.wa-list{list-style:none;margin:0 0 6px;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.wa-list{list-style:none;margin:0;padding:0 0 14px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 .wa-list li{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px 16px}
 .wa-list small{display:block;font-size:12.5px;font-weight:700;color:var(--blue)}
 .wa-list .nm{display:block;font-size:16px;font-weight:800;color:var(--ink);letter-spacing:-.02em;margin:2px 0}
