@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@100..900&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/img/hero/athletes.webp" imagesrcset="assets/img/hero/athletes-800.webp 800w, assets/img/hero/athletes.webp 1570w" imagesizes="(max-width:1100px) 120vw, 62vw">
-<link rel="stylesheet" href="assets/css/landing.css?v=2610a">
+<link rel="stylesheet" href="assets/css/landing.css?v=2610b">
 <script>document.documentElement.classList.add('js')</script>
 </head>
 <body>
@@ -55,7 +55,7 @@
   <div class="hero-box">
     <img class="hero-star spin" src="assets/img/deco/star-red.webp" alt="" width="420" height="420">
     <div class="hero-text">
-      <p class="kicker"><span class="dot" aria-hidden="true"></span><b data-i18n="h_kick1">Kejuaraan gimnastik terbuka</b><span class="bar" aria-hidden="true"></span><span class="k2" data-i18n="h_kick2">12–20 Desember 2026 · Bandung</span></p>
+      <p class="kicker"><span class="k1"><span class="dot" aria-hidden="true"></span><b data-i18n="h_kick1">Kejuaraan gimnastik terbuka</b></span><span class="bar" aria-hidden="true"></span><span class="k2" data-i18n="h_kick2">12–20 Desember 2026 · Bandung</span></p>
       <h1 class="hero-title">
         <span data-i18n="h_t1">Satu arena.</span>
         <span><em data-i18n="h_t2">Empat disiplin.</em></span>
@@ -63,9 +63,9 @@
       </h1>
       <div class="btns hero-cta">
         <a href="daftar.html" class="btn btn-primary"><span data-i18n="cta_reg">Daftar sekarang</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a>
-        <a href="#biaya" class="btn btn-ghost" data-i18n="cta_fee">Biaya &amp; cara daftar</a>
-        <span class="btn btn-soon" aria-disabled="true"><span data-i18n="cta_ticket">Tiket penonton</span><span class="tag" data-i18n="soon">segera</span></span>
+        <a href="#jadwal" class="btn btn-ghost" data-i18n="cta_fee">Jadwal &amp; biaya</a>
       </div>
+      <p class="hero-count"><b id="st-days">–</b> <span data-i18n="h_days">hari lagi menuju 12 Desember</span></p>
     </div>
     <div class="hero-stage">
       <img class="hero-athletes" src="assets/img/hero/athletes.webp" srcset="assets/img/hero/athletes-800.webp 800w, assets/img/hero/athletes.webp 1570w" sizes="(max-width:1100px) 120vw, 62vw" alt="Pesenam artistik putra dan putri" data-i18n-alt="h_ath_alt" width="1570" height="1290" fetchpriority="high">
@@ -74,47 +74,19 @@
   </div>
 </section>
 
-<!-- ============ STATS (pita biru) ============ -->
-<section class="stats" aria-label="Angka Jabar Open 2026">
-  <div class="stats-in">
-    <div class="stat"><b id="st-ath">–</b><span><span data-i18n="s_ath">Atlet terdaftar</span><span class="live" data-i18n="s_live">langsung</span></span></div>
-    <div class="stat"><b id="st-club">–</b><span data-i18n="s_club">Klub dan sekolah</span></div>
-    <div class="stat"><b>4</b><span data-i18n="s_disc">Disiplin dipertandingkan</span></div>
-    <div class="stat"><b><i id="st-days">–</i></b><span data-i18n="s_days">Hari menuju 12 Desember</span></div>
-  </div>
-</section>
-
 <!-- ============ MENGAPA BERTANDING (putih) ============ -->
 <section class="sec cause" id="tentang">
   <img class="deco dc3 float" src="assets/img/deco/string-navy.webp" alt="" width="600" height="238">
   <div class="wrap">
-    <div class="sec-head">
-      <div class="rv">
-        <p class="eyebrow" data-i18n="c_eyebrow">Mengapa kita bertanding</p>
-        <h2 class="h2" data-i18n-html="c_title">Bertanding untuk tumbuh, <em>bukan sekadar menang.</em></h2>
-      </div>
-      <p class="lead rv d1" data-i18n="c_lead">Kompetisi adalah cermin yang jujur. Latihan berbulan-bulan diuji dalam satu rutinitas, dinilai dengan aturan yang sama untuk semua, lalu menjadi bekal untuk langkah berikutnya.</p>
+    <div class="cause-head rv">
+      <p class="eyebrow" data-i18n="c_eyebrow">Mengapa kita bertanding</p>
+      <h2 class="h2" data-i18n-html="c_title">Bertanding untuk tumbuh, <em>bukan sekadar menang.</em></h2>
     </div>
-    <div class="rail">
-      <div class="pillars swipe">
-        <article class="pillar rv">
-          <span class="no">01</span>
-          <h3 data-i18n="c1_t">Sportivitas</h3>
-          <p data-i18n="c1_d">Semua atlet tampil di arena, jadwal, dan penjurian yang sama, berpedoman pada Code of Points FIG. Menghormati lawan, juri, dan hasil adalah bagian dari pertandingan.</p>
-        </article>
-        <article class="pillar rv d1">
-          <span class="no">02</span>
-          <h3 data-i18n="c2_t">Progres</h3>
-          <p data-i18n="c2_d">Medali untuk tiga besar, nilai untuk semua. Setiap skor menunjukkan apa yang sudah dikuasai dan apa yang perlu dilatih lagi. Jam terbang adalah bagian dari pembinaan.</p>
-        </article>
-        <article class="pillar rv d2">
-          <span class="no">03</span>
-          <h3 data-i18n-html="c3_t">Ibu dari <em>semua olahraga</em></h3>
-          <p data-i18n="c3_d">Kekuatan, kelenturan, keseimbangan, koordinasi, dan kesadaran tubuh: fondasi gerak yang dibangun gimnastik terbawa ke hampir semua cabang olahraga lain.</p>
-        </article>
-      </div>
-    </div>
-    <p class="swipe-hint" data-i18n="swipe">Geser untuk melihat semua</p>
+    <ol class="points">
+      <li class="rv"><span class="no">01</span><b data-i18n="c1_t">Sportivitas</b><span data-i18n="c1_d">Arena, jadwal, dan penjurian yang sama untuk semua.</span></li>
+      <li class="rv d1"><span class="no">02</span><b data-i18n="c2_t">Progres</b><span data-i18n="c2_d">Medali untuk tiga besar, nilai untuk semua.</span></li>
+      <li class="rv d2"><span class="no">03</span><b data-i18n="c3_t">Ibu dari semua olahraga</b><span data-i18n="c3_d">Fondasi gerak untuk hampir semua cabang olahraga.</span></li>
+    </ol>
     <figure class="motto rv">
       <img class="deco dc4 spin" src="assets/img/deco/star-red.webp" alt="" width="420" height="420">
       <blockquote><p class="q" lang="la"><span>Tace et ostende.</span><span>Ad astra per aspera.</span></p></blockquote>
@@ -126,7 +98,7 @@
   </div>
 </section>
 
-<!-- ============ TENTANG KEJUARAAN (abu muda, kartu biru & navy) ============ -->
+<!-- ============ TENTANG KEJUARAAN (abu muda, kartu foto) ============ -->
 <section class="sec mist" id="info">
   <div class="wrap">
     <div class="sec-head">
@@ -134,73 +106,82 @@
         <p class="eyebrow" data-i18n="i_eyebrow">Tentang kejuaraan</p>
         <h2 class="h2" data-i18n-html="i_title">Terbuka untuk semua, <em>satu standar penilaian.</em></h2>
       </div>
-    <dl class="facts rv d1">
-        <div><dt data-i18n="i_r3">Waktu</dt><dd data-i18n="i_r3v">12–20 Desember 2026</dd></div>
-        <div><dt data-i18n="i_r4">Lokasi</dt><dd>Gymnasium Arcamanik, Jl. Pacuan Kuda 15b, Bandung</dd></div>
-        <div><dt data-i18n="i_r6">Pendaftaran</dt><dd data-i18n="i_r6v">Daring, paling lambat 12 November 2026</dd></div>
-        <div><dt data-i18n="i_r5">Peserta</dt><dd data-i18n="i_r5v">Sekolah, klub, pengkab/pengkot, perorangan, termasuk luar negeri</dd></div>
-        <div><dt data-i18n="i_r7">Peraturan</dt><dd data-i18n="i_r7v">CoP FIG 2025–2028 · TR 2025 · ALP tanpa bonus</dd></div>
-        <div><dt data-i18n="i_r8">Protes</dt><dd data-i18n="i_r8v">Tidak ada</dd></div>
-      </dl>
+      <div class="facts-box rv d1">
+        <dl class="facts">
+          <div><dt data-i18n="i_r3">Waktu</dt><dd data-i18n="i_r3v">12–20 Desember 2026</dd></div>
+          <div><dt data-i18n="i_r4">Lokasi</dt><dd>Gymnasium Arcamanik, Jl. Pacuan Kuda 15b, Bandung</dd></div>
+          <div><dt data-i18n="i_r6">Pendaftaran</dt><dd data-i18n="i_r6v">Daring, paling lambat 12 November 2026</dd></div>
+          <div><dt data-i18n="i_r5">Peserta</dt><dd data-i18n="i_r5v">Sekolah, klub, pengkab/pengkot, perorangan, termasuk luar negeri</dd></div>
+        </dl>
+        <details class="more">
+          <summary><span data-i18n="i_rules">Ketentuan</span><i class="tog" aria-hidden="true"></i></summary>
+          <dl class="facts">
+            <div><dt data-i18n="i_r7">Peraturan</dt><dd data-i18n="i_r7v">CoP FIG 2025–2028 · TR 2025 · ALP tanpa bonus</dd></div>
+            <div><dt data-i18n="i_r8">Protes</dt><dd data-i18n="i_r8v">Tidak ada</dd></div>
+          </dl>
+        </details>
+      </div>
     </div>
-    <div class="rail">
-      <div class="discs swipe">
-        <article class="disc d-mag rv">
-          <div class="disc-top"><span class="disc-code">MAG</span><span class="disc-date" data-i18n="d1_w">12–15 Des</span></div>
-          <span class="spacer" aria-hidden="true"></span>
-          <h3 data-i18n="d1_n">Artistik Putra</h3>
+    <div class="discs">
+      <article class="disc d-mag rv">
+        <div class="disc-top"><span class="disc-code">MAG</span><span class="disc-date" data-i18n="d1_w">12–15 Des</span></div>
+        <span class="spacer" aria-hidden="true"></span>
+        <h3 data-i18n="d1_n">Artistik Putra</h3>
+        <p class="disc-cat">ALP Level 1–4 · Junior (CoP)</p>
+        <details class="disc-more">
+          <summary><span data-i18n="more">Detail</span><i class="tog" aria-hidden="true"></i></summary>
           <dl>
-            <div><dt data-i18n="l_cat">Kategori</dt><dd>ALP Level 1–4 · Junior (CoP)</dd></div>
             <div><dt data-i18n="l_fmt">Format</dt><dd data-i18n="v_aa">Serba bisa perorangan</dd></div>
             <div><dt data-i18n="l_app">Alat</dt><dd class="chips"><span data-i18n="ap_fx">Lantai</span><span data-i18n="ap_ph">Kuda pelana</span><span data-i18n="ap_sr">Gelang-gelang</span><span data-i18n="ap_vt">Meja lompat</span><span data-i18n="ap_pb">Palang sejajar</span><span data-i18n="ap_hb">Palang tunggal</span></dd></div>
             <div><dt data-i18n="l_quota">Kuota</dt><dd data-i18n="v_quota">Maks. 10 pesenam per kategori per klub</dd></div>
           </dl>
-        </article>
-        <article class="disc d-wag rv d1">
-          <div class="disc-top"><span class="disc-code">WAG</span><span class="disc-date" data-i18n="d2_w">12–15 Des</span></div>
-          <span class="spacer" aria-hidden="true"></span>
-          <h3 data-i18n="d2_n">Artistik Putri</h3>
+        </details>
+      </article>
+      <article class="disc d-wag rv d1">
+        <div class="disc-top"><span class="disc-code">WAG</span><span class="disc-date" data-i18n="d2_w">12–15 Des</span></div>
+        <span class="spacer" aria-hidden="true"></span>
+        <h3 data-i18n="d2_n">Artistik Putri</h3>
+        <p class="disc-cat">ALP Level 1–6 · Pre Junior · Junior (CoP)</p>
+        <details class="disc-more">
+          <summary><span data-i18n="more">Detail</span><i class="tog" aria-hidden="true"></i></summary>
           <dl>
-            <div><dt data-i18n="l_cat">Kategori</dt><dd>ALP Level 1–6 · Pre Junior · Junior (CoP)</dd></div>
             <div><dt data-i18n="l_fmt">Format</dt><dd data-i18n="v_aa">Serba bisa perorangan</dd></div>
             <div><dt data-i18n="l_app">Alat</dt><dd class="chips"><span data-i18n="ap_vt">Meja lompat</span><span data-i18n="ap_ub">Palang bertingkat</span><span data-i18n="ap_bb">Balok keseimbangan</span><span data-i18n="ap_fx">Lantai</span></dd></div>
             <div><dt data-i18n="l_note">Catatan</dt><dd data-i18n="v_music">Musik Level 4–6 disediakan panitia</dd></div>
           </dl>
-        </article>
-        <article class="disc d-rg rv d2">
-          <div class="disc-top"><span class="disc-code">RG</span><span class="disc-date" data-i18n="d3_w">16–18 Des</span></div>
-          <span class="spacer" aria-hidden="true"></span>
-          <h3 data-i18n="d3_n">Ritmik</h3>
+        </details>
+      </article>
+      <article class="disc d-rg rv d2">
+        <div class="disc-top"><span class="disc-code">RG</span><span class="disc-date" data-i18n="d3_w">16–18 Des</span></div>
+        <span class="spacer" aria-hidden="true"></span>
+        <h3 data-i18n="d3_n">Ritmik</h3>
+        <p class="disc-cat" data-i18n="v_rgcat">Profesional · Amatir</p>
+        <details class="disc-more">
+          <summary><span data-i18n="more">Detail</span><i class="tog" aria-hidden="true"></i></summary>
           <dl>
-            <div><dt data-i18n="l_cat">Kategori</dt><dd data-i18n="v_rgcat">Profesional · Amatir</dd></div>
             <div><dt data-i18n="l_age">Kelompok umur</dt><dd>KU 5–6, 7–8, 9–10, 11–12, Junior</dd></div>
             <div><dt data-i18n="l_app">Alat</dt><dd class="chips"><span data-i18n="ap_fh">Tanpa alat</span><span data-i18n="ap_hoop">Simpai</span><span data-i18n="ap_ball">Bola</span><span data-i18n="ap_clubs">Gada</span><span data-i18n="ap_rib">Pita</span></dd></div>
             <div><dt data-i18n="l_note">Catatan</dt><dd data-i18n="v_fest">Kelompok umur memakai sistem festival</dd></div>
           </dl>
-        </article>
-        <article class="disc d-aer rv d3">
-          <div class="disc-top"><span class="disc-code">AER</span><span class="disc-date" data-i18n="d4_w">19–20 Des</span></div>
-          <span class="spacer" aria-hidden="true"></span>
-          <h3 data-i18n="d4_n">Aerobik</h3>
+        </details>
+      </article>
+      <article class="disc d-aer rv d3">
+        <div class="disc-top"><span class="disc-code">AER</span><span class="disc-date" data-i18n="d4_w">19–20 Des</span></div>
+        <span class="spacer" aria-hidden="true"></span>
+        <h3 data-i18n="d4_n">Aerobik</h3>
+        <p class="disc-cat">Junior · Youth · ND · Pre ND</p>
+        <details class="disc-more">
+          <summary><span data-i18n="more">Detail</span><i class="tog" aria-hidden="true"></i></summary>
           <dl>
             <div><dt>Junior (15–17) · Youth (12–14)</dt><dd data-i18n="v_aer1">Perorangan putra, perorangan putri, pasangan campuran</dd></div>
             <div><dt>ND (9–11) · Pre ND (6–8)</dt><dd data-i18n="v_aer2">Perorangan putra dan putri</dd></div>
             <div><dt data-i18n="l_fmt">Format</dt><dd data-i18n="v_final">Langsung babak final</dd></div>
           </dl>
-        </article>
-      </div>
+        </details>
+      </article>
     </div>
-    <p class="swipe-hint" data-i18n="swipe">Geser untuk melihat semua</p>
   </div>
 </section>
-
-<!-- ============ PITA EMAS ============ -->
-<div class="marquee" aria-hidden="true">
-  <div class="marquee-track">
-    <div class="marquee-set"><span data-i18n="d1_n">Artistik Putra</span><span data-i18n="d2_n">Artistik Putri</span><span data-i18n="d3_n">Ritmik</span><span data-i18n="d4_n">Aerobik</span><span data-i18n="i_r3v">12–20 Desember 2026</span><span>Gymnasium Arcamanik</span></div>
-    <div class="marquee-set"><span data-i18n="d1_n">Artistik Putra</span><span data-i18n="d2_n">Artistik Putri</span><span data-i18n="d3_n">Ritmik</span><span data-i18n="d4_n">Aerobik</span><span data-i18n="i_r3v">12–20 Desember 2026</span><span>Gymnasium Arcamanik</span></div>
-  </div>
-</div>
 
 <!-- ============ JADWAL (foto, navy) ============ -->
 <section class="sched dark" id="jadwal">
@@ -210,215 +191,162 @@
       <div class="sched-head rv">
         <p class="eyebrow" data-i18n="sc_eyebrow">Jadwal sementara</p>
         <h2 class="h2" data-i18n-html="sc_title">Sembilan hari, <em>tiga babak.</em></h2>
-        <p class="lead" data-i18n="sc_lead">Sesi, grup, dan urutan tampil setiap atlet diumumkan di halaman start list setelah pendaftaran ditutup. Tidak ada registrasi ulang di lokasi.</p>
+        <p class="lead" data-i18n-html="sc_lead">Jadwal dapat berubah. Sesi dan urutan tampil diumumkan di <a href="startlist.html">start list</a> setelah pendaftaran ditutup.</p>
       </div>
-      <div class="rail">
-        <div class="sched-grid swipe">
-          <div class="sched-col rv">
-            <div class="when"><b>12–15</b><small data-i18n="dec26">Desember 2026</small></div>
+      <div class="sched-grid">
+        <details class="sched-col rv">
+          <summary>
+            <span class="when"><b>12–15</b><small data-i18n="dec26">Desember 2026</small></span>
             <h3 data-i18n-html="sc_art">Artistik <em>Putra &amp; Putri</em></h3>
-            <ol>
-              <li><b data-i18n="day_sat12">Sab, 12 Des</b><span data-i18n="sc_a1">Pertemuan juri, podium training MAG Level 4, WAG Level 4, dan Junior</span></li>
-              <li><b data-i18n="day_sun13">Min, 13 Des</b><span data-i18n="sc_comp">Kompetisi</span></li>
-              <li><b data-i18n="day_mon14">Sen, 14 Des</b><span data-i18n="sc_upp">Upacara penyerahan penghargaan (UPP)</span></li>
-              <li><b data-i18n="day_tue15">Sel, 15 Des</b><span data-i18n="sc_tba">Menyusul</span></li>
-            </ol>
-          </div>
-          <div class="sched-col rv d1">
-            <div class="when"><b>16–18</b><small data-i18n="dec26">Desember 2026</small></div>
-            <h3 data-i18n="d3_n">Ritmik</h3>
-            <ol>
-              <li><b data-i18n="day_wed16">Rab, 16 Des</b><span data-i18n="sc_r1">Pertemuan juri, podium training, kompetisi</span></li>
-              <li><b data-i18n="day_thu17">Kam, 17 Des</b><span data-i18n="sc_comp">Kompetisi</span></li>
-              <li><b data-i18n="day_fri18">Jum, 18 Des</b><span data-i18n="sc_upp">Upacara penyerahan penghargaan (UPP)</span></li>
-            </ol>
-          </div>
-          <div class="sched-col rv d2">
-            <div class="when"><b>19–20</b><small data-i18n="dec26">Desember 2026</small></div>
-            <h3 data-i18n="d4_n">Aerobik</h3>
-            <ol>
-              <li><b data-i18n="day_sat19">Sab, 19 Des</b><span data-i18n="sc_e1">Rapat orientasi (maks. 1 pelatih dan/atau 1 manajer per delegasi), penyegaran juri, latihan resmi</span></li>
-              <li><b data-i18n="day_sun20">Min, 20 Des</b><span data-i18n="sc_e2">Perlombaan dan UPP</span></li>
-            </ol>
-          </div>
-        </div>
-      </div>
-      <p class="swipe-hint" data-i18n="swipe">Geser untuk melihat semua</p>
-      <p class="sched-note rv" data-i18n-html="sc_note">Jadwal dapat berubah. Pengumuman resmi di <a href="startlist.html">start list</a> dan Instagram <a href="https://www.instagram.com/gimnastikjabar/" target="_blank" rel="noopener">@gimnastikjabar</a>.</p>
-    </div>
-  </div>
-</section>
-
-<!-- ============ BIAYA & CARA DAFTAR (abu muda, ringkas) ============ -->
-<section class="sec mist" id="biaya">
-  <div class="wrap">
-    <div class="sec-head">
-      <div class="rv">
-        <p class="eyebrow" data-i18n="f_eyebrow">Pendaftaran</p>
-        <h2 class="h2" data-i18n-html="f_title">Biaya dan <em>cara mendaftar.</em></h2>
-      </div>
-      <p class="lead rv d1" data-i18n="f_lead">Daftar perorangan atau sebagai klub dan sekolah, hingga lima atlet sekaligus. Dibayar sekali lewat QRIS. Batas pendaftaran 12 November 2026.</p>
-    </div>
-    <div class="fee-grid">
-      <div class="panel rv">
-        <h3 data-i18n="f_head">Biaya per atlet</h3>
-        <ul class="fees">
-          <li><span class="lbl" data-i18n-html="f_r1">Artistik Putra <small>per pesenam</small></span><span class="amt">Rp750.000</span></li>
-          <li><span class="lbl" data-i18n-html="f_r2">Artistik Putri <small>per pesenam</small></span><span class="amt">Rp750.000</span></li>
-          <li><span class="lbl" data-i18n-html="f_r3">Ritmik perorangan <small>per pesenam</small></span><span class="amt">Rp750.000</span></li>
-          <li><span class="lbl" data-i18n-html="f_r4">Aerobik perorangan <small>IM / IW, per pesenam</small></span><span class="amt">Rp300.000</span></li>
-          <li><span class="lbl" data-i18n-html="f_r5">Aerobik pasangan campuran <small>MP, per pasangan</small></span><span class="amt">Rp400.000</span></li>
-        </ul>
-        <div class="pri">
-          <b data-i18n="f_pri_t">Tambahan kategori Priangan</b><span class="amt">+Rp150.000</span>
-          <p data-i18n="f_pri">Opsional, per entri. Untuk atlet WNI beralamat (sesuai identitas) di Jawa Barat dari klub di Jawa Barat: hasilnya diperingkat ulang untuk penghargaan dan tabel medali Priangan.</p>
-        </div>
-      </div>
-      <div class="fee-side rv d1">
-        <div class="rail">
-          <ol class="steps swipe">
-            <li><b data-i18n="f_s1t">Isi formulir daring</b><span data-i18n="f_s1">Pilih disiplin, klub, atlet, dan kategori. Kategori mengikuti tanggal lahir.</span></li>
-            <li><b data-i18n="f_s2t">Bayar lewat QRIS</b><span data-i18n="f_s2">Ketik nominal tepat, termasuk tiga digit kode unik.</span></li>
-            <li><b data-i18n="f_s3t">Unggah bukti bayar</b><span data-i18n="f_s3">Dari halaman tagihan atau status. Panitia memverifikasi.</span></li>
-            <li><b data-i18n="f_s4t">Terima e-ticket</b><span data-i18n="f_s4">PDF untuk setiap atlet, lewat email dan halaman status.</span></li>
+            <span class="days-tog"><span data-i18n="sc_days">Hari per hari</span><i class="tog" aria-hidden="true"></i></span>
+          </summary>
+          <ol>
+            <li><b data-i18n="day_sat12">Sab, 12 Des</b><span data-i18n="sc_a1">Pertemuan juri, podium training MAG Level 4, WAG Level 4, dan Junior</span></li>
+            <li><b data-i18n="day_sun13">Min, 13 Des</b><span data-i18n="sc_comp">Kompetisi</span></li>
+            <li><b data-i18n="day_mon14">Sen, 14 Des</b><span data-i18n="sc_upp">Upacara penyerahan penghargaan (UPP)</span></li>
+            <li><b data-i18n="day_tue15">Sel, 15 Des</b><span data-i18n="sc_tba">Menyusul</span></li>
           </ol>
-        </div>
-        <div class="ready">
-          <div><b data-i18n="f_ready_t">Siapkan sebelum mendaftar</b><p data-i18n="f_ready">Identitas atlet (KTP, akta kelahiran, ijazah, atau paspor), data wali untuk atlet di bawah 18 tahun, serta BPJS atau asuransi.</p></div>
-          <a href="daftar.html" class="btn btn-gold"><span data-i18n="cta_reg">Daftar sekarang</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a>
-        </div>
+        </details>
+        <details class="sched-col rv d1">
+          <summary>
+            <span class="when"><b>16–18</b><small data-i18n="dec26">Desember 2026</small></span>
+            <h3 data-i18n="d3_n">Ritmik</h3>
+            <span class="days-tog"><span data-i18n="sc_days">Hari per hari</span><i class="tog" aria-hidden="true"></i></span>
+          </summary>
+          <ol>
+            <li><b data-i18n="day_wed16">Rab, 16 Des</b><span data-i18n="sc_r1">Pertemuan juri, podium training, kompetisi</span></li>
+            <li><b data-i18n="day_thu17">Kam, 17 Des</b><span data-i18n="sc_comp">Kompetisi</span></li>
+            <li><b data-i18n="day_fri18">Jum, 18 Des</b><span data-i18n="sc_upp">Upacara penyerahan penghargaan (UPP)</span></li>
+          </ol>
+        </details>
+        <details class="sched-col rv d2">
+          <summary>
+            <span class="when"><b>19–20</b><small data-i18n="dec26">Desember 2026</small></span>
+            <h3 data-i18n="d4_n">Aerobik</h3>
+            <span class="days-tog"><span data-i18n="sc_days">Hari per hari</span><i class="tog" aria-hidden="true"></i></span>
+          </summary>
+          <ol>
+            <li><b data-i18n="day_sat19">Sab, 19 Des</b><span data-i18n="sc_e1">Rapat orientasi (maks. 1 pelatih dan/atau 1 manajer per delegasi), penyegaran juri, latihan resmi</span></li>
+            <li><b data-i18n="day_sun20">Min, 20 Des</b><span data-i18n="sc_e2">Perlombaan dan UPP</span></li>
+          </ol>
+        </details>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ============ PANGGILAN ATLET (foto, navy) ============ -->
-<section class="athlete dark" id="atlet">
-  <div class="athlete-photo"><img src="assets/img/hero-athlete.jpg" alt="Pesenam putri melakukan lompatan split di atas balok" data-i18n-alt="at_alt" width="1600" height="900" loading="lazy"></div>
-  <div class="athlete-in">
-    <div class="athlete-text rv">
-      <p class="eyebrow" data-i18n="at_eyebrow">Pendaftaran atlet dibuka</p>
-      <h2><span data-i18n="at_t1">Ini panggungmu.</span><span><em data-i18n="at_t2">Tunjukkan dirimu.</em></span></h2>
-      <p class="lead" data-i18n="at_lead">Ukir namamu di podium Gymnasium Arcamanik. Daftar sendiri atau bersama klub, bayar sekali, dan terima e-ticket untuk setiap atlet.</p>
-      <ul class="a-facts">
-        <li><b data-i18n="at_f1b">12 November</b><span data-i18n="at_f1">Batas pendaftaran</span></li>
-        <li><b data-i18n="at_f2b">4 disiplin</b><span data-i18n="at_f2">MAG, WAG, RG, AER</span></li>
-        <li><b data-i18n="at_f3b">Mulai Rp300.000</b><span data-i18n="at_f3">Biaya per atlet</span></li>
-        <li><b data-i18n="at_f4b">Priangan</b><span data-i18n="at_f4">Peringkat khusus atlet Jawa Barat</span></li>
-      </ul>
-      <div class="btns">
-        <a href="daftar.html" class="btn btn-gold"><span data-i18n="cta_reg">Daftar sekarang</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a>
-        <a href="status.html" class="btn btn-line-w" data-i18n="n_status">Cek status</a>
-      </div>
-    </div>
-  </div>
-  <p class="athlete-credit"><span data-i18n="photo">Foto</span>: <a href="https://jogja.antaranews.com/berita/777841/tim-senam-putri-indonesia-gagal-ke-final-semua-alat" target="_blank" rel="noopener">Antara News</a></p>
-</section>
-
-<!-- ============ KENANGAN (putih) ============ -->
+<!-- ============ DARI ARENA (putih) ============ -->
 <section class="sec" id="kenangan">
   <div class="wrap">
-    <div class="sec-head">
-      <div class="rv">
-        <p class="eyebrow" data-i18n="mem_eyebrow">Dari arena</p>
-        <h2 class="h2" data-i18n-html="mem_title">Momen yang <em>membawa kita ke sini.</em></h2>
-      </div>
-      <p class="lead rv d1" data-i18n="mem_lead">Keberanian di atas matras, pelatih di pinggir arena, dan kebersamaan yang ingin kami hadirkan lagi di Arcamanik.</p>
+    <div class="mem-head rv">
+      <p class="eyebrow" data-i18n="mem_eyebrow">Dari arena</p>
+      <h2 class="h2" data-i18n-html="mem_title">Momen yang <em>membawa kita ke sini.</em></h2>
     </div>
   </div>
   <div class="mem-strip rv" tabindex="0" aria-label="Galeri foto dari arena">
     <div class="mem-track">
       <div class="mem-set">
-        <figure><img src="assets/img/memories/putra-lantai.jpg" alt="Pesenam artistik putra di lantai" width="900" height="600" loading="lazy"><figcaption><em data-i18n="m3a">Artistik,</em> <span data-i18n="m6b">lantai</span></figcaption></figure>
-        <figure><img src="assets/img/memories/rhythmic-clubs.jpg" alt="Pesenam ritmik dengan gada" width="427" height="640" loading="lazy"><figcaption><em data-i18n="m1a">Ritmik,</em> <span data-i18n="m1b">gada</span></figcaption></figure>
-        <figure><img src="assets/img/memories/putri-berjalan.jpg" alt="Pesenam putri berjalan menuju alat" width="600" height="900" loading="lazy"><figcaption><em data-i18n="m11a">Fokus</em> <span data-i18n="m11b">sebelum tampil</span></figcaption></figure>
-        <figure><img src="assets/img/memories/opening-ceremony.jpg" alt="Upacara pembukaan" width="640" height="427" loading="lazy"><figcaption><em data-i18n="m2a">Upacara</em> <span data-i18n="m2b">pembukaan</span></figcaption></figure>
-        <figure><img src="assets/img/memories/putri-palang.jpg" alt="Pesenam putri di palang bertingkat" width="600" height="900" loading="lazy"><figcaption><em data-i18n="m3a">Artistik,</em> <span data-i18n="m10b">palang bertingkat</span></figcaption></figure>
-        <figure><img src="assets/img/memories/artistic-rings.jpg" alt="Pesenam artistik di gelang-gelang" width="427" height="640" loading="lazy"><figcaption><em data-i18n="m3a">Artistik,</em> <span data-i18n="m3b">gelang-gelang</span></figcaption></figure>
-        <figure><img src="assets/img/memories/rhythmic-ribbon.jpg" alt="Pesenam ritmik dengan pita" width="640" height="427" loading="lazy"><figcaption><em data-i18n="m1a">Ritmik,</em> <span data-i18n="m4b">pita</span></figcaption></figure>
-        <figure><img src="assets/img/memories/putra-vsit.jpg" alt="Pesenam putra melakukan V-sit di lantai" width="600" height="900" loading="lazy"><figcaption><em data-i18n="m13a">Kekuatan,</em> <span data-i18n="m13b">V-sit di lantai</span></figcaption></figure>
-        <figure><img src="assets/img/memories/pelatih-atlet.jpg" alt="Pelatih mendampingi atlet" width="640" height="427" loading="lazy"><figcaption><em data-i18n="m5a">Pelatih</em> <span data-i18n="m5b">dan atlet</span></figcaption></figure>
-        <figure><img src="assets/img/memories/artistic-floor.jpg" alt="Pesenam artistik di lantai" width="427" height="640" loading="lazy"><figcaption><em data-i18n="m3a">Artistik,</em> <span data-i18n="m6b">lantai</span></figcaption></figure>
-        <figure><img src="assets/img/memories/persiapan-tangan.jpg" alt="Atlet memasang pelindung pergelangan" width="900" height="600" loading="lazy"><figcaption><em data-i18n="m12a">Persiapan,</em> <span data-i18n="m12b">pelindung pergelangan</span></figcaption></figure>
-        <figure><img src="assets/img/memories/team-spirit.jpg" alt="Kebersamaan tim" width="640" height="427" loading="lazy"><figcaption><em data-i18n="m7a">Kebersamaan</em> <span data-i18n="m7b">tim</span></figcaption></figure>
-        <figure><img src="assets/img/memories/artistic-pommel.jpg" alt="Pesenam artistik di kuda pelana" width="640" height="427" loading="lazy"><figcaption><em data-i18n="m3a">Artistik,</em> <span data-i18n="m8b">kuda pelana</span></figcaption></figure>
-        <figure><img src="assets/img/memories/rhythmic-floor.jpg" alt="Pesenam ritmik tanpa alat" width="640" height="427" loading="lazy"><figcaption><em data-i18n="m1a">Ritmik,</em> <span data-i18n="m9b">tanpa alat</span></figcaption></figure>
+        <figure><img src="assets/img/memories/putra-lantai.jpg" alt="Pesenam artistik putra di lantai" width="900" height="600" loading="lazy"></figure>
+        <figure><img src="assets/img/memories/rhythmic-clubs.jpg" alt="Pesenam ritmik dengan gada" width="427" height="640" loading="lazy"></figure>
+        <figure><img src="assets/img/memories/putri-berjalan.jpg" alt="Pesenam putri berjalan menuju alat" width="600" height="900" loading="lazy"></figure>
+        <figure><img src="assets/img/memories/opening-ceremony.jpg" alt="Upacara pembukaan" width="640" height="427" loading="lazy"></figure>
+        <figure><img src="assets/img/memories/putri-palang.jpg" alt="Pesenam putri di palang bertingkat" width="600" height="900" loading="lazy"></figure>
+        <figure><img src="assets/img/memories/artistic-rings.jpg" alt="Pesenam artistik di gelang-gelang" width="427" height="640" loading="lazy"></figure>
+        <figure><img src="assets/img/memories/rhythmic-ribbon.jpg" alt="Pesenam ritmik dengan pita" width="640" height="427" loading="lazy"></figure>
+        <figure><img src="assets/img/memories/putra-vsit.jpg" alt="Pesenam putra melakukan V-sit di lantai" width="600" height="900" loading="lazy"></figure>
+        <figure><img src="assets/img/memories/pelatih-atlet.jpg" alt="Pelatih mendampingi atlet" width="640" height="427" loading="lazy"></figure>
+        <figure><img src="assets/img/memories/artistic-floor.jpg" alt="Pesenam artistik di lantai" width="427" height="640" loading="lazy"></figure>
+        <figure><img src="assets/img/memories/persiapan-tangan.jpg" alt="Atlet memasang pelindung pergelangan" width="900" height="600" loading="lazy"></figure>
+        <figure><img src="assets/img/memories/team-spirit.jpg" alt="Kebersamaan tim" width="640" height="427" loading="lazy"></figure>
+        <figure><img src="assets/img/memories/artistic-pommel.jpg" alt="Pesenam artistik di kuda pelana" width="640" height="427" loading="lazy"></figure>
+        <figure><img src="assets/img/memories/rhythmic-floor.jpg" alt="Pesenam ritmik tanpa alat" width="640" height="427" loading="lazy"></figure>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ============ MERCHANDISE (emas muda) ============ -->
-<section class="sec merch" id="merch">
-  <div class="wrap merch-grid">
-    <div class="rv">
-      <p class="eyebrow" data-i18n="mc_eyebrow">Merchandise resmi</p>
-      <p class="soon" data-i18n="mc_soon">Segera hadir</p>
-      <h2 class="h2" data-i18n-html="mc_title">Edisi terbatas. <em>Dipakai dengan bangga.</em></h2>
-      <p class="lead" data-i18n="mc_lead">Koleksi resmi Jabar Open 2026 sedang kami siapkan: dirancang dari identitas kejuaraan, dibuat dalam jumlah terbatas, untuk siapa saja yang ingin membawa pulang sepotong cerita dari arena.</p>
-      <ul class="merch-points">
-        <li><i>01</i><span data-i18n="mc_p1">Diproduksi terbatas untuk edisi 2026, tidak dicetak ulang.</span></li>
-        <li><i>02</i><span data-i18n="mc_p2">Detail koleksi, harga, dan cara pemesanan diumumkan di situs ini.</span></li>
-        <li><i>03</i><span data-i18n="mc_p3">Kabar pertama selalu di Instagram @gimnastikjabar.</span></li>
-      </ul>
-      <a href="https://www.instagram.com/gimnastikjabar/" target="_blank" rel="noopener" class="btn btn-primary"><span data-i18n="mc_cta">Ikuti kabarnya</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12L12 4M5.5 4H12v6.5"/></svg></a>
+<!-- ============ PENDAFTARAN & BIAYA (foto atlet, navy) ============ -->
+<section class="reg dark" id="biaya">
+  <div class="reg-photo"><img src="assets/img/hero-athlete.jpg" alt="Pesenam putri melakukan lompatan split di atas balok" data-i18n-alt="at_alt" width="1600" height="900" loading="lazy"></div>
+  <div class="reg-in">
+    <div class="reg-text">
+      <div class="rv">
+        <p class="eyebrow" data-i18n="at_eyebrow">Pendaftaran atlet dibuka</p>
+        <h2><span data-i18n="at_t1">Ini panggungmu.</span><span><em data-i18n="at_t2">Tunjukkan dirimu.</em></span></h2>
+        <p class="lead" data-i18n="f_lead">Daftar sendiri atau bersama klub, hingga lima atlet sekaligus, paling lambat 12 November 2026.</p>
+      </div>
+      <div class="fee-box rv d1">
+        <h3 data-i18n="f_head">Biaya per atlet</h3>
+        <ul class="fees">
+          <li><span class="lbl" data-i18n="f_r1">Artistik Putra</span><span class="amt">Rp750.000</span></li>
+          <li><span class="lbl" data-i18n="f_r2">Artistik Putri</span><span class="amt">Rp750.000</span></li>
+          <li><span class="lbl" data-i18n="f_r3">Ritmik perorangan</span><span class="amt">Rp750.000</span></li>
+          <li><span class="lbl" data-i18n-html="f_r4">Aerobik perorangan <small>IM / IW</small></span><span class="amt">Rp300.000</span></li>
+          <li><span class="lbl" data-i18n-html="f_r5">Aerobik pasangan campuran <small>MP, per pasangan</small></span><span class="amt">Rp400.000</span></li>
+          <li class="pri"><span class="lbl"><span data-i18n="f_pri_t">Kategori Priangan</span><small data-i18n="f_pri">Opsional, per entri: peringkat dan medali khusus atlet WNI beralamat Jawa Barat dari klub Jawa Barat.</small></span><span class="amt">+Rp150.000</span></li>
+        </ul>
+      </div>
+      <div class="reg-go rv d2">
+        <ol class="steps">
+          <li data-i18n="f_s1t">Isi formulir</li>
+          <li data-i18n="f_s2t">Bayar lewat QRIS</li>
+          <li data-i18n="f_s3t">Unggah bukti bayar</li>
+          <li data-i18n="f_s4t">Terima e-ticket</li>
+        </ol>
+        <a href="daftar.html" class="btn btn-gold"><span data-i18n="cta_reg">Daftar sekarang</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a>
+      </div>
     </div>
-    <div class="merch-visual rv d1">
+  </div>
+  <p class="photo-credit"><span data-i18n="photo">Foto</span>: <a href="https://jogja.antaranews.com/berita/777841/tim-senam-putri-indonesia-gagal-ke-final-semua-alat" target="_blank" rel="noopener">Antara News</a></p>
+</section>
+
+<!-- ============ MERCHANDISE (teaser, emas muda) ============ -->
+<section class="merch" id="merch">
+  <div class="wrap merch-in">
+    <div class="merch-text rv">
+      <p class="eyebrow" data-i18n="mc_eyebrow">Merchandise resmi</p>
+      <h2 class="h2" data-i18n-html="mc_title">Edisi terbatas. <em>Dipakai dengan bangga.</em></h2>
+      <p class="soon" data-i18n="mc_soon">Segera hadir</p>
+    </div>
+    <div class="merch-pic rv d1">
       <img class="deco dc7 spin" src="assets/img/deco/star-navy.webp" alt="" width="600" height="600">
       <img class="deco dc8 float" src="assets/img/deco/string-red.webp" alt="" width="700" height="512">
-      <span class="badge" data-i18n="mc_badge">Pratinjau koleksi</span>
-      <img class="mock" src="assets/img/merch/merch-preview.webp" alt="Pratinjau merchandise Jabar Open 2026: bendera, kaus, dan botol minum" data-i18n-alt="mc_alt" width="700" height="1540" loading="lazy">
+      <img class="mock" src="assets/img/merch/merch-teaser.webp" alt="Pratinjau merchandise Jabar Open 2026: kaus dan botol minum" data-i18n-alt="mc_alt" width="640" height="550" loading="lazy">
     </div>
   </div>
 </section>
 
-<!-- ============ INSTAGRAM (pita biru) ============ -->
-<section class="ig-band" aria-label="Instagram">
-  <img class="deco dc9 spin" src="assets/img/deco/star-navy.webp" alt="" width="600" height="600">
-  <div class="ig rv">
-    <img class="gi" src="assets/img/brand/gi-jabar.webp" alt="Gimnastik Indonesia Jawa Barat" width="520" height="248" loading="lazy">
-    <div>
-      <a class="ig-handle" href="https://www.instagram.com/gimnastikjabar/" target="_blank" rel="noopener"><em>@</em>gimnastikjabar</a>
-      <p data-i18n="ig_lead">Akun resmi Gimnastik Indonesia Jawa Barat. Pengumuman, start list, dan momen dari arena dibagikan di sana lebih dulu.</p>
-    </div>
-    <a class="btn btn-primary" href="https://www.instagram.com/gimnastikjabar/" target="_blank" rel="noopener"><span data-i18n="ig_cta">Ikuti di Instagram</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12L12 4M5.5 4H12v6.5"/></svg></a>
-  </div>
-</section>
-
-<!-- ============ KONTAK (putih) ============ -->
+<!-- ============ KONTAK (abu muda) ============ -->
 <section class="sec mist" id="kontak">
+  <img class="deco dc9 spin" src="assets/img/deco/star-navy.webp" alt="" width="600" height="600">
   <div class="wrap">
-    <div class="sec-head">
-      <div class="rv">
-        <p class="eyebrow" data-i18n="k_eyebrow">Hubungi kami</p>
-        <h2 class="h2" data-i18n-html="k_title">Ada pertanyaan? <em>Kami siap membantu.</em></h2>
-      </div>
-      <p class="lead rv d1" data-i18n="k_lead">Pendaftaran, pembayaran, dan data atlet lewat email. Pertanyaan teknis per disiplin ke narahubung masing-masing lewat WhatsApp.</p>
+    <div class="contact-head rv">
+      <p class="eyebrow" data-i18n="k_eyebrow">Hubungi kami</p>
+      <h2 class="h2" data-i18n-html="k_title">Ada pertanyaan? <em>Kami siap membantu.</em></h2>
     </div>
     <div class="contacts">
       <div class="c-card c-mail rv">
-        <div>
-          <small data-i18n="k_mail_t">Pendaftaran dan pembayaran</small>
-          <a class="mail" href="mailto:adjisena.daffa@gmail.com">adjisena.daffa@gmail.com</a>
-        </div>
-        <p data-i18n="k_mail_d">Sertakan kode pendaftaran (JO26-…) agar pertanyaan Anda cepat ditangani.</p>
+        <small data-i18n="k_mail_t">Pendaftaran dan pembayaran</small>
+        <a class="mail" href="mailto:adjisena.daffa@gmail.com">adjisena.daffa@gmail.com</a>
+        <p data-i18n="k_mail_d">Sertakan kode pendaftaran (JO26-…) agar cepat ditangani.</p>
         <a href="mailto:adjisena.daffa@gmail.com" class="btn btn-gold" data-i18n="k_mail_cta">Kirim email</a>
       </div>
-      <div class="c-card rv d1"><small data-i18n="cp1">Artistik Putra</small><span class="nm">Fegie Rizkia Mulyana</span><a href="https://wa.me/628112348753" target="_blank" rel="noopener" aria-label="WhatsApp 0811-2348-753"><span class="wa">WhatsApp </span>0811-2348-753</a></div>
-      <div class="c-card rv d2"><small data-i18n="cp2">Artistik Putri</small><span class="nm">Vicy Ayu</span><a href="https://wa.me/628562383455" target="_blank" rel="noopener" aria-label="WhatsApp 0856-2383-455"><span class="wa">WhatsApp </span>0856-2383-455</a></div>
-      <div class="c-card rv d1"><small data-i18n="cp3">Ritmik</small><span class="nm">Yuanita Vidya M</span><a href="https://wa.me/6281563611403" target="_blank" rel="noopener" aria-label="WhatsApp 0815-6361-1403"><span class="wa">WhatsApp </span>0815-6361-1403</a></div>
-      <div class="c-card rv d2"><small data-i18n="cp4">Aerobik</small><span class="nm">Mustika Fitri</span><a href="https://wa.me/62816605281" target="_blank" rel="noopener" aria-label="WhatsApp 0816-605-281"><span class="wa">WhatsApp </span>0816-605-281</a></div>
+      <div class="c-card c-ig rv d1">
+        <img class="gi" src="assets/img/brand/gi-jabar.webp" alt="Gimnastik Indonesia Jawa Barat" width="520" height="248" loading="lazy">
+        <a class="ig-handle" href="https://www.instagram.com/gimnastikjabar/" target="_blank" rel="noopener"><em>@</em>gimnastikjabar</a>
+        <p data-i18n="ig_lead">Pengumuman dan start list dibagikan di sini lebih dulu.</p>
+        <a class="btn btn-primary" href="https://www.instagram.com/gimnastikjabar/" target="_blank" rel="noopener"><span data-i18n="ig_cta">Ikuti di Instagram</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12L12 4M5.5 4H12v6.5"/></svg></a>
+      </div>
     </div>
-  </div>
-</section>
-
-<!-- ============ PENUTUP (navy) ============ -->
-<section class="closing">
-  <h2 class="rv"><span data-i18n="cl_t1">Sampai jumpa di</span> <em>Arcamanik.</em><img src="assets/img/deco/star-red.webp" alt="" width="420" height="420"></h2>
-  <p class="rv d1" data-i18n="cl_d">Gymnasium Arcamanik, Bandung · 12–20 Desember 2026</p>
-  <div class="btns rv d2">
-    <a href="daftar.html" class="btn btn-gold"><span data-i18n="cta_reg">Daftar sekarang</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a>
-    <a href="startlist.html" class="btn btn-line-w" data-i18n="n_startlist">Start list</a>
+    <details class="more wa rv">
+      <summary><span data-i18n="k_wa">Narahubung per disiplin</span><small>WhatsApp</small><i class="tog" aria-hidden="true"></i></summary>
+      <ul class="wa-list">
+        <li><small data-i18n="cp1">Artistik Putra</small><span class="nm">Fegie Rizkia Mulyana</span><a href="https://wa.me/628112348753" target="_blank" rel="noopener" aria-label="WhatsApp 0811-2348-753">0811-2348-753</a></li>
+        <li><small data-i18n="cp2">Artistik Putri</small><span class="nm">Vicy Ayu</span><a href="https://wa.me/628562383455" target="_blank" rel="noopener" aria-label="WhatsApp 0856-2383-455">0856-2383-455</a></li>
+        <li><small data-i18n="cp3">Ritmik</small><span class="nm">Yuanita Vidya M</span><a href="https://wa.me/6281563611403" target="_blank" rel="noopener" aria-label="WhatsApp 0815-6361-1403">0815-6361-1403</a></li>
+        <li><small data-i18n="cp4">Aerobik</small><span class="nm">Mustika Fitri</span><a href="https://wa.me/62816605281" target="_blank" rel="noopener" aria-label="WhatsApp 0816-605-281">0816-605-281</a></li>
+      </ul>
+    </details>
   </div>
 </section>
 
@@ -426,6 +354,7 @@
 
 <footer class="footer">
   <div class="footer-in">
+    <p class="f-bye"><span data-i18n="cl_t1">Sampai jumpa di</span> <em>Arcamanik.</em><img src="assets/img/deco/star-red.webp" alt="" width="420" height="420"></p>
     <div class="f-brand">
       <div class="logos">
         <img class="jo" src="assets/img/brand/jabar-open.webp" alt="Jabar Open" width="360" height="246" loading="lazy">
@@ -438,7 +367,7 @@
       <address><b>KONI Jawa Barat &amp; GI Jawa Barat</b><br>Jl. Padjajaran No. 37A, Pasir Kaliki, Kec. Cicendo, Kota Bandung, Jawa Barat 40171</address>
       <a class="f-map" href="https://www.google.com/maps/search/?api=1&amp;query=KONI+Jawa+Barat+Jl.+Padjajaran+No.37A+Pasir+Kaliki+Cicendo+Bandung+40171" target="_blank" rel="noopener"><span data-i18n="ft_map">Lihat di peta</span> <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12L12 4M5.5 4H12v6.5"/></svg></a>
     </div>
-    <div>
+    <div class="f-links">
       <h4 data-i18n="ft_links">Tautan</h4>
       <ul>
         <li><a href="daftar.html" data-i18n="n_register">Daftar</a></li>
@@ -446,13 +375,6 @@
         <li><a href="startlist.html" data-i18n="n_startlist">Start list</a></li>
         <li><a href="hasil.html" data-i18n="n_results">Hasil</a></li>
         <li><a href="verifikasi.html" data-i18n="n_verify">Verifikasi sertifikat</a></li>
-      </ul>
-    </div>
-    <div>
-      <h4 data-i18n="ft_contact">Kontak</h4>
-      <ul>
-        <li><a href="mailto:adjisena.daffa@gmail.com">adjisena.daffa@gmail.com</a></li>
-        <li><a href="https://www.instagram.com/gimnastikjabar/" target="_blank" rel="noopener">Instagram @gimnastikjabar</a></li>
       </ul>
     </div>
   </div>
@@ -463,6 +385,6 @@
 </footer>
 
 <script src="assets/js/config.js"></script>
-<script src="assets/js/landing.js?v=2610a"></script>
+<script src="assets/js/landing.js?v=2610b"></script>
 </body>
 </html>

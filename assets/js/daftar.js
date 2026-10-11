@@ -7,6 +7,8 @@
   JO.addDict({
     d_title: ['Pendaftaran atlet', 'Athlete registration'],
     d_lead: ['Satu pendaftaran untuk satu disiplin. Perorangan untuk satu atlet, klub atau sekolah untuk hingga lima atlet sekaligus.', 'One registration covers one discipline. Individuals register one athlete; clubs or schools can register up to five at once.'],
+    d_ready_t: ['Siapkan sebelum mendaftar', 'Have this ready'],
+    d_ready: ['Identitas atlet (KTP, akta kelahiran, ijazah, atau paspor), data orang tua/wali untuk atlet di bawah 18 tahun, serta BPJS atau asuransi.', "Athlete ID (national ID, birth certificate, school certificate or passport), parent/guardian details for athletes under 18, and BPJS or insurance."],
     st1: ['Pendaftar', 'Registrant'], st2: ['Klub', 'Club'], st3: ['Atlet & kategori', 'Athletes & categories'], st4: ['Pernyataan & kirim', 'Declarations & submit'],
     next: ['Lanjut', 'Continue'], back: ['Kembali', 'Back'],
     q_type: ['Siapa yang mendaftar?', 'Who is registering?'],

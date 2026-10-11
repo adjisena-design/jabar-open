@@ -59,6 +59,7 @@ body[data-page=panitia]{display:block}
 .wrap-wide{max-width:1200px;margin:0 auto;padding:24px 16px 64px}
 .page-head{margin-bottom:22px}
 .page-head p{color:var(--muted);max-width:62ch}
+.d-ready{margin:0 0 18px;max-width:780px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px}
 .card + .card{margin-top:16px}
 .card h2{margin-bottom:.35em}
