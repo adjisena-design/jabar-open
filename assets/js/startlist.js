@@ -9,6 +9,7 @@
     sl_search: ['Cari nama atlet atau klub', 'Search athlete or club'],
     sl_session: ['Sesi', 'Session'], sl_group: ['Grup', 'Group'], sl_order: ['Urutan', 'Order'], sl_name: ['Nama', 'Name'], sl_club: ['Klub', 'Club'],
     sl_noresult: ['Tidak ada yang cocok.', 'No matches.'],
+    sl_team_only: ['beregu', 'team'], sl_team_only_t: ['Khusus beregu: dinilai untuk tim, tidak diperingkat perorangan', 'Team only: scored for the team, not ranked individually'],
   });
   const app = document.getElementById('app');
   const discs = ['MAG', 'WAG', 'RG', 'AER'];
@@ -28,7 +29,7 @@
       return `<section class="card" style="margin-bottom:16px"><h2>${esc(JO.lang === 'en' ? c.name_en : c.name_id)}</h2>
         <div class="tbl-wrap"><table class="tbl"><thead><tr><th>${esc(t('sl_session'))}</th><th class="c">${esc(t('sl_group'))}</th><th class="c">${esc(t('sl_order'))}</th><th>${esc(t('sl_name'))}</th><th>${esc(t('sl_club'))}</th></tr></thead><tbody>
         ${rows.map((e) => `<tr><td class="small">${esc(sess(e))}</td><td class="c num">${e.group_no || '–'}</td><td class="c num"><strong>${e.start_order || '–'}</strong></td>
-          <td>${e.athletes.map((a) => `${esc(a.name)} <span class="tiny muted">${esc(a.athlete_no || '')}</span>`).join('<br>')}</td>
+          <td>${e.athletes.map((a) => `${esc(a.name)} <span class="tiny muted">${esc(a.athlete_no || '')}</span>`).join('<br>')}${e.team_only ? ` <span class="pill gold" title="${esc(t('sl_team_only_t'))}">${esc(t('sl_team_only'))}</span>` : ''}</td>
           <td>${esc(e.club)}<br><span class="tiny muted">${esc(e.region || '')}</span></td></tr>`).join('')}
         </tbody></table></div></section>`;
     }).join('');

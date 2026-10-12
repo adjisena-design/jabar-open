@@ -306,6 +306,75 @@ create table if not exists jo.rate_events (
   at     timestamptz not null default now()
 );
 
+-- ---------------------------------------------------------------------
+-- v3 (12 Okt 2026): beregu Artistik & musik Ritmik
+--   * Beregu: pendaftaran terpisah (registrant_type 'beregu'), satu tim per
+--     pendaftaran, 1–6 pesenam. Anggota bisa atlet perorangan (ditautkan ke
+--     entrinya) atau "khusus beregu" (entri team_only: dinilai, tidak diperingkat).
+--   * Musik Ritmik: tautan Google Drive per entri, boleh diganti satu kali
+--     sampai start list kategorinya terbit; panitia memeriksa tautan.
+-- ---------------------------------------------------------------------
+alter table jo.submissions drop constraint if exists submissions_registrant_type_check;
+alter table jo.submissions add constraint submissions_registrant_type_check
+  check (registrant_type in ('individu','klub','beregu'));
+
+alter table jo.entries add column if not exists team_only        boolean not null default false;
+alter table jo.entries add column if not exists music_url        text;
+alter table jo.entries add column if not exists music_status     text not null default 'tidak_perlu';
+alter table jo.entries add column if not exists music_note       text;
+alter table jo.entries add column if not exists music_changes    integer not null default 0;
+alter table jo.entries add column if not exists music_updated_at timestamptz;
+alter table jo.entries add column if not exists music_checked_by uuid references jo.staff(id);
+alter table jo.entries add column if not exists music_checked_at timestamptz;
+alter table jo.entries drop constraint if exists entries_music_status_check;
+alter table jo.entries add constraint entries_music_status_check
+  check (music_status in ('tidak_perlu','belum','menunggu','ok','tidak_bisa'));
+-- entri Ritmik lama tanpa tautan musik: tandai "belum"
+update jo.entries e set music_status = 'belum'
+  from jo.categories c
+ where c.id = e.category_id and c.discipline = 'RG' and e.music_url is null and e.music_status = 'tidak_perlu';
+
+create table if not exists jo.music_log (
+  id        bigserial primary key,
+  at        timestamptz not null default now(),
+  entry_id  uuid not null references jo.entries(id) on delete cascade,
+  action    text not null,          -- daftar, isi, ganti, perbaiki, ok, tidak_bisa
+  old_url   text,
+  new_url   text,
+  staff_id  uuid references jo.staff(id),
+  note      text
+);
+create index if not exists music_log_entry_idx on jo.music_log(entry_id);
+
+create table if not exists jo.teams (
+  id            uuid primary key default gen_random_uuid(),
+  submission_id uuid not null unique references jo.submissions(id) on delete cascade,
+  discipline    text not null references jo.disciplines(code),
+  level         text not null,
+  name          text not null,
+  created_at    timestamptz not null default now()
+);
+create index if not exists teams_level_idx on jo.teams(discipline, level);
+
+create table if not exists jo.team_members (
+  team_id    uuid not null references jo.teams(id) on delete cascade,
+  entry_id   uuid not null references jo.entries(id) on delete cascade,
+  athlete_id uuid not null references jo.athletes(id) on delete cascade,
+  team_only  boolean not null default false,
+  cert_code  text not null unique,
+  sort       integer not null default 0,
+  primary key (team_id, entry_id)
+);
+create index if not exists team_members_entry_idx on jo.team_members(entry_id);
+
+create table if not exists jo.team_levels (
+  discipline   text not null references jo.disciplines(code),
+  level        text not null,
+  published    boolean not null default false,
+  published_at timestamptz,
+  primary key (discipline, level)
+);
+
 -- Semua tabel di skema jo: RLS aktif tanpa policy.
 -- Akses hanya lewat fungsi (RPC) yang memeriksa hak.
 do $$ declare t record; begin

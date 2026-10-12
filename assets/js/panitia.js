@@ -132,6 +132,7 @@
     ['ringkasan', 'Ringkasan', () => isAdmin(), pageDashboard],
     ['pendaftaran', 'Pendaftaran', () => isAdmin(), pageSubmissions],
     ['atlet', 'Data atlet', () => isAdmin(), pageAthletes],
+    ['musik', 'Musik Ritmik', () => isAdmin() && (!ME.discipline || ME.discipline === 'RG'), pageMusic],
     ['kategori', 'Kategori', () => isAdmin(), pageCategories],
     ['startlist', 'Start list', () => isAdmin(), pageStartlist],
     ['nilai', 'Penilaian', () => true, pageScoring],
@@ -181,6 +182,8 @@
           <li><a href="#/pendaftaran?d=${x.code}&s=menunggu_pembayaran">Belum bayar / perlu perbaikan</a><strong>${x.unpaid}</strong></li>
           <li><a href="#/pendaftaran?d=${x.code}&f=docs">Dokumen belum diperiksa</a><strong>${x.docs_pending}</strong></li>
           <li><a href="#/pendaftaran?d=${x.code}&f=priangan">Priangan menunggu</a><strong>${x.priangan_pending}</strong></li>
+          ${x.code === 'MAG' || x.code === 'WAG' ? `<li><a href="#/pendaftaran?d=${x.code}&f=beregu">Tim beregu (lunas / terdaftar)</a><strong>${x.teams_paid || 0} / ${x.teams || 0}</strong></li>` : ''}
+          ${x.code === 'RG' ? `<li><a href="#/musik">Musik perlu diperiksa</a><strong>${x.music_pending || 0}</strong></li>` : ''}
         </ul></div>`).join('')}
         ${d.money ? `<div class="stat"><h3>Keuangan <a class="small" href="#/ledger">Ledger</a></h3>
           <div class="big">${fmtRp(d.money.paid)}</div><div class="small muted">sudah lunas</div>
@@ -220,7 +223,9 @@
           ${Object.entries(ST).map(([k, l]) => `<option value="${k}" ${subFilter.status === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
         <div class="field"><label class="f" for="ff">Perlu diperiksa</label><select id="ff"><option value="">Semua</option>
           <option value="docs" ${subFilter.flag === 'docs' ? 'selected' : ''}>Dokumen belum diperiksa</option>
-          <option value="priangan" ${subFilter.flag === 'priangan' ? 'selected' : ''}>Priangan menunggu</option></select></div>
+          <option value="priangan" ${subFilter.flag === 'priangan' ? 'selected' : ''}>Priangan menunggu</option>
+          <option value="beregu" ${subFilter.flag === 'beregu' ? 'selected' : ''}>Pendaftaran beregu</option>
+          <option value="musik" ${subFilter.flag === 'musik' ? 'selected' : ''}>Musik Ritmik belum beres</option></select></div>
         <div class="field" style="flex:1;min-width:200px"><label class="f" for="fq">Cari</label><input id="fq" type="search" placeholder="Kode, nama atlet, klub, email, nominal" value="${esc(subFilter.q)}"></div>
       </div><div id="list"><div class="empty"><span class="spinner"></span></div></div>`;
     const load = async () => {
@@ -232,11 +237,11 @@
         ${rows.map((r) => `<tr class="click" data-id="${r.id}">
           <td><span class="code">${esc(r.code)}</span><br><span class="tiny muted">${dt(r.created_at)}</span></td>
           <td>${esc(r.club || 'Perorangan')}<br><span class="tiny muted">${esc(r.contact_name)}, ${esc(r.region || '')}</span></td>
-          <td class="small">${esc(r.athlete_names)}</td>
+          <td class="small">${r.team_name ? `<strong>Tim ${esc(r.team_name)}</strong><br>` : ''}${esc(r.athlete_names || '')}</td>
           <td class="r num">${fmtRp(r.total_amount)}${r.payment_method === 'manual' ? '<br><span class="pill warn">WNA</span>' : ''}</td>
           <td>${pill(r.status)}</td>
           <td class="small">${r.proof_uploaded_at ? '<span class="pill info">Bukti ada</span> ' : ''}${r.mutation_matched ? '<span class="pill ok">Mutasi cocok</span> ' : ''}
-            ${r.docs_pending ? `<span class="pill">${r.docs_pending} dokumen</span> ` : ''}${r.priangan_pending ? `<span class="pill warn">${r.priangan_pending} Priangan</span>` : ''}</td></tr>`).join('')}
+            ${r.docs_pending ? `<span class="pill">${r.docs_pending} dokumen</span> ` : ''}${r.priangan_pending ? `<span class="pill warn">${r.priangan_pending} Priangan</span> ` : ''}${r.music_pending ? `<span class="pill warn">${r.music_pending} musik</span>` : ''}</td></tr>`).join('')}
         </tbody></table></div>`;
       list.querySelectorAll('tr[data-id]').forEach((tr) => tr.onclick = () => { location.hash = '#/pendaftaran/' + tr.dataset.id; });
     };
@@ -254,7 +259,7 @@
     const club = D.club ? `${esc(D.club.name)}<br><span class="tiny muted">${esc([D.club.kab_kota, D.club.province, D.club.country !== 'Indonesia' ? D.club.country : ''].filter(Boolean).join(', '))}${D.club.verified ? '' : ', klub baru belum diverifikasi'}</span>` : 'Perorangan (tanpa klub)';
     v.innerHTML = `<p><a href="#/pendaftaran">Kembali ke daftar</a></p>
       <div class="row" style="justify-content:space-between"><h1 class="code">${esc(s.code)}</h1>${pill(s.status)}</div>
-      <p class="muted">${esc(s.discipline_name)}, ${s.registrant_type === 'klub' ? 'pendaftaran klub' : 'perorangan'}, ${dt(s.created_at)}</p>
+      <p class="muted">${esc(s.discipline_name)}, ${s.registrant_type === 'klub' ? 'pendaftaran klub' : s.registrant_type === 'beregu' ? 'pendaftaran beregu' : 'perorangan'}, ${dt(s.created_at)}</p>
       <div class="split" style="margin-top:14px">
         <div>
           <section class="card"><h2>Pendaftar</h2><dl class="kv">
@@ -263,7 +268,8 @@
             <dt>Email</dt><dd><a href="mailto:${esc(s.contact_email)}">${esc(s.contact_email)}</a></dd>
             <dt>Klub</dt><dd>${club}</dd>
             <dt>Bahasa</dt><dd>${s.lang === 'en' ? 'English' : 'Indonesia'}</dd></dl></section>
-          <section class="card"><h2>Atlet & kategori</h2><div id="aths" class="stack"></div></section>
+          ${D.team ? teamCardConsole(D.team, s) : ''}
+          <section class="card"><h2>${D.team ? 'Pesenam khusus beregu' : 'Atlet & kategori'}</h2>${D.team && !D.athletes.length ? '<p class="small muted">Semua anggota tim juga terdaftar perorangan; data dan dokumen mereka ada di pendaftaran perorangannya.</p>' : ''}<div id="aths" class="stack"></div></section>
           <section class="card"><h2>Email</h2>
             ${D.emails.length ? `<ul class="small" style="padding-left:18px;margin:0 0 10px">${D.emails.map((e) => `<li>${esc(e.kind)} ke ${esc(e.to)}: <strong>${esc(e.status)}</strong> ${e.sent_at ? dt(e.sent_at) : ''}</li>`).join('')}</ul>` : '<p class="small muted">Belum ada email.</p>'}
             <div class="actions"><button class="btn btn-ghost btn-sm" data-mail="pendaftaran">Kirim ulang tagihan</button>
@@ -274,7 +280,7 @@
         <div>
           <section class="card" style="position:sticky;top:12px"><h2>Pembayaran</h2>
             <table class="breakdown"><tbody>
-              <tr><td>Biaya pendaftaran</td><td>${fmtRp(s.base_amount)}</td></tr>
+              <tr><td>${s.registrant_type === 'beregu' ? 'Biaya beregu' : 'Biaya pendaftaran'}</td><td>${fmtRp(s.base_amount)}</td></tr>
               ${s.priangan_amount ? `<tr><td>Priangan</td><td>${fmtRp(s.priangan_amount)}</td></tr>` : ''}
               <tr><td>Kode unik</td><td>${fmtRp(s.unique_code)}</td></tr>
               <tr class="total"><td>Total</td><td>${fmtRp(s.total_amount)}</td></tr></tbody></table>
@@ -307,7 +313,7 @@
     if (ap) ap.onclick = async () => {
       const manual = s.payment_method === 'manual';
       const r = await dialog({ title: 'Tandai lunas', ok: 'Tandai lunas', okClass: 'btn-ok',
-        body: `<p>E-ticket ${D.athletes.length} atlet akan aktif dan email dikirim ke <strong>${esc(s.contact_email)}</strong>.</p>
+        body: `<p>${D.athletes.length ? `E-ticket ${D.athletes.length} atlet akan aktif dan email` : 'Tim ditandai lunas dan email konfirmasi'} dikirim ke <strong>${esc(s.contact_email)}</strong>.</p>
           ${!s.proof_path && !matched.length && !manual ? '<p class="note warn">Belum ada bukti bayar maupun mutasi yang cocok. Hanya lanjutkan bila Anda sudah memastikan dana masuk.</p>' : ''}
           ${manual ? `<label class="f" for="amt">Nominal diterima (Rp)</label><input id="amt" type="number" min="1" value="${s.total_amount}">` : ''}
           <label class="f" for="note" style="margin-top:10px">Catatan (opsional)</label><textarea id="note" placeholder="Mis. cocok dengan mutasi GoBiz 13:42"></textarea>`,
@@ -341,7 +347,7 @@
         <div class="ath-body">
           <dl class="kv"><dt>Jenis kelamin</dt><dd>${a.gender === 'M' ? 'Putra' : 'Putri'}</dd>
             <dt>Tanggal lahir</dt><dd>${JO.fmtDate(a.birth_date)} <span class="muted">(usia 2026: ${a.age})</span></dd>
-            <dt>Asal</dt><dd>${a.nationality === 'WNA' ? 'WNA, ' + esc(a.country) : esc([a.kab_kota, a.province].filter(Boolean).join(', '))}</dd>
+            <dt>Asal</dt><dd>${a.nationality === 'WNA' ? 'WNA, ' + esc(a.country) : esc([a.kab_kota, a.province].filter(Boolean).join(', ') || 'WNI')}</dd>
             ${a.minor ? `<dt>Orang tua/wali</dt><dd>${esc(a.guardian_name || '-')}${a.guardian_relation ? ` (${esc(a.guardian_relation)})` : ''}<br>
               <a href="${wa(a.guardian_phone)}" target="_blank" rel="noopener">${esc(a.guardian_phone || '')}</a><br>${esc(a.guardian_email || '')}</dd>` : ''}
           </dl>
@@ -354,8 +360,11 @@
           </div>
           ${a.doc_note ? `<p class="small muted">Catatan dokumen: ${esc(a.doc_note)}</p>` : ''}
           ${ents.map((e) => `<div style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px" data-entry="${e.id}">
-            <strong>${esc(e.category)}</strong> <span class="small muted">${fmtRp(e.fee)}</span>
+            <strong>${esc(e.category)}</strong> <span class="small muted">${e.team_only ? 'termasuk biaya beregu' : fmtRp(e.fee)}</span>
+            ${e.team_only ? ' <span class="pill gold">khusus beregu</span>' : ''}
             ${e.status !== 'aktif' ? ` <span class="pill bad">${esc(e.status)}</span>` : ''}
+            ${e.in_team && e.in_team.submission_id !== s.id ? `<div class="small">Anggota tim <a href="#/pendaftaran/${e.in_team.submission_id}">${esc(e.in_team.team)} (${esc(e.in_team.code)})</a></div>` : ''}
+            ${e.discipline === 'RG' ? musicBlock(e) : ''}
             ${e.athletes.length > 1 ? `<div class="small muted">Pasangan: ${esc(e.athletes.map((x) => x.name).join(' & '))}</div>` : ''}
             ${e.mismatch ? `<p class="note warn small" style="margin:6px 0">Tidak sesuai kategori: ${esc(e.mismatch)}</p>` : ''}
             ${e.priangan_requested ? `<div class="small" style="margin-top:6px">Priangan (${fmtRp(e.priangan_fee)}): <strong>${esc(e.priangan_status)}</strong>${e.priangan_note ? ` <span class="muted">(${esc(e.priangan_note)})</span>` : ''}
@@ -383,6 +392,7 @@
           act('console_set_priangan', { p_entry: e.id, p_approve: ok, p_note: note }, ok ? 'Priangan disetujui.' : 'Priangan ditolak.');
         });
         ee.querySelector('[data-move]').onclick = () => moveEntry(e, s.discipline, reload);
+        ee.querySelectorAll('[data-mc]').forEach((b) => b.onclick = () => musicCheck(e, b.dataset.mc === '1', reload));
         ee.querySelectorAll('[data-est]').forEach((b) => b.onclick = async () => {
           const r = await askReason(b.dataset.est === 'dns' ? 'Tandai tidak tampil' : 'Aktifkan lagi', 'Alasan');
           if (r) act('console_set_entry_status', { p_entry: e.id, p_status: b.dataset.est, p_reason: r }, 'Status entri diubah.');
@@ -391,6 +401,77 @@
       box.appendChild(el);
     });
   }
+  const MUSIC_ST = { belum: ['Belum ada tautan', 'warn'], menunggu: ['Menunggu diperiksa', 'info'], ok: ['Bisa dibuka', 'ok'], tidak_bisa: ['Tidak bisa dibuka', 'bad'], tidak_perlu: ['Tidak perlu', ''] };
+  const musicPill = (st) => { const m = MUSIC_ST[st] || [st, '']; return `<span class="pill ${m[1]}">${esc(m[0])}</span>`; };
+  const MUSIC_ACT = { daftar: 'diisi saat daftar', isi: 'diisi', ganti: 'diganti (jatah terpakai)', perbaiki: 'diperbaiki', ok: 'ditandai bisa dibuka', tidak_bisa: 'ditandai tidak bisa dibuka' };
+  function musicBlock(e) {
+    return `<div class="music-box"><div class="small"><strong>Musik</strong> ${musicPill(e.music_status)}${e.music_changes ? ' <span class="pill">ganti sudah dipakai</span>' : ''}</div>
+      ${e.music_url ? `<div><a class="mono-link" href="${esc(e.music_url)}" target="_blank" rel="noopener">${esc(e.music_url)}</a></div>` : ''}
+      ${e.music_note ? `<div class="small" style="color:var(--bad)">Catatan: ${esc(e.music_note)}</div>` : ''}
+      ${e.music_checked_by ? `<div class="tiny muted">Diperiksa ${esc(e.music_checked_by)}, ${dt(e.music_checked_at)}</div>` : ''}
+      ${e.music_url ? `<div class="actions">${e.music_status !== 'ok' ? '<button class="btn btn-ok btn-sm" data-mc="1">Bisa dibuka</button>' : ''}${e.music_status !== 'tidak_bisa' ? '<button class="btn btn-bad btn-sm" data-mc="0">Tidak bisa dibuka</button>' : ''}</div>` : ''}
+      ${(e.music_log || []).length ? `<details class="small" style="margin-top:6px"><summary>Riwayat musik (${e.music_log.length})</summary><ul style="padding-left:18px;margin:6px 0 0">
+        ${e.music_log.map((l) => `<li>${dt(l.at)}: ${esc(MUSIC_ACT[l.action] || l.action)}${l.staff ? ' oleh ' + esc(l.staff) : ''}${l.new_url && ['daftar', 'isi', 'ganti', 'perbaiki'].includes(l.action) ? `<br><span class="mono-link">${esc(l.new_url)}</span>` : ''}${l.note ? ` <span class="muted">(${esc(l.note)})</span>` : ''}</li>`).join('')}</ul></details>` : ''}</div>`;
+  }
+  async function musicCheck(e, ok, done) {
+    let note = null;
+    if (!ok) {
+      note = await askReason('Tautan musik tidak bisa dibuka', 'Apa masalahnya? (dikirim ke pendaftar lewat email)',
+        { min: 5, ok: 'Kirim ke pendaftar', okClass: 'btn-bad', value: 'Folder belum dibagikan. Ubah akses ke "Siapa saja yang memiliki link", lalu kirim ulang lewat halaman Musik Ritmik.',
+          intro: 'Pendaftar diminta memperbaiki akses lewat halaman Musik Ritmik. Perbaikan tidak memakai kesempatan ganti musik.' });
+      if (!note) return;
+    }
+    try { await api('console_music_check', { p_entry: e.id || e.entry_id, p_ok: ok, p_note: note }); JO.toast(ok ? 'Ditandai bisa dibuka.' : 'Ditandai tidak bisa dibuka. Email ke pendaftar masuk antrean.'); done(); }
+    catch (err) { JO.toast(err.message, 'bad'); }
+  }
+  function teamCardConsole(T, s) {
+    return `<section class="card"><h2>Tim ${esc(T.name)}</h2><p class="small muted" style="margin-top:-6px">${esc(s.discipline_name)} ${esc(T.level)}, ${T.members.length} pesenam. Peringkat dan publikasi di Hasil &amp; medali, tab Beregu.</p>
+      <div class="tbl-wrap"><table class="tbl"><tbody>${T.members.map((m) => `<tr>
+        <td><span class="bib">${esc(m.athlete_no || '')}</span> <strong>${esc(m.name)}</strong><br><span class="small muted">${esc(m.category)}</span></td>
+        <td>${m.team_only ? '<span class="pill gold">khusus beregu</span>' : '<span class="pill info">juga perorangan</span>'}${m.entry_status !== 'aktif' ? ` <span class="pill bad">${esc(m.entry_status)}</span>` : ''}</td>
+        <td class="small">${m.submission_id !== s.id ? `<a href="#/pendaftaran/${m.submission_id}">${esc(m.submission_code)}</a><br>${pill(m.submission_status)}` : '<span class="muted">pendaftaran ini</span>'}</td></tr>`).join('')}
+      </tbody></table></div></section>`;
+  }
+
+  // =====================================================================
+  //  MUSIK RITMIK
+  // =====================================================================
+  const muFilter = { status: 'perlu', q: '' };
+  async function pageMusic(v) {
+    v.innerHTML = `<h1>Musik Ritmik</h1><p class="muted">Buka setiap tautan Google Drive dan pastikan folder bisa diakses dan berisi MP3. Tandai "Bisa dibuka", atau "Tidak bisa dibuka" untuk meminta pendaftar memperbaiki akses lewat email.</p>
+      <div class="bar"><div class="field"><label class="f" for="ms">Status</label><select id="ms">
+        ${[['perlu', 'Perlu tindakan'], ['', 'Semua'], ['menunggu', 'Menunggu diperiksa'], ['tidak_bisa', 'Tidak bisa dibuka'], ['belum', 'Belum ada tautan'], ['ok', 'Bisa dibuka']].map(([k, l]) => `<option value="${k}" ${muFilter.status === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+        <div class="field" style="flex:1;min-width:200px"><label class="f" for="mq">Cari</label><input id="mq" type="search" placeholder="Nama atlet, klub, kode" value="${esc(muFilter.q)}"></div>
+        <button class="btn btn-dark" id="mx">Unduh Excel</button></div><div id="list"></div>`;
+    let rows = [];
+    const load = async () => {
+      const list = v.querySelector('#list'); loading(list);
+      rows = await api('console_music', { p_filter: muFilter });
+      if (!rows.length) { list.innerHTML = '<p class="empty">Tidak ada entri yang cocok.</p>'; return; }
+      list.innerHTML = `<p class="small muted">${rows.length} atlet</p><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Atlet</th><th>Kategori</th><th>Tautan</th><th>Status</th><th></th></tr></thead><tbody>
+        ${rows.map((r) => `<tr data-e="${r.entry_id}"><td><span class="bib">${esc(r.athlete_no || '')}</span> <strong>${esc(r.full_name)}</strong><br>
+            <span class="small muted">${esc(r.club)}, <a href="#/pendaftaran/${r.submission_id}">${esc(r.code)}</a></span>${r.payment_status !== 'lunas' ? ` ${pill(r.payment_status)}` : ''}</td>
+          <td class="small">${esc(r.category)}${r.startlist_published ? '<br><span class="pill">start list terbit</span>' : ''}</td>
+          <td class="small">${r.music_url ? `<a class="mono-link" href="${esc(r.music_url)}" target="_blank" rel="noopener">${esc(r.music_url)}</a>` : '<span class="muted">–</span>'}
+            ${r.music_updated_at ? `<br><span class="tiny muted">diperbarui ${dt(r.music_updated_at)}${r.music_changes ? ', ganti sudah dipakai' : ''}</span>` : ''}</td>
+          <td class="small">${musicPill(r.music_status)}${r.music_note ? `<br><span style="color:var(--bad)">${esc(r.music_note)}</span>` : ''}${r.checked_by ? `<br><span class="tiny muted">${esc(r.checked_by)}, ${dt(r.music_checked_at)}</span>` : ''}</td>
+          <td class="r" style="white-space:nowrap">${r.music_url ? `${r.music_status !== 'ok' ? '<button class="btn btn-ok btn-sm" data-mc="1">Bisa dibuka</button> ' : ''}${r.music_status !== 'tidak_bisa' ? '<button class="btn btn-bad btn-sm" data-mc="0">Tidak bisa</button>' : ''}` : `<a class="btn btn-ghost btn-sm" href="${wa(r.contact_phone)}" target="_blank" rel="noopener">WA pendaftar</a>`}</td></tr>`).join('')}
+        </tbody></table></div>`;
+      list.querySelectorAll('[data-mc]').forEach((b) => b.onclick = () => {
+        const r = rows.find((x) => x.entry_id === b.closest('tr').dataset.e);
+        musicCheck(r, b.dataset.mc === '1', load);
+      });
+    };
+    v.querySelector('#ms').onchange = (e) => { muFilter.status = e.target.value; load(); };
+    let tm; v.querySelector('#mq').addEventListener('input', (e) => { clearTimeout(tm); tm = setTimeout(() => { muFilter.q = e.target.value.trim(); load(); }, 300); });
+    v.querySelector('#mx').onclick = () => exportXlsx(`musik-ritmik-${new Date().toISOString().slice(0, 10)}.xlsx`, rows, [
+      ['athlete_no', 'No. atlet'], ['full_name', 'Nama'], ['club', 'Klub'], ['category', 'Kategori'], ['apparatus', 'Alat', (r) => (r.apparatus || []).join(', ')],
+      ['music_url', 'Tautan musik'], ['music_status', 'Status', (r) => (MUSIC_ST[r.music_status] || [r.music_status])[0]], ['music_note', 'Catatan'],
+      ['music_changes', 'Ganti dipakai'], ['music_updated_at', 'Diperbarui', (r) => (r.music_updated_at ? dt(r.music_updated_at) : '')],
+      ['code', 'Kode pendaftaran'], ['payment_status', 'Pembayaran', (r) => ST[r.payment_status]], ['contact_name', 'Penanggung jawab'], ['contact_phone', 'WA'], ['contact_email', 'Email']]);
+    await load();
+  }
+
   async function editAthlete(a, done) {
     const R = window.JO_REGIONS;
     const r = await dialog({ title: 'Ubah data ' + a.full_name, ok: 'Simpan perubahan',
@@ -694,9 +775,9 @@
     if (!reState.disc) reState.disc = myDiscs()[0];
     const hp = hashParams(); if (hp.get('c')) { reState.cat = hp.get('c'); const c = CATS.categories.find((x) => x.id === Number(reState.cat)); if (c) reState.disc = c.discipline; }
     v.innerHTML = `<h1>Hasil & medali</h1><p class="muted">Publikasikan hasil per kategori setelah UPP. Publikasi mengunci nilai; sertifikat dan tabel medali di situs ikut diperbarui.</p>
-      <div class="tabs"><button data-t="cat" aria-selected="true">Hasil kategori</button><button data-t="medal" aria-selected="false">Tabel medali</button></div><div id="rbox"></div>`;
+      <div class="tabs"><button data-t="cat" aria-selected="true">Hasil kategori</button>${teamDiscs().length ? '<button data-t="team" aria-selected="false">Beregu</button>' : ''}<button data-t="medal" aria-selected="false">Tabel medali</button></div><div id="rbox"></div>`;
     const rbox = v.querySelector('#rbox');
-    v.querySelectorAll('[data-t]').forEach((b) => b.onclick = () => { v.querySelectorAll('[data-t]').forEach((x) => x.setAttribute('aria-selected', String(x === b))); b.dataset.t === 'cat' ? catView() : medalView(); });
+    v.querySelectorAll('[data-t]').forEach((b) => b.onclick = () => { v.querySelectorAll('[data-t]').forEach((x) => x.setAttribute('aria-selected', String(x === b))); b.dataset.t === 'cat' ? catView() : b.dataset.t === 'team' ? teamView(rbox) : medalView(); });
     const catView = () => {
       rbox.innerHTML = `<div class="bar"><div class="field"><label class="f" for="rd">Disiplin</label><select id="rd">${myDiscs().map((d) => `<option value="${d}" ${reState.disc === d ? 'selected' : ''}>${DN[d]}</option>`).join('')}</select></div>
         <div id="catslot" style="flex:1;display:flex"></div></div><div id="res"></div>`;
@@ -773,6 +854,59 @@
     catView();
   }
 
+  const teamDiscs = () => myDiscs().filter((d) => d === 'MAG' || d === 'WAG');
+  const teState = { disc: '' };
+  async function teamView(rbox) {
+    if (!teState.disc) teState.disc = teamDiscs()[0];
+    rbox.innerHTML = `<div class="bar"><div class="field"><label class="f" for="td">Disiplin</label><select id="td">${teamDiscs().map((d) => `<option value="${d}" ${teState.disc === d ? 'selected' : ''}>${DN[d]}</option>`).join('')}</select></div></div>
+      <p class="small muted">Nilai tim = jumlah 4 nilai serba bisa terbaik dari anggotanya (hanya tim lunas dan anggota aktif yang lunas). Nilai anggota diambil dari halaman Penilaian kategori masing-masing. Sertifikat Juara Beregu untuk setiap anggota tim peringkat 1–3.</p><div id="tl"></div>`;
+    rbox.querySelector('#td').onchange = (e) => { teState.disc = e.target.value; load(); };
+    const load = async () => {
+      const box = rbox.querySelector('#tl'); loading(box);
+      const L = await api('console_teams', { p_discipline: teState.disc });
+      if (!L.length) { box.innerHTML = '<p class="empty">Belum ada tim beregu di disiplin ini.</p>'; return; }
+      box.innerHTML = L.map((lv, i) => `<section class="card" data-i="${i}"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Beregu ${esc(DN[teState.disc])} ${esc(lv.level)}</h2>
+          ${lv.published ? `<span class="pill ok">Dipublikasikan ${dt(lv.published_at)}</span>` : '<span class="pill">Belum dipublikasikan</span>'}</div>
+        ${lv.results.length ? `<div class="tbl-wrap" style="margin-top:12px"><table class="tbl"><thead><tr><th class="c">Per.</th><th>Tim</th><th>Anggota (nilai serba bisa)</th><th class="r">Nilai tim</th></tr></thead><tbody>
+          ${lv.results.map((r) => `<tr><td class="c"><span class="rank">${r.rank || '–'}</span>${r.trophy ? ` <span class="medal ${['emas', 'perak', 'perunggu'][r.rank - 1]}"></span>` : ''}</td>
+            <td><strong>${esc(r.name)}</strong><br><span class="small muted">${esc(r.club)}</span><br><a class="small" href="#/pendaftaran/${r.submission_id}">${esc(r.code)}</a></td>
+            <td class="small">${r.members.map((m) => `${esc(m.name)}${m.team_only ? ' <span class="tiny muted">(khusus beregu)</span>' : ''}: <span class="num">${m.counted ? `<strong>${num3(m.total)}</strong>` : num3(m.total)}</span>`).join('<br>')}
+              ${r.n_scored < r.n_members ? `<br><span class="pill warn">${r.n_members - r.n_scored} anggota belum bernilai</span>` : ''}</td>
+            <td class="r num"><strong>${num3(r.total)}</strong></td></tr>`).join('')}</tbody></table></div>` : '<p class="small muted" style="margin-top:10px">Belum ada tim lunas di level ini.</p>'}
+        ${lv.pending.length ? `<p class="small muted">Belum lunas (tidak ikut peringkat): ${lv.pending.map((x) => `<a href="#/pendaftaran/${x.id}">${esc(x.name)}</a>`).join(', ')}</p>` : ''}
+        <div class="sticky-actions">
+          <button class="btn ${lv.published ? 'btn-bad' : 'btn-primary'}" data-pub ${lv.published && !isSuper() ? 'disabled' : ''}>${lv.published ? 'Tarik hasil beregu' : 'Publikasikan hasil beregu'}</button>
+          <button class="btn btn-ghost" data-certs ${lv.results.some((r) => r.trophy) ? '' : 'disabled'}>Unduh sertifikat Juara Beregu (PDF)</button></div></section>`).join('');
+      box.querySelectorAll('section[data-i]').forEach((sec) => {
+        const lv = L[Number(sec.dataset.i)];
+        sec.querySelector('[data-pub]').onclick = async () => {
+          const go = await dialog({ title: lv.published ? 'Tarik hasil beregu?' : 'Publikasikan hasil beregu?', ok: lv.published ? 'Tarik' : 'Publikasikan', okClass: lv.published ? 'btn-bad' : 'btn-primary',
+            body: lv.published ? '<p>Peringkat beregu level ini tidak lagi tampil di situs dan sertifikat Juara Beregu tidak bisa diunduh peserta.</p>'
+              : `<p>Peringkat beregu ${esc(lv.level)} tampil di halaman Hasil, dan anggota tim peringkat 1–3 bisa mengunduh sertifikat Juara Beregu dari halaman status. Pastikan nilai semua kategori di level ini sudah final.</p>${lv.results.some((r) => r.n_scored < r.n_members) ? '<p class="note warn">Masih ada anggota tanpa nilai lengkap.</p>' : ''}` });
+          if (!go) return;
+          try { await api('console_team_publish', { p_discipline: teState.disc, p_level: lv.level, p_publish: !lv.published }); JO.toast(lv.published ? 'Hasil beregu ditarik.' : 'Hasil beregu dipublikasikan.'); load(); }
+          catch (e) { JO.toast(e.message, 'bad'); }
+        };
+        sec.querySelector('[data-certs]').onclick = async (ev) => {
+          const btn = ev.currentTarget; const old = btn.textContent; btn.disabled = true; btn.textContent = 'Membuat PDF…';
+          try {
+            const sig = lv.signatories;
+            let doc = null;
+            for (const r of lv.results.filter((x) => x.trophy)) {
+              for (const m of r.members) {
+                doc = await JO.certificatePdf({ team: true, name: m.name, club: r.club, discipline: teState.disc,
+                  category: `Beregu ${DN[teState.disc]} ${lv.level}, tim ${r.name}`, rank: r.rank, cert_code: m.cert_code || '-', signatories: sig }, doc);
+              }
+            }
+            if (doc) doc.save(`sertifikat-beregu-${teState.disc}-${lv.level.replace(/\s+/g, '-')}.pdf`);
+          } catch (e) { JO.toast(e.message, 'bad'); }
+          finally { btn.disabled = false; btn.textContent = old; }
+        };
+      });
+    };
+    await load();
+  }
+
   // =====================================================================
   //  LEDGER (superadmin)
   // =====================================================================
@@ -820,12 +954,12 @@
     let D;
     const load = async () => {
       D = await api('console_ledger', { p_filter: f });
-      const tot = D.summary.reduce((a, s) => ({ expected: a.expected + s.expected, paid: a.paid + s.paid, fees: a.fees + s.fees_paid, pri: a.pri + s.priangan_paid, uc: a.uc + s.unique_paid }), { expected: 0, paid: 0, fees: 0, pri: 0, uc: 0 });
-      v.querySelector('#sum').innerHTML = `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Disiplin</th><th class="r">Tagihan aktif</th><th class="r">Lunas</th><th class="r">Biaya lomba (lunas)</th><th class="r">Priangan (lunas)</th><th class="r">Kode unik (lunas)</th><th class="r">Pendaftaran lunas / terbuka</th></tr></thead><tbody>
-        ${D.summary.map((s) => `<tr><td>${esc(s.name)}</td><td class="r num">${fmtRp(s.expected)}</td><td class="r num"><strong>${fmtRp(s.paid)}</strong></td><td class="r num">${fmtRp(s.fees_paid)}</td><td class="r num">${fmtRp(s.priangan_paid)}</td><td class="r num">${fmtRp(s.unique_paid)}</td><td class="r num">${s.count_paid} / ${s.count_open}</td></tr>`).join('')}
-        <tr><td><strong>Total</strong></td><td class="r num"><strong>${fmtRp(tot.expected)}</strong></td><td class="r num"><strong>${fmtRp(tot.paid)}</strong></td><td class="r num">${fmtRp(tot.fees)}</td><td class="r num">${fmtRp(tot.pri)}</td><td class="r num">${fmtRp(tot.uc)}</td><td></td></tr></tbody></table></div>`;
+      const tot = D.summary.reduce((a, s) => ({ expected: a.expected + s.expected, paid: a.paid + s.paid, fees: a.fees + s.fees_paid, team: a.team + (s.team_paid || 0), teams: a.teams + (s.teams_paid || 0), pri: a.pri + s.priangan_paid, uc: a.uc + s.unique_paid }), { expected: 0, paid: 0, fees: 0, team: 0, teams: 0, pri: 0, uc: 0 });
+      v.querySelector('#sum').innerHTML = `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Disiplin</th><th class="r">Tagihan aktif</th><th class="r">Lunas</th><th class="r">Biaya perorangan (lunas)</th><th class="r">Beregu (lunas)</th><th class="r">Priangan (lunas)</th><th class="r">Kode unik (lunas)</th><th class="r">Pendaftaran lunas / terbuka</th></tr></thead><tbody>
+        ${D.summary.map((s) => `<tr><td>${esc(s.name)}</td><td class="r num">${fmtRp(s.expected)}</td><td class="r num"><strong>${fmtRp(s.paid)}</strong></td><td class="r num">${fmtRp(s.fees_paid)}</td><td class="r num">${s.discipline === 'MAG' || s.discipline === 'WAG' ? `${fmtRp(s.team_paid || 0)}<br><span class="tiny muted">${s.teams_paid || 0} tim</span>` : '–'}</td><td class="r num">${fmtRp(s.priangan_paid)}</td><td class="r num">${fmtRp(s.unique_paid)}</td><td class="r num">${s.count_paid} / ${s.count_open}</td></tr>`).join('')}
+        <tr><td><strong>Total</strong></td><td class="r num"><strong>${fmtRp(tot.expected)}</strong></td><td class="r num"><strong>${fmtRp(tot.paid)}</strong></td><td class="r num">${fmtRp(tot.fees)}</td><td class="r num">${fmtRp(tot.team)}<br><span class="tiny muted">${tot.teams} tim</span></td><td class="r num">${fmtRp(tot.pri)}</td><td class="r num">${fmtRp(tot.uc)}</td><td></td></tr></tbody></table></div>`;
       v.querySelector('#rows').innerHTML = D.rows.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Kode</th><th>Disiplin</th><th>Klub / pendaftar</th><th class="r">Biaya</th><th class="r">Priangan</th><th class="r">Unik</th><th class="r">Total</th><th>Status</th><th>Diverifikasi</th><th>Mutasi</th></tr></thead><tbody>
-        ${D.rows.map((r) => `<tr class="click" data-id="${r.id}"><td class="code small">${esc(r.code)}<br><span class="tiny muted">${dt(r.created_at)}</span></td><td>${r.discipline}</td><td class="small">${esc(r.club)}<br><span class="muted">${esc(r.contact_name)}</span></td>
+        ${D.rows.map((r) => `<tr class="click" data-id="${r.id}"><td class="code small">${esc(r.code)}<br><span class="tiny muted">${dt(r.created_at)}</span></td><td>${r.discipline}</td><td class="small">${esc(r.club)}${r.registrant_type === 'beregu' ? `<br><span class="pill gold">Beregu</span> ${esc(r.team_name || '')}` : ''}<br><span class="muted">${esc(r.contact_name)}</span></td>
           <td class="r num">${fmtRp(r.base_amount)}</td><td class="r num">${fmtRp(r.priangan_amount)}</td><td class="r num">${r.unique_code}</td><td class="r num"><strong>${fmtRp(r.total_amount)}</strong></td>
           <td>${pill(r.status)}</td><td class="small">${esc(r.verified_by || '')}<br><span class="muted">${r.verified_at ? dt(r.verified_at) : ''}</span></td>
           <td class="small">${(r.mutations || []).map((m) => `${fmtRp(m.amount)} <span class="muted">${esc(m.match_status)}</span>`).join('<br>')}</td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">Belum ada tagihan.</p>';
@@ -851,7 +985,7 @@
     const ld = v.querySelector('#ld'); if (ld) ld.onchange = () => { f.discipline = ld.value; load(); };
     v.querySelector('#ls').onchange = (e) => { f.status = e.target.value; load(); };
     v.querySelector('#lx').onclick = () => exportXlsx(`ledger-jabar-open-2026-${new Date().toISOString().slice(0, 10)}.xlsx`, D.rows, [
-      ['code', 'Kode'], ['created_at', 'Tanggal daftar', (r) => dt(r.created_at)], ['discipline', 'Disiplin'], ['club', 'Klub'], ['contact_name', 'Penanggung jawab'], ['contact_phone', 'WA'], ['contact_email', 'Email'],
+      ['code', 'Kode'], ['created_at', 'Tanggal daftar', (r) => dt(r.created_at)], ['discipline', 'Disiplin'], ['registrant_type', 'Jenis'], ['team_name', 'Tim beregu'], ['club', 'Klub'], ['contact_name', 'Penanggung jawab'], ['contact_phone', 'WA'], ['contact_email', 'Email'],
       ['n_athletes', 'Jumlah atlet'], ['n_entries', 'Jumlah entri'], ['base_amount', 'Biaya lomba'], ['priangan_amount', 'Priangan'], ['unique_code', 'Kode unik'], ['total_amount', 'Total tagihan'],
       ['status', 'Status', (r) => ST[r.status]], ['payment_method', 'Metode'], ['paid_amount', 'Diterima'], ['paid_at', 'Tanggal lunas', (r) => (r.paid_at ? dt(r.paid_at) : '')],
       ['verified_by', 'Diverifikasi oleh'], ['verify_note', 'Catatan'], ['mutations', 'Mutasi', (r) => (r.mutations || []).map((m) => `${m.amount} ${m.reference || ''} ${m.match_status}`).join('; ')]]);

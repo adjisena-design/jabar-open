@@ -28,6 +28,21 @@
     s_making: ['Membuat PDF…', 'Creating PDF…'],
     s_cancelled: ['Pendaftaran ini dibatalkan oleh panitia.', 'This registration was cancelled by the committee.'],
     s_reload: ['Muat ulang', 'Reload'],
+    s_team: ['Beregu', 'Team'],
+    s_team_ind: ['juga perorangan', 'also individual'], s_team_tim: ['khusus beregu', 'team only'],
+    s_team_ind_note: ['Anggota "juga perorangan" memakai e-ticket dari pendaftaran perorangannya. E-ticket anggota "khusus beregu" ada di bagian Atlet di bawah.', 'Members entered "also individual" use the e-ticket from their individual registration. E-tickets for "team only" members are under Athletes below.'],
+    s_team_rank: ['Peringkat beregu {r}', 'Team rank {r}'],
+    s_team_total: ['Nilai tim {v}', 'Team score {v}'],
+    s_team_counted: ['dihitung', 'counted'],
+    s_team_cert: ['Sertifikat Juara Beregu', 'Team champion certificate'],
+    s_team_wait: ['Peringkat beregu tampil di sini setelah hasil level ini dipublikasikan.', 'The team ranking appears here once results for this level are published.'],
+    s_team_only_res: ['tidak diperingkat perorangan', 'not ranked individually'],
+    s_music: ['Musik', 'Music'],
+    s_music_belum: ['Belum ada tautan', 'No link yet'], s_music_menunggu: ['Menunggu pemeriksaan panitia', 'Awaiting committee check'],
+    s_music_ok: ['Sudah diperiksa, bisa dibuka', 'Checked, opens fine'], s_music_tidak_bisa: ['Tidak bisa dibuka, perbaiki akses', 'Cannot be opened, fix the sharing'],
+    s_music_tidak_perlu: ['Tidak perlu', 'Not needed'],
+    s_music_change: ['Ganti atau perbaiki musik', 'Change or fix music'],
+    s_music_used: ['kesempatan ganti sudah dipakai', 'change already used'],
   });
   const app = document.getElementById('app');
   const code = (JO.qs('k') || '').trim();
@@ -85,6 +100,7 @@
       ${d.status === 'dibatalkan' ? `<p class="note bad" style="margin-top:16px">${esc(t('s_cancelled'))}</p>` : ''}
       ${payOpen ? payCard(d) : ''}
       ${d.status === 'lunas' ? `<section class="card"><h2>${esc(t('s_pay'))}</h2><p class="note ok" style="margin:0">${esc(t('s_paid', { d: JO.fmtDateTime(d.paid_at) }))}</p></section>` : ''}
+      ${d.team ? teamCard(d) : ''}
       <section class="card"><h2>${esc(t('s_athletes'))}</h2><div id="aths" class="stack"></div></section>`;
     const box = app.querySelector('#aths');
     d.athletes.forEach((a) => {
@@ -95,10 +111,11 @@
         <div class="ath-body">
           <p class="small" style="margin-bottom:8px"><span class="pill ${a.doc_status === 'valid' ? 'ok' : a.doc_status === 'tidak_valid' ? 'bad' : ''}">${esc(t('s_doc_' + a.doc_status))}</span></p>
           ${ents.map((e) => `<div style="padding:8px 0;border-top:1px solid var(--line)">
-            <div><strong>${esc(catName(e))}</strong>${e.athlete_ids.length > 1 ? ` <span class="small muted">(${esc(e.athlete_ids.map((x) => (d.athletes.find((y) => y.id === x) || {}).full_name).join(' & '))})</span>` : ''}</div>
+            <div><strong>${esc(catName(e))}</strong>${e.team_only ? ` <span class="pill gold">${esc(t('s_team_tim'))}</span>` : ''}${e.athlete_ids.length > 1 ? ` <span class="small muted">(${esc(e.athlete_ids.map((x) => (d.athletes.find((y) => y.id === x) || {}).full_name).join(' & '))})</span>` : ''}</div>
             ${e.priangan_requested ? `<div class="small">${esc(t('s_pri'))}: ${esc(t('s_pri_' + e.priangan_status))}</div>` : ''}
+            ${musicLine(e)}
             ${e.start ? `<div class="small"><strong>${esc(t('s_start'))}:</strong> ${esc(startText(e.start))}</div>` : ''}
-            ${e.result ? `<div class="small" style="margin-top:4px"><strong>${esc(t('s_result'))}:</strong> ${e.result.rank ? esc(t('s_rank', { r: e.result.rank })) : '–'}
+            ${e.result ? `<div class="small" style="margin-top:4px"><strong>${esc(t('s_result'))}:</strong> ${e.result.rank ? esc(t('s_rank', { r: e.result.rank })) : e.team_only ? esc(t('s_team_only_res')) : '–'}
                 ${e.result.medal ? ` <span class="medal ${e.result.medal}"></span> ${esc(t('medal_' + e.result.medal))}` : ''}
                 ${e.result.total != null ? ` <span class="muted num">(${Number(e.result.total).toFixed(3)})</span>` : ''}
                 ${e.result.priangan_rank ? `<br>${esc(t('s_pri_rank', { r: e.result.priangan_rank }))}${e.result.priangan_medal ? ` <span class="medal ${e.result.priangan_medal}"></span> ${esc(t('medal_' + e.result.priangan_medal))}` : ''}` : ''}</div>
@@ -110,6 +127,7 @@
     });
     box.querySelectorAll('[data-ticket]').forEach((b) => b.onclick = () => downloadTicket(b));
     box.querySelectorAll('[data-cert]').forEach((b) => b.onclick = () => downloadCert(b));
+    app.querySelectorAll('[data-tcert]').forEach((b) => b.onclick = () => downloadTeamCert(b));
     const up = app.querySelector('#proof_up');
     if (up) up.querySelector('input').onchange = async (e) => {
       const file = e.target.files[0]; if (!file) return;
@@ -138,7 +156,7 @@
           <p style="margin:10px 0 6px;font-weight:700">${esc(t('pay_exact'))}</p>
           <p class="small muted">${esc(t('pay_why'))}</p>
           <table class="breakdown" style="margin:12px 0"><tbody>
-            <tr><td>${esc(t('sum_fees'))}</td><td>${fmtRp(d.base_amount)}</td></tr>
+            <tr><td>${esc(t(d.registrant_type === 'beregu' ? 'sum_team' : 'sum_fees'))}</td><td>${fmtRp(d.base_amount)}</td></tr>
             ${d.priangan_amount ? `<tr><td>${esc(t('sum_pri'))}</td><td>${fmtRp(d.priangan_amount)}</td></tr>` : ''}
             <tr><td>${esc(t('sum_uc'))}</td><td>${fmtRp(d.unique_code)}</td></tr>
           </tbody></table>
@@ -153,6 +171,51 @@
     </section>`;
   }
 
+  const MUSIC_PILL = { belum: 'warn', menunggu: 'info', ok: 'ok', tidak_bisa: 'bad', tidak_perlu: '' };
+  function musicLine(e) {
+    if (D.discipline !== 'RG' || !e.music_status || e.music_status === 'tidak_perlu') return '';
+    const link = `musik.html?k=${encodeURIComponent(D.code)}`;
+    return `<div class="small" style="margin:4px 0"><strong>${esc(t('s_music'))}:</strong>
+      <span class="pill ${MUSIC_PILL[e.music_status] || ''}">${esc(t('s_music_' + e.music_status))}</span>
+      ${e.music_url ? `<br><a class="mono-link" href="${esc(e.music_url)}" target="_blank" rel="noopener">${esc(e.music_url)}</a>` : ''}
+      ${e.music_status === 'tidak_bisa' && e.music_note ? `<br><span class="bad-t">${esc(e.music_note)}</span>` : ''}
+      ${e.music_changes > 0 ? `<br><span class="muted">${esc(t('s_music_used'))}</span>` : ''}
+      ${D.status !== 'dibatalkan' ? `<br><a href="${link}">${esc(t('s_music_change'))}</a>` : ''}</div>`;
+  }
+  function teamCard(d) {
+    const T = d.team; const R = T.result;
+    const discName = JO.lang === 'en' ? d.discipline_name_en : d.discipline_name_id;
+    const byId = {}; (R ? R.members : []).forEach((m) => { byId[m.athlete_id] = m; });
+    return `<section class="card"><h2>${esc(t('s_team'))}: ${esc(T.name)}</h2>
+      <p class="muted small" style="margin-top:-6px">${esc(discName)} · ${esc(T.level)}</p>
+      ${R ? `<p style="margin:0 0 10px"><strong>${R.rank ? esc(t('s_team_rank', { r: R.rank })) : '–'}</strong>${R.trophy ? ` <span class="medal ${['emas', 'perak', 'perunggu'][R.rank - 1] || ''}"></span>` : ''}
+          ${R.total != null ? ` <span class="muted num">${esc(t('s_team_total', { v: Number(R.total).toFixed(3) }))}</span>` : ''}</p>`
+        : (d.status === 'lunas' ? `<p class="note info small">${esc(t('s_team_wait'))}</p>` : '')}
+      <div class="tbl-wrap"><table class="tbl"><tbody>
+        ${T.members.map((m) => { const r = byId[m.athlete_id];
+          return `<tr><td><span class="bib">${esc(m.athlete_no || '')}</span> <strong>${esc(m.name)}</strong>
+            <br><span class="small muted">${esc(JO.lang === 'en' ? m.category_name_en : m.category_name_id)}</span>
+            <span class="pill ${m.team_only ? 'gold' : 'info'}">${esc(t(m.team_only ? 's_team_tim' : 's_team_ind'))}</span></td>
+            <td class="r num">${r && r.total != null ? Number(r.total).toFixed(3) + (r.counted ? `<br><span class="small muted">${esc(t('s_team_counted'))}</span>` : '') : ''}
+            ${R && R.trophy && m.cert_code ? `<br><button class="btn btn-ghost btn-sm" style="margin-top:6px" data-tcert="${m.athlete_id}">${esc(t('s_team_cert'))}</button>` : ''}</td></tr>`; }).join('')}
+      </tbody></table></div>
+      ${T.members.some((m) => !m.team_only) ? `<p class="small muted" style="margin:10px 0 0">${esc(t('s_team_ind_note'))}</p>` : ''}
+    </section>`;
+  }
+  async function downloadTeamCert(btn) {
+    const T = D.team; const m = T.members.find((x) => x.athlete_id === btn.dataset.tcert);
+    const old = btn.textContent; btn.disabled = true; btn.textContent = t('s_making');
+    try {
+      const doc = await JO.certificatePdf({
+        team: true, name: m.name, club: D.club ? D.club.name : '', discipline: D.discipline,
+        category: `Beregu ${JO.DISC_NAME[D.discipline] || D.discipline} ${T.level}, tim ${T.name}`, rank: T.result.rank,
+        cert_code: m.cert_code, signatories: D.signatories,
+      });
+      doc.save(`sertifikat-beregu-${m.athlete_no}-${m.name.replace(/[^a-z0-9]+/gi, '-')}.pdf`);
+    } catch (err) { JO.toast(err.message, 'bad'); }
+    finally { btn.disabled = false; btn.textContent = old; }
+  }
+
   async function downloadTicket(btn) {
     const a = D.athletes.find((x) => x.id === btn.dataset.ticket);
     const ents = D.entries.filter((e) => (e.athlete_ids || []).includes(a.id));
@@ -160,7 +223,7 @@
     try {
       const doc = await JO.ticketPdf({
         discipline: D.discipline, athlete_no: a.athlete_no, name: a.full_name, club: D.club ? D.club.name : 'Perorangan',
-        categories: ents.map((e) => e.category_name_id + (e.priangan_status === 'disetujui' ? ' + Priangan' : '')),
+        categories: ents.map((e) => e.category_name_id + (e.team_only && D.team ? ` (khusus beregu, tim ${D.team.name})` : '') + (e.priangan_status === 'disetujui' ? ' + Priangan' : '')),
         start: ents.map((e) => startText(e.start)).filter(Boolean).join(' / '),
         ticket_code: a.ticket_code, submission_code: D.code,
       });
@@ -197,7 +260,7 @@
       pay_noqris: ['Gambar QRIS sedang disiapkan panitia. Buka halaman ini lagi nanti.', 'The QRIS image is being prepared. Check this page again later.'],
       pay_deadline: ['Batas pembayaran: {d}', 'Payment deadline: {d}'],
       pay_intl: ['Atlet internasional membayar terpisah. Panitia akan menghubungi {e} dengan instruksi pembayaran.', 'International athletes pay separately. The committee will contact {e} with payment instructions.'],
-      sum_fees: ['Biaya pendaftaran', 'Entry fees'], sum_pri: ['Kategori Priangan', 'Priangan category'], sum_uc: ['Kode unik', 'Unique code'],
+      sum_fees: ['Biaya pendaftaran', 'Entry fees'], sum_team: ['Biaya beregu', 'Team fee'], sum_pri: ['Kategori Priangan', 'Priangan category'], sum_uc: ['Kode unik', 'Unique code'],
     });
     if (!code || !token) return finder();
     try { D = await rpc('public_get_submission', { p_code: code, p_token: token }); }

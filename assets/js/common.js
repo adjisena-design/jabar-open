@@ -47,6 +47,7 @@
     menu: ['Menu', 'Menu'],
     footer_org: ['Diselenggarakan oleh Gimnastik Indonesia (GI) Jawa Barat', 'Organised by Gimnastik Indonesia (GI) West Java'],
     footer_contact: ['Pertanyaan pendaftaran', 'Registration questions'],
+    footer_pm: ['Project Manager (permintaan khusus, atau bila email di atas lama dibalas)', 'Project Manager (special requests, or if the address above is slow to reply)'],
     footer_sec: ['Sekretariat KONI & GI Jawa Barat', 'KONI & GI West Java secretariat'],
     loading: ['Memuat…', 'Loading…'],
     err_network: ['Tidak bisa terhubung ke server. Periksa koneksi internet lalu coba lagi.', 'Cannot reach the server. Check your connection and try again.'],
@@ -192,7 +193,8 @@
     f.innerHTML = `<div class="footer-in">
       <div class="logos"><img class="jo" src="${base}assets/img/brand/jabar-open.webp" alt="Jabar Open" width="360" height="246"><img src="${base}assets/img/logo-koni-gi.png" alt="KONI Jawa Barat dan Gimnastik Indonesia Jawa Barat" width="520" height="172"></div>
       <div><div data-i18n="footer_org"></div>
-      <div><span data-i18n="footer_contact"></span>: <a href="mailto:adjisena.daffa@gmail.com">adjisena.daffa@gmail.com</a> · Instagram <a href="https://www.instagram.com/gimnastikjabar/" target="_blank" rel="noopener">@gimnastikjabar</a></div>
+      <div><span data-i18n="footer_contact"></span>: <a href="mailto:jabaropen2026@gmail.com">jabaropen2026@gmail.com</a> · Instagram <a href="https://www.instagram.com/gimnastikjabar/" target="_blank" rel="noopener">@gimnastikjabar</a></div>
+      <div><span data-i18n="footer_pm"></span>: <a href="mailto:adjisena.daffa@gmail.com">adjisena.daffa@gmail.com</a></div>
       <address><span data-i18n="footer_sec"></span>: Jl. Padjajaran No. 37A, Pasir Kaliki, Kec. Cicendo, Kota Bandung 40171</address></div>
       </div>`;
     document.body.appendChild(f);
@@ -293,11 +295,11 @@
     doc.setFillColor(228, 200, 125); doc.rect(9, 9, W - 18, 2.5, 'F');
     const lw = 46, lh = lw * logo.h / logo.w; doc.addImage(logo.data, 'PNG', 24, 22, lw, lh, 'jo-logo', 'FAST');
     const ow = 62, oh = ow * org.h / org.w; doc.addImage(org.data, 'PNG', W - 24 - ow, 26, ow, oh, 'jo-org', 'FAST');
-    const winner = !!c.medal || !!c.priangan_medal;
+    const winner = !!c.team || !!c.medal || !!c.priangan_medal;
     doc.setTextColor(19, 40, 74); doc.setFont('helvetica', 'bold'); doc.setFontSize(34);
     doc.text('Sertifikat', W / 2, 62, { align: 'center' });
     doc.setFont('helvetica', 'normal'); doc.setFontSize(13); doc.setTextColor(91, 107, 136);
-    doc.text(winner ? 'Pemenang' : 'Peserta', W / 2, 71, { align: 'center' });
+    doc.text(c.team ? 'Juara Beregu' : winner ? 'Pemenang' : 'Peserta', W / 2, 71, { align: 'center' });
     doc.setFontSize(11); doc.text('diberikan kepada', W / 2, 84, { align: 'center' });
     doc.setTextColor(19, 40, 74); doc.setFont('helvetica', 'bold'); doc.setFontSize(28);
     doc.text(c.name, W / 2, 98, { align: 'center' });
@@ -305,7 +307,8 @@
     doc.text(c.club || '', W / 2, 106, { align: 'center' });
     let line;
     const mName = { emas: 'Medali Emas', perak: 'Medali Perak', perunggu: 'Medali Perunggu' };
-    if (c.medal) line = `sebagai Juara ${c.rank} (${mName[c.medal]})`;
+    if (c.team) line = `sebagai Juara ${c.rank} Beregu`;
+    else if (c.medal) line = `sebagai Juara ${c.rank} (${mName[c.medal]})`;
     else if (c.rank) line = `meraih peringkat ${c.rank}`;
     else line = 'atas partisipasinya';
     doc.setFontSize(14); doc.setTextColor(19, 40, 74); doc.setFont('helvetica', 'bold');

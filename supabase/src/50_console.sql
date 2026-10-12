@@ -71,7 +71,10 @@ begin
         'to_verify', (select count(*) from jo.submissions s where s.discipline = x.code and s.status = 'menunggu_verifikasi'),
         'unpaid', (select count(*) from jo.submissions s where s.discipline = x.code and s.status in ('menunggu_pembayaran','perlu_perbaikan')),
         'docs_pending', (select count(*) from jo.athletes a join jo.submissions s on s.id = a.submission_id where s.discipline = x.code and s.status <> 'dibatalkan' and a.doc_status = 'menunggu'),
-        'priangan_pending', (select count(*) from jo.entries e join jo.submissions s on s.id = e.submission_id where s.discipline = x.code and s.status <> 'dibatalkan' and e.priangan_status = 'menunggu')
+        'priangan_pending', (select count(*) from jo.entries e join jo.submissions s on s.id = e.submission_id where s.discipline = x.code and s.status <> 'dibatalkan' and e.priangan_status = 'menunggu'),
+        'teams', (select count(*) from jo.teams t join jo.submissions s on s.id = t.submission_id where t.discipline = x.code and s.status <> 'dibatalkan'),
+        'teams_paid', (select count(*) from jo.teams t join jo.submissions s on s.id = t.submission_id where t.discipline = x.code and s.status = 'lunas'),
+        'music_pending', (select count(*) from jo.entries e join jo.submissions s on s.id = e.submission_id where s.discipline = x.code and s.status <> 'dibatalkan' and e.status <> 'dibatalkan' and e.music_status in ('menunggu','belum','tidak_bisa'))
       ) order by x.sort), '[]'::jsonb) from jo.disciplines x where d is null or x.code = d),
     'low_categories', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'name', c.name_id, 'discipline', c.discipline, 'paid', n.paid, 'registered', n.reg) order by c.sort), '[]'::jsonb)
         from jo.categories c
@@ -115,6 +118,8 @@ begin
       c.name as club, coalesce(c.kab_kota, (select a.kab_kota from jo.athletes a where a.submission_id = s.id order by a.sort limit 1)) as region,
       (select count(*) from jo.athletes a where a.submission_id = s.id) as n_athletes,
       (select string_agg(a.full_name, ', ' order by a.sort) from jo.athletes a where a.submission_id = s.id) as athlete_names,
+      (select t.name || ' (' || t.level || ', ' || (select count(*) from jo.team_members m where m.team_id = t.id) || ' pesenam)' from jo.teams t where t.submission_id = s.id) as team_name,
+      (select count(*) from jo.entries e where e.submission_id = s.id and e.status <> 'dibatalkan' and e.music_status in ('menunggu','belum','tidak_bisa')) as music_pending,
       s.total_amount, s.unique_code, s.status, s.payment_method, s.proof_uploaded_at, s.paid_at,
       (select count(*) from jo.athletes a where a.submission_id = s.id and a.doc_status = 'menunggu') as docs_pending,
       (select count(*) from jo.entries e where e.submission_id = s.id and e.priangan_status = 'menunggu') as priangan_pending,
@@ -128,7 +133,9 @@ begin
            or exists (select 1 from jo.athletes a where a.submission_id = s.id and lower(a.full_name) like q))
       and (coalesce(f->>'flag','') = ''
            or (f->>'flag' = 'docs' and exists (select 1 from jo.athletes a where a.submission_id = s.id and a.doc_status = 'menunggu') and s.status <> 'dibatalkan')
-           or (f->>'flag' = 'priangan' and exists (select 1 from jo.entries e where e.submission_id = s.id and e.priangan_status = 'menunggu') and s.status <> 'dibatalkan'))
+           or (f->>'flag' = 'priangan' and exists (select 1 from jo.entries e where e.submission_id = s.id and e.priangan_status = 'menunggu') and s.status <> 'dibatalkan')
+           or (f->>'flag' = 'beregu' and s.registrant_type = 'beregu')
+           or (f->>'flag' = 'musik' and exists (select 1 from jo.entries e where e.submission_id = s.id and e.status <> 'dibatalkan' and e.music_status in ('menunggu','belum','tidak_bisa')) and s.status <> 'dibatalkan'))
     order by s.created_at desc
     limit 1000) x);
 end $$;
@@ -154,12 +161,31 @@ begin
         'id', e.id, 'category_id', c.id, 'category', c.name_id, 'level', c.level, 'entry_type', c.entry_type,
         'fee', e.fee, 'priangan_requested', e.priangan_requested, 'priangan_fee', e.priangan_fee,
         'priangan_status', e.priangan_status, 'priangan_note', e.priangan_note, 'status', e.status,
+        'team_only', e.team_only, 'discipline', c.discipline,
+        'music_url', e.music_url, 'music_status', e.music_status, 'music_note', e.music_note,
+        'music_changes', e.music_changes, 'music_updated_at', e.music_updated_at,
+        'music_checked_by', (select name from jo.staff where id = e.music_checked_by), 'music_checked_at', e.music_checked_at,
+        'music_log', (select coalesce(jsonb_agg(jsonb_build_object('at', ml.at, 'action', ml.action, 'old_url', ml.old_url, 'new_url', ml.new_url,
+            'staff', (select name from jo.staff where id = ml.staff_id), 'note', ml.note) order by ml.at), '[]'::jsonb)
+            from jo.music_log ml where ml.entry_id = e.id),
+        'in_team', (select jsonb_build_object('team', t.name, 'submission_id', t.submission_id, 'code', ts.code)
+                      from jo.team_members m join jo.teams t on t.id = m.team_id join jo.submissions ts on ts.id = t.submission_id
+                     where m.entry_id = e.id and ts.status <> 'dibatalkan' limit 1),
         'athletes', jo.entry_athletes_json(e.id),
         'mismatch', (select string_agg(a.full_name || ': ' || jo.category_mismatch(c, a.gender, a.birth_date), '; ')
                        from jo.entry_athletes ea join jo.athletes a on a.id = ea.athlete_id
                       where ea.entry_id = e.id and jo.category_mismatch(c, a.gender, a.birth_date) is not null)
       ) order by c.sort), '[]'::jsonb)
       from jo.entries e join jo.categories c on c.id = e.category_id where e.submission_id = s.id),
+    'team', (select jsonb_build_object('id', t.id, 'name', t.name, 'level', t.level,
+        'members', (select coalesce(jsonb_agg(jsonb_build_object(
+            'athlete_id', a.id, 'name', a.full_name, 'athlete_no', a.athlete_no, 'team_only', m.team_only,
+            'category', c2.name_id, 'entry_status', e2.status,
+            'submission_id', e2.submission_id, 'submission_code', s2.code, 'submission_status', s2.status) order by m.sort), '[]'::jsonb)
+          from jo.team_members m join jo.athletes a on a.id = m.athlete_id join jo.entries e2 on e2.id = m.entry_id
+          join jo.categories c2 on c2.id = e2.category_id join jo.submissions s2 on s2.id = e2.submission_id
+          where m.team_id = t.id))
+      from jo.teams t where t.submission_id = s.id),
     'mutations', (select coalesce(jsonb_agg(to_jsonb(m) - 'raw' order by m.trx_time), '[]'::jsonb)
         from jo.mutations m where m.submission_id = s.id),
     'candidate_mutations', (select coalesce(jsonb_agg(to_jsonb(m) - 'raw' order by m.trx_time), '[]'::jsonb)
@@ -387,7 +413,8 @@ begin
       s.discipline, s.code as submission_code, s.id as submission_id, s.status as payment_status,
       a.doc_status, a.guardian_name, a.guardian_phone, a.guardian_email, a.guardian_relation,
       s.contact_name, s.contact_phone, s.contact_email,
-      (select string_agg(cat.name_id || case when e.priangan_requested then ' [Priangan: ' || e.priangan_status || ']' else '' end, '; ' order by cat.sort)
+      (select string_agg(cat.name_id || case when e.team_only then ' [khusus beregu]' else '' end
+                         || case when e.priangan_requested then ' [Priangan: ' || e.priangan_status || ']' else '' end, '; ' order by cat.sort)
          from jo.entry_athletes ea join jo.entries e on e.id = ea.entry_id join jo.categories cat on cat.id = e.category_id
         where ea.athlete_id = a.id and e.status <> 'dibatalkan') as categories,
       a.id_doc_path, a.photo_path
@@ -791,6 +818,97 @@ begin
     limit 2000);
 end $$;
 
+
+-- ---------------------------------------------------------------------
+-- Musik Ritmik (admin RG ke atas)
+-- ---------------------------------------------------------------------
+create or replace function public.console_music(p_filter jsonb default '{}'::jsonb) returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare st jo.staff; f jsonb := coalesce(p_filter,'{}'::jsonb);
+begin
+  st := jo.require_staff(array['owner','superadmin','admin']);
+  perform jo.check_discipline(st, 'RG');
+  return (select coalesce(jsonb_agg(row_to_json(x)::jsonb order by x.category_sort, x.athlete_no), '[]'::jsonb) from (
+    select e.id as entry_id, a.full_name, a.athlete_no, c.name_id as category, c.sort as category_sort, c.apparatus,
+      coalesce(k.name, 'Perorangan') as club, s.code, s.id as submission_id, s.status as payment_status,
+      s.contact_name, s.contact_phone, s.contact_email,
+      e.music_url, e.music_status, e.music_note, e.music_changes, e.music_updated_at,
+      (select name from jo.staff where id = e.music_checked_by) as checked_by, e.music_checked_at,
+      c.startlist_published
+    from jo.entries e join jo.categories c on c.id = e.category_id
+    join jo.submissions s on s.id = e.submission_id
+    join jo.entry_athletes ea on ea.entry_id = e.id join jo.athletes a on a.id = ea.athlete_id
+    left join jo.clubs k on k.id = s.club_id
+    where c.discipline = 'RG' and s.status <> 'dibatalkan' and e.status <> 'dibatalkan'
+      and (nullif(f->>'status','') is null or e.music_status = f->>'status'
+           or (f->>'status' = 'perlu' and e.music_status in ('menunggu','belum','tidak_bisa')))
+      and (coalesce(f->>'q','') = '' or lower(a.full_name) like '%' || lower(f->>'q') || '%'
+           or lower(coalesce(k.name,'')) like '%' || lower(f->>'q') || '%' or lower(s.code) like '%' || lower(f->>'q') || '%')
+  ) x);
+end $$;
+
+create or replace function public.console_music_check(p_entry uuid, p_ok boolean, p_note text default null) returns jsonb
+language plpgsql volatile security definer set search_path = '' as $$
+declare st jo.staff; e jo.entries; c jo.categories;
+begin
+  st := jo.require_staff(array['owner','superadmin','admin']);
+  select * into e from jo.entries where id = p_entry for update;
+  if e.id is null then raise exception 'Entri tidak ditemukan.'; end if;
+  select * into c from jo.categories where id = e.category_id;
+  perform jo.check_discipline(st, c.discipline);
+  if e.music_url is null then raise exception 'Belum ada tautan musik untuk diperiksa.'; end if;
+  if not p_ok and length(trim(coalesce(p_note,''))) < 3 then
+    raise exception 'Tulis apa masalahnya (mis. folder belum dibagikan, file kosong). Catatan dikirim ke pendaftar.';
+  end if;
+  update jo.entries set music_status = case when p_ok then 'ok' else 'tidak_bisa' end,
+    music_note = case when p_ok then null else trim(p_note) end, music_checked_by = st.id, music_checked_at = now()
+   where id = e.id;
+  insert into jo.music_log (entry_id, action, new_url, staff_id, note)
+  values (e.id, case when p_ok then 'ok' else 'tidak_bisa' end, e.music_url, st.id, nullif(trim(coalesce(p_note,'')),''));
+  perform jo.log(st.id, case when p_ok then 'musik_ok' else 'musik_tidak_bisa' end, 'entry', e.id::text, jsonb_build_object('note', p_note));
+  if not p_ok then perform jo.queue_music_email(e.id, 'musik_perbaiki'); end if;
+  return jsonb_build_object('ok', true);
+end $$;
+
+-- ---------------------------------------------------------------------
+-- Beregu: daftar & peringkat per level, publikasi
+-- ---------------------------------------------------------------------
+create or replace function public.console_teams(p_discipline text) returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare st jo.staff;
+begin
+  st := jo.require_staff(array['owner','superadmin','admin']);
+  perform jo.check_discipline(st, p_discipline);
+  return (select coalesce(jsonb_agg(jsonb_build_object(
+      'level', lv.level, 'signatories', jo.setting('signatories'),
+      'published', coalesce(tl.published, false), 'published_at', tl.published_at,
+      'results', jo.team_results(p_discipline, lv.level, true),
+      'pending', (select coalesce(jsonb_agg(jsonb_build_object('id', s.id, 'code', s.code, 'name', t.name, 'status', s.status,
+                   'club', (select name from jo.clubs where id = s.club_id)) order by t.name), '[]'::jsonb)
+                  from jo.teams t join jo.submissions s on s.id = t.submission_id
+                 where t.discipline = p_discipline and t.level = lv.level and s.status in ('menunggu_pembayaran','menunggu_verifikasi','perlu_perbaikan'))
+    ) order by lv.sort), '[]'::jsonb)
+    from (select c.level, min(c.sort) as sort from jo.categories c where c.discipline = p_discipline and c.active group by c.level) lv
+    left join jo.team_levels tl on tl.discipline = p_discipline and tl.level = lv.level
+    where exists (select 1 from jo.teams t where t.discipline = p_discipline and t.level = lv.level));
+end $$;
+
+create or replace function public.console_team_publish(p_discipline text, p_level text, p_publish boolean) returns jsonb
+language plpgsql volatile security definer set search_path = '' as $$
+declare st jo.staff;
+begin
+  st := jo.require_staff(array['owner','superadmin','admin']);
+  perform jo.check_discipline(st, p_discipline);
+  if not p_publish and st.role not in ('owner','superadmin') then
+    raise exception 'Menarik hasil beregu yang sudah dipublikasikan hanya bisa dilakukan superadmin.';
+  end if;
+  insert into jo.team_levels (discipline, level, published, published_at)
+  values (p_discipline, p_level, p_publish, case when p_publish then now() end)
+  on conflict (discipline, level) do update set published = excluded.published, published_at = excluded.published_at;
+  perform jo.log(st.id, case when p_publish then 'hasil_beregu_dipublikasikan' else 'hasil_beregu_ditarik' end, 'team_level', p_discipline || ' ' || p_level);
+  return public.console_teams(p_discipline);
+end $$;
+
 -- ---------------------------------------------------------------------
 -- Ledger & mutasi (superadmin)
 -- ---------------------------------------------------------------------
@@ -801,7 +919,8 @@ begin
   st := jo.require_staff(array['owner','superadmin']);
   return jsonb_build_object(
     'rows', (select coalesce(jsonb_agg(row_to_json(x)::jsonb order by x.created_at), '[]'::jsonb) from (
-      select s.id, s.code, s.created_at, s.discipline, coalesce(c.name, 'Perorangan') as club,
+      select s.id, s.code, s.created_at, s.discipline, coalesce(c.name, 'Perorangan') as club, s.registrant_type,
+        (select t.name || ' (' || t.level || ')' from jo.teams t where t.submission_id = s.id) as team_name,
         s.contact_name, s.contact_phone, s.contact_email,
         (select count(*) from jo.athletes a where a.submission_id = s.id) as n_athletes,
         (select count(*) from jo.entries e where e.submission_id = s.id and e.status <> 'dibatalkan') as n_entries,
@@ -816,7 +935,9 @@ begin
     'summary', (select coalesce(jsonb_agg(jsonb_build_object('discipline', d.code, 'name', d.name_id,
         'expected', (select coalesce(sum(total_amount),0) from jo.submissions s where s.discipline = d.code and s.status <> 'dibatalkan'),
         'paid', (select coalesce(sum(coalesce(paid_amount,total_amount)),0) from jo.submissions s where s.discipline = d.code and s.status = 'lunas'),
-        'fees_paid', (select coalesce(sum(base_amount),0) from jo.submissions s where s.discipline = d.code and s.status = 'lunas'),
+        'fees_paid', (select coalesce(sum(base_amount),0) from jo.submissions s where s.discipline = d.code and s.status = 'lunas' and s.registrant_type <> 'beregu'),
+        'team_paid', (select coalesce(sum(base_amount),0) from jo.submissions s where s.discipline = d.code and s.status = 'lunas' and s.registrant_type = 'beregu'),
+        'teams_paid', (select count(*) from jo.submissions s where s.discipline = d.code and s.status = 'lunas' and s.registrant_type = 'beregu'),
         'priangan_paid', (select coalesce(sum(priangan_amount),0) from jo.submissions s where s.discipline = d.code and s.status = 'lunas'),
         'unique_paid', (select coalesce(sum(unique_code),0) from jo.submissions s where s.discipline = d.code and s.status = 'lunas'),
         'count_paid', (select count(*) from jo.submissions s where s.discipline = d.code and s.status = 'lunas'),

@@ -43,6 +43,9 @@ language sql stable set search_path = '' as $$
   || '<tr><td style="padding:18px 28px;background:#f4f6fa;font-size:12px;color:#5b6b88;line-height:1.5">'
   || jo.h(coalesce(jo.setting_text('event_name'),'Jabar Open 2026')) || ' &middot; Gimnastik Indonesia (GI) Jawa Barat<br>'
   || jo.tr(p_lang, 'Pertanyaan: ', 'Questions: ') || jo.h(coalesce(jo.setting_text('contact_email'),'')) || '<br>'
+  || case when coalesce(jo.setting_text('pm_email'),'') <> '' then
+       jo.tr(p_lang, 'Permintaan khusus atau belum ada balasan: Project Manager, ', 'Special requests or no reply yet: Project Manager, ')
+       || jo.h(jo.setting_text('pm_email')) || '<br>' else '' end
   || jo.tr(p_lang, 'Email ini dikirim otomatis. Simpan email ini sebagai bukti pendaftaran.',
                    'This email was sent automatically. Keep it as your registration record.')
   || '</td></tr></table></td></tr></table></body></html>'
@@ -72,6 +75,26 @@ language sql stable set search_path = '' as $$
   from jo.athletes a where a.submission_id = p_sub
 $$;
 
+-- Ringkasan tim beregu untuk email
+create or replace function jo.email_team(p_sub uuid, p_lang text) returns text
+language sql stable set search_path = '' as $$
+  select '<p style="margin:10px 0 2px"><b>' || jo.h(t.name) || '</b> &middot; '
+    || jo.h(case when p_lang = 'en' then d.name_en else d.name_id end) || ' ' || jo.h(t.level) || '</p>'
+    || '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:4px 0">'
+    || coalesce((select string_agg(
+         '<tr><td style="padding:7px 0;border-bottom:1px solid #e2e8f1"><b>' || jo.h(a.full_name) || '</b>'
+         || '<div style="font-size:13px;color:#5b6b88">' || jo.h(coalesce(a.athlete_no,'')) || '</div></td>'
+         || '<td style="padding:7px 0;border-bottom:1px solid #e2e8f1;text-align:right;font-size:13px">'
+         || case when m.team_only then jo.tr(p_lang,'Khusus beregu','Team only') else jo.tr(p_lang,'Juga perorangan','Also individual') end
+         || '<br><span style="color:#5b6b88">' || jo.h(case when p_lang = 'en' then c.name_en else c.name_id end) || '</span></td></tr>', '' order by m.sort)
+       from jo.team_members m join jo.athletes a on a.id = m.athlete_id
+       join jo.entries e on e.id = m.entry_id join jo.categories c on c.id = e.category_id
+       where m.team_id = t.id), '')
+    || '</table>'
+  from jo.teams t join jo.disciplines d on d.code = t.discipline
+  where t.submission_id = p_sub
+$$;
+
 create or replace function jo.queue_email(p_sub uuid, p_kind text, p_to text, p_cc text, p_subject text, p_html text)
 returns void language sql volatile set search_path = '' as $$
   insert into jo.outbox (kind, submission_id, to_email, cc, subject, html)
@@ -91,9 +114,9 @@ begin
     || jo.h(case when l = 'en' then d.name_en else d.name_id end)
     || jo.tr(l, ' sudah kami terima. Kode pendaftaran Anda:', ' registration has been received. Your registration code:')
     || '</p><p style="font-size:22px;font-weight:bold;letter-spacing:1px;margin:6px 0 14px">' || jo.h(s.code) || '</p>'
-    || jo.email_roster(s.id, l)
+    || case when s.registrant_type = 'beregu' then coalesce(jo.email_team(s.id, l), '') else jo.email_roster(s.id, l) end
     || '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:14px 0;font-size:14px">'
-    || '<tr><td style="padding:3px 0">' || jo.tr(l,'Biaya pendaftaran','Entry fees') || '</td><td align="right">' || jo.fmt_rp(s.base_amount) || '</td></tr>'
+    || '<tr><td style="padding:3px 0">' || case when s.registrant_type = 'beregu' then jo.tr(l,'Biaya beregu (per tim)','Team fee (per team)') else jo.tr(l,'Biaya pendaftaran','Entry fees') end || '</td><td align="right">' || jo.fmt_rp(s.base_amount) || '</td></tr>'
     || case when s.priangan_amount > 0 then '<tr><td style="padding:3px 0">' || jo.tr(l,'Kategori Priangan','Priangan category') || '</td><td align="right">' || jo.fmt_rp(s.priangan_amount) || '</td></tr>' else '' end
     || case when s.unique_code > 0 then '<tr><td style="padding:3px 0">' || jo.tr(l,'Kode unik','Unique code') || '</td><td align="right">' || jo.fmt_rp(s.unique_code) || '</td></tr>' else '' end
     || '<tr><td style="padding:10px 0 0;font-weight:bold;font-size:16px">' || jo.tr(l,'Total yang harus dibayar','Total to pay') || '</td>'
@@ -137,7 +160,7 @@ begin
   body := '<p>' || jo.tr(l,'Halo ','Hello ') || jo.h(s.contact_name) || ',</p>'
     || '<p>' || jo.tr(l,'Pembayaran untuk pendaftaran ','Payment for registration ') || '<b>' || jo.h(s.code) || '</b> '
     || jo.tr(l,'sudah kami verifikasi. Status: <b style="color:#1b8a4b">LUNAS</b>.','has been verified. Status: <b style="color:#1b8a4b">PAID</b>.') || '</p>'
-    || jo.email_roster(s.id, l)
+    || case when s.registrant_type = 'beregu' then coalesce(jo.email_team(s.id, l), '') else jo.email_roster(s.id, l) end
     || '<p>' || jo.tr(l,'E-ticket (PDF) untuk setiap atlet dapat diunduh di halaman status. Tidak ada registrasi ulang: cukup datang sesuai jadwal yang diumumkan di Instagram dan situs Jabar Open 2026.',
                       'Each athlete''s e-ticket (PDF) can be downloaded from the status page. There is no on-site check-in: just come at the schedule announced on Instagram and the Jabar Open 2026 website.') || '</p>'
     || jo.email_button(jo.status_link(s.code, s.token), jo.tr(l,'Unduh e-ticket','Download e-tickets'));
@@ -178,4 +201,48 @@ begin
   perform jo.queue_email(s.id, 'tautan', s.contact_email, null,
     jo.tr(l,'Tautan status pendaftaran — ','Registration status link — ') || s.code,
     jo.email_layout(jo.tr(l,'Tautan halaman status','Status page link'), body, l));
+end $$;
+
+-- ---------------------------------------------------------------------
+-- Musik Ritmik: konfirmasi perubahan tautan & permintaan perbaikan berbagi
+-- ---------------------------------------------------------------------
+create or replace function jo.music_link() returns text
+language sql stable set search_path = '' as $$
+  select jo.site_url() || 'musik.html'
+$$;
+
+create or replace function jo.queue_music_email(p_entry uuid, p_kind text) returns void
+language plpgsql volatile set search_path = '' as $$
+declare e jo.entries; s jo.submissions; a jo.athletes; c jo.categories; l text; body text; subj text; title text;
+begin
+  select * into e from jo.entries where id = p_entry;
+  select * into s from jo.submissions where id = e.submission_id;
+  select a2.* into a from jo.entry_athletes ea join jo.athletes a2 on a2.id = ea.athlete_id where ea.entry_id = e.id limit 1;
+  select * into c from jo.categories where id = e.category_id;
+  l := s.lang;
+  body := '<p>' || jo.tr(l,'Halo ','Hello ') || jo.h(s.contact_name) || ',</p>';
+  if p_kind = 'musik_perbaiki' then
+    title := jo.tr(l,'Tautan musik perlu diperbaiki','Music link needs fixing');
+    subj := title || ' — ' || a.full_name;
+    body := body || '<p>' || jo.tr(l,'Tautan musik untuk ','The music link for ') || '<b>' || jo.h(a.full_name) || '</b> ('
+      || jo.h(case when l = 'en' then c.name_en else c.name_id end) || ') '
+      || jo.tr(l,'tidak bisa dibuka panitia. Catatan:','could not be opened by the committee. Note:') || '</p>'
+      || '<p style="background:#fbf4e1;border-left:4px solid #e4c87d;padding:10px 14px">' || jo.h(coalesce(e.music_note,'-')) || '</p>'
+      || '<p>' || jo.tr(l,'Pastikan folder Google Drive dibagikan sebagai <b>"Siapa saja yang memiliki link"</b>, lalu kirim ulang tautannya. Perbaikan ini <b>tidak</b> memakai kesempatan ganti musik.',
+                       'Make sure the Google Drive folder is shared as <b>"Anyone with the link"</b>, then submit the link again. Fixing this does <b>not</b> use up the music change.') || '</p>';
+  else
+    title := jo.tr(l,'Tautan musik diterima','Music link received');
+    subj := title || ' — ' || a.full_name;
+    body := body || '<p>' || jo.tr(l,'Tautan musik untuk ','The music link for ') || '<b>' || jo.h(a.full_name) || '</b> ('
+      || jo.h(case when l = 'en' then c.name_en else c.name_id end) || ') '
+      || jo.tr(l,'sudah tersimpan:','has been saved:') || '</p>'
+      || '<p style="word-break:break-all"><a href="' || jo.h(e.music_url) || '">' || jo.h(e.music_url) || '</a></p>'
+      || '<p>' || case when e.music_changes >= 1
+           then jo.tr(l,'Kesempatan ganti musik untuk atlet ini sudah dipakai.','The music change for this athlete has now been used.')
+           else jo.tr(l,'Musik dapat diganti satu kali sampai start list kategori ini terbit.','The music can be changed once until this category''s start list is published.') end
+      || ' ' || jo.tr(l,'Panitia akan memeriksa bahwa tautan bisa dibuka.','The committee will check that the link opens.') || '</p>';
+  end if;
+  body := body || jo.email_button(jo.music_link(), jo.tr(l,'Buka halaman musik Ritmik','Open the Rhythmic music page'))
+    || '<p style="font-size:13px;color:#5b6b88">' || jo.tr(l,'Kode pendaftaran: ','Registration code: ') || jo.h(s.code) || '</p>';
+  perform jo.queue_email(s.id, p_kind, s.contact_email, null, subj, jo.email_layout(title, body, l));
 end $$;

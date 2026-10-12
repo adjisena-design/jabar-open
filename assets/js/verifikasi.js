@@ -12,6 +12,9 @@
     v_cert_wait: ['Kode sertifikat dikenal, tetapi hasil kategorinya belum dipublikasikan', 'Known certificate code, but results for its category are not published yet'],
     v_none: ['Kode tidak dikenal. Periksa kembali penulisannya. Jika kode berasal dari dokumen resmi, hubungi panitia.', 'Unknown code. Check the spelling. If the code comes from an official document, contact the committee.'],
     v_name: ['Nama', 'Name'], v_no: ['Nomor atlet', 'Athlete number'], v_club: ['Klub', 'Club'], v_cat: ['Kategori', 'Category'],
+    v_team_ok: ['Sertifikat Juara Beregu asli', 'Genuine team champion certificate'],
+    v_team_wait: ['Kode sertifikat beregu dikenal, tetapi hasil beregu belum dipublikasikan atau tim tidak masuk tiga besar', 'Known team certificate code, but team results are not published yet or the team did not finish in the top three'],
+    v_team: ['Tim', 'Team'], v_team_rank: ['Juara {r} beregu', 'Team rank {r}'],
     v_disc: ['Disiplin', 'Discipline'], v_result: ['Hasil', 'Result'], v_rank: ['Peringkat {r}', 'Rank {r}'], v_pri: ['Priangan: peringkat {r}', 'Priangan: rank {r}'],
   });
   const app = document.getElementById('app');
@@ -46,6 +49,15 @@
           <dt>${esc(t('v_club'))}</dt><dd>${esc(r.club)}</dd><dt>${esc(t('v_cat'))}</dt><dd>${esc(cat)}</dd>
           <dt>${esc(t('v_result'))}</dt><dd>${r.rank ? esc(t('v_rank', { r: r.rank })) : '–'}${r.medal ? ` <span class="medal ${r.medal}"></span> ${esc(t('medal_' + r.medal))}` : ''}
           ${r.priangan_rank ? `<br>${esc(t('v_pri', { r: r.priangan_rank }))}${r.priangan_medal ? ` <span class="medal ${r.priangan_medal}"></span> ${esc(t('medal_' + r.priangan_medal))}` : ''}` : ''}</dd></dl></section>`;
+    } else if (r.type === 'team_certificate' && r.valid) {
+      html = `<section class="card" style="border-left:6px solid var(--ok);border-radius:0 var(--r) var(--r) 0">
+        <p class="pill ok">${esc(t('v_team_ok'))}</p>
+        <dl class="kv" style="margin-top:12px"><dt>${esc(t('v_name'))}</dt><dd>${esc(r.name)}</dd>
+          <dt>${esc(t('v_team'))}</dt><dd>${esc(r.team)}</dd><dt>${esc(t('v_club'))}</dt><dd>${esc(r.club)}</dd>
+          <dt>${esc(t('v_cat'))}</dt><dd>Beregu ${esc(DN[r.discipline] || r.discipline)} ${esc(r.level)}</dd>
+          <dt>${esc(t('v_result'))}</dt><dd>${esc(t('v_team_rank', { r: r.rank }))} <span class="medal ${['emas', 'perak', 'perunggu'][r.rank - 1] || ''}"></span>${r.total != null ? ` <span class="muted num">(${Number(r.total).toFixed(3)})</span>` : ''}</dd></dl></section>`;
+    } else if (r.type === 'team_certificate') {
+      html = `<p class="note warn">${esc(t('v_team_wait'))}</p>`;
     } else if (r.type === 'certificate') {
       html = `<p class="note warn">${esc(t('v_cert_wait'))}</p>`;
     } else {

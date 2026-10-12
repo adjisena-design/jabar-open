@@ -1,6 +1,6 @@
 -- =====================================================================
 --  JABAR OPEN 2026 — HAPUS DATA UJI COBA (jalankan sekali sebelum peluncuran)
---  Menghapus: pendaftaran, atlet, entri, nilai, mutasi, email, log, sesi,
+--  Menghapus: pendaftaran, atlet, entri, tim beregu, riwayat musik, nilai, mutasi, email, log, sesi,
 --             klub yang dibuat dari formulir, dan sesi login panitia.
 --  Menyimpan: pengaturan, disiplin, kategori, kode akses panitia, QRIS.
 --  Berkas di Storage (dokumen, bukti) TIDAK terhapus oleh skrip ini:
@@ -11,6 +11,10 @@ delete from jo.scores;
 delete from jo.score_log;
 delete from jo.mutations;
 delete from jo.outbox;
+delete from jo.music_log;
+delete from jo.team_members;
+delete from jo.teams;
+delete from jo.team_levels;
 delete from jo.entry_athletes;
 delete from jo.entries;
 delete from jo.athletes;

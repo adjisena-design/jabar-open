@@ -193,7 +193,7 @@ begin
   places := coalesce((c.medal_rule->>'places')::integer, 3);
 
   with e as (
-    select en.id, (en.priangan_status = 'disetujui') as pri, en.start_order, en.group_no
+    select en.id, (en.priangan_status = 'disetujui' and not en.team_only) as pri, en.team_only as tonly, en.start_order, en.group_no
     from jo.entries en join jo.submissions s on s.id = en.submission_id
     where en.category_id = p_cat and en.status = 'aktif' and s.status = 'lunas'
   ),
@@ -213,8 +213,9 @@ begin
     from apr group by id
   ),
   rk as (
-    select e.id, e.pri, e.start_order, e.group_no, t.total, t.n_scored, t.scores, t.app_ranks,
-      case when t.total is not null then rank() over (partition by (t.total is null) order by t.total desc) end as rnk,
+    -- anggota "khusus beregu" dinilai tetapi tidak ikut peringkat perorangan
+    select e.id, e.pri, e.tonly, e.start_order, e.group_no, t.total, t.n_scored, t.scores, t.app_ranks,
+      case when t.total is not null and not e.tonly then rank() over (partition by (t.total is null or e.tonly) order by t.total desc) end as rnk,
       case when e.pri and t.total is not null
            then rank() over (partition by (e.pri and t.total is not null) order by t.total desc) end as prnk
     from e join tot t on t.id = e.id
@@ -233,13 +234,81 @@ begin
       'rank', rk.rnk,
       'medal', case when c.exhibition or rk.rnk is null or rk.rnk > places then null
                     when rk.rnk = 1 then 'emas' when rk.rnk = 2 then 'perak' else 'perunggu' end,
+      'team_only', rk.tonly,
       'priangan', rk.pri,
       'priangan_rank', rk.prnk,
       'priangan_medal', case when c.exhibition or rk.prnk is null or rk.prnk > places then null
                     when rk.prnk = 1 then 'emas' when rk.prnk = 2 then 'perak' else 'perunggu' end
-    ) order by rk.rnk nulls last, rk.start_order nulls last), '[]'::jsonb)
+    ) order by rk.rnk nulls last, rk.tonly, rk.start_order nulls last), '[]'::jsonb)
   into res
   from rk;
+  return res;
+end $$;
+
+-- ---------------------------------------------------------------------
+-- Beregu: nama dinormalkan (pencocokan anggota), total serba bisa satu entri,
+-- dan peringkat tim per level (4 nilai serba bisa terbaik dari maks. 6 pesenam)
+-- ---------------------------------------------------------------------
+create or replace function jo.norm_name(t text) returns text
+language sql immutable set search_path = '' as $$
+  select regexp_replace(lower(coalesce(t,'')), '[^a-z0-9]+', '', 'g')
+$$;
+
+create or replace function jo.entry_total(p_entry uuid) returns numeric
+language sql stable set search_path = '' as $$
+  select round(sum(jo.apparatus_score(e.id, a)), 3)
+    from jo.entries e join jo.categories c on c.id = e.category_id
+    cross join lateral unnest(c.apparatus) a
+   where e.id = p_entry
+$$;
+
+create or replace function jo.team_results(p_disc text, p_level text, p_with_codes boolean default false) returns jsonb
+language plpgsql stable set search_path = '' as $$
+declare res jsonb; v_count integer := coalesce(jo.setting_int('team_counting'), 4);
+begin
+  with t as (
+    select tm.id, tm.name, tm.submission_id, s.code, coalesce(k.name, 'Perorangan') as club,
+           coalesce(k.kab_kota, k.country) as region
+      from jo.teams tm join jo.submissions s on s.id = tm.submission_id
+      left join jo.clubs k on k.id = s.club_id
+     where tm.discipline = p_disc and tm.level = p_level and s.status = 'lunas'
+  ),
+  m as (
+    select x.team_id, x.entry_id, x.athlete_id, x.team_only, x.cert_code, x.sort,
+           a.full_name, a.athlete_no, c.name_id as category,
+           case when e.status = 'aktif' and es.status = 'lunas' then jo.entry_total(e.id) end as total
+      from jo.team_members x
+      join jo.entries e on e.id = x.entry_id
+      join jo.submissions es on es.id = e.submission_id
+      join jo.athletes a on a.id = x.athlete_id
+      join jo.categories c on c.id = e.category_id
+     where x.team_id in (select id from t)
+  ),
+  mr as (select m.*, row_number() over (partition by team_id order by total desc nulls last, sort) as rn from m),
+  tt as (
+    select team_id, round(sum(total) filter (where rn <= v_count and total is not null), 3) as team_total,
+           count(total) as n_scored, count(*) as n_members
+      from mr group by team_id
+  ),
+  rk as (
+    select t.*, tt.team_total, tt.n_scored, tt.n_members,
+      case when tt.team_total is not null then rank() over (partition by (tt.team_total is null) order by tt.team_total desc) end as rnk
+      from t join tt on tt.team_id = t.id
+  )
+  select coalesce(jsonb_agg(jsonb_build_object(
+      'team_id', rk.id, 'name', rk.name, 'club', rk.club, 'region', rk.region,
+      'submission_id', case when p_with_codes then rk.submission_id end,
+      'code', case when p_with_codes then rk.code end,
+      'total', rk.team_total, 'rank', rk.rnk, 'trophy', rk.rnk is not null and rk.rnk <= 3,
+      'n_scored', rk.n_scored, 'n_members', rk.n_members,
+      'members', (select coalesce(jsonb_agg(jsonb_build_object(
+          'athlete_id', mr.athlete_id, 'entry_id', mr.entry_id, 'name', mr.full_name, 'athlete_no', mr.athlete_no,
+          'category', mr.category, 'team_only', mr.team_only, 'total', mr.total,
+          'counted', mr.rn <= v_count and mr.total is not null,
+          'cert_code', case when p_with_codes then mr.cert_code end) order by mr.rn), '[]'::jsonb)
+        from mr where mr.team_id = rk.id)
+    ) order by rk.rnk nulls last, rk.name), '[]'::jsonb)
+  into res from rk;
   return res;
 end $$;
 

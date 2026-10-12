@@ -15,9 +15,12 @@
     h_exhibition: ['Eksibisi: medali tidak dihitung dalam perolehan.', 'Exhibition: medals do not count toward the table.'],
     h_rank: ['Per.', 'Rank'], h_pri_rank: ['Priangan', 'Priangan'],
     h_published: ['Dipublikasikan {d}', 'Published {d}'],
+    h_team: ['Beregu {d} {l}', 'Team {d} {l}'],
+    h_team_note: ['Nilai tim adalah jumlah {k} nilai serba bisa terbaik dari anggotanya. Nilai yang dihitung ditebalkan.', 'The team score is the sum of the best {k} all-around scores among its members. Counted scores are in bold.'],
+    h_team_name: ['Tim', 'Team'], h_members: ['Anggota', 'Members'],
   });
   const app = document.getElementById('app');
-  let R = [], M = { general: null, priangan: null }, tab = 'medals', pri = false;
+  let R = [], TR = [], M = { general: null, priangan: null }, tab = 'medals', pri = false, K = 4;
 
   function medalTable(rows, labelKey) {
     if (!rows.length) return `<p class="empty">${esc(t('h_empty_medal'))}</p>`;
@@ -42,9 +45,20 @@
       </div>`;
     box.querySelectorAll('input[name=mt]').forEach((r) => r.onchange = () => { pri = r.value === '1'; renderMedals(box); });
   }
+  function teamSection(lv) {
+    return `<section class="card" style="margin-bottom:16px"><h2>${esc(t('h_team', { d: JO.DISC_NAME[lv.discipline] || lv.discipline, l: lv.level }))}</h2>
+      <p class="tiny muted">${esc(t('h_published', { d: JO.fmtDateTime(lv.published_at) }))}. ${esc(t('h_team_note', { k: K }))}</p>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th class="c">${esc(t('h_rank'))}</th><th>${esc(t('h_team_name'))}</th><th>${esc(t('h_members'))}</th><th class="r">${esc(t('h_total'))}</th></tr></thead><tbody>
+      ${lv.results.map((r) => `<tr><td class="c"><span class="rank">${r.rank || '–'}</span>${r.trophy ? ` <span class="medal ${['emas', 'perak', 'perunggu'][r.rank - 1] || ''}"></span>` : ''}</td>
+        <td><strong>${esc(r.name)}</strong><br><span class="tiny muted">${esc(r.club)}${r.region ? ', ' + esc(r.region) : ''}</span></td>
+        <td class="small">${r.members.map((m) => `${esc(m.name)} <span class="num ${m.counted ? '' : 'muted'}">${m.total != null ? (m.counted ? '<strong>' + Number(m.total).toFixed(3) + '</strong>' : Number(m.total).toFixed(3)) : '–'}</span>`).join('<br>')}</td>
+        <td class="r num"><strong>${r.total != null ? Number(r.total).toFixed(3) : '–'}</strong></td></tr>`).join('')}
+      </tbody></table></div></section>`;
+  }
   function renderDisc(box, code) {
     const cats = R.filter((c) => c.discipline === code);
-    if (!cats.length) { box.innerHTML = `<p class="empty">${esc(t('h_empty'))}</p>`; return; }
+    const teams = TR.filter((x) => x.discipline === code);
+    if (!cats.length && !teams.length) { box.innerHTML = `<p class="empty">${esc(t('h_empty'))}</p>`; return; }
     const disc = (window.JO_DISC || {})[code] || {};
     box.innerHTML = cats.map((c) => {
       const apps = c.apparatus || [];
@@ -62,7 +76,7 @@
             <td class="r num"><strong>${r.total != null ? Number(r.total).toFixed(3) : '–'}</strong></td>
             ${anyPri ? `<td class="c">${r.priangan_rank ? `<span class="num">${r.priangan_rank}</span>${r.priangan_medal ? ` <span class="medal ${r.priangan_medal}"></span>` : ''}` : ''}</td>` : ''}</tr>`).join('')}
         </tbody></table></div></section>`;
-    }).join('');
+    }).join('') + teams.map(teamSection).join('');
   }
   function render() {
     const tabs = [['medals', t('h_medals')], ['MAG', JO.DISC_NAME.MAG], ['WAG', JO.DISC_NAME.WAG], ['RG', JO.DISC_NAME.RG], ['AER', JO.DISC_NAME.AER]];
@@ -77,8 +91,9 @@
     JO.header('hasil.html'); JO.footer(); JO.applyI18n();
     if (/^#(MAG|WAG|RG|AER|medals)$/.test(location.hash)) tab = location.hash.slice(1);
     try {
-      const [res, mg, mp, cfg] = await Promise.all([rpc('public_results', { p_discipline: null }), rpc('public_medal_table', { p_priangan: false }), rpc('public_medal_table', { p_priangan: true }), rpc('public_config')]);
-      R = res; M.general = mg; M.priangan = mp;
+      const [res, mg, mp, cfg, tr] = await Promise.all([rpc('public_results', { p_discipline: null }), rpc('public_medal_table', { p_priangan: false }), rpc('public_medal_table', { p_priangan: true }), rpc('public_config'),
+        rpc('public_team_results', { p_discipline: null }).catch(() => [])]);
+      R = res; M.general = mg; M.priangan = mp; TR = tr || []; K = cfg.registration.team_counting || 4;
       window.JO_DISC = Object.fromEntries(cfg.disciplines.map((d) => [d.code, d]));
     } catch (e) { app.innerHTML = `<p class="note bad">${esc(e.message)}</p>`; return; }
     render();

@@ -1,12 +1,12 @@
 # Jabar Open 2026 — Panduan Sistem Pendaftaran & Konsol Panitia
 
-*Versi 1, 10 Oktober 2026. Disusun untuk Daffa Adjisena (owner sistem).*
+*Versi 2, 12 Oktober 2026 (tambahan: beregu Artistik, musik Ritmik, email kontak baru). Disusun untuk Daffa Adjisena (owner sistem).*
 
 ## 1. Gambaran sistem
 
 Dua situs, satu backend.
 
-- **Situs publik** (`https://adjisena-design.github.io/jabar-open/`): beranda, pendaftaran, cek status & e-ticket, start list, hasil & medali, verifikasi QR.
+- **Situs publik** (`https://adjisena-design.github.io/jabar-open/`): beranda, pendaftaran, cek status & e-ticket, ganti musik Ritmik (`musik.html`), start list, hasil & medali, verifikasi QR.
 - **Konsol panitia** (`…/jabar-open/panitia/`): masuk dengan kode akses pribadi.
 - **Backend** Supabase proyek `jabar-open-2026` (region Tokyo): database, penyimpanan berkas privat, sesi anonim. Semua akses data lewat fungsi database yang memeriksa hak; tabel tidak bisa dibaca langsung.
 - **Email**: Google Apps Script di akun Gmail panitia mengambil antrean email setiap menit.
@@ -28,11 +28,12 @@ Kode akses bisa ditambah kapan saja dari **Konsol → Kode akses**. Kode hanya t
 3. **Pengaturan → QRIS pembayaran**: unggah gambar QRIS dari GoBiz. Isi nama merchant.
 4. **Kode akses**: buat kode superadmin Pak Andi, empat admin disiplin, lalu juri.
 5. **Pengirim email** (10 menit):
-   1. Buka `script.google.com` dengan akun Gmail pengirim (sementara `adjisena.daffa@gmail.com`, nanti `jabaropen2026@gmail.com`).
+   1. Buka `script.google.com` dengan akun Gmail pengirim (`jabaropen2026@gmail.com`).
    2. Proyek baru → tempel isi `email/Code.gs`.
-   3. Project Settings → Script properties: `SUPABASE_URL`, `SUPABASE_KEY` (anon key), `SECRET` (secret_email dari setup), `REPLY_TO` (opsional).
-   4. Jalankan `ujiKoneksi`, izinkan akses. Lalu jalankan `pasangJadwal`.
-   5. Cek **Konsol → Pengaturan → Pengirim email**: status "Terakhir terhubung" muncul.
+   3. Project Settings → Script properties: `SUPABASE_URL`, `SUPABASE_KEY` (anon key), `SECRET` (secret_email dari setup), `REPLY_TO` = `jabaropen2026@gmail.com`.
+   4. Kontak di situs dan footer email: `jabaropen2026@gmail.com` untuk pendaftaran; `adjisena.daffa@gmail.com` sebagai Project Manager untuk permintaan khusus atau bila email utama lama dibalas (Pengaturan: `contact_email`, `pm_email`).
+   5. Jalankan `ujiKoneksi`, izinkan akses. Lalu jalankan `pasangJadwal`.
+   6. Cek **Konsol → Pengaturan → Pengirim email**: status "Terakhir terhubung" muncul.
 6. **Periksa tabel kategori** (Konsol → Kategori) terhadap asumsi di bagian 6.
 
 ## 3. Alur peserta
@@ -45,6 +46,16 @@ Kode akses bisa ditambah kapan saja dari **Konsol → Kode akses**. Kode hanya t
 6. Tidak ada registrasi ulang. Start list dipublikasikan di situs; hasil dan sertifikat setelah UPP.
 
 Atlet WNA: tanpa QRIS dan kode unik; panitia menghubungi lewat email, superadmin menandai lunas dengan nominal yang diterima.
+
+### Beregu Artistik (MAG/WAG)
+- Pilihan ketiga di `daftar.html`: **Beregu Artistik**, Rp650.000 per tim, di luar biaya perorangan. Wajib klub; satu tim = satu level (kelompok usia boleh campur), 1–6 pesenam. Satu klub boleh beberapa tim per level dengan nama berbeda.
+- Setiap anggota dipilih sebagai **Juga perorangan** (sudah terdaftar perorangan di level itu lewat klub yang sama; dicocokkan dari nama dan tanggal lahir) atau **Khusus beregu** (data lengkap + dokumen; dinilai di kelompok usianya tetapi tidak diperingkat perorangan; biaya sudah termasuk biaya tim; dapat e-ticket sendiri).
+- Nilai tim = jumlah 4 nilai serba bisa terbaik. Peringkat dihitung otomatis dari nilai di halaman Penilaian. Setelah dipublikasikan, setiap anggota tim peringkat 1–3 mengunduh **Sertifikat Juara Beregu** (dengan QR verifikasi) dari halaman status.
+
+### Musik Ritmik
+- Setiap atlet Ritmik wajib mengisi **tautan folder Google Drive** (satu folder per atlet, berisi semua MP3) saat daftar.
+- Ganti musik **satu kali** per atlet lewat `musik.html` (kode pendaftaran + email penanggung jawab), sampai start list kategorinya terbit. Berlaku langsung, tautan lama tersimpan di riwayat, email konfirmasi terkirim.
+- Bila panitia menandai "tidak bisa dibuka", pendaftar mendapat email dan memperbaiki akses di halaman yang sama; perbaikan tidak memakai jatah ganti.
 
 ## 4. Alur panitia sehari-hari
 
@@ -69,7 +80,11 @@ Atlet WNA: tanpa QRIS dan kode unik; panitia menghubungi lewat email, superadmin
 
 **Hasil & medali**: Konsol → Hasil & medali → pilih kategori → *Publikasikan hasil* setelah UPP. Hasil, tabel medali (per kab/kota dan per klub, umum dan Priangan), dan sertifikat langsung tersedia. *Unduh semua sertifikat (PDF)* untuk cetak.
 
-**Ledger** (superadmin): ringkasan per disiplin (biaya lomba, Priangan, kode unik), semua tagihan, siapa yang memverifikasi, unduh Excel.
+**Beregu**: Konsol → Hasil & medali → tab *Beregu* → pilih disiplin. Tampil peringkat per level (hanya tim lunas), nilai tiap anggota (yang dihitung ditebalkan), tim yang belum lunas. *Publikasikan hasil beregu* setelah nilai level itu final; *Unduh sertifikat Juara Beregu* untuk cetak. Menarik publikasi hanya superadmin. Pendaftaran beregu bisa difilter di Pendaftaran → *Pendaftaran beregu*.
+
+**Musik Ritmik**: Konsol → Musik Ritmik (admin RG dan superadmin). Buka setiap tautan, pastikan folder bisa diakses dan berisi MP3, lalu *Bisa dibuka* atau *Tidak bisa dibuka* (catatan dikirim ke pendaftar). Filter *Perlu tindakan* menampilkan yang belum beres; *Unduh Excel* untuk operator musik. Riwayat ganti per atlet ada di detail pendaftaran.
+
+**Ledger** (superadmin): ringkasan per disiplin (biaya perorangan, beregu dan jumlah tim, Priangan, kode unik), semua tagihan dengan jenis dan nama tim, siapa yang memverifikasi, unduh Excel.
 
 ## 5. Skenario demo Senin (± 15 menit)
 

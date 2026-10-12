@@ -13,7 +13,7 @@
  *       SUPABASE_URL = https://eyacnqlmhyyyatnlwhbe.supabase.co
  *       SUPABASE_KEY = (anon public key, sama dengan di assets/js/config.js)
  *       SECRET       = (secret_email dari hasil setup.sql)
- *       REPLY_TO     = adjisena.daffa@gmail.com   (opsional)
+ *       REPLY_TO     = jabaropen2026@gmail.com   (opsional; balasan peserta masuk ke sini)
  *  3. Pilih fungsi `ujiKoneksi` lalu Run. Izinkan akses saat diminta.
  *  4. Pilih fungsi `pasangJadwal` lalu Run. Selesai: email terkirim tiap menit.
  */

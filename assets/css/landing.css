@@ -135,7 +135,7 @@ em{font-style:normal;font-weight:250;color:var(--blue-2)}
 .hero-title .star{position:absolute;width:.4em;height:.4em;right:-.5em;top:-.12em}
 .hero-cta .btn{min-height:46px;padding:12px 20px;font-size:15px}
 .hero-stage{position:absolute;inset:0;z-index:1;pointer-events:none}
-.hero-athletes{position:absolute;left:44.92%;top:0;width:61.33%;max-width:none;z-index:1}
+.hero-athletes{position:absolute;left:44.92%;top:0;width:61.33%;max-width:none;z-index:1;transform:translateY(8%)}
 .hero-strip{position:absolute;left:0;top:63.95%;width:100%;max-width:none;z-index:2}
 .hero-star{position:absolute;z-index:2;left:50%;top:4.6%;width:5.5%;max-width:140px}
 @media (min-width:1101px) and (max-height:760px){.hero-title{font-size:clamp(44px,5.2vw,150px)}.kicker{margin-bottom:14px}}
@@ -145,7 +145,8 @@ em{font-style:normal;font-weight:250;color:var(--blue-2)}
   .hero-title{font-size:clamp(44px,9vw,84px)}
   .hero-stage{position:relative;inset:auto;height:calc(min(120vw,960px) * 1290 / 1570);margin-top:8px}
   .hero-athletes{left:auto;right:calc(min(120vw,960px) * -.105);width:min(120vw,960px)}
-  .hero-strip{top:63.95%;width:min(170vw,1360px)}
+  .hero-athletes{transform:translateY(6%)}
+  .hero-strip{top:auto;bottom:0;width:min(170vw,1360px)}
   .hero-star{left:auto;right:var(--pad);top:-40px;width:56px}
 }
 @media (max-width:600px){
@@ -231,6 +232,7 @@ details[open]:not(.closing) > summary .tog::after{transform:rotate(0)}
 .disc-more dl div{padding:7px 0;border-top:1px solid rgba(255,255,255,.14)}
 .disc-more dt{font-size:12px;font-weight:700;color:var(--gold);margin-bottom:2px}
 .disc-more dd{margin:0;color:#fff;font-size:14px;font-weight:500;line-height:1.38}
+.disc-more dd a{color:#e4c87d;font-weight:700}
 .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:3px}
 .chips span{font-size:12.5px;font-weight:600;border-radius:999px;padding:2px 9px;background:rgba(255,255,255,.13);color:#fff}
 @media (max-width:1100px){.discs{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -359,6 +361,8 @@ details[open]:not(.closing) > summary .tog::after{transform:rotate(0)}
 .c-mail small{color:var(--gold)}
 .c-mail .mail{font-size:clamp(20px,1.8vw,26px);font-weight:800;color:#fff;word-break:break-word;line-height:1.15;letter-spacing:-.02em;text-decoration:none}
 .c-mail p{margin-bottom:8px}
+.c-mail p.pm{font-size:13.5px;color:rgba(255,255,255,.66);margin-top:-2px}
+.c-mail p.pm a{color:#fff;font-weight:700}
 .c-ig{background:#fff;border:1px solid var(--line);color:var(--ink-2)}
 .c-ig img.gi{height:40px;width:auto}
 .ig-handle{font-size:clamp(24px,2.2vw,32px);line-height:1.05;font-weight:800;letter-spacing:-.04em;color:var(--ink);text-decoration:none}
