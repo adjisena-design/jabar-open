@@ -3,7 +3,7 @@
   'use strict';
   const EN = {
     n_about: 'About', n_sched: 'Schedule', n_fee: 'Fees', n_startlist: 'Start list', n_results: 'Results', n_merch: 'Merch',
-    n_contact: 'Contact', n_status: 'Check status', n_register: 'Register', n_verify: 'Verify a certificate',
+    n_contact: 'Contact', n_status: 'Check status', n_register: 'Register', n_verify: 'Verify a certificate', n_jury: 'Judge application',
     h_kick1: 'Open gymnastics championship', h_kick2: '12–20 December 2026 · Bandung',
     h_t1: 'One arena.', h_t2: 'Four disciplines.', h_t3: 'Hundreds of dreams.',
     cta_reg: 'Register now', cta_fee: 'Schedule & fees', h_days: 'days to 12 December',
@@ -59,7 +59,7 @@
     k_mail_t: 'Registration and payment', k_mail_d: 'Include your registration code (JO26-…) for a faster reply.', k_mail_cta: 'Send an email',
     k_pm: 'Special request, or no reply yet? Project Manager: <a href="mailto:adjisena.daffa@gmail.com">adjisena.daffa@gmail.com</a>',
     ig_lead: 'Announcements and start lists appear here first.', ig_cta: 'Follow on Instagram',
-    k_wa: 'Discipline contacts',
+    k_wa: 'Discipline contacts', k_jury: 'A licensed judge who would like to officiate at Jabar Open 2026?', k_jury_cta: 'Apply as a judge',
     cp1: "Men's Artistic", cp2: "Women's Artistic", cp3: 'Rhythmic', cp4: 'Aerobic',
     cl_t1: 'See you at',
     ft_org: 'Organised by Gimnastik Indonesia (GI) West Java under KONI West Java.', ft_sec: 'Secretariat', ft_map: 'View on map',

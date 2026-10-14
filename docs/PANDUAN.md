@@ -1,12 +1,12 @@
 # Jabar Open 2026 — Panduan Sistem Pendaftaran & Konsol Panitia
 
-*Versi 3, 14 Oktober 2026 (aturan penghargaan dari lampiran Medali & Piala Artistik, beregu hanya WAG L1–6, tanda tangan sertifikat, ekspor Nominative Form & kebutuhan medali, tampilan konsol baru). Disusun untuk Daffa Adjisena (owner sistem).*
+*Versi 4, 14 Oktober 2026 (chat panitia, laporan masalah, halaman kontak WhatsApp, pendaftaran juri, peran TD, daftar 53 klub di formulir, hapus klub). Versi 3: aturan penghargaan dari lampiran Medali & Piala Artistik, beregu hanya WAG L1–6, tanda tangan sertifikat, ekspor Nominative Form & kebutuhan medali, tampilan konsol baru). Disusun untuk Daffa Adjisena (owner sistem).*
 
 ## 1. Gambaran sistem
 
 Dua situs, satu backend.
 
-- **Situs publik** (`https://adjisena-design.github.io/jabar-open/`): beranda, pendaftaran, cek status & e-ticket, ganti musik Ritmik (`musik.html`), start list, hasil & medali, verifikasi QR.
+- **Situs publik** (`https://adjisena-design.github.io/jabar-open/`): beranda, pendaftaran, pendaftaran juri (`juri.html`), cek status & e-ticket, ganti musik Ritmik (`musik.html`), start list, hasil & medali, verifikasi QR.
 - **Konsol panitia** (`…/jabar-open/panitia/`): masuk dengan kode akses pribadi.
 - **Backend** Supabase proyek `jabar-open-2026` (region Tokyo): database, penyimpanan berkas privat, sesi anonim. Semua akses data lewat fungsi database yang memeriksa hak; tabel tidak bisa dibaca langsung.
 - **Email**: Google Apps Script di akun Gmail panitia mengambil antrean email setiap menit.
@@ -17,7 +17,8 @@ Dua situs, satu backend.
 | Owner | Semua, termasuk pengaturan sistem, kode superadmin, secret email | Daffa Adjisena |
 | Superadmin | Semua data, ledger & impor GoBiz, log, kode admin/juri, tandai lunas tanpa bukti, atlet WNA | Andi Juliandi |
 | Admin (verifikator) | Verifikasi bayar, dokumen, Priangan; ubah data atlet; pindah kategori; start list; penilaian; publikasi hasil. Bisa dibatasi satu disiplin | Fegie (MAG), Vicy (WAG), Yuanita (RG), Mustika (AER) |
-| Juri | Input nilai saja, bisa dibatasi disiplin, alat, dan komponen (D/E/A/PEN) | Panel juri |
+| TD (Technical Director) | Hanya baca: Kategori, Start list, Penilaian (nilai juri yang masuk), Hasil & medali. Chat, laporan masalah, semua kontak termasuk pendaftar. Tidak bisa mengubah, menyetujui, atau memublikasikan. Bisa dibatasi satu disiplin | TD per disiplin |
+| Juri | Input nilai saja, bisa dibatasi disiplin, alat, dan komponen (D/E/A/PEN). Juga chat, laporan masalah, dan kontak panitia & juri (bukan kontak pendaftar) | Panel juri |
 
 Kode akses bisa ditambah kapan saja dari **Konsol → Kode akses**. Kode hanya tampil sekali; bila hilang, buat kode baru (kode lama langsung mati).
 
@@ -93,6 +94,16 @@ Atlet WNA: tanpa QRIS dan kode unik; panitia menghubungi lewat email, superadmin
 **Ekspor**: Data atlet → *Nominative Form* (format lampiran panitia: Gymnasts List + Team, per klub atau semua). Hasil & medali → Tabel medali → *Kebutuhan medali (Excel)* (format lampiran medali, dari jumlah pendaftar; baris Cadangan diisi manual).
 
 **Tanda tangan sertifikat**: Pengaturan → Penanda tangan sertifikat → *Unggah tanda tangan* (PNG/JPG; latar putih dibuat transparan) → Simpan pengaturan. Tanda tangan Pak Dika sudah terpasang.
+
+**Klub**: formulir pendaftaran menampilkan daftar klub yang bisa digulir dan disaring (53 klub dari daftar klub senam Indonesia sudah dimuat, ditambah klub yang dibuat pendaftar). Pendaftar tetap bisa memilih *Klub saya belum ada di daftar*. Di Konsol → Klub, admin ke atas bisa *Ubah*, lalu dari menu "…" *Gabungkan ke klub lain* (untuk salah ketik; semua pendaftaran pindah ke klub tujuan) atau *Hapus klub* (hanya klub yang belum dipakai pendaftaran).
+
+**Chat panitia** (Konsol → Chat panitia): ruang *Semua panitia*, ruang per disiplin (*Tim Artistik Putri* dst.; pemegang kode satu disiplin hanya melihat ruangnya), dan pesan pribadi antarpemegang kode. Pesan baru muncul otomatis; lencana di menu menunjukkan pesan belum dibaca.
+
+**Laporan masalah** (Konsol → Laporan masalah): siapa pun bisa melaporkan kendala dengan judul, penjelasan, dan tangkapan layar. Admin disiplin terkait, superadmin, dan owner mengubah status *Baru → Diproses → Selesai* dan menanggapi; pelapor mendapat lencana saat ada tanggapan. TD bisa melihat dan menanggapi tetapi tidak mengubah status.
+
+**Kontak** (Konsol → Kontak): nomor WhatsApp semua pemegang kode dan narahubung disiplin, dengan tombol *WhatsApp* dan *Chat*. Tab *Pendaftar* (pelatih, manajer, orang tua) hanya untuk admin ke atas dan TD, sesuai disiplinnya; bisa diunduh Excel. Setiap pemegang kode mengisi nomor WA-nya sendiri lewat tombol *Lengkapi nomor WA* atau klik inisial di kanan atas; superadmin juga bisa mengisinya di Kode akses.
+
+**Pendaftaran juri** (Konsol → Pendaftaran juri, admin ke atas): calon juri mendaftar di `juri.html` (tautan di bagian Kontak dan footer situs): nama, WA, email, kota, disiplin dan tingkat brevet per disiplin (FIG Kategori 1–4, Nasional, Provinsi/Daerah, Belum ada, atau Lainnya), hari tersedia 12–20 Desember, KTP, pas foto, sertifikat brevet (opsional). Pendaftar menerima email konfirmasi. Admin bisa juga *Tambah juri* manual. *Setujui* → pilih disiplin dan batasan alat/komponen → kode akses juri dibuat dan tampil sekali, dengan tombol *Kirim ke WhatsApp* ke nomor pendaftar. Email persetujuan tidak memuat kode. *Tolak* mengirim email dengan pesan opsional.
 
 **Ledger** (superadmin): ringkasan per disiplin (biaya perorangan, beregu dan jumlah tim, Priangan, kode unik), semua tagihan dengan jenis dan nama tim, siapa yang memverifikasi, unduh Excel.
 

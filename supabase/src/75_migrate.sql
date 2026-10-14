@@ -30,3 +30,69 @@ begin
     insert into jo.settings (key, value) values ('migrasi_v4_medali', to_jsonb(now()));
   end if;
 end $$;
+
+-- v5 (14/10/2026): daftar 53 klub senam Indonesia untuk pilihan di formulir pendaftaran — sekali jalan
+do $$
+begin
+  if not exists (select 1 from jo.settings where key = 'migrasi_v5_klub') then
+    insert into jo.clubs (name, kind, kab_kota, province, country, verified, created_via, note)
+    select v.name, v.kind, v.kab, v.prov, 'Indonesia', true, 'daftar_awal', v.note
+      from (values
+      ('Jakritmik', 'klub', null, 'DKI Jakarta', 'Rhythmic Gymnastics (RG) · Lokasi: DKI Jakarta'),
+      ('Arena Gymnastic', 'klub', null, 'Jawa Barat', 'Rhythmic Gymnastics (RG) · Lokasi: Jawa Barat'),
+      ('Milicent', 'klub', null, 'Jawa Barat', 'Rhythmic Gymnastics (RG) · Lokasi: Jawa Barat'),
+      ('Idola Gymnastic Lampung', 'klub', null, 'Lampung', 'Rhythmic Gymnastics (RG) · Lokasi: Lampung'),
+      ('Poza', 'klub', null, 'Jawa Barat', 'Rhythmic Gymnastics (RG) · Lokasi: Jawa Barat'),
+      ('She RG', 'klub', null, 'Jawa Barat', 'Rhythmic Gymnastics (RG) · Lokasi: Jawa Barat'),
+      ('Solo RG', 'klub', 'Kota Surakarta', 'Jawa Tengah', 'Rhythmic Gymnastics (RG) · Lokasi: Surakarta (Jawa Tengah)'),
+      ('Persani Surakarta', 'pengkab', 'Kota Surakarta', 'Jawa Tengah', 'Rhythmic, Artistic, Aerobic · Lokasi: Surakarta (Jawa Tengah)'),
+      ('Fahmi Gymnastic', 'klub', null, 'Jawa Barat', 'Rhythmic Gymnastics (RG) · Lokasi: Jawa Barat'),
+      ('Citra Indra', 'klub', null, 'Jawa Barat', 'Rhythmic Gymnastics (RG) · Lokasi: Jawa Barat'),
+      ('Wimilia Gym', 'klub', null, 'Jawa Barat', 'Rhythmic Gymnastics (RG) · Lokasi: Jawa Barat / Semarang'),
+      ('Dyra Gym', 'klub', null, 'Jawa Barat', 'Rhythmic Gymnastics (RG) · Lokasi: Jawa Barat'),
+      ('Rozora', 'klub', 'Kota Denpasar', 'Bali', 'Rhythmic Gymnastics (RG) · Lokasi: Denpasar (Bali)'),
+      ('Flexa Gym', 'klub', null, 'Jawa Barat', 'Rhythmic Gymnastics (RG) · Lokasi: Jawa Barat'),
+      ('Monalisa Gymnastic', 'klub', null, 'Jawa Barat', 'Rhythmic Gymnastics (RG) · Lokasi: Jawa Barat'),
+      ('Blitz Gym', 'klub', null, 'Jawa Barat', 'Rhythmic Gymnastics (RG) · Lokasi: Jawa Barat'),
+      ('Gavrila Gymnastics Club', 'klub', null, 'DKI Jakarta', 'Men''s & Women''s Artistic Gymnastics (MAG/WAG) · Lokasi: DKI Jakarta (Mampang / Kelapa Gading)'),
+      ('Fast Gym Artistic Gymnastics Club', 'klub', 'Kota Jakarta Selatan', 'DKI Jakarta', 'Men''s & Women''s Artistic Gymnastics (MAG/WAG) · Lokasi: DKI Jakarta (Jaksel)'),
+      ('Circle Gymnastics Club', 'klub', null, 'DKI Jakarta', 'Artistic Gymnastics (MAG/WAG) · Lokasi: DKI Jakarta'),
+      ('Sky Gymnastics Club', 'klub', null, 'DKI Jakarta', 'Artistic Gymnastics (MAG/WAG) · Lokasi: DKI Jakarta'),
+      ('Jonathan''s Gymnastics Club', 'klub', null, 'DKI Jakarta', 'Artistic Gymnastics (MAG/WAG) · Lokasi: DKI Jakarta'),
+      ('Roland Gymnastics Club', 'klub', null, 'DKI Jakarta', 'Artistic Gymnastics (MAG/WAG) · Lokasi: DKI Jakarta'),
+      ('Dian Gymnastics', 'klub', null, 'DKI Jakarta', 'Artistic Gymnastics (MAG/WAG) · Lokasi: DKI Jakarta'),
+      ('Nika Gymnastics Club', 'klub', null, null, 'Artistic Gymnastics (MAG/WAG) & Foundations · Lokasi: Jabodetabek'),
+      ('Kanika Gymnastics Club', 'klub', null, null, 'Artistic Gymnastics (MAG/WAG) · Lokasi: Bintaro / Bojongsari'),
+      ('Phoenix Gym Academy', 'klub', 'Kota Depok', 'Jawa Barat', 'Artistic Gymnastics (MAG/WAG) · Lokasi: Depok'),
+      ('Tangerang Gymnastics Club (TGC)', 'klub', null, 'Banten', 'Artistic Gymnastics (MAG/WAG) · Lokasi: Tangerang (Banten)'),
+      ('Cirebon Gymnastics Club', 'klub', null, 'Jawa Barat', 'Artistic Gymnastics (MAG/WAG) · Lokasi: Cirebon (Jawa Barat)'),
+      ('Zasis Gymnastics Club', 'klub', 'Kota Surabaya', 'Jawa Timur', 'Artistic Gymnastics (MAG/WAG) · Lokasi: Surabaya & Sidoarjo'),
+      ('Jenggirat Tangi', 'klub', 'Kabupaten Banyuwangi', 'Jawa Timur', 'Artistic Gymnastics (MAG/WAG) · Lokasi: Banyuwangi (Jawa Timur)'),
+      ('A.Q. Gymnastic Club', 'klub', 'Kota Medan', 'Sumatera Utara', 'Artistic Gymnastics (MAG/WAG) · Lokasi: Medan (Sumatra Utara)'),
+      ('Wan-Jun Gymnastics Club', 'klub', 'Kota Medan', 'Sumatera Utara', 'Artistic Gymnastics & Rhythmic · Lokasi: Medan (Sumatra Utara)'),
+      ('Galaxy Reborn Gymnastics Club', 'klub', 'Kota Denpasar', 'Bali', 'Artistic Gymnastics (MAG/WAG) · Lokasi: Denpasar (Bali)'),
+      ('UNJ Gymnastics Club (Universitas Negeri Jakarta)', 'klub', null, 'DKI Jakarta', 'Aerobic Gymnastics (AER), Artistic, Rhythmic · Lokasi: DKI Jakarta'),
+      ('FPOK UPI Gymnastics', 'klub', 'Kota Bandung', 'Jawa Barat', 'Aerobic Gymnastics (AER), Artistic, Rhythmic · Lokasi: Bandung (Jawa Barat)'),
+      ('UNESA Gymnastics Club (Universitas Negeri Surabaya)', 'klub', 'Kota Surabaya', 'Jawa Timur', 'Aerobic Gymnastics (AER), Artistic · Lokasi: Surabaya (Jawa Timur)'),
+      ('FIK UNNES Gymnastics', 'klub', 'Kota Semarang', 'Jawa Tengah', 'Aerobic Gymnastics (AER) & Rhythmic · Lokasi: Semarang (Jawa Tengah)'),
+      ('UNY Gymnastics Club (Universitas Negeri Yogyakarta)', 'klub', null, 'DI Yogyakarta', 'Aerobic Gymnastics (AER) & Artistic · Lokasi: Yogyakarta (DIY)'),
+      ('Studio 8 Aerobic Gymnastics', 'klub', null, 'Jawa Timur', 'Competitive Aerobic Gymnastics (AER) · Lokasi: Malang (Jawa Timur)'),
+      ('Klub Senam Udanawu', 'klub', 'Kabupaten Blitar', 'Jawa Timur', 'Competitive Aerobic Gymnastics (AER) · Lokasi: Blitar (Jawa Timur)'),
+      ('Persani Jambi (Puslatda)', 'klub', null, 'Jambi', 'Strong focus on Aerobic Gymnastics (AER) · Lokasi: Jambi (Sumatra)'),
+      ('Persani Riau (Puslatda)', 'klub', 'Kota Pekanbaru', 'Riau', 'Aerobic Gymnastics (AER) & Artistic · Lokasi: Pekanbaru (Riau)'),
+      ('Sanggar Senam Studio 5', 'klub', null, 'DKI Jakarta', 'Aerobic Gymnastics (AER) · Lokasi: DKI Jakarta'),
+      ('Puslatcab Persani Gresik', 'pengkab', 'Kabupaten Gresik', 'Jawa Timur', 'Aerobic Gymnastics (AER) & Artistic · Lokasi: Gresik (Jawa Timur)'),
+      ('Bazgym Indonesia', 'klub', 'Kota Jakarta Selatan', 'DKI Jakarta', 'General Gymnastics & Foundations · Lokasi: DKI Jakarta (Jaksel)'),
+      ('Hom Kids Academy', 'klub', null, null, 'General Gymnastics for Kids · Lokasi: Jabodetabek'),
+      ('The Funtastic Gym Indonesia', 'klub', null, 'DKI Jakarta', 'General Gymnastics for Kids · Lokasi: DKI Jakarta'),
+      ('Club Serenia Gymnastics', 'klub', null, 'DKI Jakarta', 'General / Lifestyle Gymnastics · Lokasi: DKI Jakarta'),
+      ('Ninos BSJ Gymnastics Club', 'klub', null, 'DKI Jakarta', 'General Gymnastics (Student Community) · Lokasi: DKI Jakarta'),
+      ('STARLA Kids Gymnastics', 'klub', 'Kota Bandung', 'Jawa Barat', 'Toddler & Special Needs Gymnastics · Lokasi: Bandung (Jawa Barat)'),
+      ('Kidsville Gymschool', 'klub', 'Kota Bandung', 'Jawa Barat', 'Early Childhood Gymnastics · Lokasi: Bandung (Jawa Barat)'),
+      ('Baby Bright Gymnastics', 'klub', 'Kota Surabaya', 'Jawa Timur', 'Early Childhood Gymnastics · Lokasi: Surabaya (Jatim)'),
+      ('Rockstar Academy (Gymnastics Div.)', 'klub', null, null, 'General Gymnastics & Trampoline · Lokasi: Jabodetabek & Bali')
+      ) as v(name, kind, kab, prov, note)
+     where not exists (select 1 from jo.clubs k where lower(k.name) = lower(v.name) and k.merged_into is null);
+    insert into jo.settings (key, value) values ('migrasi_v5_klub', to_jsonb(now()));
+  end if;
+end $$;

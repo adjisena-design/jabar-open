@@ -435,7 +435,7 @@ create or replace function public.console_categories(p_discipline text default n
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff; d text;
 begin
-  st := jo.require_staff(array['owner','superadmin','admin','juri']);
+  st := jo.require_staff(array['owner','superadmin','admin','juri','td']);
   d := coalesce(st.discipline, nullif(p_discipline,''));
   return jsonb_build_object(
     'disciplines', (select coalesce(jsonb_agg(to_jsonb(x) order by x.sort), '[]'::jsonb) from jo.disciplines x where d is null or x.code = d),
@@ -511,7 +511,7 @@ create or replace function public.console_sessions(p_discipline text) returns js
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff;
 begin
-  st := jo.require_staff(array['owner','superadmin','admin','juri']);
+  st := jo.require_staff(array['owner','superadmin','admin','juri','td']);
   perform jo.check_discipline(st, p_discipline);
   return (select coalesce(jsonb_agg(to_jsonb(x) order by x.sort, x.day, x.start_time), '[]'::jsonb)
             from jo.sessions x where x.discipline = p_discipline);
@@ -554,7 +554,7 @@ create or replace function public.console_startlist(p_category integer) returns 
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff; c jo.categories;
 begin
-  st := jo.require_staff(array['owner','superadmin','admin','juri']);
+  st := jo.require_staff(array['owner','superadmin','admin','juri','td']);
   select * into c from jo.categories where id = p_category;
   if c.id is null then raise exception 'Kategori tidak ditemukan.'; end if;
   perform jo.check_discipline(st, c.discipline);
@@ -631,7 +631,7 @@ create or replace function public.console_score_sheet(p_category integer) return
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff; c jo.categories; d jo.disciplines; is_juri boolean; apps jsonb; comps jsonb; res jsonb;
 begin
-  st := jo.require_staff(array['owner','superadmin','admin','juri']);
+  st := jo.require_staff(array['owner','superadmin','admin','juri','td']);
   select * into c from jo.categories where id = p_category;
   if c.id is null then raise exception 'Kategori tidak ditemukan.'; end if;
   perform jo.check_discipline(st, c.discipline);
@@ -761,7 +761,7 @@ create or replace function public.console_results(p_category integer) returns js
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff; c jo.categories;
 begin
-  st := jo.require_staff(array['owner','superadmin','admin']);
+  st := jo.require_staff(array['owner','superadmin','admin','td']);
   select * into c from jo.categories where id = p_category;
   if c.id is null then raise exception 'Kategori tidak ditemukan.'; end if;
   perform jo.check_discipline(st, c.discipline);
@@ -798,7 +798,7 @@ create or replace function public.console_medal_table(p_priangan boolean, p_publ
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff;
 begin
-  st := jo.require_staff(array['owner','superadmin','admin']);
+  st := jo.require_staff(array['owner','superadmin','admin','td']);
   return jo.medal_table(coalesce(p_priangan,false), coalesce(p_published_only,true));
 end $$;
 
@@ -806,7 +806,7 @@ create or replace function public.console_score_log(p_filter jsonb default '{}':
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff;
 begin
-  st := jo.require_staff(array['owner','superadmin']);
+  st := jo.require_staff(array['owner','superadmin','td']);
   return (select coalesce(jsonb_agg(jsonb_build_object(
       'id', l.id, 'at', l.at, 'action', l.action, 'apparatus', l.apparatus, 'component', l.component,
       'old_value', l.old_value, 'new_value', l.new_value, 'reason', l.reason,
@@ -816,6 +816,7 @@ begin
       'athletes', jo.entry_athletes_json(l.entry_id)) order by l.at desc), '[]'::jsonb)
     from jo.score_log l left join jo.entries e on e.id = l.entry_id left join jo.categories c on c.id = e.category_id
     where (nullif(p_filter->>'category_id','') is null or c.id = (p_filter->>'category_id')::integer)
+      and (st.discipline is null or c.discipline = st.discipline)
     limit 2000);
 end $$;
 
@@ -878,7 +879,7 @@ create or replace function public.console_teams(p_discipline text) returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff;
 begin
-  st := jo.require_staff(array['owner','superadmin','admin']);
+  st := jo.require_staff(array['owner','superadmin','admin','td']);
   perform jo.check_discipline(st, p_discipline);
   return (select coalesce(jsonb_agg(jsonb_build_object(
       'level', lv.level, 'signatories', jo.setting('signatories'),
@@ -1016,32 +1017,41 @@ declare st jo.staff;
 begin
   st := jo.require_staff(array['owner','superadmin']);
   return (select coalesce(jsonb_agg(jo.staff_json(x) order by
-      array_position(array['owner','superadmin','admin','juri'], x.role), x.discipline nulls first, x.name), '[]'::jsonb)
+      array_position(array['owner','superadmin','admin','td','juri'], x.role), x.discipline nulls first, x.name), '[]'::jsonb)
     from jo.staff x);
 end $$;
 
-create or replace function public.console_staff_create(p jsonb) returns jsonb
-language plpgsql volatile security definer set search_path = '' as $$
-declare st jo.staff; v_code text; v_role text := p->>'role'; x jo.staff;
+-- Pembuatan kode inti (tanpa cek peran pemanggil). Dipakai console_staff_create & persetujuan juri.
+create or replace function jo.staff_create(st jo.staff, p jsonb) returns jsonb
+language plpgsql volatile set search_path = '' as $$
+declare v_code text; v_role text := p->>'role'; x jo.staff;
 begin
-  st := jo.require_staff(array['owner','superadmin']);
-  if v_role not in ('superadmin','admin','juri') then raise exception 'Peran tidak dikenal.'; end if;
+  if v_role not in ('superadmin','admin','td','juri') then raise exception 'Peran tidak dikenal.'; end if;
   if v_role = 'superadmin' and st.role <> 'owner' then raise exception 'Hanya owner yang bisa membuat kode superadmin.'; end if;
   if length(trim(coalesce(p->>'name',''))) < 2 then raise exception 'Isi nama pemegang kode.'; end if;
   if nullif(p->>'discipline','') is not null and not exists (select 1 from jo.disciplines where code = p->>'discipline') then
     raise exception 'Disiplin tidak dikenal.';
   end if;
   v_code := jo.new_staff_code();
-  insert into jo.staff (name, role, discipline, apparatus, components, code_hash, code_hint, note, created_by)
+  insert into jo.staff (name, role, discipline, apparatus, components, code_hash, code_hint, note, created_by, phone)
   values (trim(p->>'name'), v_role, nullif(p->>'discipline',''),
     case when jsonb_typeof(p->'apparatus') = 'array' and jsonb_array_length(p->'apparatus') > 0
          then (select array_agg(upper(a)) from jsonb_array_elements_text(p->'apparatus') a) end,
     case when jsonb_typeof(p->'components') = 'array' and jsonb_array_length(p->'components') > 0
          then (select array_agg(upper(a)) from jsonb_array_elements_text(p->'components') a) end,
-    jo.sha256(jo.norm_code(v_code)), right(v_code, 4), nullif(trim(coalesce(p->>'note','')),''), st.id)
+    jo.sha256(jo.norm_code(v_code)), right(v_code, 4), nullif(trim(coalesce(p->>'note','')),''), st.id,
+    nullif(regexp_replace(coalesce(p->>'phone',''), '[^0-9+]', '', 'g'), ''))
   returning * into x;
   perform jo.log(st.id, 'kode_dibuat', 'staff', x.id::text, jsonb_build_object('name', x.name, 'role', x.role, 'discipline', x.discipline));
   return jsonb_build_object('staff', jo.staff_json(x), 'code', v_code);
+end $$;
+
+create or replace function public.console_staff_create(p jsonb) returns jsonb
+language plpgsql volatile security definer set search_path = '' as $$
+declare st jo.staff;
+begin
+  st := jo.require_staff(array['owner','superadmin']);
+  return jo.staff_create(st, p);
 end $$;
 
 create or replace function public.console_staff_update(p_id uuid, p jsonb) returns jsonb
@@ -1066,7 +1076,8 @@ begin
         case when jsonb_typeof(p->'components') = 'array' and jsonb_array_length(p->'components') > 0
              then (select array_agg(upper(a)) from jsonb_array_elements_text(p->'components') a) end
       else components end,
-    note = case when p ? 'note' then nullif(trim(p->>'note'),'') else note end
+    note = case when p ? 'note' then nullif(trim(p->>'note'),'') else note end,
+    phone = case when p ? 'phone' then nullif(regexp_replace(coalesce(p->>'phone',''), '[^0-9+]', '', 'g'), '') else phone end
   where id = x.id;
   if coalesce((p->>'active')::boolean, true) = false then
     delete from jo.staff_sessions where staff_id = x.id;
@@ -1237,7 +1248,7 @@ create or replace function public.console_merge_club(p_from uuid, p_into uuid) r
 language plpgsql volatile security definer set search_path = '' as $$
 declare st jo.staff;
 begin
-  st := jo.require_staff(array['owner','superadmin']);
+  st := jo.require_staff(array['owner','superadmin','admin']);
   if p_from = p_into then raise exception 'Pilih dua klub yang berbeda.'; end if;
   if not exists (select 1 from jo.clubs where id = p_into and merged_into is null) then raise exception 'Klub tujuan tidak valid.'; end if;
   update jo.submissions set club_id = p_into where club_id = p_from;

@@ -1,5 +1,5 @@
 /* =====================================================================
-   Jabar Open 2026 — konsol panitia (owner, superadmin, admin, juri)
+   Jabar Open 2026 — konsol panitia (owner, superadmin, admin, TD, juri)
    ===================================================================== */
 (function () {
   'use strict';
@@ -7,11 +7,15 @@
   const root = document.getElementById('root');
   const DN = { MAG: 'Artistik Putra', WAG: 'Artistik Putri', RG: 'Ritmik', AER: 'Aerobik' };
   const DISCS = ['MAG', 'WAG', 'RG', 'AER'];
-  const ROLE = { owner: 'Owner', superadmin: 'Superadmin', admin: 'Admin', juri: 'Juri' };
+  const ROLE = { owner: 'Owner', superadmin: 'Superadmin', admin: 'Admin', td: 'TD', juri: 'Juri' };
   const ST = { menunggu_pembayaran: 'Menunggu pembayaran', menunggu_verifikasi: 'Menunggu verifikasi', lunas: 'Lunas', perlu_perbaikan: 'Perlu perbaikan', dibatalkan: 'Dibatalkan' };
   let ME = null, CATS = null;
   const isSuper = () => ME && (ME.role === 'owner' || ME.role === 'superadmin');
-  const isAdmin = () => ME && ME.role !== 'juri';
+  const isAdmin = () => ME && ['owner', 'superadmin', 'admin'].includes(ME.role);
+  const isTD = () => ME && ME.role === 'td';
+  const canSee = () => isAdmin() || isTD();   // halaman pertandingan: admin ke atas, TD hanya baca
+  let pageTimer = null;                        // polling halaman aktif (chat), dihentikan saat pindah halaman
+  const setPageTimer = (fn, ms) => { clearInterval(pageTimer); pageTimer = setInterval(fn, ms); };
   const myDiscs = () => (ME && ME.discipline ? [ME.discipline] : DISCS);
   const num3 = (v) => (v == null || v === '' ? '–' : Number(v).toFixed(3));
   const dt = (d) => JO.fmtDateTime(d);
@@ -146,6 +150,10 @@
     out: '<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11"/>',
     menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
     dots: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
+    chat: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/>',
+    bug: '<path d="M12 3l9 16H3z"/><path d="M12 9v4M12 16v.5"/>',
+    phone: '<path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2z"/>',
+    whistle: '<circle cx="8" cy="14" r="5"/><path d="M12 11l9-4v5l-8 1"/><path d="M8 4v3M4.5 5.5l1.5 2"/>',
     check: '<path d="M4 12l5 5L20 6"/>', clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', alert: '<path d="M12 3l10 18H2z"/><path d="M12 10v4M12 17.5v.5"/>',
   };
   const icon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${IC[k] || ''}</svg>`;
@@ -177,14 +185,18 @@
 
   const PAGES = [
     ['ringkasan', 'Ringkasan', () => isAdmin(), pageDashboard, 'home', 'Utama'],
+    ['chat', 'Chat panitia', () => true, pageChat, 'chat', 'Komunikasi'],
+    ['laporan', 'Laporan masalah', () => true, pageIssues, 'bug', 'Komunikasi'],
+    ['kontak', 'Kontak', () => true, pageContacts, 'phone', 'Komunikasi'],
     ['pendaftaran', 'Pendaftaran', () => isAdmin(), pageSubmissions, 'inbox', 'Peserta'],
     ['atlet', 'Data atlet', () => isAdmin(), pageAthletes, 'users', 'Peserta'],
     ['musik', 'Musik Ritmik', () => isAdmin() && (!ME.discipline || ME.discipline === 'RG'), pageMusic, 'music', 'Peserta'],
     ['klub', 'Klub', () => isAdmin(), pageClubs, 'flag', 'Peserta'],
-    ['kategori', 'Kategori', () => isAdmin(), pageCategories, 'tag', 'Pertandingan'],
-    ['startlist', 'Start list', () => isAdmin(), pageStartlist, 'list', 'Pertandingan'],
+    ['kategori', 'Kategori', () => canSee(), pageCategories, 'tag', 'Pertandingan'],
+    ['startlist', 'Start list', () => canSee(), pageStartlist, 'list', 'Pertandingan'],
     ['nilai', 'Penilaian', () => true, pageScoring, 'pen', 'Pertandingan'],
-    ['hasil', 'Hasil & medali', () => isAdmin(), pageResults, 'trophy', 'Pertandingan'],
+    ['hasil', 'Hasil & medali', () => canSee(), pageResults, 'trophy', 'Pertandingan'],
+    ['juri', 'Pendaftaran juri', () => isAdmin(), pageJury, 'whistle', 'Pertandingan'],
     ['ledger', 'Ledger', () => isSuper(), pageLedger, 'wallet', 'Keuangan'],
     ['akses', 'Kode akses', () => isSuper(), pageAccess, 'key', 'Sistem'],
     ['pengaturan', 'Pengaturan', () => isSuper(), pageSettings, 'gear', 'Sistem'],
@@ -195,7 +207,7 @@
     let grp = '';
     const nav = PAGES.filter((p) => p[2]()).map(([k, l, , , ic, g]) => {
       const head = g !== grp ? `<div class="grp">${esc(g)}</div>` : ''; grp = g;
-      return `${head}<a href="#/${k}" data-k="${k}">${icon(ic)}<span>${esc(l)}</span></a>`;
+      return `${head}<a href="#/${k}" data-k="${k}">${icon(ic)}<span>${esc(l)}</span><em class="badge" data-badge="${k}" hidden></em></a>`;
     }).join('');
     const initials = ME.name.split(/\s+/).map((x) => x[0]).slice(0, 2).join('').toUpperCase();
     root.innerHTML = `<div class="shell"><aside class="side" id="side">
@@ -207,7 +219,7 @@
         <header class="topline">
           <button type="button" class="btn btn-ghost btn-sm menu-tg" id="menu-tg" aria-label="Menu">${icon('menu')}</button>
           <div class="ttl"><b>Konsol Panitia</b><small>Jabar Open 2026 · Gymnasium Arcamanik · 12–20 Desember</small></div>
-          <div class="me"><span class="avatar">${esc(initials)}</span><span class="who"><b>${esc(ME.name)}</b><small>${ROLE[ME.role]}${ME.discipline ? ' ' + DN[ME.discipline] : ''}</small></span>
+          <div class="me"><button type="button" class="avatar" id="mebtn" title="Nomor WhatsApp saya">${esc(initials)}</button><span class="who"><b>${esc(ME.name)}</b><small>${ROLE[ME.role]}${ME.discipline ? ' ' + DN[ME.discipline] : ''}</small></span>
             <button class="btn btn-ghost btn-sm" id="logout" type="button" title="Keluar">${icon('out')}<span>Keluar</span></button></div>
         </header>
         <main class="main" id="view"></main></div></div>`;
@@ -218,9 +230,11 @@
       const sc = document.createElement('div'); sc.className = 'scrim'; sc.onclick = closeSide; document.body.appendChild(sc);
     };
     side.querySelectorAll('nav a').forEach((a) => a.addEventListener('click', closeSide));
-    root.querySelector('#logout').onclick = async () => { try { await rpc('console_logout'); } catch (e) {} ME = null; location.hash = ''; showLogin('Anda sudah keluar.'); };
+    root.querySelector('#logout').onclick = async () => { clearInterval(window.__joUnread); clearInterval(pageTimer); try { await rpc('console_logout'); } catch (e) {} ME = null; location.hash = ''; showLogin('Anda sudah keluar.'); };
+    root.querySelector('#mebtn').onclick = () => editMyPhone();
     window.onhashchange = route;
-    if (!location.hash || location.hash === '#/' || location.hash === '#') location.hash = isAdmin() ? '#/ringkasan' : '#/nilai';
+    pollUnread(); clearInterval(window.__joUnread); window.__joUnread = setInterval(pollUnread, 30000);
+    if (!location.hash || location.hash === '#/' || location.hash === '#') location.hash = isAdmin() ? '#/ringkasan' : isTD() ? '#/hasil' : '#/nilai';
     else route();
   }
   function route() {
@@ -230,6 +244,7 @@
     root.querySelectorAll('#nav a').forEach((a) => a.toggleAttribute('aria-current', a.dataset.k === page[0]));
     if (root.querySelector('#nav a[aria-current]')) root.querySelector('#nav a[aria-current]').setAttribute('aria-current', 'page');
     const v = root.querySelector('#view');
+    clearInterval(pageTimer); pageTimer = null;
     loading(v);
     window.scrollTo(0, 0);
     Promise.resolve(page[3](v, parts.slice(1))).catch((e) => { if (e.hint !== 'ERR_SESSION') fail(v, e); });
@@ -628,7 +643,7 @@
     const draw = () => {
       const d = CATS.disciplines.find((x) => x.code === disc);
       const list = CATS.categories.filter((c) => c.discipline === disc);
-      v.innerHTML = `<h1>Kategori</h1><p class="muted">Dari Undangan Jabar Open 2026. Angka tahun lahir dihitung dari "usia pada tahun kompetisi" (2026).</p>
+      v.innerHTML = `<h1>Kategori</h1><p class="muted">Dari Undangan Jabar Open 2026. Angka tahun lahir dihitung dari "usia pada tahun kompetisi" (2026).${isTD() ? ' Mode TD: hanya baca.' : ''}</p>
         <div class="tabs">${myDiscs().map((k) => `<button data-d="${k}" aria-selected="${k === disc}">${DN[k]}</button>`).join('')}</div>
         ${d ? `<div class="row" style="margin-bottom:12px"><span>Pendaftaran ${DN[disc]}: <strong>${d.registration_open ? 'dibuka' : 'ditutup'}</strong></span>
           ${isSuper() ? `<button class="btn btn-ghost btn-sm" id="dtoggle">${d.registration_open ? 'Tutup pendaftaran disiplin ini' : 'Buka pendaftaran'}</button>` : ''}
@@ -644,7 +659,7 @@
             <td class="small num">${c.birth_year_min || '…'}–${c.birth_year_max || '…'}</td><td class="small">${esc((c.apparatus || []).join(', '))}</td>
             <td class="r num">${fmtRp(c.fee)}</td><td class="r num">${c.registered}</td><td class="r num">${c.paid}</td><td class="r num">${c.priangan}</td>
             <td class="small">${warn.map((w) => `<span class="pill warn">${esc(w)}</span>`).join(' ')}${c.note ? `<br>${esc(c.note)}` : ''}</td>
-            <td><button class="btn btn-ghost btn-sm" data-edit="${c.id}">Ubah</button></td></tr>`;
+            <td>${isAdmin() ? `<button class="btn btn-ghost btn-sm" data-edit="${c.id}">Ubah</button>` : ''}</td></tr>`;
         }).join('')}</tbody></table></div>`;
       v.querySelectorAll('[data-d]').forEach((b) => b.onclick = () => { disc = b.dataset.d; draw(); });
       const dt_ = v.querySelector('#dtoggle');
@@ -719,8 +734,8 @@
       box.innerHTML = `<h2>Sesi ${DN[slState.disc]}</h2>
         ${sessions.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nama sesi</th><th>Hari</th><th>Mulai</th><th></th></tr></thead><tbody>
         ${sessions.map((s) => `<tr><td>${esc(s.name)}</td><td>${s.day ? JO.fmtDate(s.day, { weekday: 'long', day: 'numeric', month: 'long' }) : '–'}</td><td>${s.start_time ? s.start_time.slice(0, 5) : '–'}</td>
-          <td class="r">${rowMenu(`<button class="btn btn-ghost btn-sm" data-se="${s.id}">Ubah</button>`, [{ label: 'Hapus sesi', attr: `data-sx="${s.id}"`, danger: true }])}</td></tr>`).join('')}</tbody></table></div>` : '<p class="small muted">Belum ada sesi. Tambahkan sesi lomba (mis. "Sesi 1 Minggu pagi").</p>'}
-        <button class="btn btn-ghost btn-sm" id="sadd" style="margin-top:10px">Tambah sesi</button>`;
+          <td class="r">${isTD() ? '' : rowMenu(`<button class="btn btn-ghost btn-sm" data-se="${s.id}">Ubah</button>`, [{ label: 'Hapus sesi', attr: `data-sx="${s.id}"`, danger: true }])}</td></tr>`).join('')}</tbody></table></div>` : `<p class="small muted">Belum ada sesi.${isTD() ? '' : ' Tambahkan sesi lomba (mis. "Sesi 1 Minggu pagi").'}</p>`}
+        ${isTD() ? '' : '<button class="btn btn-ghost btn-sm" id="sadd" style="margin-top:10px">Tambah sesi</button>'}`;
       const edit = async (s) => {
         const r = await dialog({ title: s ? 'Ubah sesi' : 'Tambah sesi',
           body: `<div class="field"><label class="f">Nama sesi</label><input id="sn" value="${esc(s ? s.name : '')}" placeholder="Sesi 1"></div>
@@ -730,7 +745,7 @@
           onOk: async (d) => { await api('console_save_session', { p: { id: s ? s.id : null, discipline: slState.disc, name: d.querySelector('#sn').value, day: d.querySelector('#sday').value, start_time: d.querySelector('#st').value, sort: Number(d.querySelector('#so').value || 0) } }); return true; } });
         if (r) { await drawSessions(); loadList(); }
       };
-      box.querySelector('#sadd').onclick = () => edit(null);
+      if (box.querySelector('#sadd')) box.querySelector('#sadd').onclick = () => edit(null);
       box.querySelectorAll('[data-se]').forEach((b) => b.onclick = () => edit(sessions.find((x) => x.id === Number(b.dataset.se))));
       box.querySelectorAll('[data-sx]').forEach((b) => b.onclick = async () => {
         if (!(await dialog({ title: 'Hapus sesi?', ok: 'Hapus', okClass: 'btn-bad', body: '<p>Atlet di sesi ini akan kehilangan penempatan sesinya (grup dan urutan tetap).</p>' }))) return;
@@ -752,13 +767,14 @@
             <td><select data-f="session_id"><option value="">–</option>${D.sessions.map((s) => `<option value="${s.id}" ${e.session_id === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></td>
             <td><input data-f="group_no" type="number" min="1" style="width:70px" value="${e.group_no || ''}"></td>
             <td><input data-f="start_order" type="number" min="1" style="width:80px" value="${e.start_order || ''}"></td></tr>`).join('')}</tbody></table></div>
-          <div class="sticky-actions"><button class="btn btn-dark" id="save">Simpan</button>
+          ${isTD() ? '' : `<div class="sticky-actions"><button class="btn btn-dark" id="save">Simpan</button>
             <button class="btn btn-ghost" id="draw" ${c.startlist_published ? 'disabled' : ''}>Undi urutan acak</button>
             <button class="btn btn-ghost" id="allsess">Isi semua dengan sesi pertama, grup 1</button>
-            <button class="btn ${c.startlist_published ? 'btn-bad' : 'btn-primary'}" id="pub">${c.startlist_published ? 'Tarik dari situs' : 'Publikasikan'}</button></div>`
+            <button class="btn ${c.startlist_published ? 'btn-bad' : 'btn-primary'}" id="pub">${c.startlist_published ? 'Tarik dari situs' : 'Publikasikan'}</button></div>`}`
           : '<p class="empty">Belum ada atlet lunas di kategori ini.</p>'}</section>`;
       const rows = () => [...box.querySelectorAll('tr[data-e]')].map((tr) => ({ entry_id: tr.dataset.e,
         session_id: tr.querySelector('[data-f=session_id]').value, group_no: tr.querySelector('[data-f=group_no]').value, start_order: tr.querySelector('[data-f=start_order]').value }));
+      if (isTD()) box.querySelectorAll('tr[data-e] select, tr[data-e] input').forEach((x) => { x.disabled = true; });
       const sv = box.querySelector('#save');
       if (!sv) return;
       sv.onclick = async () => { try { await api('console_save_startlist', { p_category: c.id, p_rows: rows() }); JO.toast('Start list disimpan.'); loadList(); } catch (e) { JO.toast(e.message, 'bad'); } };
@@ -780,9 +796,10 @@
   async function pageScoring(v) {
     await refreshCats();
     if (!scState.disc) scState.disc = myDiscs()[0];
-    const juri = ME.role === 'juri';
+    const juri = ME.role === 'juri', ro = isTD();
+    if (ro) scState.mode = 'final';
     v.innerHTML = `<h1>Penilaian</h1>
-      <p class="muted">${juri ? `Masuk sebagai ${esc(ME.name)}${ME.components ? ', komponen ' + ME.components.join('/') : ''}${ME.apparatus ? ', alat ' + ME.apparatus.join('/') : ''}. Nilai tersimpan otomatis saat Anda pindah kolom.` : 'Nilai juri masuk langsung ke sini. Pencatat bisa mengisi nilai akhir per alat dari lembar juri. Setiap perubahan setelah dikunci tercatat di log koreksi.'}</p>
+      <p class="muted">${juri ? `Masuk sebagai ${esc(ME.name)}${ME.components ? ', komponen ' + ME.components.join('/') : ''}${ME.apparatus ? ', alat ' + ME.apparatus.join('/') : ''}. Nilai tersimpan otomatis saat Anda pindah kolom.` : ro ? 'Mode TD: memantau nilai yang masuk dari juri dan pencatat. Hanya baca; muat ulang untuk melihat nilai terbaru.' : 'Nilai juri masuk langsung ke sini. Pencatat bisa mengisi nilai akhir per alat dari lembar juri. Setiap perubahan setelah dikunci tercatat di log koreksi.'}</p>
       <div class="bar">${myDiscs().length > 1 ? `<div class="field"><label class="f" for="nd">Disiplin</label><select id="nd">${myDiscs().map((d) => `<option value="${d}" ${scState.disc === d ? 'selected' : ''}>${DN[d]}</option>`).join('')}</select></div>` : ''}
         <div id="catslot" style="flex:1;display:flex"></div></div><div id="sheet"></div>`;
     const drawCat = () => {
@@ -804,11 +821,11 @@
         <div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(D.category.name_id)}</h2>
           <span>${D.locked ? '<span class="pill warn">Nilai dikunci</span>' : '<span class="pill ok">Terbuka untuk input</span>'}${D.category.results_published ? ' <span class="pill dark">Hasil dipublikasikan</span>' : ''}</span></div>
         <div class="tabs" style="margin-top:12px">${D.apparatus.map((a) => `<button data-app="${a.code}" aria-selected="${a.code === app}">${esc(a.id)}</button>`).join('')}</div>
-        ${!juri ? `<div class="row" style="margin-bottom:10px"><div class="seg"><label><input type="radio" name="md" value="final" ${scState.mode === 'final' ? 'checked' : ''}>Isi nilai akhir</label><label><input type="radio" name="md" value="comp" ${scState.mode === 'comp' ? 'checked' : ''}>Isi per komponen</label></div>
+        ${!juri && !ro ? `<div class="row" style="margin-bottom:10px"><div class="seg"><label><input type="radio" name="md" value="final" ${scState.mode === 'final' ? 'checked' : ''}>Isi nilai akhir</label><label><input type="radio" name="md" value="comp" ${scState.mode === 'comp' ? 'checked' : ''}>Isi per komponen</label></div>
           <span class="small muted">Nilai akhir menggantikan hitungan komponen untuk alat ini.</span></div>` : ''}
         ${D.entries.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th class="c">#</th><th>Atlet</th>
           ${showComps ? comps.map((c) => `<th class="r">${esc(c.code)}<br><span class="tiny">${esc(c.id.replace(/^Nilai /, ''))}</span></th>`).join('') : ''}
-          ${!juri ? `${!showComps ? '<th>Nilai juri</th>' : ''}<th class="r">Nilai ${esc(app)}</th>${scState.mode === 'final' ? '<th class="r">Nilai akhir</th>' : ''}<th class="r">Total</th><th class="c">Per.</th>` : ''}</tr></thead><tbody>
+          ${!juri ? `${!showComps ? '<th>Nilai juri</th>' : ''}<th class="r">Nilai ${esc(app)}</th>${scState.mode === 'final' && !ro ? '<th class="r">Nilai akhir</th>' : ''}<th class="r">Total</th><th class="c">Per.</th>` : ''}</tr></thead><tbody>
           ${D.entries.map((e, i) => {
             const all = (e.all || []).filter((x) => x.apparatus === app);
             const res = e.result || {};
@@ -818,11 +835,12 @@
               ${showComps ? comps.map((c) => `<td class="r"><input class="score-in" inputmode="decimal" data-c="${c.code}" value="${e.own[app + ':' + c.code] != null ? e.own[app + ':' + c.code] : ''}" aria-label="${esc(c.code)} ${esc(e.athletes[0].name)}" ${e.status === 'dns' ? 'disabled' : ''}></td>`).join('') : ''}
               ${!juri ? `${!showComps ? `<td class="judge-vals">${judgeTxt || '–'}</td>` : ''}
                 <td class="r num"><strong data-score>${num3(res.scores ? res.scores[app] : null)}</strong></td>
-                ${scState.mode === 'final' ? `<td class="r"><input class="score-in" inputmode="decimal" data-c="FINAL" value="${e.own[app + ':FINAL'] != null ? e.own[app + ':FINAL'] : ''}" aria-label="Nilai akhir ${esc(e.athletes[0].name)}" ${e.status === 'dns' ? 'disabled' : ''}></td>` : ''}
+                ${scState.mode === 'final' && !ro ? `<td class="r"><input class="score-in" inputmode="decimal" data-c="FINAL" value="${e.own[app + ':FINAL'] != null ? e.own[app + ':FINAL'] : ''}" aria-label="Nilai akhir ${esc(e.athletes[0].name)}" ${e.status === 'dns' ? 'disabled' : ''}></td>` : ''}
                 <td class="r num">${num3(res.total)}</td><td class="c"><span class="rank">${res.rank || '–'}</span>${res.medal ? ` <span class="medal ${res.medal}"></span>` : ''}</td>` : ''}
             </tr>`;
           }).join('')}</tbody></table></div>` : '<p class="empty">Belum ada atlet lunas di kategori ini.</p>'}
-        ${!juri ? `<div class="sticky-actions"><button class="btn btn-ghost" id="refresh">Muat ulang nilai</button>
+        ${ro ? `<div class="sticky-actions"><button class="btn btn-ghost" id="refresh">Muat ulang nilai</button><a class="btn btn-primary" href="#/hasil?c=${D.category.id}">Lihat hasil</a></div>`
+          : !juri ? `<div class="sticky-actions"><button class="btn btn-ghost" id="refresh">Muat ulang nilai</button>
           <button class="btn ${D.category.scores_locked ? 'btn-ghost' : 'btn-dark'}" id="lock" ${D.category.results_published ? 'disabled' : ''}>${D.category.scores_locked ? 'Buka kunci nilai' : 'Kunci nilai'}</button>
           <a class="btn btn-primary" href="#/hasil?c=${D.category.id}">Lihat hasil & publikasi</a></div>` : '<div class="sticky-actions"><button class="btn btn-ghost" id="refresh">Muat ulang</button></div>'}
       </section>`;
@@ -865,7 +883,7 @@
     await refreshCats();
     if (!reState.disc) reState.disc = myDiscs()[0];
     const hp = hashParams(); if (hp.get('c')) { reState.cat = hp.get('c'); const c = CATS.categories.find((x) => x.id === Number(reState.cat)); if (c) reState.disc = c.discipline; }
-    v.innerHTML = `<h1>Hasil & medali</h1><p class="muted">Publikasikan hasil per kategori setelah UPP. Publikasi mengunci nilai; sertifikat dan tabel medali di situs ikut diperbarui.</p>
+    v.innerHTML = `<h1>Hasil & medali</h1><p class="muted">${isTD() ? 'Mode TD: hanya baca. ' : ''}Publikasikan hasil per kategori setelah UPP. Publikasi mengunci nilai; sertifikat dan tabel medali di situs ikut diperbarui.</p>
       <div class="tabs"><button data-t="cat" aria-selected="true">Hasil kategori</button>${teamDiscs().length ? '<button data-t="team" aria-selected="false">Beregu</button>' : ''}<button data-t="medal" aria-selected="false">Tabel medali</button></div><div id="rbox"></div>`;
     const rbox = v.querySelector('#rbox');
     v.querySelectorAll('[data-t]').forEach((b) => b.onclick = () => { v.querySelectorAll('[data-t]').forEach((x) => x.setAttribute('aria-selected', String(x === b))); b.dataset.t === 'cat' ? catView() : b.dataset.t === 'team' ? teamView(rbox) : medalView(); });
@@ -895,10 +913,10 @@
             ${anyPri ? `<td class="c">${r.priangan_rank ? r.priangan_rank + (r.priangan_medal ? ` <span class="medal ${r.priangan_medal}"></span>` : '') : ''}</td>` : ''}</tr>`).join('')}
         </tbody></table></div>
         <div class="sticky-actions">
-          <button class="btn ${c.results_published ? 'btn-bad' : 'btn-primary'}" id="pub" ${c.results_published && !isSuper() ? 'disabled' : ''}>${c.results_published ? 'Tarik hasil dari situs' : 'Publikasikan hasil'}</button>
+          ${isTD() ? '' : `<button class="btn ${c.results_published ? 'btn-bad' : 'btn-primary'}" id="pub" ${c.results_published && !isSuper() ? 'disabled' : ''}>${c.results_published ? 'Tarik hasil dari situs' : 'Publikasikan hasil'}</button>`}
           <button class="btn btn-ghost" id="certs">Unduh semua sertifikat (PDF)</button>
           <a class="btn btn-ghost" href="#/nilai?c=${c.id}">Ke penilaian</a></div></section>`;
-      box.querySelector('#pub').onclick = async () => {
+      if (box.querySelector('#pub')) box.querySelector('#pub').onclick = async () => {
         const go = await dialog({ title: c.results_published ? 'Tarik hasil?' : 'Publikasikan hasil?', ok: c.results_published ? 'Tarik' : 'Publikasikan', okClass: c.results_published ? 'btn-bad' : 'btn-primary',
           body: c.results_published ? '<p>Hasil dan sertifikat kategori ini tidak lagi tampil di situs. Nilai tetap terkunci.</p>' : `<p>Hasil tampil di situs, sertifikat bisa diunduh peserta, dan nilai dikunci. ${incomplete ? '<strong>Masih ada atlet tanpa nilai lengkap.</strong>' : ''}</p>` });
         if (!go) return;
@@ -931,7 +949,7 @@
       rbox.innerHTML = `<div class="bar"><div class="seg"><label><input type="radio" name="mk" value="0" checked>Jabar Open</label><label><input type="radio" name="mk" value="1">Priangan</label></div>
         <label class="check" style="padding:0"><input type="checkbox" id="mu">Sertakan kategori yang belum dipublikasikan (pratinjau)</label>
         <button class="btn btn-ghost btn-sm" id="mx">Unduh Excel</button>
-        <button class="btn btn-ghost btn-sm" id="mo" title="Jumlah medali & piala yang perlu dipesan, dihitung dari pendaftaran">Kebutuhan medali (Excel)</button></div><div id="mt"></div>`;
+        <button class="btn btn-ghost btn-sm" id="mo" ${isTD() ? 'hidden' : ''} title="Jumlah medali & piala yang perlu dipesan, dihitung dari pendaftaran">Kebutuhan medali (Excel)</button></div><div id="mt"></div>`;
       rbox.querySelector('#mo').onclick = () => medalOrderReport().catch((e) => JO.toast(e.message, 'bad'));
       let data;
       const draw = async () => {
@@ -979,13 +997,13 @@
           ${lv.published ? `<span class="pill ok">Dipublikasikan ${dt(lv.published_at)}</span>` : '<span class="pill">Belum dipublikasikan</span>'}</div>
         ${lv.results.length ? `<div class="tbl-wrap" style="margin-top:12px"><table class="tbl"><thead><tr><th class="c">Per.</th><th>Tim</th><th>Anggota (nilai serba bisa)</th><th class="r">Nilai tim</th></tr></thead><tbody>
           ${lv.results.map((r) => `<tr><td class="c"><span class="rank">${r.rank || '–'}</span>${r.trophy ? ` <span class="medal ${['emas', 'perak', 'perunggu'][r.rank - 1]}"></span>` : ''}</td>
-            <td><strong>${esc(r.name)}</strong><br><span class="small muted">${esc(r.club)}</span><br><a class="small" href="#/pendaftaran/${r.submission_id}">${esc(r.code)}</a></td>
+            <td><strong>${esc(r.name)}</strong><br><span class="small muted">${esc(r.club)}</span><br>${isAdmin() ? `<a class="small" href="#/pendaftaran/${r.submission_id}">${esc(r.code)}</a>` : `<span class="small code">${esc(r.code)}</span>`}</td>
             <td class="small">${r.members.map((m) => `${esc(m.name)}${m.team_only ? ' <span class="tiny muted">(khusus beregu)</span>' : ''}: <span class="num">${m.counted ? `<strong>${num3(m.total)}</strong>` : num3(m.total)}</span>`).join('<br>')}
               ${r.n_scored < r.n_members ? `<br><span class="pill warn">${r.n_members - r.n_scored} anggota belum bernilai</span>` : ''}</td>
             <td class="r num"><strong>${num3(r.total)}</strong></td></tr>`).join('')}</tbody></table></div>` : '<p class="small muted" style="margin-top:10px">Belum ada tim lunas di level ini.</p>'}
-        ${lv.pending.length ? `<p class="small muted">Belum lunas (tidak ikut peringkat): ${lv.pending.map((x) => `<a href="#/pendaftaran/${x.id}">${esc(x.name)}</a>`).join(', ')}</p>` : ''}
+        ${lv.pending.length ? `<p class="small muted">Belum lunas (tidak ikut peringkat): ${lv.pending.map((x) => isAdmin() ? `<a href="#/pendaftaran/${x.id}">${esc(x.name)}</a>` : esc(x.name)).join(', ')}</p>` : ''}
         <div class="sticky-actions">
-          <button class="btn ${lv.published ? 'btn-bad' : 'btn-primary'}" data-pub ${lv.published && !isSuper() ? 'disabled' : ''}>${lv.published ? 'Tarik hasil beregu' : 'Publikasikan hasil beregu'}</button>
+          <button class="btn ${lv.published ? 'btn-bad' : 'btn-primary'}" ${isTD() ? 'hidden' : ''} data-pub ${lv.published && !isSuper() ? 'disabled' : ''}>${lv.published ? 'Tarik hasil beregu' : 'Publikasikan hasil beregu'}</button>
           <button class="btn btn-ghost" data-certs ${lv.results.some((r) => r.trophy) ? '' : 'disabled'}>Unduh sertifikat Juara Beregu (PDF)</button></div></section>`).join('');
       box.querySelectorAll('section[data-i]').forEach((sec) => {
         const lv = L[Number(sec.dataset.i)];
@@ -1235,17 +1253,25 @@
   async function pageClubs(v) {
     const R = window.JO_REGIONS;
     const rows = await api('console_clubs');
-    v.innerHTML = `<h1>Klub</h1><p class="muted">Klub baru dari formulir pendaftaran ditandai "belum diverifikasi". Rapikan nama dan wilayahnya, atau gabungkan bila satu klub terdaftar dengan dua nama, agar tabel medali per klub akurat.</p>
+    v.innerHTML = `<h1>Klub</h1><p class="muted">Klub baru dari formulir pendaftaran ditandai "belum diverifikasi". Rapikan nama dan wilayahnya. Bila satu klub terdaftar dengan dua nama (mis. salah ketik), pakai <em>Gabungkan</em> dari menu "…" agar tabel medali per klub akurat. Klub yang belum dipakai pendaftaran bisa dihapus.</p>
       <div class="bar"><div class="field" style="flex:1"><label class="f" for="kq">Cari</label><input id="kq" type="search"></div><button class="btn btn-dark" id="kadd">Tambah klub</button></div><div id="kl"></div>`;
     const draw = (q) => {
       const s = (q || '').toLowerCase();
-      const list = rows.filter((k) => !s || (k.name + ' ' + (k.kab_kota || '')).toLowerCase().includes(s));
+      const list = rows.filter((k) => !s || (k.name + ' ' + (k.kab_kota || '') + ' ' + (k.province || '')).toLowerCase().includes(s));
       v.querySelector('#kl').innerHTML = `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nama</th><th>Jenis</th><th>Kab/kota</th><th>Provinsi</th><th class="r">Atlet</th><th></th></tr></thead><tbody>
         ${list.map((k) => `<tr><td>${esc(k.name)}${k.verified ? '' : ' <span class="pill warn">belum diverifikasi</span>'}${k.merged_into ? ` <span class="pill">digabung ke ${esc(k.merged_into_name)}</span>` : ''}</td><td class="small">${esc(k.kind)}</td>
           <td class="small">${esc(k.kab_kota || '')}</td><td class="small">${esc(k.province || k.country)}</td><td class="r">${k.athletes}</td>
-          <td class="r">${k.merged_into ? '' : `<button class="btn btn-ghost btn-sm" data-ke="${k.id}">Ubah</button>${isSuper() ? ` <button class="btn btn-ghost btn-sm" data-km="${k.id}">Gabungkan</button>` : ''}`}</td></tr>`).join('')}</tbody></table></div>`;
+          <td class="r">${k.merged_into ? '' : rowMenu(`<button class="btn btn-ghost btn-sm" data-ke="${k.id}">Ubah</button>`,
+            [{ label: 'Gabungkan ke klub lain', attr: `data-km="${k.id}"` }, k.athletes ? null : { sep: true }, k.athletes ? null : { label: 'Hapus klub', attr: `data-kx="${k.id}"`, danger: true }])}</td></tr>`).join('')}</tbody></table></div>`;
       v.querySelectorAll('[data-ke]').forEach((b) => b.onclick = () => edit(rows.find((k) => k.id === b.dataset.ke)));
       v.querySelectorAll('[data-km]').forEach((b) => b.onclick = () => merge(rows.find((k) => k.id === b.dataset.km)));
+      v.querySelectorAll('[data-kx]').forEach((b) => b.onclick = () => del(rows.find((k) => k.id === b.dataset.kx)));
+    };
+    const del = async (k) => {
+      const r = await dialog({ title: 'Hapus ' + k.name + '?', ok: 'Hapus klub', okClass: 'btn-bad',
+        body: `<p>Klub <strong>${esc(k.name)}</strong> dihapus dari daftar pilihan formulir. Hanya bisa untuk klub yang belum dipakai pendaftaran mana pun; bila sudah dipakai, gunakan <em>Gabungkan</em>. Penghapusan tercatat di Log.</p>`,
+        onOk: async () => { await api('console_delete_club', { p_id: k.id }); return true; } });
+      if (r) { JO.toast('Klub dihapus.'); pageClubs(v); }
     };
     const edit = async (k) => {
       const r = await dialog({ title: k ? 'Ubah klub' : 'Tambah klub',
@@ -1271,6 +1297,302 @@
   }
 
   // =====================================================================
+  //  KOMUNIKASI: lencana, nomor WA sendiri, chat, laporan masalah, kontak
+  // =====================================================================
+  const roleLabel = (r, d) => (ROLE[r] || r) + (d ? ' ' + DN[d] : '');
+  const multiline = (s) => esc(s || '').replace(/\n/g, '<br>');
+  const ago = (d) => {
+    const s = (Date.now() - new Date(d).getTime()) / 1000;
+    if (s < 60) return 'baru saja';
+    if (s < 3600) return Math.floor(s / 60) + ' mnt lalu';
+    if (s < 86400 && new Date(d).toDateString() === new Date().toDateString()) return new Date(d).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    return dt(d);
+  };
+  const waText = (p, text) => { const u = wa(p); return u === '#' ? '#' : u + (text ? '?text=' + encodeURIComponent(text) : ''); };
+
+  async function pollUnread() {
+    if (!ME) return;
+    let u;
+    try { u = await api('console_unread'); } catch (e) { return; }
+    const set = (k, n) => { const b = root.querySelector(`[data-badge="${k}"]`); if (b) { b.hidden = !n; b.textContent = n > 99 ? '99+' : String(n || ''); } };
+    set('chat', Number(u.chat)); set('laporan', Number(u.issues)); set('juri', Number(u.jury));
+    const me = root.querySelector('.topline .me');
+    let nag = root.querySelector('#phone-nag');
+    if (u.phone_missing && me && !nag) {
+      me.insertAdjacentHTML('afterbegin', `<button type="button" class="btn btn-ghost btn-sm nag" id="phone-nag">${icon('phone')}<span>Lengkapi nomor WA</span></button>`);
+      root.querySelector('#phone-nag').onclick = () => editMyPhone();
+    } else if (!u.phone_missing && nag) nag.remove();
+  }
+  async function editMyPhone() {
+    const r = await dialog({ title: 'Nomor WhatsApp saya', ok: 'Simpan',
+      body: `<p class="small">Nomor ini tampil di halaman Kontak agar sesama panitia dan juri bisa menghubungi Anda lewat WhatsApp. Tidak tampil di situs publik.</p>
+        <div class="field"><label class="f" for="myph">Nomor WhatsApp</label><input id="myph" inputmode="tel" value="${esc(ME.phone || '')}" placeholder="08xx-xxxx-xxxx"></div>`,
+      onOk: async (d) => api('console_me_update', { p: { phone: d.querySelector('#myph').value } }) });
+    if (r) { ME = Object.assign(ME, { phone: r.phone }); JO.toast('Nomor WhatsApp disimpan.'); pollUnread(); }
+    return r;
+  }
+
+  // ---------------- chat ----------------
+  async function pageChat(v, rest) {
+    let room = rest && rest[0] ? decodeURIComponent(rest[0]) : '';
+    let R = await api('console_chat_rooms');
+    let lastId = 0, busy = false;
+    v.innerHTML = `<h1>Chat panitia</h1><p class="muted">Ruang bersama, ruang per disiplin, dan pesan pribadi antarpemegang kode. Untuk masalah teknis yang perlu ditindaklanjuti admin, pakai <a href="#/laporan">Laporan masalah</a> agar statusnya terpantau.</p>
+      <div class="chat ${room ? 'has-room' : ''}" id="chat"><aside class="chat-rooms" id="rooms"></aside><section class="chat-thread" id="thread"></section></div>`;
+    const drawRooms = () => {
+      const groups = R.rooms.filter((r) => r.kind === 'group'), dms = R.rooms.filter((r) => r.kind === 'dm');
+      const item = (r) => `<a href="#/chat/${encodeURIComponent(r.room)}" class="${r.room === room ? 'on' : ''}"><b>${esc(r.label)}</b>${Number(r.unread) ? `<em class="badge">${r.unread}</em>` : ''}
+        <small>${r.last ? esc((r.last.sender_name || '') + ': ' + r.last.body) : 'Belum ada pesan'}</small></a>`;
+      v.querySelector('#rooms').innerHTML = `<div class="grp">Ruang</div>${groups.map(item).join('')}
+        <div class="grp">Pesan pribadi</div>${dms.map(item).join('') || '<p class="tiny muted" style="padding:0 10px">Belum ada.</p>'}
+        <div class="field" style="padding:8px 10px 0"><label class="f" for="dmto">Mulai pesan pribadi</label><select id="dmto"><option value="">Pilih orang…</option>
+          ${R.people.map((p) => `<option value="${esc(p.room)}">${esc(p.name)} (${esc(roleLabel(p.role, p.discipline))})</option>`).join('')}</select></div>`;
+      v.querySelector('#dmto').onchange = (e) => { if (e.target.value) location.hash = '#/chat/' + encodeURIComponent(e.target.value); };
+    };
+    drawRooms();
+    const th = v.querySelector('#thread');
+    if (!room) { th.innerHTML = '<p class="empty">Pilih ruang di sebelah kiri.</p>'; setPageTimer(async () => { try { R = await api('console_chat_rooms'); drawRooms(); } catch (e) {} }, 10000); return; }
+    const known = R.rooms.find((r) => r.room === room) || R.people.find((p) => p.room === room);
+    th.innerHTML = `<header class="chat-head"><a href="#/chat" class="btn btn-ghost btn-sm chat-back">Kembali</a><b id="rlabel">${esc(known ? (known.label || known.name) : 'Percakapan')}</b></header>
+      <div class="chat-msgs" id="msgs"><div class="empty"><span class="spinner"></span></div></div>
+      <form class="chat-form" id="cf"><textarea id="cm" rows="2" maxlength="4000" placeholder="Tulis pesan. Enter untuk kirim, Shift+Enter untuk baris baru." required></textarea><button class="btn btn-primary" type="submit">Kirim</button></form>`;
+    const box = th.querySelector('#msgs');
+    const bubble = (m) => `<div class="msg ${m.sender === R.me ? 'mine' : ''}" data-id="${m.id}"><div class="meta"><b>${esc(m.sender_name || 'Kode terhapus')}</b>${m.role ? ` <span>${esc(ROLE[m.role] || m.role)}</span>` : ''} · <time title="${esc(dt(m.at))}">${esc(ago(m.at))}</time></div><div class="body">${multiline(m.body)}</div></div>`;
+    const load = async (first) => {
+      if (busy) return; busy = true;
+      try {
+        const r = await api('console_chat_messages', { p_room: room, p_after: lastId });
+        if (first) { box.innerHTML = r.messages.length ? '' : '<p class="empty chat-none">Belum ada pesan. Mulai percakapan.</p>'; th.querySelector('#rlabel').textContent = r.label; }
+        if (r.messages.length) {
+          const none = box.querySelector('.chat-none'); if (none) none.remove();
+          const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+          box.insertAdjacentHTML('beforeend', r.messages.filter((m) => !box.querySelector(`[data-id="${m.id}"]`)).map(bubble).join(''));
+          lastId = r.messages[r.messages.length - 1].id;
+          if (first || atBottom) box.scrollTop = box.scrollHeight;
+        }
+      } catch (e) { if (first) box.innerHTML = `<p class="note bad">${esc(e.message)}</p>`; }
+      finally { busy = false; }
+    };
+    await load(true);
+    let tick = 0;
+    setPageTimer(async () => {
+      if (document.hidden) return;
+      await load(false);
+      if (++tick % 3 === 0) { try { R = await api('console_chat_rooms'); drawRooms(); } catch (e) {} }
+    }, 4000);
+    const f = th.querySelector('#cf'), ta = th.querySelector('#cm');
+    ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); f.requestSubmit(); } });
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const body = ta.value.trim(); if (!body) return;
+      const btn = f.querySelector('button'); btn.disabled = true;
+      try { await api('console_chat_send', { p_room: room, p_body: body }); ta.value = ''; await load(false); box.scrollTop = box.scrollHeight; pollUnread(); }
+      catch (err) { JO.toast(err.message, 'bad'); }
+      finally { btn.disabled = false; ta.focus(); }
+    };
+    ta.focus();
+    pollUnread();
+  }
+
+  // ---------------- laporan masalah ----------------
+  const ISS = { baru: ['Baru', 'warn'], diproses: ['Diproses', 'info'], selesai: ['Selesai', 'ok'] };
+  const issPill = (s) => `<span class="pill ${ISS[s][1]}">${ISS[s][0]}</span>`;
+  const issFilter = { f: 'terbuka' };
+  async function pageIssues(v, rest) {
+    if (rest && rest[0]) return pageIssue(v, Number(rest[0]));
+    const filt = issFilter.f === 'mine' ? { mine: true } : issFilter.f === 'semua' ? {} : { status: 'terbuka' };
+    const rows = await api('console_issues', { p_filter: filt });
+    v.innerHTML = `<div class="row" style="justify-content:space-between;align-items:flex-end"><div><h1>Laporan masalah</h1>
+        <p class="muted">Laporkan kendala (mis. tidak bisa input nilai, data atlet salah, dokumen perlu dicek). Admin menindaklanjuti dan mengubah statusnya; Anda mendapat lencana saat ada tanggapan.</p></div>
+        <button class="btn btn-primary" id="inew">Laporkan masalah</button></div>
+      <div class="tabs" style="margin-top:12px">${[['terbuka', 'Belum selesai'], ['mine', 'Laporan saya'], ['semua', 'Semua']].map(([k, l]) => `<button data-f="${k}" aria-selected="${issFilter.f === k}">${l}</button>`).join('')}</div>
+      ${rows.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Masalah</th><th>Pelapor</th><th>Disiplin</th><th>Status</th><th>Diperbarui</th></tr></thead><tbody>
+        ${rows.map((i) => `<tr class="click" data-id="${i.id}"><td>${i.unread ? '<span class="dot" title="Ada pembaruan"></span>' : ''}<strong>${esc(i.title)}</strong>${i.comments ? ` <span class="tiny muted">${i.comments} tanggapan</span>` : ''}${i.shot_path ? ' <span class="tiny muted">· tangkapan layar</span>' : ''}</td>
+          <td class="small">${esc(i.reporter_name || '-')}<br><span class="tiny muted">${esc(ROLE[i.reporter_role] || '')}</span></td><td class="small">${i.discipline ? DN[i.discipline] : 'Umum'}</td>
+          <td>${issPill(i.status)}</td><td class="small">${esc(ago(i.updated_at))}</td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">Tidak ada laporan di sini.</p>'}`;
+    v.querySelectorAll('[data-f]').forEach((b) => b.onclick = () => { issFilter.f = b.dataset.f; pageIssues(v); });
+    v.querySelectorAll('tr[data-id]').forEach((tr) => tr.onclick = () => { location.hash = '#/laporan/' + tr.dataset.id; });
+    v.querySelector('#inew').onclick = async () => {
+      const r = await dialog({ title: 'Laporkan masalah', ok: 'Kirim laporan',
+        body: `<div class="field"><label class="f" for="it">Judul singkat</label><input id="it" maxlength="140" placeholder="Mis. Tidak bisa input nilai E di Balok"></div>
+          <div class="field"><label class="f" for="idc">Disiplin</label><select id="idc">${ME.discipline ? '' : '<option value="">Umum / semua disiplin</option>'}${myDiscs().map((d) => `<option value="${d}">${DN[d]}</option>`).join('')}</select></div>
+          <div class="field"><label class="f" for="ib">Penjelasan</label><textarea id="ib" rows="4" placeholder="Apa yang terjadi, di halaman mana, dan apa yang Anda harapkan."></textarea></div>
+          <div class="field"><label class="f" for="is">Tangkapan layar (opsional)</label><input id="is" type="file" accept="image/*,application/pdf"><div class="f-hint">JPG, PNG, atau PDF, maks. 5 MB. Hanya pelapor dan admin yang bisa membukanya.</div></div>`,
+        onOk: async (d) => {
+          const file = d.querySelector('#is').files[0];
+          let shot = null;
+          if (file) shot = (await JO.uploadFile('dokumen', file)).path;
+          return api('console_issue_create', { p: { title: d.querySelector('#it').value, discipline: d.querySelector('#idc').value, body: d.querySelector('#ib').value, shot_path: shot } });
+        } });
+      if (r) { JO.toast('Laporan terkirim.'); location.hash = '#/laporan/' + r.id; }
+    };
+  }
+  async function pageIssue(v, id) {
+    const I = await api('console_issue', { p_id: id });
+    const mine = I.reporter === ME.id;
+    v.innerHTML = `<p><a href="#/laporan">Semua laporan</a></p>
+      <div class="row" style="justify-content:space-between;align-items:flex-start"><div><h1>${esc(I.title)}</h1>
+        <p class="muted">Dari ${esc(I.reporter_name || '-')} (${esc(ROLE[I.reporter_role] || '-')}) · ${I.discipline ? DN[I.discipline] : 'Umum'} · ${esc(dt(I.created_at))}</p></div>${issPill(I.status)}</div>
+      <section class="card" style="margin-top:12px">${I.body ? `<p style="margin:0">${multiline(I.body)}</p>` : '<p class="muted" style="margin:0">Tanpa penjelasan.</p>'}
+        ${I.shot_path && (mine || I.can_manage) ? '<div class="actions"><button class="btn btn-ghost btn-sm" id="shot">Lihat tangkapan layar</button></div>' : ''}
+        ${I.status === 'selesai' && I.handled_by ? `<p class="small muted" style="margin:10px 0 0">Diselesaikan oleh ${esc(I.handled_by)}, ${esc(dt(I.resolved_at))}</p>` : ''}</section>
+      <section class="card"><h2>Tanggapan</h2><div class="thread">${I.thread.length ? I.thread.map((c) => `<div class="msg"><div class="meta"><b>${esc(c.staff_name || 'Kode terhapus')}</b>${c.role ? ` <span>${esc(ROLE[c.role] || c.role)}</span>` : ''} · <time>${esc(dt(c.at))}</time></div><div class="body">${multiline(c.body)}</div></div>`).join('') : '<p class="small muted">Belum ada tanggapan.</p>'}</div>
+        <form id="icf" style="margin-top:12px"><label class="f" for="icb">Tulis tanggapan</label><textarea id="icb" rows="3" required></textarea>
+          <div class="actions"><button class="btn btn-dark btn-sm" type="submit">Kirim tanggapan</button>
+          ${I.can_manage ? `${I.status !== 'diproses' ? '<button type="button" class="btn btn-ghost btn-sm" data-st="diproses">Tandai diproses</button>' : ''}
+            ${I.status !== 'selesai' ? '<button type="button" class="btn btn-ok btn-sm" data-st="selesai">Tandai selesai</button>' : '<button type="button" class="btn btn-ghost btn-sm" data-st="baru">Buka lagi</button>'}` : ''}</div></form></section>`;
+    const sh = v.querySelector('#shot'); if (sh) sh.onclick = () => preview('dokumen', I.shot_path, 'Tangkapan layar');
+    v.querySelector('#icf').onsubmit = async (e) => {
+      e.preventDefault();
+      const t = v.querySelector('#icb').value.trim(); if (!t) return;
+      try { await api('console_issue_comment', { p_id: id, p_body: t }); pageIssue(v, id); } catch (err) { JO.toast(err.message, 'bad'); }
+    };
+    v.querySelectorAll('[data-st]').forEach((b) => b.onclick = async () => {
+      const t = v.querySelector('#icb').value.trim();
+      try {
+        if (t) await api('console_issue_comment', { p_id: id, p_body: t });
+        await api('console_issue_status', { p_id: id, p_status: b.dataset.st }); JO.toast('Status diperbarui.'); pageIssue(v, id);
+      } catch (err) { JO.toast(err.message, 'bad'); }
+    });
+    pollUnread();
+  }
+
+  // ---------------- kontak ----------------
+  const ctState = { tab: 'panitia', q: '' };
+  async function pageContacts(v) {
+    const C = await api('console_contacts');
+    if (!C.can_registrants) ctState.tab = 'panitia';
+    v.innerHTML = `<h1>Kontak</h1><p class="muted">Hubungi lewat WhatsApp atau kirim pesan di konsol. ${C.can_registrants ? 'Kontak pendaftar (pelatih, manajer, orang tua) hanya terlihat oleh admin ke atas dan TD; gunakan hanya untuk urusan Jabar Open 2026.' : ''}</p>
+      ${ME.phone ? '' : '<p class="note warn small">Nomor WhatsApp Anda belum tercatat. <button type="button" class="btn btn-ghost btn-sm" id="setph">Isi sekarang</button></p>'}
+      <div class="tabs">${[['panitia', 'Panitia & juri'], C.can_registrants ? ['pendaftar', 'Pendaftar'] : null].filter(Boolean).map(([k, l]) => `<button data-t="${k}" aria-selected="${ctState.tab === k}">${l}</button>`).join('')}</div>
+      <div class="bar"><div class="field" style="flex:1"><label class="f" for="cq">Cari</label><input id="cq" type="search" value="${esc(ctState.q)}" placeholder="Nama, klub, disiplin, nomor"></div><span id="cx"></span></div><div id="cl"></div>`;
+    const sp = v.querySelector('#setph'); if (sp) sp.onclick = async () => { if (await editMyPhone()) pageContacts(v); };
+    const match = (txt) => !ctState.q || txt.toLowerCase().includes(ctState.q.toLowerCase());
+    const waBtn = (p, text) => p ? `<a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${esc(waText(p, text))}">WhatsApp</a>` : '<span class="tiny muted">Belum ada nomor</span>';
+    const draw = () => {
+      const cl = v.querySelector('#cl'), cx = v.querySelector('#cx');
+      cx.innerHTML = '';
+      if (ctState.tab === 'panitia') {
+        const list = C.staff.filter((s) => match([s.name, ROLE[s.role], s.discipline ? DN[s.discipline] : 'semua', s.phone, s.note].join(' ')));
+        cl.innerHTML = `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nama</th><th>Peran</th><th>WhatsApp</th><th></th></tr></thead><tbody>
+          ${list.map((s) => `<tr><td><strong>${esc(s.name)}</strong>${s.id === C.me ? ' <span class="pill">Anda</span>' : ''}${s.note ? `<br><span class="tiny muted">${esc(s.note)}</span>` : ''}</td>
+            <td class="small">${esc(roleLabel(s.role, s.discipline))}${s.discipline ? '' : '<br><span class="tiny muted">semua disiplin</span>'}</td><td class="small num">${esc(s.phone || '')}</td>
+            <td class="r"><span class="rm">${s.id === C.me ? '' : `${waBtn(s.phone)} <a class="btn btn-dark btn-sm" href="#/chat/${encodeURIComponent(s.room)}">Chat</a>`}</span></td></tr>`).join('')}</tbody></table></div>
+          ${C.coordinators.length ? `<section class="card" style="margin-top:14px"><h2>Narahubung disiplin (tercantum di situs)</h2><div class="tbl-wrap"><table class="tbl"><tbody>
+            ${C.coordinators.map((c) => `<tr><td>${DN[c.discipline] || esc(c.discipline)}</td><td><strong>${esc(c.name)}</strong></td><td class="small num">${esc(c.phone || '')}</td><td class="r">${waBtn(c.phone)}</td></tr>`).join('')}</tbody></table></div></section>` : ''}`;
+      } else {
+        const list = C.registrants.filter((r) => match([r.club, r.name, r.role, r.code, r.phone, r.email, DN[r.discipline]].join(' ')));
+        cx.innerHTML = '<button class="btn btn-ghost btn-sm" id="cxl">Unduh Excel</button>';
+        cx.querySelector('#cxl').onclick = () => exportXlsx('kontak-pendaftar-jabar-open-2026.xlsx', list, [['club', 'Klub'], ['name', 'Kontak'], ['role', 'Peran'], ['phone', 'WhatsApp'], ['email', 'Email'], ['discipline', 'Disiplin', (r) => DN[r.discipline]], ['code', 'Kode'], ['status', 'Status', (r) => ST[r.status] || r.status], ['athletes', 'Atlet']]);
+        cl.innerHTML = list.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Klub / pendaftar</th><th>Kontak</th><th>Disiplin</th><th>Status</th><th></th></tr></thead><tbody>
+          ${list.map((r) => `<tr><td><strong>${esc(r.club)}</strong><br>${isAdmin() ? `<a class="tiny code" href="#/pendaftaran/${r.submission_id}">${esc(r.code)}</a>` : `<span class="tiny code">${esc(r.code)}</span>`} <span class="tiny muted">${r.athletes} atlet</span></td>
+            <td class="small">${esc(r.name)}${r.role ? ` <span class="muted">(${esc(r.role)})</span>` : ''}<br><span class="num">${esc(r.phone)}</span> · <a href="mailto:${esc(r.email)}">${esc(r.email)}</a></td>
+            <td class="small">${DN[r.discipline] || esc(r.discipline)}</td><td>${pill(r.status)}</td>
+            <td class="r">${waBtn(r.phone, `Halo ${r.name}, kami dari panitia Jabar Open 2026 terkait pendaftaran ${r.code} (${r.club}).`)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">Tidak ada pendaftar.</p>';
+      }
+    };
+    v.querySelectorAll('[data-t]').forEach((b) => b.onclick = () => { ctState.tab = b.dataset.t; v.querySelectorAll('[data-t]').forEach((x) => x.setAttribute('aria-selected', String(x === b))); draw(); });
+    v.querySelector('#cq').oninput = (e) => { ctState.q = e.target.value; draw(); };
+    draw();
+  }
+
+  // =====================================================================
+  //  PENDAFTARAN JURI
+  // =====================================================================
+  const BREVET = ['FIG Kategori 1', 'FIG Kategori 2', 'FIG Kategori 3', 'FIG Kategori 4', 'Nasional', 'Provinsi/Daerah', 'Belum ada', 'Lainnya'];
+  const JDAYS = ['2026-12-12', '2026-12-13', '2026-12-14', '2026-12-15', '2026-12-16', '2026-12-17', '2026-12-18', '2026-12-19', '2026-12-20'];
+  const JST = { baru: ['Baru', 'warn'], disetujui: ['Disetujui', 'ok'], ditolak: ['Ditolak', 'bad'] };
+  const brevetText = (b) => (b ? (b.level === 'Lainnya' ? b.other || 'Lainnya' : b.level) + (b.year ? ' (' + b.year + ')' : '') : '–');
+  const daysText = (a) => (a && a.length ? a.map((d) => Number(d.slice(8, 10))).join(', ') + ' Des' : '–');
+  const juState = { status: 'baru', disc: '' };
+  async function pageJury(v) {
+    const rows = await api('console_jury_list', { p_filter: { status: juState.status, discipline: juState.disc } });
+    const link = JO.siteUrl() + 'juri.html';
+    v.innerHTML = `<div class="row" style="justify-content:space-between;align-items:flex-end"><div><h1>Pendaftaran juri</h1>
+        <p class="muted">Calon juri mendaftar lewat <a href="${esc(link)}" target="_blank" rel="noopener">formulir juri</a> di situs, atau ditambahkan admin di sini. Menyetujui pendaftar membuat kode akses juri; kirim kodenya secara pribadi lewat WhatsApp.</p></div>
+        <span class="rm"><button class="btn btn-ghost" id="jlink">Salin tautan formulir</button><button class="btn btn-primary" id="jadd">Tambah juri</button></span></div>
+      <div class="bar"><div class="field"><label class="f" for="jst">Status</label><select id="jst">${[['baru', 'Baru'], ['disetujui', 'Disetujui'], ['ditolak', 'Ditolak'], ['', 'Semua']].map(([k, l]) => `<option value="${k}" ${juState.status === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+        ${ME.discipline ? '' : discSelect('jd', juState.disc)}</div>
+      ${rows.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nama</th><th>Disiplin & brevet</th><th>Hadir</th><th>Dokumen</th><th>Status</th><th></th></tr></thead><tbody>
+        ${rows.map((j) => `<tr><td><strong>${esc(j.full_name)}</strong><br><span class="tiny muted">${esc([j.city, j.province].filter(Boolean).join(', '))}${j.source === 'konsol' ? ' · ditambah admin' : ''} · ${esc(dt(j.created_at))}</span>
+            <br><span class="small num">${esc(j.phone)}</span>${j.email ? ` · <a class="small" href="mailto:${esc(j.email)}">${esc(j.email)}</a>` : ''}${j.note ? `<br><span class="tiny">${esc(j.note)}</span>` : ''}</td>
+          <td class="small">${j.disciplines.map((d) => `<div><b>${DN[d] || esc(d)}</b>: ${esc(brevetText(j.brevet && j.brevet[d]))}</div>`).join('')}</td>
+          <td class="small">${esc(daysText(j.availability))}</td>
+          <td class="small"><span class="rm">${[['ktp_path', 'KTP'], ['photo_path', 'Foto'], ['cert_path', 'Sertifikat']].map(([k, l]) => j[k] ? `<button class="btn btn-ghost btn-sm" data-doc="${esc(j[k])}" data-dl="${l} ${esc(j.full_name)}">${l}</button>` : '').join('') || '<span class="muted">–</span>'}</span></td>
+          <td><span class="pill ${JST[j.status][1]}">${JST[j.status][0]}</span>${j.staff_name ? `<br><span class="tiny muted">Kode: ${esc(j.staff_name)}${j.staff_active === false ? ' (nonaktif)' : ''}</span>` : ''}${j.reviewed_by_name ? `<br><span class="tiny muted">oleh ${esc(j.reviewed_by_name)}</span>` : ''}${j.review_note && j.status === 'ditolak' ? `<br><span class="tiny">${esc(j.review_note)}</span>` : ''}</td>
+          <td class="r">${rowMenu(j.status !== 'disetujui' ? `<button class="btn btn-ok btn-sm" data-ok="${j.id}">Setujui</button>` : '',
+            [{ label: 'WhatsApp', attr: `data-wa="${j.id}"` }, j.status === 'baru' ? { label: 'Tolak', attr: `data-no="${j.id}"`, danger: true } : null])}</td></tr>`).join('')}</tbody></table></div>`
+        : '<p class="empty">Tidak ada pendaftar juri di sini.</p>'}`;
+    v.querySelector('#jst').onchange = (e) => { juState.status = e.target.value; pageJury(v); };
+    const jd = v.querySelector('#jd'); if (jd) jd.onchange = (e) => { juState.disc = e.target.value; pageJury(v); };
+    v.querySelector('#jlink').onclick = () => navigator.clipboard.writeText(link).then(() => JO.toast('Tautan formulir juri disalin.'));
+    v.querySelector('#jadd').onclick = () => juryForm(v);
+    v.querySelectorAll('[data-doc]').forEach((b) => b.onclick = () => preview('dokumen', b.dataset.doc, b.dataset.dl));
+    v.querySelectorAll('[data-wa]').forEach((b) => b.onclick = () => { const j = rows.find((x) => x.id === b.dataset.wa); window.open(waText(j.phone, `Halo ${j.full_name}, kami dari panitia Jabar Open 2026 terkait pendaftaran juri Anda.`), '_blank', 'noopener'); });
+    v.querySelectorAll('[data-no]').forEach((b) => b.onclick = async () => {
+      const j = rows.find((x) => x.id === b.dataset.no);
+      const note = await askReason('Tolak ' + j.full_name + '?', 'Pesan untuk pendaftar (opsional, ikut di email)', { ok: 'Tolak', okClass: 'btn-bad', required: false });
+      if (note === null) return;
+      try { await api('console_jury_reject', { p_id: j.id, p_note: note }); JO.toast('Pendaftar ditolak.'); pageJury(v); pollUnread(); } catch (e) { JO.toast(e.message, 'bad'); }
+    });
+    v.querySelectorAll('[data-ok]').forEach((b) => b.onclick = () => juryApprove(v, rows.find((x) => x.id === b.dataset.ok)));
+  }
+  async function juryApprove(v, j) {
+    const discs = j.disciplines.filter((d) => myDiscs().includes(d));
+    if (!discs.length) return JO.toast('Pendaftar ini tidak mendaftar untuk disiplin Anda.', 'bad');
+    const r = await dialog({ title: 'Setujui ' + j.full_name, ok: 'Setujui & buat kode',
+      body: `<p class="small">Membuat kode akses <b>juri</b> atas nama ${esc(j.full_name)} (WA ${esc(j.phone)}). Satu kode untuk satu disiplin; bila juri bertugas di dua disiplin, buat kode kedua dari Kode akses.</p>
+        <div class="field"><label class="f" for="ad">Disiplin</label><select id="ad">${discs.map((d) => `<option value="${d}">${DN[d]} (brevet: ${esc(brevetText(j.brevet && j.brevet[d]))})</option>`).join('')}</select></div>
+        <div class="field"><span class="f">Batasi komponen</span><div class="row">${['D', 'E', 'A', 'PEN'].map((c) => `<label class="check" style="padding:2px 10px 2px 0"><input type="checkbox" data-comp="${c}">${c}</label>`).join('')}</div><div class="f-hint">Kosongkan untuk semua komponen. Bisa diubah nanti di Kode akses.</div></div>
+        <div class="field"><label class="f" for="aa">Batasi alat (pisahkan dengan koma)</label><input id="aa" placeholder="Mis. VT, UB"><div class="f-hint">Kosongkan untuk semua alat.</div></div>
+        <div class="field"><label class="f" for="an">Catatan internal</label><input id="an" placeholder="Mis. Juri E panel 1"></div>
+        <div class="field"><label class="f" for="am">Pesan untuk juri (ikut di email persetujuan, opsional)</label><textarea id="am" rows="2" placeholder="Mis. Rapat juri 11 Desember pukul 15.00 di Arcamanik."></textarea><div class="f-hint">Email tidak memuat kode akses. Kode hanya dikirim lewat WhatsApp.</div></div>`,
+      onOk: async (d) => api('console_jury_approve', { p_id: j.id, p: { discipline: d.querySelector('#ad').value,
+        components: [...d.querySelectorAll('[data-comp]:checked')].map((x) => x.dataset.comp),
+        apparatus: d.querySelector('#aa').value.split(',').map((x) => x.trim().toUpperCase()).filter(Boolean),
+        note: d.querySelector('#an').value, message: d.querySelector('#am').value } }) });
+    if (!r) return;
+    const msg = `Halo ${r.name}, Anda disetujui sebagai juri Jabar Open 2026.\nKode akses konsol penilaian: ${r.code}\nMasuk di ${JO.siteUrl()}panitia/\nKode ini pribadi, jangan dibagikan.`;
+    dialog({ title: 'Kode akses untuk ' + r.name, ok: null, cancel: 'Selesai',
+      body: `<div class="codebox">${esc(r.code)}</div><p class="small" style="margin-top:12px">Kirim secara pribadi ke ${esc(r.name)}. Kode ini tidak bisa ditampilkan lagi; bila hilang, buat kode baru dari Kode akses.</p>
+        <div class="actions"><button type="button" class="btn btn-dark btn-sm" id="cp">Salin kode</button>
+        <a class="btn btn-ok btn-sm" target="_blank" rel="noopener" href="${esc(waText(r.phone, msg))}">Kirim ke WhatsApp ${esc(r.phone)}</a></div>` }).then(() => { pageJury(v); pollUnread(); });
+    setTimeout(() => { const cp = document.getElementById('cp'); if (cp) cp.onclick = () => navigator.clipboard.writeText(r.code).then(() => JO.toast('Kode disalin.')); }, 50);
+  }
+  async function juryForm(v) {
+    const r = await dialog({ title: 'Tambah juri', ok: 'Simpan', wide: true,
+      body: `<p class="small muted">Untuk juri yang dihubungi langsung oleh panitia. Setelah disimpan, setujui untuk membuat kode aksesnya.</p>
+        <div class="grid-2"><div class="field"><label class="f" for="jn">Nama lengkap (dengan gelar bila ada)</label><input id="jn"></div>
+          <div class="field"><label class="f" for="jp">Nomor WhatsApp</label><input id="jp" inputmode="tel" placeholder="08xx-xxxx-xxxx"></div>
+          <div class="field"><label class="f" for="je">Email (opsional)</label><input id="je" type="email"></div>
+          <div class="field"><label class="f" for="jc">Kota asal</label><input id="jc"></div></div>
+        <div class="field"><span class="f">Disiplin dan brevet</span>${myDiscs().map((d) => `<div class="brv-row"><label class="check"><input type="checkbox" data-jd="${d}">${DN[d]}</label>
+          <select data-bl="${d}" disabled><option value="">Tingkat brevet…</option>${BREVET.map((b) => `<option>${b}</option>`).join('')}</select><input data-bo="${d}" placeholder="Sebutkan brevet" hidden></div>`).join('')}</div>
+        <div class="field"><span class="f">Ketersediaan (Desember 2026)</span><div class="row">${JDAYS.map((d) => `<label class="check" style="padding:2px 10px 2px 0"><input type="checkbox" data-day="${d}" checked>${Number(d.slice(8))}</label>`).join('')}</div></div>
+        <div class="grid-3"><div class="field"><label class="f" for="fk">KTP (opsional)</label><input id="fk" type="file" accept="image/*,application/pdf"></div>
+          <div class="field"><label class="f" for="ff">Pas foto (opsional)</label><input id="ff" type="file" accept="image/*"></div>
+          <div class="field"><label class="f" for="fc">Sertifikat brevet (opsional)</label><input id="fc" type="file" accept="image/*,application/pdf"></div></div>
+        <div class="field"><label class="f" for="jnote">Catatan</label><input id="jnote"></div>`,
+      onOk: async (d) => {
+        const discs = [...d.querySelectorAll('[data-jd]:checked')].map((x) => x.dataset.jd);
+        const brevet = {}; discs.forEach((k) => { brevet[k] = { level: d.querySelector(`[data-bl="${k}"]`).value }; if (brevet[k].level === 'Lainnya') brevet[k].other = d.querySelector(`[data-bo="${k}"]`).value; });
+        const up = async (sel) => { const f = d.querySelector(sel).files[0]; return f ? (await JO.uploadFile('dokumen', f)).path : null; };
+        const p = { full_name: d.querySelector('#jn').value, phone: d.querySelector('#jp').value, email: d.querySelector('#je').value, city: d.querySelector('#jc').value,
+          disciplines: discs, brevet, availability: [...d.querySelectorAll('[data-day]:checked')].map((x) => x.dataset.day), note: d.querySelector('#jnote').value,
+          ktp_path: await up('#fk'), photo_path: await up('#ff'), cert_path: await up('#fc') };
+        return api('console_jury_add', { p });
+      },
+      });
+    if (r) { JO.toast('Juri ditambahkan. Setujui untuk membuat kodenya.'); juState.status = 'baru'; pageJury(v); }
+  }
+  // brevet: aktifkan pilihan saat disiplin dicentang (dipakai di dialog Tambah juri)
+  document.addEventListener('change', (e) => {
+    const t = e.target;
+    if (t.matches && t.matches('[data-jd]')) { const s = t.closest('.brv-row').querySelector('select'); s.disabled = !t.checked; if (!t.checked) s.value = ''; }
+    if (t.matches && t.matches('.brv-row select')) { const o = t.closest('.brv-row').querySelector('input[data-bo]'); o.hidden = t.value !== 'Lainnya'; }
+  });
+
+  // =====================================================================
   //  KODE AKSES
   // =====================================================================
   async function pageAccess(v) {
@@ -1278,7 +1600,7 @@
     v.innerHTML = `<div class="row" style="justify-content:space-between;align-items:flex-end"><div><h1>Kode akses</h1><p class="muted">Satu kode untuk satu orang. Kode hanya ditampilkan sekali; bila hilang, buat kode baru (kode lama otomatis tidak berlaku).</p></div>
       <button class="btn btn-primary" id="new">+ Buat kode baru</button></div><div style="height:14px"></div>
       <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nama</th><th>Peran</th><th>Disiplin</th><th>Batasan juri</th><th>Kode</th><th>Terakhir masuk</th><th></th></tr></thead><tbody>
-      ${rows.map((s) => `<tr><td>${esc(s.name)}${s.active ? '' : ' <span class="pill bad">nonaktif</span>'}${s.note ? `<br><span class="tiny muted">${esc(s.note)}</span>` : ''}</td>
+      ${rows.map((s) => `<tr><td>${esc(s.name)}${s.active ? '' : ' <span class="pill bad">nonaktif</span>'}${s.note || s.phone ? `<br><span class="tiny muted">${esc([s.phone, s.note].filter(Boolean).join(' · '))}</span>` : ''}</td>
         <td>${ROLE[s.role]}</td><td>${s.discipline ? DN[s.discipline] : 'Semua'}</td>
         <td class="small">${s.role === 'juri' ? `${s.apparatus ? 'Alat: ' + s.apparatus.join(', ') : 'Semua alat'}<br>${s.components ? 'Komponen: ' + s.components.join(', ') : 'Semua komponen'}` : ''}</td>
         <td class="code small">…${esc(s.code_hint || '')}</td><td class="small">${s.last_login_at ? dt(s.last_login_at) : 'Belum pernah'}</td>
@@ -1293,14 +1615,16 @@
     const form = (s) => `<div class="field"><label class="f">Nama pemegang kode</label><input id="sn" value="${esc(s ? s.name : '')}" placeholder="Mis. Vicy Ayu"></div>
       ${s ? '' : `<div class="field"><label class="f">Peran</label><select id="sr">
         <option value="admin">Admin / verifikator (verifikasi bayar, dokumen, start list, hasil)</option>
+        <option value="td">TD / Technical Director (pantau kategori, start list, nilai, hasil; hanya baca)</option>
         <option value="juri">Juri (input nilai saja)</option>
         ${ME.role === 'owner' ? '<option value="superadmin">Superadmin (semua, termasuk ledger)</option>' : ''}</select></div>`}
       <div class="field"><label class="f">Disiplin</label><select id="sd"><option value="">Semua disiplin</option>${DISCS.map((d) => `<option value="${d}" ${s && s.discipline === d ? 'selected' : ''}>${DN[d]}</option>`).join('')}</select></div>
       <div id="jopt"><div class="field"><span class="f">Batasi komponen (juri)</span><div class="row">${['D', 'E', 'A', 'PEN'].map((c) => `<label class="check" style="padding:2px 10px 2px 0"><input type="checkbox" data-comp="${c}" ${s && s.components && s.components.includes(c) ? 'checked' : ''}>${c}</label>`).join('')}</div><div class="f-hint">Kosongkan untuk semua komponen.</div></div>
         <div class="field"><label class="f">Batasi alat (juri, pisahkan dengan koma)</label><input id="sa" placeholder="Mis. VT, UB" value="${esc(s && s.apparatus ? s.apparatus.join(', ') : '')}"><div class="f-hint">Kode alat: MAG FX PH SR VT PB HB; WAG VT UB BB FX; Ritmik FH ROPE HOOP BALL CLUBS RIBBON; Aerobik RTN. Kosongkan untuk semua alat.</div></div></div>
+      <div class="field"><label class="f">Nomor WhatsApp</label><input id="sph" inputmode="tel" value="${esc(s ? s.phone || '' : '')}" placeholder="08xx-xxxx-xxxx"><div class="f-hint">Tampil di halaman Kontak untuk sesama panitia dan juri.</div></div>
       <div class="field"><label class="f">Catatan</label><input id="snote" value="${esc(s ? s.note || '' : '')}" placeholder="Mis. Juri E panel 1"></div>`;
     const collect = (d) => ({ name: d.querySelector('#sn').value, role: d.querySelector('#sr') ? d.querySelector('#sr').value : undefined, discipline: d.querySelector('#sd').value,
-      components: [...d.querySelectorAll('[data-comp]:checked')].map((x) => x.dataset.comp), apparatus: d.querySelector('#sa').value.split(',').map((x) => x.trim().toUpperCase()).filter(Boolean), note: d.querySelector('#snote').value });
+      components: [...d.querySelectorAll('[data-comp]:checked')].map((x) => x.dataset.comp), apparatus: d.querySelector('#sa').value.split(',').map((x) => x.trim().toUpperCase()).filter(Boolean), note: d.querySelector('#snote').value, phone: d.querySelector('#sph').value });
     const showCode = (name, code) => dialog({ title: 'Kode akses untuk ' + name, ok: null, cancel: 'Selesai',
       body: `<div class="codebox">${esc(code)}</div><p class="small" style="margin-top:12px">Salin dan kirim secara pribadi. Kode ini tidak bisa ditampilkan lagi.</p>
         <div class="actions"><button type="button" class="btn btn-dark btn-sm" id="cp">Salin kode</button>

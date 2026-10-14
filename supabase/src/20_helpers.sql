@@ -98,7 +98,7 @@ end $$;
 create or replace function jo.check_discipline(st jo.staff, p_disc text) returns void
 language plpgsql stable set search_path = '' as $$
 begin
-  if st.role in ('admin','juri') and st.discipline is not null and st.discipline <> p_disc then
+  if st.role in ('admin','td','juri') and st.discipline is not null and st.discipline <> p_disc then
     raise exception 'Kode akses Anda hanya untuk disiplin %.', st.discipline using hint = 'ERR_FORBIDDEN', errcode = '42501';
   end if;
 end $$;
@@ -108,7 +108,7 @@ language sql stable set search_path = '' as $$
   select jsonb_build_object(
     'id', st.id, 'name', st.name, 'role', st.role, 'discipline', st.discipline,
     'apparatus', st.apparatus, 'components', st.components, 'code_hint', st.code_hint,
-    'active', st.active, 'note', st.note, 'created_at', st.created_at, 'last_login_at', st.last_login_at)
+    'active', st.active, 'note', st.note, 'created_at', st.created_at, 'last_login_at', st.last_login_at, 'phone', st.phone)
 $$;
 
 create or replace function jo.log(p_staff uuid, p_action text, p_type text, p_id text, p_detail jsonb default '{}'::jsonb)

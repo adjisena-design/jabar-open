@@ -375,6 +375,84 @@ create table if not exists jo.team_levels (
   primary key (discipline, level)
 );
 
+-- ---------------------------------------------------------------------
+-- v5 (14 Okt 2026): peran TD, nomor WA panitia, chat, laporan masalah, pendaftaran juri
+-- ---------------------------------------------------------------------
+alter table jo.staff drop constraint if exists staff_role_check;
+alter table jo.staff add constraint staff_role_check check (role in ('owner','superadmin','admin','td','juri'));
+alter table jo.staff add column if not exists phone text;
+alter table jo.clubs add column if not exists note text;
+
+create table if not exists jo.chat_messages (
+  id         bigserial primary key,
+  room       text not null,              -- 'all' | 'disc:MAG' | 'dm:<uuid>:<uuid>' (urut)
+  sender     uuid references jo.staff(id) on delete set null,
+  sender_name text not null,
+  body       text not null check (length(body) between 1 and 4000),
+  created_at timestamptz not null default now()
+);
+create index if not exists chat_messages_room_idx on jo.chat_messages(room, id);
+
+create table if not exists jo.chat_reads (
+  staff_id uuid not null references jo.staff(id) on delete cascade,
+  room     text not null,
+  last_id  bigint not null default 0,
+  primary key (staff_id, room)
+);
+
+create table if not exists jo.issues (
+  id           bigserial primary key,
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now(),
+  reporter     uuid references jo.staff(id) on delete set null,
+  reporter_name text not null,
+  discipline   text references jo.disciplines(code),
+  title        text not null,
+  body         text,
+  shot_path    text,
+  status       text not null default 'baru' check (status in ('baru','diproses','selesai')),
+  handled_by   uuid references jo.staff(id) on delete set null,
+  resolved_at  timestamptz
+);
+create table if not exists jo.issue_comments (
+  id         bigserial primary key,
+  issue_id   bigint not null references jo.issues(id) on delete cascade,
+  staff_id   uuid references jo.staff(id) on delete set null,
+  staff_name text not null,
+  body       text not null,
+  created_at timestamptz not null default now()
+);
+create table if not exists jo.issue_reads (
+  staff_id uuid not null references jo.staff(id) on delete cascade,
+  issue_id bigint not null references jo.issues(id) on delete cascade,
+  seen_at  timestamptz not null default now(),
+  primary key (staff_id, issue_id)
+);
+
+create table if not exists jo.jury_applications (
+  id          uuid primary key default gen_random_uuid(),
+  created_at  timestamptz not null default now(),
+  source      text not null default 'publik' check (source in ('publik','konsol')),
+  auth_uid    uuid,
+  full_name   text not null,
+  phone       text not null,
+  email       text,
+  city        text,
+  province    text,
+  disciplines text[] not null,
+  brevet      jsonb not null default '{}'::jsonb,   -- {"WAG":{"level":"Nasional","other":null}}
+  cert_path   text,
+  availability date[] not null default '{}',
+  ktp_path    text,
+  photo_path  text,
+  note        text,
+  status      text not null default 'baru' check (status in ('baru','disetujui','ditolak')),
+  staff_id    uuid references jo.staff(id) on delete set null,
+  reviewed_by uuid references jo.staff(id) on delete set null,
+  reviewed_at timestamptz,
+  review_note text
+);
+
 -- Semua tabel di skema jo: RLS aktif tanpa policy.
 -- Akses hanya lewat fungsi (RPC) yang memeriksa hak.
 do $$ declare t record; begin

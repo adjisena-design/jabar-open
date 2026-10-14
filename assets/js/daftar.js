@@ -53,6 +53,8 @@
     q_club: ['Klub, sekolah, atau pengkab', 'Club, school or regency'],
     q_club_hint: ['Ketik untuk mencari. Klub dipakai untuk tabel medali dan batas peserta per klub.', 'Type to search. The club is used for the medal table and per-club entry limits.'],
     club_search: ['Cari nama klub atau kota', 'Search club or city'],
+    club_count: ['{n} klub di daftar. Pilih dari daftar, atau ketik untuk menyaring.', '{n} clubs listed. Pick from the list, or type to filter.'],
+    club_found: ['{n} klub cocok.', '{n} matching clubs.'],
     club_none: ['Tanpa klub (perorangan)', 'No club (independent)'],
     club_new: ['Klub saya belum ada di daftar', 'My club is not listed'],
     club_selected: ['Terpilih', 'Selected'], club_change: ['Ganti', 'Change'],
@@ -355,7 +357,8 @@
       if (c.mode === 'new') return drawNew();
       pick.innerHTML = `<div class="field"><label class="sr-only" for="club_q">${esc(t('club_search'))}</label>
         <input id="club_q" type="search" autocomplete="off" placeholder="${esc(t('club_search'))}"></div>
-        <div id="club_res" class="choices"></div>
+        <p class="tiny muted" id="club_n" style="margin:-4px 0 6px"></p>
+        <div id="club_res" class="club-list" role="listbox" aria-label="${esc(t('q_club'))}"></div>
         <div class="row" style="margin-top:12px">
           <button type="button" class="btn btn-ghost" id="club_new">${esc(t('club_new'))}</button>
           ${S.type === 'individu' ? `<button type="button" class="btn btn-ghost" id="club_none">${esc(t('club_none'))}</button>` : ''}
@@ -363,10 +366,11 @@
       const q = pick.querySelector('#club_q'); const res = pick.querySelector('#club_res');
       const draw = () => {
         const s = q.value.trim().toLowerCase();
-        const list = CFG.clubs.filter((k) => !s || (k.name + ' ' + (k.kab_kota || '') + ' ' + (k.province || '')).toLowerCase().includes(s)).slice(0, 8);
-        res.innerHTML = list.length ? list.map((k) => `<button type="button" class="choice" data-id="${k.id}" style="text-align:left;font:inherit">
-            <span><span class="c-title">${esc(k.name)}</span><br><span class="c-sub">${esc([k.kab_kota, k.province, k.country !== 'Indonesia' ? k.country : ''].filter(Boolean).join(', '))}</span></span></button>`).join('')
-          : (s ? `<p class="muted small">${esc(t('no_match'))}</p>` : '');
+        const list = CFG.clubs.filter((k) => !s || (k.name + ' ' + (k.kab_kota || '') + ' ' + (k.province || '')).toLowerCase().includes(s));
+        pick.querySelector('#club_n').textContent = t(s ? 'club_found' : 'club_count', { n: list.length });
+        res.innerHTML = list.length ? list.map((k) => `<button type="button" role="option" class="club-opt" data-id="${k.id}">
+            <span class="c-title">${esc(k.name)}</span><span class="c-sub">${esc([k.kab_kota, k.province, k.country !== 'Indonesia' ? k.country : ''].filter(Boolean).join(', '))}</span></button>`).join('')
+          : `<p class="muted small" style="padding:10px 12px;margin:0">${esc(t('no_match'))}</p>`;
         res.querySelectorAll('[data-id]').forEach((b) => b.onclick = () => { c.mode = 'existing'; c.id = b.dataset.id; saveDraft(); renderStep2Body(); });
       };
       q.oninput = draw; draw();

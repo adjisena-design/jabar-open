@@ -423,3 +423,5 @@ details[open]:not(.closing) > summary .tog::after{transform:rotate(0)}
 }
 
 #info .sec-head{margin-bottom:clamp(20px,3vh,30px)}
+.jury-cta{margin:18px 0 0;font-size:.95rem;color:var(--muted, #5b6b88)}
+.jury-cta a{font-weight:700;margin-left:4px}

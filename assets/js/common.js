@@ -49,6 +49,7 @@
     footer_contact: ['Pertanyaan pendaftaran', 'Registration questions'],
     footer_pm: ['Project Manager (permintaan khusus, atau bila email di atas lama dibalas)', 'Project Manager (special requests, or if the address above is slow to reply)'],
     footer_sec: ['Sekretariat KONI & GI Jawa Barat', 'KONI & GI West Java secretariat'],
+    footer_jury: ['Pendaftaran juri', 'Judge application'], footer_verify: ['Verifikasi sertifikat', 'Verify a certificate'],
     loading: ['Memuat…', 'Loading…'],
     err_network: ['Tidak bisa terhubung ke server. Periksa koneksi internet lalu coba lagi.', 'Cannot reach the server. Check your connection and try again.'],
     err_session: ['Sesi browser tidak bisa dibuat. Muat ulang halaman. Jika berulang, coba beberapa menit lagi.', 'Could not start a browser session. Reload the page; if it keeps happening, try again in a few minutes.'],
@@ -195,6 +196,7 @@
       <div><div data-i18n="footer_org"></div>
       <div><span data-i18n="footer_contact"></span>: <a href="mailto:jabaropen2026@gmail.com">jabaropen2026@gmail.com</a> · Instagram <a href="https://www.instagram.com/gimnastikjabar/" target="_blank" rel="noopener">@gimnastikjabar</a></div>
       <div><span data-i18n="footer_pm"></span>: <a href="mailto:adjisena.daffa@gmail.com">adjisena.daffa@gmail.com</a></div>
+      <div><a href="${base}juri.html" data-i18n="footer_jury"></a> · <a href="${base}verifikasi.html" data-i18n="footer_verify"></a></div>
       <address><span data-i18n="footer_sec"></span>: Jl. Padjajaran No. 37A, Pasir Kaliki, Kec. Cicendo, Kota Bandung 40171</address></div>
       </div>`;
     document.body.appendChild(f);
