@@ -57,6 +57,26 @@ language sql immutable set search_path = '' as $$
     || jo.h(p_label) || '</a></p>'
 $$;
 
+-- Tautan unduh AIC langsung (halaman status mengunduh otomatis; hanya berfungsi bila lunas)
+create or replace function jo.aic_link(p_code text, p_token text, p_which text) returns text
+language sql stable set search_path = '' as $$
+  select jo.status_link(p_code, p_token) || '&aic=' || p_which
+$$;
+
+create or replace function jo.email_aic_links(p_sub uuid, p_lang text) returns text
+language sql stable set search_path = '' as $$
+  select '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:8px 0 4px">'
+    || coalesce(string_agg(
+      '<tr><td style="padding:8px 0;border-bottom:1px solid #e2e8f1"><b>' || jo.h(a.full_name) || '</b>'
+      || '<div style="font-size:13px;color:#5b6b88">' || jo.h(coalesce(a.athlete_no,'')) || '</div></td>'
+      || '<td style="padding:8px 0;border-bottom:1px solid #e2e8f1;text-align:right">'
+      || '<a href="' || jo.h(jo.aic_link(s.code, s.token, a.id::text)) || '" style="color:#2c4c7b;font-weight:bold">'
+      || jo.tr(p_lang,'Unduh AIC','Download AIC') || '</a></td></tr>', '' order by a.sort), '')
+    || '</table>'
+  from jo.submissions s join jo.athletes a on a.submission_id = s.id
+  where s.id = p_sub and a.ticket_code is not null
+$$;
+
 -- Ringkasan atlet & kategori untuk email
 create or replace function jo.email_roster(p_sub uuid, p_lang text) returns text
 language sql stable set search_path = '' as $$
@@ -168,9 +188,14 @@ begin
     || '<p>' || jo.tr(l,'Pembayaran untuk pendaftaran ','Payment for registration ') || '<b>' || jo.h(s.code) || '</b> '
     || jo.tr(l,'sudah kami verifikasi. Status: <b style="color:#1b8a4b">LUNAS</b>.','has been verified. Status: <b style="color:#1b8a4b">PAID</b>.') || '</p>'
     || case when s.registrant_type = 'beregu' then coalesce(jo.email_team(s.id, l), '') else jo.email_roster(s.id, l) end
-    || '<p>' || jo.tr(l,'Athlete Identification Card (AIC) Jabar Open 2026 untuk setiap atlet dapat diunduh di halaman status dan wajib ditunjukkan secara digital (dari ponsel, tanpa dicetak) di venue. Tidak ada registrasi ulang: cukup datang sesuai jadwal yang diumumkan di Instagram dan situs Jabar Open 2026.',
-                      'Each athlete''s Athlete Identification Card (AIC) Jabar Open 2026 can be downloaded from the status page and must be shown digitally (on a phone, no printing) at the venue. There is no on-site check-in: just come at the schedule announced on Instagram and the Jabar Open 2026 website.') || '</p>'
-    || jo.email_button(jo.status_link(s.code, s.token), jo.tr(l,'Unduh AIC','Download AIC'));
+    || '<p>' || jo.tr(l,'Athlete Identification Card (AIC) Jabar Open 2026 sudah bisa diunduh. Tekan tautan di bawah; AIC terunduh otomatis sebagai PDF. AIC wajib ditunjukkan secara digital (dari ponsel, tanpa dicetak) di venue. Tidak ada registrasi ulang: cukup datang sesuai jadwal yang diumumkan di Instagram dan situs Jabar Open 2026.',
+                      'The Athlete Identification Cards (AIC) Jabar Open 2026 are ready. Tap a link below and the AIC downloads as a PDF. Show it digitally (on a phone, no printing) at the venue. There is no on-site check-in: just come at the schedule announced on Instagram and the Jabar Open 2026 website.') || '</p>'
+    || jo.email_aic_links(s.id, l)
+    || case when (select count(*) from jo.athletes a where a.submission_id = s.id and a.ticket_code is not null) > 1
+         then jo.email_button(jo.aic_link(s.code, s.token, 'all'), jo.tr(l,'Unduh semua AIC (1 PDF)','Download all AICs (1 PDF)'))
+         else '' end
+    || '<p style="font-size:13px;color:#5b6b88">' || jo.tr(l,'Tautan ini juga bisa dibuka lagi kapan saja. Halaman status: ','You can open these links again at any time. Status page: ')
+    || '<a href="' || jo.h(jo.status_link(s.code, s.token)) || '" style="color:#2c4c7b">' || jo.tr(l,'buka','open') || '</a>.</p>';
   perform jo.queue_email(s.id, 'lunas', s.contact_email, cc,
     jo.tr(l,'Pembayaran lunas — Athlete Identification Card (AIC) ','Payment confirmed — Athlete Identification Cards (AIC) ') || s.code,
     jo.email_layout(jo.tr(l,'Pembayaran lunas','Payment confirmed'), body, l));

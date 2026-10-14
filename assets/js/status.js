@@ -14,14 +14,21 @@
     s_club: ['Klub', 'Club'], s_contact: ['Penanggung jawab', 'Contact'], s_created: ['Didaftarkan', 'Registered'],
     s_individual: ['Perorangan', 'Independent'],
     s_pay: ['Pembayaran', 'Payment'],
-    s_pay_waiting: ['Bukti pembayaran sudah diterima pada {d}. Panitia sedang memverifikasi; AIC dikirim lewat email setelah lunas.', 'Payment proof received on {d}. The committee is verifying it; AIC are emailed once confirmed.'],
+    s_pay_waiting: ['Bukti pembayaran sudah diterima pada {d}. Panitia sedang memverifikasi; tautan unduh AIC dikirim lewat email setelah lunas.', 'Payment proof received on {d}. The committee is verifying it; the AIC download link is emailed once confirmed.'],
     s_pay_fix: ['Bukti pembayaran perlu diperbaiki', 'Payment proof needs attention'],
     s_paid: ['Lunas pada {d}.', 'Paid on {d}.'],
     s_proof_again: ['Unggah bukti lain', 'Upload another proof'],
     s_athletes: ['Atlet', 'Athletes'],
     s_doc_menunggu: ['Dokumen belum diperiksa', 'Document not yet checked'], s_doc_valid: ['Dokumen valid', 'Document verified'], s_doc_tidak_valid: ['Dokumen perlu diganti, hubungi panitia', 'Document needs replacing, contact the committee'],
     s_pri: ['Priangan', 'Priangan'], s_pri_menunggu: ['menunggu verifikasi', 'pending'], s_pri_disetujui: ['disetujui', 'approved'], s_pri_ditolak: ['ditolak', 'rejected'],
-    s_ticket: ['Unduh Athlete Identification Card (AIC)', 'Download Athlete Identification Card (AIC)'], s_ticket_wait: ['Athlete Identification Card (AIC) tersedia setelah pembayaran lunas. Tunjukkan secara digital di venue; tidak perlu dicetak.', 'The Athlete Identification Card (AIC) is available once payment is confirmed. Show it digitally at the venue; no printing needed.'],
+    s_ticket: ['Unduh Athlete Identification Card (AIC)', 'Download Athlete Identification Card (AIC)'],
+    s_ticket_all: ['Unduh semua AIC (1 PDF)', 'Download all AICs (1 PDF)'],
+    s_ticket_note: ['Tunjukkan AIC secara digital di venue; tidak perlu dicetak.', 'Show the AIC digitally at the venue; no printing needed.'],
+    s_lock_bayar: ['AIC terkunci: unggah bukti pembayaran dulu. AIC terbuka setelah panitia memverifikasi pembayaran (lunas).', 'AIC locked: upload the payment proof first. The AIC unlocks once the committee confirms the payment.'],
+    s_lock_manual: ['AIC terkunci: menunggu konfirmasi pembayaran dari panitia.', 'AIC locked: waiting for the committee to confirm the payment.'],
+    s_lock_verif: ['AIC terkunci: bukti pembayaran sedang diverifikasi panitia. Setelah lunas, tautan unduh AIC dikirim ke {e}.', 'AIC locked: the committee is verifying the payment proof. Once confirmed, the AIC download link is emailed to {e}.'],
+    s_lock_fix: ['AIC terkunci: bukti pembayaran perlu diperbaiki (lihat bagian Pembayaran).', 'AIC locked: the payment proof needs attention (see Payment).'],
+    s_aic_locked_link: ['AIC belum bisa diunduh karena pendaftaran ini belum lunas.', 'The AIC cannot be downloaded yet because this registration is not paid.'],
     s_start: ['Jadwal tampil', 'Competition slot'], s_group: ['grup', 'group'], s_order: ['urutan', 'order'],
     s_result: ['Hasil', 'Result'], s_rank: ['Peringkat {r}', 'Rank {r}'], s_cert: ['Unduh sertifikat', 'Download certificate'],
     s_mini: ['Medali mini, peringkat {r}', 'Mini medal, place {r}'],
@@ -108,7 +115,9 @@
       ${payOpen ? payCard(d) : ''}
       ${d.status === 'lunas' ? `<section class="card"><h2>${esc(t('s_pay'))}</h2><p class="note ok" style="margin:0">${esc(t('s_paid', { d: JO.fmtDateTime(d.paid_at) }))}</p></section>` : ''}
       ${d.team ? teamCard(d) : ''}
-      <section class="card"><h2>${esc(t('s_athletes'))}</h2><div id="aths" class="stack"></div></section>`;
+      <section class="card"><h2>${esc(t('s_athletes'))}</h2>
+        ${d.status === 'lunas' && d.athletes.filter((a) => a.ticket_code).length > 1 ? `<p style="margin:0 0 12px"><button class="btn btn-dark btn-sm" id="aic_all">${esc(t('s_ticket_all'))}</button></p>` : ''}
+        <div id="aths" class="stack"></div></section>`;
     const box = app.querySelector('#aths');
     d.athletes.forEach((a) => {
       const ents = d.entries.filter((e) => (e.athlete_ids || []).includes(a.id));
@@ -134,10 +143,13 @@
                 <button class="btn btn-ghost btn-sm" data-cert="${e.id}" data-ath="${a.id}">${esc(t('s_cert'))}</button>
                 ${Object.keys(e.result.app_medals || {}).map((k) => `<button class="btn btn-ghost btn-sm" data-cert="${e.id}" data-ath="${a.id}" data-app="${k}">${esc(t('s_cert_app', { a: appName(k) }))}</button>`).join('')}</div>` : ''}
           </div>`).join('')}
-          <div style="margin-top:10px">${a.ticket_code ? `<button class="btn btn-dark btn-sm" data-ticket="${a.id}">${esc(t('s_ticket'))}</button>` : `<span class="small muted">${esc(t('s_ticket_wait'))}</span>`}</div>
+          ${aicBlock(a)}
         </div>`;
+      el.id = 'ath-' + a.id;
       box.appendChild(el);
     });
+    const allBtn = app.querySelector('#aic_all');
+    if (allBtn) allBtn.onclick = () => downloadTickets(allBtn, d.athletes.filter((a) => a.ticket_code));
     box.querySelectorAll('[data-ticket]').forEach((b) => b.onclick = () => downloadTicket(b));
     box.querySelectorAll('[data-cert]').forEach((b) => b.onclick = () => downloadCert(b));
     app.querySelectorAll('[data-tcert]').forEach((b) => b.onclick = () => downloadTeamCert(b));
@@ -163,6 +175,23 @@
         render(); JO.toast(t('proof_done'));
       } catch (err) { st.textContent = err.message; st.style.color = 'var(--bad)'; }
     };
+  }
+
+  function lockReason(d) {
+    if (d.status === 'menunggu_verifikasi') return t('s_lock_verif', { e: d.contact.email });
+    if (d.status === 'perlu_perbaikan') return t('s_lock_fix');
+    if (d.payment_method === 'manual') return t('s_lock_manual');
+    return t('s_lock_bayar');
+  }
+  // AIC hanya terbuka bila lunas (ticket_code hanya dikirim server saat lunas)
+  function aicBlock(a) {
+    if (D.status === 'dibatalkan') return '';
+    if (a.ticket_code && D.status === 'lunas') {
+      return `<div style="margin-top:10px"><button class="btn btn-dark btn-sm" data-ticket="${a.id}">${esc(t('s_ticket'))}</button>
+        <span class="small muted" style="margin-left:6px">${esc(t('s_ticket_note'))}</span></div>`;
+    }
+    return `<div style="margin-top:10px"><button class="btn btn-dark btn-sm" disabled aria-disabled="true" style="opacity:.45;cursor:not-allowed">${esc(t('s_ticket'))}</button>
+      <p class="small muted" style="margin:6px 0 0">${esc(lockReason(D))}</p></div>`;
   }
 
   function payCard(d) {
@@ -243,20 +272,42 @@
 
   async function downloadTicket(btn) {
     const a = D.athletes.find((x) => x.id === btn.dataset.ticket);
+    return downloadTickets(btn, [a]);
+  }
+  function ticketData(a) {
     const ents = D.entries.filter((e) => (e.athlete_ids || []).includes(a.id));
-    const old = btn.textContent; btn.disabled = true; btn.textContent = t('s_making');
-    try {
-      const doc = await JO.ticketPdf({
+    return {
         discipline: D.discipline, athlete_no: a.athlete_no, name: a.full_name, club: D.club ? D.club.name : 'Perorangan',
         categories: ents.map((e) => e.category_name_id + (e.team_only && D.team ? ` (khusus beregu, tim ${D.team.name})` : '')),
         bpjs_missing: a.nationality === 'WNI' && !a.has_bpjs,
         photo: a.photo_thumb, registered_by: D.contact ? D.contact.name : '',
         start: ents.map((e) => startText(e.start)).filter(Boolean).join(' / '),
         ticket_code: a.ticket_code, submission_code: D.code,
-      });
-      doc.save(`AIC-JabarOpen2026-${a.athlete_no}-${a.full_name.replace(/[^a-z0-9]+/gi, '-')}.pdf`);
+      };
+  }
+  async function downloadTickets(btn, list) {
+    list = (list || []).filter((a) => a && a.ticket_code);
+    if (D.status !== 'lunas' || !list.length) { JO.toast(t('s_aic_locked_link'), 'bad'); return; }
+    const old = btn ? btn.textContent : ''; if (btn) { btn.disabled = true; btn.textContent = t('s_making'); }
+    try {
+      let doc = null;
+      for (const a of list) doc = await JO.ticketPdf(ticketData(a), doc || undefined);
+      doc.save(list.length === 1
+        ? `AIC-JabarOpen2026-${list[0].athlete_no}-${list[0].full_name.replace(/[^a-z0-9]+/gi, '-')}.pdf`
+        : `AIC-JabarOpen2026-${D.code}-semua.pdf`);
     } catch (e) { JO.toast(e.message, 'bad'); }
-    finally { btn.disabled = false; btn.textContent = old; }
+    finally { if (btn) { btn.disabled = false; btn.textContent = old; } }
+  }
+  // tautan dari email: status.html?k=..&t=..&aic=<id atlet|all>
+  function handleAicParam() {
+    const want = (JO.qs('aic') || '').trim();
+    if (!want) return;
+    if (D.status !== 'lunas') { JO.toast(t('s_aic_locked_link'), 'bad'); return; }
+    const list = want === 'all' ? D.athletes.filter((a) => a.ticket_code) : D.athletes.filter((a) => a.id === want && a.ticket_code);
+    if (!list.length) return;
+    const target = want === 'all' ? app.querySelector('#aic_all') || app.querySelector('[data-ticket]') : app.querySelector(`[data-ticket="${list[0].id}"]`);
+    if (target) target.scrollIntoView({ block: 'center' });
+    downloadTickets(target, list);
   }
   async function downloadCert(btn) {
     const e = D.entries.find((x) => x.id === btn.dataset.cert);
@@ -298,6 +349,7 @@
     try { D = await rpc('public_get_submission', { p_code: code, p_token: token }); }
     catch (e) { return finder(e.hint === 'ERR_NOT_FOUND' ? t('s_notfound') : e.message); }
     render();
+    handleAicParam();
     JO.onLang(render);
   }
   init();
