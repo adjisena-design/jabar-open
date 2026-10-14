@@ -128,28 +128,96 @@
   }
 
   // ---------------- kerangka ----------------
+  // ikon garis sederhana (24x24)
+  const IC = {
+    home: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
+    inbox: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 13h5l2 3h4l2-3h5"/>',
+    users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/>',
+    music: '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
+    tag: '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/>',
+    list: '<path d="M9 6h12M9 12h12M9 18h12"/><path d="M4 5h1v3M4 11.5c1-1 2-.5 2 .3 0 .9-2 1.6-2 2.7h2M4 17h2l-1 1.5c1 0 1.2 1.6 0 1.7-.6 0-1-.3-1-.6"/>',
+    pen: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+    trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4"/><path d="M12 13v4M8 21h8M9 21v-1.5c0-1 1.3-2.5 3-2.5s3 1.5 3 2.5V21"/>',
+    wallet: '<rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18M16 15h2"/><path d="M6 6V5a2 2 0 0 1 2-2h9"/>',
+    flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+    key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/>',
+    gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>',
+    log: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>',
+    out: '<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11"/>',
+    menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+    dots: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
+    check: '<path d="M4 12l5 5L20 6"/>', clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', alert: '<path d="M12 3l10 18H2z"/><path d="M12 10v4M12 17.5v.5"/>',
+  };
+  const icon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${IC[k] || ''}</svg>`;
+
+  // menu aksi baris: tombol utama opsional + "…" berisi aksi lain
+  // items: [{ label, act, danger, sep }]; tombol berisi data-rm-act="<act>"
+  function rowMenu(primary, items) {
+    const list = items.filter(Boolean);
+    return `<span class="rm">${primary || ''}${list.length ? `<button type="button" class="rm-btn" aria-label="Aksi lain" aria-haspopup="true">${icon('dots')}</button>
+      <span class="rm-pop" role="menu">${list.map((x) => x.sep ? '<hr>' : `<button type="button" role="menuitem" class="${x.danger ? 'danger' : ''}" ${x.attr || ''}>${esc(x.label)}</button>`).join('')}</span>` : ''}</span>`;
+  }
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('.rm-btn');
+    document.querySelectorAll('.rm.open').forEach((m) => { if (!b || m !== b.parentElement) m.classList.remove('open'); });
+    if (b) {
+      const m = b.parentElement; m.classList.toggle('open'); e.stopPropagation();
+      if (m.classList.contains('open')) {
+        const pop = m.querySelector('.rm-pop'); const r = b.getBoundingClientRect();
+        pop.style.position = 'fixed'; pop.style.right = 'auto';
+        const w = Math.max(pop.offsetWidth, 170), h = pop.offsetHeight;
+        pop.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + 'px';
+        pop.style.top = (r.bottom + 4 + h > window.innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4) + 'px';
+      }
+    }
+    else if (e.target.closest('.rm-pop button')) document.querySelectorAll('.rm.open').forEach((m) => m.classList.remove('open'));
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.querySelectorAll('.rm.open').forEach((m) => m.classList.remove('open')); });
+  window.addEventListener('scroll', () => document.querySelectorAll('.rm.open').forEach((m) => m.classList.remove('open')), true);
+
   const PAGES = [
-    ['ringkasan', 'Ringkasan', () => isAdmin(), pageDashboard],
-    ['pendaftaran', 'Pendaftaran', () => isAdmin(), pageSubmissions],
-    ['atlet', 'Data atlet', () => isAdmin(), pageAthletes],
-    ['musik', 'Musik Ritmik', () => isAdmin() && (!ME.discipline || ME.discipline === 'RG'), pageMusic],
-    ['kategori', 'Kategori', () => isAdmin(), pageCategories],
-    ['startlist', 'Start list', () => isAdmin(), pageStartlist],
-    ['nilai', 'Penilaian', () => true, pageScoring],
-    ['hasil', 'Hasil & medali', () => isAdmin(), pageResults],
-    ['ledger', 'Ledger', () => isSuper(), pageLedger],
-    ['klub', 'Klub', () => isAdmin(), pageClubs],
-    ['akses', 'Kode akses', () => isSuper(), pageAccess],
-    ['pengaturan', 'Pengaturan', () => isSuper(), pageSettings],
-    ['log', 'Log', () => isSuper(), pageLog],
+    ['ringkasan', 'Ringkasan', () => isAdmin(), pageDashboard, 'home', 'Utama'],
+    ['pendaftaran', 'Pendaftaran', () => isAdmin(), pageSubmissions, 'inbox', 'Peserta'],
+    ['atlet', 'Data atlet', () => isAdmin(), pageAthletes, 'users', 'Peserta'],
+    ['musik', 'Musik Ritmik', () => isAdmin() && (!ME.discipline || ME.discipline === 'RG'), pageMusic, 'music', 'Peserta'],
+    ['klub', 'Klub', () => isAdmin(), pageClubs, 'flag', 'Peserta'],
+    ['kategori', 'Kategori', () => isAdmin(), pageCategories, 'tag', 'Pertandingan'],
+    ['startlist', 'Start list', () => isAdmin(), pageStartlist, 'list', 'Pertandingan'],
+    ['nilai', 'Penilaian', () => true, pageScoring, 'pen', 'Pertandingan'],
+    ['hasil', 'Hasil & medali', () => isAdmin(), pageResults, 'trophy', 'Pertandingan'],
+    ['ledger', 'Ledger', () => isSuper(), pageLedger, 'wallet', 'Keuangan'],
+    ['akses', 'Kode akses', () => isSuper(), pageAccess, 'key', 'Sistem'],
+    ['pengaturan', 'Pengaturan', () => isSuper(), pageSettings, 'gear', 'Sistem'],
+    ['log', 'Log', () => isSuper(), pageLog, 'log', 'Sistem'],
   ];
   async function startApp() {
     await refreshCats();
-    root.innerHTML = `<div class="shell"><aside class="side">
-        <div class="who"><strong>${esc(ME.name)}</strong><span>${ROLE[ME.role]}${ME.discipline ? ' ' + DN[ME.discipline] : ''}</span></div>
-        <nav id="nav">${PAGES.filter((p) => p[2]()).map(([k, l]) => `<a href="#/${k}" data-k="${k}">${esc(l)}</a>`).join('')}</nav>
-        <div class="out"><button class="btn btn-ghost btn-sm" id="logout" type="button">Keluar</button></div>
-      </aside><main class="main" id="view"></main></div>`;
+    let grp = '';
+    const nav = PAGES.filter((p) => p[2]()).map(([k, l, , , ic, g]) => {
+      const head = g !== grp ? `<div class="grp">${esc(g)}</div>` : ''; grp = g;
+      return `${head}<a href="#/${k}" data-k="${k}">${icon(ic)}<span>${esc(l)}</span></a>`;
+    }).join('');
+    const initials = ME.name.split(/\s+/).map((x) => x[0]).slice(0, 2).join('').toUpperCase();
+    root.innerHTML = `<div class="shell"><aside class="side" id="side">
+        <div class="brandbox"><img src="../assets/img/brand/jabar-open.webp" alt="" width="360" height="246"><div><small>Konsol panitia</small><b>Jabar Open 2026</b></div></div>
+        <nav id="nav">${nav}</nav>
+        <div class="foot">${ROLE[ME.role]}${ME.discipline ? ' ' + DN[ME.discipline] : ''} · setiap tindakan tercatat atas nama Anda</div>
+      </aside>
+      <div class="mainwrap">
+        <header class="topline">
+          <button type="button" class="btn btn-ghost btn-sm menu-tg" id="menu-tg" aria-label="Menu">${icon('menu')}</button>
+          <div class="ttl"><b>Konsol Panitia</b><small>Jabar Open 2026 · Gymnasium Arcamanik · 12–20 Desember</small></div>
+          <div class="me"><span class="avatar">${esc(initials)}</span><span class="who"><b>${esc(ME.name)}</b><small>${ROLE[ME.role]}${ME.discipline ? ' ' + DN[ME.discipline] : ''}</small></span>
+            <button class="btn btn-ghost btn-sm" id="logout" type="button" title="Keluar">${icon('out')}<span>Keluar</span></button></div>
+        </header>
+        <main class="main" id="view"></main></div></div>`;
+    const side = root.querySelector('#side');
+    const closeSide = () => { side.classList.remove('open'); const sc = document.querySelector('.scrim'); if (sc) sc.remove(); };
+    root.querySelector('#menu-tg').onclick = () => {
+      side.classList.add('open');
+      const sc = document.createElement('div'); sc.className = 'scrim'; sc.onclick = closeSide; document.body.appendChild(sc);
+    };
+    side.querySelectorAll('nav a').forEach((a) => a.addEventListener('click', closeSide));
     root.querySelector('#logout').onclick = async () => { try { await rpc('console_logout'); } catch (e) {} ME = null; location.hash = ''; showLogin('Anda sudah keluar.'); };
     window.onhashchange = route;
     if (!location.hash || location.hash === '#/' || location.hash === '#') location.hash = isAdmin() ? '#/ringkasan' : '#/nilai';
@@ -173,8 +241,15 @@
   async function pageDashboard(v) {
     const d = await api('console_dashboard');
     const emailOk = d.email && d.email.last_poll && (Date.now() - new Date(d.email.last_poll).getTime() < 30 * 60 * 1000);
-    v.innerHTML = `<h1>Ringkasan</h1><p class="muted">Halo, ${esc(ME.name)}. Angka di bawah diperbarui setiap halaman ini dibuka.</p>
-      <div class="stats" style="margin-top:16px">${d.by_discipline.map((x) => `<div class="stat">
+    const sum = (k) => d.by_discipline.reduce((a, x) => a + (Number(x[k]) || 0), 0);
+    v.innerHTML = `<h1>Ringkasan</h1><p class="muted">Halo, ${esc(ME.name)}. Angka diperbarui setiap halaman ini dibuka.</p>
+      <div class="kpis">
+        <div class="kpi"><div><small>Atlet terdaftar</small><b>${sum('athletes')}</b></div><i>${icon('users')}</i></div>
+        <div class="kpi ok"><div><small>Atlet lunas</small><b>${sum('athletes_paid')}</b></div><i>${icon('check')}</i></div>
+        <div class="kpi warn"><div><small>Menunggu verifikasi</small><b>${sum('to_verify')}</b></div><i>${icon('clock')}</i></div>
+        <div class="kpi bad"><div><small>Dokumen belum diperiksa</small><b>${sum('docs_pending')}</b></div><i>${icon('alert')}</i></div>
+      </div>
+      <div class="stats">${d.by_discipline.map((x) => `<div class="stat">
         <h3>${esc(x.name)} <a class="small" href="#/pendaftaran?d=${x.code}">Lihat</a></h3>
         <div class="big">${x.athletes}</div><div class="small muted">atlet terdaftar, ${x.athletes_paid} lunas</div>
         <ul>
@@ -516,7 +591,9 @@
       <div class="bar">${discSelect('ad', '')}
         <div class="field"><label class="f" for="as">Pembayaran</label><select id="as"><option value="">Semua</option>${Object.entries(ST).filter(([k]) => k !== 'dibatalkan').map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></div>
         <div class="field" style="flex:1;min-width:200px"><label class="f" for="aq">Cari</label><input id="aq" type="search" placeholder="Nama, nomor atlet, klub, kota"></div>
-        <button class="btn btn-dark" id="ax" type="button">Unduh Excel</button></div><div id="list"></div>`;
+        <button class="btn btn-dark" id="ax" type="button">Unduh Excel</button>
+        ${myDiscs().some((d) => d === 'MAG' || d === 'WAG') ? '<button class="btn btn-ghost" id="anom" type="button">Nominative Form</button>' : ''}</div><div id="list"></div>`;
+    const nb = v.querySelector('#anom'); if (nb) nb.onclick = () => nominativeDialog();
     let rows = [];
     const load = async () => {
       const list = v.querySelector('#list'); loading(list);
@@ -589,6 +666,11 @@
           <div class="field"><label class="f">Biaya (Rp)</label><input data-k="fee" type="number" value="${c.fee}"><div class="f-hint">Hanya berlaku untuk pendaftaran baru</div></div>
           <div class="field"><label class="f">Maks. peserta per klub</label><input data-k="max_per_club" type="number" value="${c.max_per_club || ''}"></div></div>
           <div class="field"><span class="f">Alat</span><div class="row">${apps.map((a) => `<label class="check" style="padding:2px 8px 2px 0"><input type="checkbox" data-app="${a.code}" ${c.apparatus.includes(a.code) ? 'checked' : ''}>${esc(a.id)}</label>`).join('')}</div></div>
+          <div class="grid-3">
+            <div class="field"><label class="f">Medali serba bisa s.d. peringkat</label><input id="mr_places" type="number" min="1" max="10" value="${(c.medal_rule && c.medal_rule.places) || 3}"></div>
+            <div class="field"><label class="f">Penghargaan serba bisa s.d. peringkat</label><input id="mr_aa" type="number" min="1" max="10" value="${(c.medal_rule && (c.medal_rule.aa_places || c.medal_rule.places)) || 3}"><div class="f-hint">Mis. 6 = peringkat 4–6 medali mini</div></div>
+            <div class="field"><label class="f">Maks. pesenam per klub per penghargaan</label><input id="mr_cap" type="number" min="0" max="10" value="${(c.medal_rule && c.medal_rule.club_cap) || ''}"><div class="f-hint">Kosongkan bila tanpa batas</div></div></div>
+          <label class="check"><input type="checkbox" id="mr_app" ${c.medal_rule && c.medal_rule.apparatus_medals ? 'checked' : ''}>Medali per alat (peringkat 1–3 setiap alat)</label>
           <label class="check"><input type="checkbox" data-b="allow_priangan" ${c.allow_priangan ? 'checked' : ''}>Membuka kategori Priangan</label>
           <label class="check"><input type="checkbox" data-b="active" ${c.active ? 'checked' : ''}>Aktif (tampil di formulir pendaftaran)</label>` : ''}
         <label class="check"><input type="checkbox" data-b="exhibition" ${c.exhibition ? 'checked' : ''}>Eksibisi (medali tidak dihitung di tabel perolehan)</label>
@@ -598,7 +680,16 @@
         const patch = {};
         d.querySelectorAll('[data-k]').forEach((i) => { const k = i.dataset.k; const old = c[k] == null ? '' : String(c[k]); if (i.value !== old) patch[k] = i.value; });
         d.querySelectorAll('[data-b]').forEach((i) => { if (i.checked !== c[i.dataset.b]) patch[i.dataset.b] = i.checked; });
-        if (sup) { const apps2 = [...d.querySelectorAll('[data-app]:checked')].map((x) => x.dataset.app); if (apps2.join() !== c.apparatus.join()) patch.apparatus = apps2; }
+        if (sup) {
+          const apps2 = [...d.querySelectorAll('[data-app]:checked')].map((x) => x.dataset.app); if (apps2.join() !== c.apparatus.join()) patch.apparatus = apps2;
+          const mr = { type: 'rank', places: Number(d.querySelector('#mr_places').value) || 3 };
+          const aa = Number(d.querySelector('#mr_aa').value) || mr.places; if (aa > mr.places) mr.aa_places = aa;
+          if (d.querySelector('#mr_app').checked) mr.apparatus_medals = true;
+          const cap = Number(d.querySelector('#mr_cap').value); if (cap > 0) mr.club_cap = cap;
+          const o = c.medal_rule || {};
+          const norm = (x) => JSON.stringify({ p: x.places || 3, a: x.aa_places || x.places || 3, m: !!x.apparatus_medals, c: x.club_cap || 0 });
+          if (norm(mr) !== norm(o)) patch.medal_rule = mr;
+        }
         if (!Object.keys(patch).length) return true;
         CATS = await api('console_update_category', { p_id: c.id, p_patch: patch }).then(() => api('console_categories', { p_discipline: null }));
         return true;
@@ -628,7 +719,7 @@
       box.innerHTML = `<h2>Sesi ${DN[slState.disc]}</h2>
         ${sessions.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nama sesi</th><th>Hari</th><th>Mulai</th><th></th></tr></thead><tbody>
         ${sessions.map((s) => `<tr><td>${esc(s.name)}</td><td>${s.day ? JO.fmtDate(s.day, { weekday: 'long', day: 'numeric', month: 'long' }) : '–'}</td><td>${s.start_time ? s.start_time.slice(0, 5) : '–'}</td>
-          <td class="r"><button class="btn btn-ghost btn-sm" data-se="${s.id}">Ubah</button> <button class="btn btn-bad btn-sm" data-sx="${s.id}">Hapus</button></td></tr>`).join('')}</tbody></table></div>` : '<p class="small muted">Belum ada sesi. Tambahkan sesi lomba (mis. "Sesi 1 Minggu pagi").</p>'}
+          <td class="r">${rowMenu(`<button class="btn btn-ghost btn-sm" data-se="${s.id}">Ubah</button>`, [{ label: 'Hapus sesi', attr: `data-sx="${s.id}"`, danger: true }])}</td></tr>`).join('')}</tbody></table></div>` : '<p class="small muted">Belum ada sesi. Tambahkan sesi lomba (mis. "Sesi 1 Minggu pagi").</p>'}
         <button class="btn btn-ghost btn-sm" id="sadd" style="margin-top:10px">Tambah sesi</button>`;
       const edit = async (s) => {
         const r = await dialog({ title: s ? 'Ubah sesi' : 'Tambah sesi',
@@ -794,13 +885,13 @@
       const incomplete = D.results.filter((r) => r.n_scored < apps.length).length;
       box.innerHTML = `<section class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(c.name_id)}</h2>
           ${c.results_published ? `<span class="pill ok">Dipublikasikan ${dt(c.results_published_at)}</span>` : '<span class="pill">Belum dipublikasikan</span>'}</div>
-        <p class="small muted">Aturan medali sementara: peringkat 1–${(c.medal_rule && c.medal_rule.places) || 3} per kategori (serba bisa). Aturan khusus dari Undangan (persentase, ambang nilai, batas per klub) menyusul.${c.exhibition ? ' Kategori eksibisi: medali tidak dihitung.' : ''}</p>
+        <p class="small muted">${ruleText(c.medal_rule)}${c.exhibition ? ' Kategori eksibisi: medali tidak dihitung.' : ''}</p>
         ${incomplete ? `<p class="note warn small">${incomplete} atlet belum punya nilai di semua alat.</p>` : ''}
         <div class="tbl-wrap"><table class="tbl"><thead><tr><th class="c">Per.</th><th>Atlet</th><th>Klub</th>${apps.length > 1 ? apps.map((a) => `<th class="r">${esc(a.code)}</th>`).join('') : ''}<th class="r">Total</th><th>Medali</th>${anyPri ? '<th class="c">Priangan</th>' : ''}</tr></thead><tbody>
           ${D.results.map((r) => `<tr><td class="c"><span class="rank">${r.rank || '–'}</span></td>
             <td>${r.athletes.map((a) => `${esc(a.name)} <span class="tiny muted">${esc(a.athlete_no)}</span>`).join('<br>')}</td><td class="small">${esc(r.club)}<br><span class="muted">${esc(r.region)}</span></td>
-            ${apps.length > 1 ? apps.map((a) => `<td class="r num">${num3(r.scores[a.code])}</td>`).join('') : ''}
-            <td class="r num"><strong>${num3(r.total)}</strong></td><td>${r.medal ? `<span class="medal ${r.medal}"></span> ${esc(JO.t('medal_' + r.medal))}` : ''}</td>
+            ${apps.length > 1 ? apps.map((a) => `<td class="r num">${num3(r.scores[a.code])}${r.app_medals && r.app_medals[a.code] ? ` <span class="medal ${r.app_medals[a.code]}"></span>` : ''}</td>`).join('') : ''}
+            <td class="r num"><strong>${num3(r.total)}</strong></td><td>${r.medal ? `<span class="medal ${r.medal}"></span> ${esc(JO.t('medal_' + r.medal))}` : r.mini ? `<span class="pill">Mini ${r.award_rank}</span>` : ''}${r.capped ? ' <span class="pill warn" title="Maks. 2 pesenam per klub; penghargaan turun ke pesenam berikutnya">batas klub</span>' : ''}${r.team_only ? ' <span class="pill gold">khusus beregu</span>' : ''}</td>
             ${anyPri ? `<td class="c">${r.priangan_rank ? r.priangan_rank + (r.priangan_medal ? ` <span class="medal ${r.priangan_medal}"></span>` : '') : ''}</td>` : ''}</tr>`).join('')}
         </tbody></table></div>
         <div class="sticky-actions">
@@ -818,10 +909,17 @@
         try {
           let doc = null;
           for (const r of D.results) {
+            if (r.team_only) continue;
             for (const a of r.athletes) {
               const cert = D.certificates.find((x) => x.entry_id === r.entry_id && x.athlete_id === a.id);
-              doc = await JO.certificatePdf({ name: a.name, club: r.club, discipline: c.discipline, category: c.name_id, rank: r.rank, medal: r.medal,
-                priangan_rank: r.priangan_rank, priangan_medal: r.priangan_medal, cert_code: cert ? cert.cert_code : '-', signatories: D.signatories }, doc);
+              const code = cert ? cert.cert_code : '-';
+              doc = await JO.certificatePdf({ name: a.name, club: r.club, discipline: c.discipline, category: c.name_id, rank: r.award_rank, medal: r.medal, mini: r.mini,
+                priangan_rank: r.priangan_rank, priangan_medal: r.priangan_medal, cert_code: code, signatories: D.signatories }, doc);
+              for (const [ap, m] of Object.entries(r.app_medals || {})) {
+                const an = (apps.find((x) => x.code === ap) || {}).id || ap;
+                doc = await JO.certificatePdf({ name: a.name, club: r.club, discipline: c.discipline, category: c.name_id, apparatus: an, medal: m,
+                  cert_code: code + '-' + ap, signatories: D.signatories }, doc);
+              }
             }
           }
           if (doc) doc.save(`sertifikat-${c.code}.pdf`); else JO.toast('Belum ada hasil.', 'bad');
@@ -832,7 +930,9 @@
     const medalView = async () => {
       rbox.innerHTML = `<div class="bar"><div class="seg"><label><input type="radio" name="mk" value="0" checked>Jabar Open</label><label><input type="radio" name="mk" value="1">Priangan</label></div>
         <label class="check" style="padding:0"><input type="checkbox" id="mu">Sertakan kategori yang belum dipublikasikan (pratinjau)</label>
-        <button class="btn btn-ghost btn-sm" id="mx">Unduh Excel</button></div><div id="mt"></div>`;
+        <button class="btn btn-ghost btn-sm" id="mx">Unduh Excel</button>
+        <button class="btn btn-ghost btn-sm" id="mo" title="Jumlah medali & piala yang perlu dipesan, dihitung dari pendaftaran">Kebutuhan medali (Excel)</button></div><div id="mt"></div>`;
+      rbox.querySelector('#mo').onclick = () => medalOrderReport().catch((e) => JO.toast(e.message, 'bad'));
       let data;
       const draw = async () => {
         const box = rbox.querySelector('#mt'); loading(box);
@@ -854,7 +954,17 @@
     catView();
   }
 
-  const teamDiscs = () => myDiscs().filter((d) => d === 'MAG' || d === 'WAG');
+  const teamDiscs = () => myDiscs().filter((d) => d === 'WAG');
+  function ruleText(r) {
+    r = r || {};
+    const p = r.places || 3, aa = r.aa_places || p;
+    const parts = [`Medali serba bisa peringkat 1–${p}`];
+    if (aa > p) parts.push(`medali mini peringkat ${p + 1}–${aa}`);
+    if (r.apparatus_medals) parts.push('medali per alat peringkat 1–3');
+    let txt = parts.join(', ') + '.';
+    if (r.club_cap) txt += ` Maks. ${r.club_cap} pesenam per klub untuk setiap penghargaan; pesenam berikutnya dari klub yang sama dilewati.`;
+    return txt + ' Setiap atlet mendapat sertifikat peserta.';
+  }
   const teState = { disc: '' };
   async function teamView(rbox) {
     if (!teState.disc) teState.disc = teamDiscs()[0];
@@ -905,6 +1015,107 @@
       });
     };
     await load();
+  }
+
+  // =====================================================================
+  //  EKSPOR: Nominative Form & kebutuhan medali (format lampiran panitia)
+  // =====================================================================
+  const fmtDMY = (d) => (d ? d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4) : '');
+  async function nominativeDialog() {
+    const discs = myDiscs().filter((d) => d === 'MAG' || d === 'WAG');
+    let clubs = [];
+    try { clubs = (await api('console_clubs')).filter((k) => !k.merged_into); } catch (e) { clubs = []; }
+    const r = await dialog({ title: 'Unduh Nominative Form', ok: 'Unduh Excel',
+      body: `<p class="small muted">Format sama dengan lampiran panitia: lembar Gymnasts List (perorangan) dan Team (beregu). Pendaftaran yang dibatalkan tidak ikut.</p>
+        <div class="grid-2"><div class="field"><label class="f" for="nd2">Disiplin</label><select id="nd2">${discs.map((d) => `<option value="${d}">${DN[d]}</option>`).join('')}</select></div>
+        <div class="field"><label class="f" for="nc2">Klub</label><select id="nc2"><option value="">Semua klub</option>${clubs.map((k) => `<option value="${k.id}">${esc(k.name)}</option>`).join('')}</select></div></div>`,
+      onOk: async (d) => ({ disc: d.querySelector('#nd2').value, club: d.querySelector('#nc2').value || null,
+        clubName: d.querySelector('#nc2').selectedOptions[0].textContent }) });
+    if (!r) return;
+    const D = await api('console_nominative', { p_discipline: r.disc, p_club: r.club });
+    const g = [['JABAR OPEN 2026 - ARTISTIC GYMNASTICS'], [' Form Nominative'], ['', '', '', '', '', '', 'Deadline : 12 November 2026'],
+      ['NO', 'KLUB', 'NAMA', 'TANGGAL LAHIR', 'UMUR', 'MAG / WAG', 'LEVEL', 'KATEGORI', 'NO. ATLET', 'KODE PENDAFTARAN', 'STATUS'],
+      ['', '', '', '(dd/mm/yyyy)']];
+    D.gymnasts.forEach((x, i) => g.push([i + 1, x.club, x.name, fmtDMY(x.birth_date), x.age, x.discipline, x.level, x.category + (x.priangan ? ' + Priangan' : ''), x.athlete_no || '', x.code, ST[x.status] || x.status]));
+    const wsG = XLSX.utils.aoa_to_sheet(g);
+    wsG['!cols'] = [6, 26, 30, 14, 7, 10, 12, 22, 11, 18, 20].map((w) => ({ wch: w }));
+    wsG['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } }];
+    const t = [['JABAR OPEN 2026 - ARTISTIC GYMNASTICS'], [' Form Nominative - Tim'], ['NO', 'KLUB', 'MAG / WAG', 'LEVEL', 'NAMA TIM', 'NO.', 'NAMA PESENAM', 'KETERANGAN', 'KODE PENDAFTARAN', 'STATUS']];
+    const merges = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } }];
+    D.teams.forEach((tm, i) => {
+      const r0 = t.length;
+      const n = Math.max(6, tm.members.length);
+      for (let j = 0; j < n; j++) {
+        const m = tm.members[j];
+        t.push(j === 0 ? [i + 1, tm.club, tm.discipline, tm.level, tm.name, 1, m ? m.name : '', m ? (m.team_only ? 'khusus beregu' : 'juga perorangan') : '', tm.code, ST[tm.status] || tm.status]
+          : ['', '', '', '', '', j + 1, m ? m.name : '', m ? (m.team_only ? 'khusus beregu' : 'juga perorangan') : '', '', '']);
+      }
+      [0, 1, 2, 3, 4, 8, 9].forEach((c) => merges.push({ s: { r: r0, c }, e: { r: r0 + n - 1, c } }));
+    });
+    const wsT = XLSX.utils.aoa_to_sheet(t);
+    wsT['!cols'] = [5, 26, 10, 10, 20, 5, 30, 16, 18, 20].map((w) => ({ wch: w }));
+    wsT['!merges'] = merges;
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, wsG, 'Gymnasts List');
+    XLSX.utils.book_append_sheet(wb, wsT, 'Team');
+    const tag = r.club ? r.clubName.replace(/[^a-z0-9]+/gi, '-') : 'Semua-klub';
+    XLSX.writeFile(wb, `JBO 2026 - Nominative Form ${r.disc} - ${tag}.xlsx`);
+    JO.toast(`${D.gymnasts.length} pesenam, ${D.teams.length} tim.`);
+  }
+
+  async function medalOrderReport() {
+    await refreshCats();
+    const cats = CATS.categories.filter((c) => c.active);
+    const teamLv = (CATS.team_levels || { WAG: ['Level 1', 'Level 2', 'Level 3', 'Level 4', 'Level 5', 'Level 6'] });
+    const wb = XLSX.utils.book_new();
+    // --- Artistik ---
+    const A = [['JABAR OPEN GYMNASTICS 2026 - MEDALI & PIALA ARTISTIK'],
+      ['DISIPLIN', '', 'LEVEL', 'NO', 'KATEGORI', 'PESERTA (N)', 'MEDALI ACHIEVEMENT & PARTICIPANT', 'MEDALI KOMPETISI (1-3)', '', '', '', '', 'MEDALI MINI (4-6)', '', '', '', '', 'PIALA BEREGU', '', ''],
+      ['', '', '', '', '', 'TERDAFTAR / LUNAS', 'EMAS', 'EMAS', 'PERAK', 'PERUNGGU', 'SET', 'KEPING', 'IV', 'V', 'VI', 'SET', 'KEPING', 'JUARA I', 'JUARA II', 'JUARA III']];
+    const sumRows = [];
+    for (const disc of ['MAG', 'WAG']) {
+      const list = cats.filter((c) => c.discipline === disc);
+      if (!list.length) continue;
+      const first = A.length;
+      const seenLv = new Set();
+      list.forEach((c, i) => {
+        const r = c.medal_rule || {};
+        const sets = 1 + (r.apparatus_medals ? c.apparatus.length : 0);
+        const mini = Math.max(0, (r.aa_places || r.places || 3) - (r.places || 3));
+        const lvFirst = !seenLv.has(c.level); seenLv.add(c.level);
+        const trophy = lvFirst && (teamLv[disc] || []).includes(c.level) ? 1 : '';
+        A.push([i === 0 ? (disc === 'MAG' ? 'ARTISTIK PUTRA' : 'ARTISTIK PUTRI') : '', '', lvFirst ? `${disc} ${c.level.toUpperCase()}` : '', i + 1, c.name_id,
+          `${c.registered} / ${c.paid}`, c.registered, sets, sets, sets, sets, sets * 3,
+          mini >= 1 ? 1 : '', mini >= 2 ? 1 : '', mini >= 3 ? 1 : '', mini ? 1 : '', mini || '', trophy, trophy, trophy]);
+      });
+      const last = A.length;
+      A.push(['', '', '', '', 'Cadangan :']);
+      const cad = A.length;
+      const col = (n) => XLSX.utils.encode_col(n);
+      A.push(['', '', '', '', 'Jumlah :', '', ...[6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19].map((n) => ({ f: `SUM(${col(n)}${first + 1}:${col(n)}${cad})` }))]);
+      sumRows.push(A.length);
+      A.push([]);
+    }
+    if (sumRows.length) A.push(['', 'TOTAL MEDALI ARTISTIK PUTRA & PUTRI :', '', '', '', '', ...[6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19].map((n) => ({ f: sumRows.map((r) => XLSX.utils.encode_col(n) + r).join('+') }))]);
+    A.push([]);
+    A.push(['Catatan: N = jumlah peserta terdaftar (belum dibatalkan). Isi baris Cadangan sesuai kebutuhan; baris Jumlah menghitung otomatis.']);
+    const wsA = XLSX.utils.aoa_to_sheet(A);
+    wsA['!cols'] = [16, 2, 16, 5, 44, 14, 12, 8, 8, 10, 6, 8, 5, 5, 5, 6, 8, 9, 9, 10].map((w) => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb, wsA, 'ARTISTIK');
+    // --- Aerobik ---
+    const aer = cats.filter((c) => c.discipline === 'AER');
+    if (aer.length) {
+      const E = [['JABAR OPEN GYMNASTICS 2026 - MEDALI AEROBIK'], ['DISIPLIN', '', 'NO', 'KATEGORI', 'PESERTA (N)', 'MEDALI KOMPETISI (1-3)'], ['', '', '', '', 'TERDAFTAR / LUNAS', 'EMAS', 'PERAK', 'PERUNGGU', 'SET', 'KEPING']];
+      const f0 = E.length;
+      aer.forEach((c, i) => { const k = c.entry_type === 'pair' ? 2 : 1; E.push([i === 0 ? 'AEROBIK' : '', '', i + 1, c.name_id, `${c.registered} / ${c.paid}`, k, k, k, k, k * 3]); });
+      E.push(['', '', '', 'Cadangan :']);
+      const cad = E.length;
+      E.push(['', '', '', 'Jumlah :', '', ...[5, 6, 7, 8, 9].map((n) => ({ f: `SUM(${XLSX.utils.encode_col(n)}${f0 + 1}:${XLSX.utils.encode_col(n)}${cad})` }))]);
+      const wsE = XLSX.utils.aoa_to_sheet(E);
+      wsE['!cols'] = [12, 2, 5, 44, 14, 8, 8, 10, 6, 8].map((w) => ({ wch: w }));
+      XLSX.utils.book_append_sheet(wb, wsE, 'AEROBIK');
+    }
+    XLSX.writeFile(wb, `JBO 2026 - Kebutuhan Medali ${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
   // =====================================================================
@@ -968,7 +1179,7 @@
         ${D.mutations.map((m) => `<tr><td class="small">${m.trx_time ? dt(m.trx_time) : '–'}<br><span class="tiny muted">impor ${esc(m.batch || '')}</span></td><td class="r num">${fmtRp(m.amount)}</td><td class="small">${esc(m.reference || '')}<br><span class="muted">${esc(m.description || '')}</span></td>
           <td><span class="pill ${m.match_status === 'belum' ? 'warn' : m.match_status === 'abaikan' ? '' : 'ok'}">${esc(m.match_status)}</span></td>
           <td class="small">${m.submission_code ? `<a href="#/pendaftaran/${m.submission_id}">${esc(m.submission_code)}</a> ${ST[m.submission_status] || ''}` : ''}</td>
-          <td class="r">${m.match_status === 'belum' ? `<button class="btn btn-ghost btn-sm" data-mm="${m.id}">Cocokkan</button> <button class="btn btn-ghost btn-sm" data-mi="${m.id}">Abaikan</button>` : `<button class="btn btn-ghost btn-sm" data-mr="${m.id}">Lepas</button>`}</td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">Belum ada mutasi diimpor.</p>';
+          <td class="r">${m.match_status === 'belum' ? rowMenu(`<button class="btn btn-ghost btn-sm" data-mm="${m.id}">Cocokkan</button>`, [{ label: 'Abaikan mutasi', attr: `data-mi="${m.id}"` }]) : rowMenu('', [{ label: 'Lepas pencocokan', attr: `data-mr="${m.id}"` }])}</td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">Belum ada mutasi diimpor.</p>';
       v.querySelectorAll('[data-mm]').forEach((b) => b.onclick = async () => {
         const m = D.mutations.find((x) => x.id === Number(b.dataset.mm));
         const r = await dialog({ title: 'Cocokkan mutasi ' + fmtRp(m.amount), ok: 'Cocokkan',
@@ -1064,18 +1275,20 @@
   // =====================================================================
   async function pageAccess(v) {
     const rows = await api('console_staff_list');
-    v.innerHTML = `<h1>Kode akses</h1><p class="muted">Satu kode untuk satu orang. Kode hanya ditampilkan sekali saat dibuat; bila hilang, buat kode baru (kode lama otomatis tidak berlaku).</p>
-      <div class="bar"><button class="btn btn-primary" id="new">Buat kode baru</button></div>
+    v.innerHTML = `<div class="row" style="justify-content:space-between;align-items:flex-end"><div><h1>Kode akses</h1><p class="muted">Satu kode untuk satu orang. Kode hanya ditampilkan sekali; bila hilang, buat kode baru (kode lama otomatis tidak berlaku).</p></div>
+      <button class="btn btn-primary" id="new">+ Buat kode baru</button></div><div style="height:14px"></div>
       <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nama</th><th>Peran</th><th>Disiplin</th><th>Batasan juri</th><th>Kode</th><th>Terakhir masuk</th><th></th></tr></thead><tbody>
       ${rows.map((s) => `<tr><td>${esc(s.name)}${s.active ? '' : ' <span class="pill bad">nonaktif</span>'}${s.note ? `<br><span class="tiny muted">${esc(s.note)}</span>` : ''}</td>
         <td>${ROLE[s.role]}</td><td>${s.discipline ? DN[s.discipline] : 'Semua'}</td>
         <td class="small">${s.role === 'juri' ? `${s.apparatus ? 'Alat: ' + s.apparatus.join(', ') : 'Semua alat'}<br>${s.components ? 'Komponen: ' + s.components.join(', ') : 'Semua komponen'}` : ''}</td>
         <td class="code small">…${esc(s.code_hint || '')}</td><td class="small">${s.last_login_at ? dt(s.last_login_at) : 'Belum pernah'}</td>
-        <td class="r">${s.role === 'owner' || (s.role === 'superadmin' && ME.role !== 'owner') ? '' : `
-          <button class="btn btn-ghost btn-sm" data-edit="${s.id}">Ubah</button>
-          <button class="btn btn-ghost btn-sm" data-rc="${s.id}">Kode baru</button>
-          <button class="btn ${s.active ? 'btn-bad' : 'btn-ok'} btn-sm" data-act="${s.id}">${s.active ? 'Nonaktifkan' : 'Aktifkan'}</button>
-          ${s.active || s.id === ME.id ? '' : `<button class="btn btn-ghost btn-sm" data-del="${s.id}" style="color:var(--bad)">Hapus</button>`}`}</td></tr>`).join('')}</tbody></table></div>
+        <td class="r">${s.role === 'owner' || (s.role === 'superadmin' && ME.role !== 'owner') ? '' : rowMenu(
+          s.active ? `<button class="btn btn-ghost btn-sm" data-rc="${s.id}">Kode baru</button>` : `<button class="btn btn-ok btn-sm" data-act="${s.id}">Aktifkan</button>`,
+          [{ label: 'Ubah', attr: `data-edit="${s.id}"` },
+           s.active ? null : { label: 'Kode baru', attr: `data-rc="${s.id}"` },
+           s.active ? { label: 'Nonaktifkan', attr: `data-act="${s.id}"`, danger: true } : null,
+           s.active || s.id === ME.id ? null : { sep: true },
+           s.active || s.id === ME.id ? null : { label: 'Hapus permanen', attr: `data-del="${s.id}"`, danger: true }])}</td></tr>`).join('')}</tbody></table></div>
       <p class="tiny muted" style="margin-top:10px">Hapus hanya muncul untuk kode nonaktif. Kode yang pernah memverifikasi atau memberi nilai tidak bisa dihapus, agar namanya tetap tercatat di riwayat; cukup biarkan nonaktif.</p>`;
     const form = (s) => `<div class="field"><label class="f">Nama pemegang kode</label><input id="sn" value="${esc(s ? s.name : '')}" placeholder="Mis. Vicy Ayu"></div>
       ${s ? '' : `<div class="field"><label class="f">Peran</label><select id="sr">
@@ -1123,6 +1336,32 @@
   // =====================================================================
   //  PENGATURAN
   // =====================================================================
+  // Gambar tanda tangan: latar terang -> transparan, dipotong ke goresan, maks. 700 px
+  async function transparentPng(file) {
+    const url = URL.createObjectURL(file);
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Gambar tidak terbaca')); i.src = url; });
+    URL.revokeObjectURL(url);
+    const sc = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.round(img.naturalWidth * sc), h = Math.round(img.naturalHeight * sc);
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    const ctx = cv.getContext('2d'); ctx.drawImage(img, 0, 0, w, h);
+    const d = ctx.getImageData(0, 0, w, h); const p = d.data;
+    let x0 = w, y0 = h, x1 = 0, y1 = 0;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const k = (y * w + x) * 4; const lum = (p[k] + p[k + 1] + p[k + 2]) / 3;
+      const a = Math.min(p[k + 3], Math.max(0, Math.round((235 - lum) * 255 / 120)));
+      p[k + 3] = a;
+      if (a > 20) { if (x < x0) x0 = x; if (y < y0) y0 = y; if (x > x1) x1 = x; if (y > y1) y1 = y; }
+    }
+    if (x1 <= x0) throw new Error('Goresan tanda tangan tidak terdeteksi.');
+    ctx.putImageData(d, 0, 0);
+    const pad = 8; x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad); x1 = Math.min(w - 1, x1 + pad); y1 = Math.min(h - 1, y1 + pad);
+    const cw = x1 - x0 + 1, ch = y1 - y0 + 1, s2 = Math.min(1, 700 / Math.max(cw, ch));
+    const out = document.createElement('canvas'); out.width = Math.round(cw * s2); out.height = Math.round(ch * s2);
+    out.getContext('2d').drawImage(cv, x0, y0, cw, ch, 0, 0, out.width, out.height);
+    return await new Promise((r) => out.toBlob(r, 'image/png'));
+  }
+
   async function pageSettings(v) {
     const D = await api('console_settings');
     const S = D.settings;
@@ -1149,8 +1388,11 @@
           <div class="field"><label class="f">Email kontak publik</label><input data-s="contact_email" value="${esc(val('contact_email'))}"></div></div>
           <label class="check"><input type="checkbox" data-sb="email_guardians" ${S.email_guardians ? 'checked' : ''}>Kirim email e-ticket juga ke orang tua/wali</label></section>
         <section class="card"><h2>Penanda tangan sertifikat</h2>
-          ${[0, 1].map((i) => `<div class="grid-2"><div class="field"><label class="f">Nama ${i + 1}</label><input data-sig="${i}" data-f="name" value="${esc(sig[i] ? sig[i].name : '')}"></div>
-            <div class="field"><label class="f">Jabatan ${i + 1}</label><input data-sig="${i}" data-f="title" value="${esc(sig[i] ? sig[i].title : '')}"></div></div>`).join('')}</section>
+          <p class="small muted">Gambar tanda tangan tampil di atas nama pada semua sertifikat. Pakai PNG berlatar transparan atau putih polos; latar putih dibuat transparan otomatis.</p>
+          ${[0, 1].map((i) => `<div class="sig-row"><div class="sig-prev" data-sigprev="${i}"></div><div style="flex:1;min-width:0"><div class="grid-2"><div class="field"><label class="f">Nama ${i + 1}</label><input data-sig="${i}" data-f="name" value="${esc(sig[i] ? sig[i].name : '')}"></div>
+            <div class="field"><label class="f">Jabatan ${i + 1}</label><input data-sig="${i}" data-f="title" value="${esc(sig[i] ? sig[i].title : '')}"></div></div>
+            <div class="row" style="gap:8px"><label class="btn btn-ghost btn-sm" style="position:relative;overflow:hidden">Unggah tanda tangan<input type="file" accept="image/png,image/jpeg" data-sigfile="${i}" style="position:absolute;inset:0;opacity:0;cursor:pointer"></label>
+            <button type="button" class="btn btn-ghost btn-sm" data-sigdel="${i}">Hapus gambar</button></div></div></div>`).join('')}</section>
         ${ME.role === 'owner' ? `<section class="card"><h2>Alamat situs</h2><div class="field"><label class="f">URL publik (untuk tautan email & QR)</label><input data-s="site_url" value="${esc(val('site_url'))}"></div></section>` : ''}
         <div class="sticky-actions"><button class="btn btn-primary" id="save">Simpan pengaturan</button></div>
       </div>
@@ -1163,6 +1405,25 @@
             <td><span class="pill ${o.status === 'sent' ? 'ok' : o.status === 'error' ? 'bad' : 'warn'}">${esc(o.status)}</span></td>
             <td>${o.status === 'error' || o.status === 'sending' ? `<button class="btn btn-ghost btn-sm" data-retry="${o.id}">Ulangi</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">Belum ada email.</td></tr>'}</tbody></table></div></section>
       </div></div>`;
+    const sigImg = [0, 1].map((i) => (sig[i] && sig[i].sig) || '');
+    const drawSig = (i) => {
+      const box = v.querySelector(`[data-sigprev="${i}"]`); const u = sigImg[i];
+      box.innerHTML = u ? `<img src="${esc(/^https?:/.test(u) ? u : '../' + u)}" alt="Tanda tangan ${i + 1}">` : '<span class="tiny muted">Belum ada tanda tangan</span>';
+    };
+    [0, 1].forEach(drawSig);
+    v.querySelectorAll('[data-sigdel]').forEach((b) => b.onclick = () => { sigImg[b.dataset.sigdel] = ''; drawSig(Number(b.dataset.sigdel)); JO.toast('Klik Simpan pengaturan untuk menerapkan.'); });
+    v.querySelectorAll('[data-sigfile]').forEach((inp) => inp.onchange = async (e) => {
+      const i = Number(inp.dataset.sigfile); const file = e.target.files[0]; if (!file) return;
+      try {
+        await JO.ensureSession();
+        const blob = await transparentPng(file);
+        const path = `ttd/ttd-${i + 1}-${Date.now()}.png`;
+        const { error } = await JO.sb.storage.from('publik').upload(path, await blob.arrayBuffer(), { contentType: 'image/png', upsert: false });
+        if (error) throw new Error(error.message);
+        sigImg[i] = JO.sb.storage.from('publik').getPublicUrl(path).data.publicUrl;
+        drawSig(i); JO.toast('Tanda tangan diunggah. Klik Simpan pengaturan untuk menerapkan.');
+      } catch (err) { JO.toast('Unggah tanda tangan gagal: ' + err.message, 'bad'); }
+    });
     v.querySelector('#qf').onchange = async (e) => {
       const file = e.target.files[0]; if (!file) return;
       try {
@@ -1184,7 +1445,8 @@
         v.querySelectorAll('[data-sn]').forEach((i) => { if (i.value !== String(val(i.dataset.sn))) ch.push([i.dataset.sn, Number(i.value)]); });
         v.querySelectorAll('[data-sb]').forEach((i) => { if (i.checked !== !!S[i.dataset.sb]) ch.push([i.dataset.sb, i.checked]); });
         const rd = v.querySelector('#rd').value; if (rd && rd !== dlLocal) ch.push(['registration_deadline', rd + ':59+07:00']);
-        const sg = [0, 1].map((i) => ({ name: v.querySelector(`[data-sig="${i}"][data-f=name]`).value.trim(), title: v.querySelector(`[data-sig="${i}"][data-f=title]`).value.trim() })).filter((x) => x.name);
+        const sg = [0, 1].map((i) => Object.assign({ name: v.querySelector(`[data-sig="${i}"][data-f=name]`).value.trim(), title: v.querySelector(`[data-sig="${i}"][data-f=title]`).value.trim() },
+          sigImg[i] ? { sig: sigImg[i] } : {})).filter((x) => x.name);
         if (JSON.stringify(sg) !== JSON.stringify(sig)) ch.push(['signatories', sg]);
         for (const [k, val_] of ch) await api('console_save_setting', { p_key: k, p_value: val_ });
         JO.toast(ch.length ? `${ch.length} pengaturan disimpan.` : 'Tidak ada perubahan.');

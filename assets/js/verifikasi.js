@@ -13,6 +13,9 @@
     v_none: ['Kode tidak dikenal. Periksa kembali penulisannya. Jika kode berasal dari dokumen resmi, hubungi panitia.', 'Unknown code. Check the spelling. If the code comes from an official document, contact the committee.'],
     v_name: ['Nama', 'Name'], v_no: ['Nomor atlet', 'Athlete number'], v_club: ['Klub', 'Club'], v_cat: ['Kategori', 'Category'],
     v_team_ok: ['Sertifikat Juara Beregu asli', 'Genuine team champion certificate'],
+    v_app_ok: ['Sertifikat medali per alat asli', 'Genuine apparatus medal certificate'],
+    v_app_wait: ['Kode sertifikat dikenal, tetapi hasil belum dipublikasikan atau medali alat ini tidak berlaku', 'Known certificate code, but results are not published or this apparatus medal does not apply'],
+    v_app: ['Alat', 'Apparatus'], v_mini: ['medali mini', 'mini medal'],
     v_team_wait: ['Kode sertifikat beregu dikenal, tetapi hasil beregu belum dipublikasikan atau tim tidak masuk tiga besar', 'Known team certificate code, but team results are not published yet or the team did not finish in the top three'],
     v_team: ['Tim', 'Team'], v_team_rank: ['Juara {r} beregu', 'Team rank {r}'],
     v_disc: ['Disiplin', 'Discipline'], v_result: ['Hasil', 'Result'], v_rank: ['Peringkat {r}', 'Rank {r}'], v_pri: ['Priangan: peringkat {r}', 'Priangan: rank {r}'],
@@ -47,8 +50,17 @@
         <p class="pill ok">${esc(t('v_cert_ok'))}</p>
         <dl class="kv" style="margin-top:12px"><dt>${esc(t('v_name'))}</dt><dd>${esc(r.name)}</dd>
           <dt>${esc(t('v_club'))}</dt><dd>${esc(r.club)}</dd><dt>${esc(t('v_cat'))}</dt><dd>${esc(cat)}</dd>
-          <dt>${esc(t('v_result'))}</dt><dd>${r.rank ? esc(t('v_rank', { r: r.rank })) : '–'}${r.medal ? ` <span class="medal ${r.medal}"></span> ${esc(t('medal_' + r.medal))}` : ''}
+          <dt>${esc(t('v_result'))}</dt><dd>${r.rank ? esc(t('v_rank', { r: r.rank })) : '–'}${r.medal ? ` <span class="medal ${r.medal}"></span> ${esc(t('medal_' + r.medal))}` : ''}${r.mini ? ` (${esc(t('v_mini'))} ${r.award_rank})` : ''}
           ${r.priangan_rank ? `<br>${esc(t('v_pri', { r: r.priangan_rank }))}${r.priangan_medal ? ` <span class="medal ${r.priangan_medal}"></span> ${esc(t('medal_' + r.priangan_medal))}` : ''}` : ''}</dd></dl></section>`;
+    } else if (r.type === 'apparatus_certificate' && r.valid) {
+      html = `<section class="card" style="border-left:6px solid var(--ok);border-radius:0 var(--r) var(--r) 0">
+        <p class="pill ok">${esc(t('v_app_ok'))}</p>
+        <dl class="kv" style="margin-top:12px"><dt>${esc(t('v_name'))}</dt><dd>${esc(r.name)}</dd>
+          <dt>${esc(t('v_club'))}</dt><dd>${esc(r.club)}</dd><dt>${esc(t('v_cat'))}</dt><dd>${esc(JO.lang === 'en' ? r.category_name_en : r.category_name_id)}</dd>
+          <dt>${esc(t('v_app'))}</dt><dd>${esc(JO.lang === 'en' ? r.apparatus_name_en : r.apparatus_name_id)}</dd>
+          <dt>${esc(t('v_result'))}</dt><dd><span class="medal ${r.medal}"></span> ${esc(t('medal_' + r.medal))}${r.score != null ? ` <span class="muted num">(${Number(r.score).toFixed(3)})</span>` : ''}</dd></dl></section>`;
+    } else if (r.type === 'apparatus_certificate') {
+      html = `<p class="note warn">${esc(t('v_app_wait'))}</p>`;
     } else if (r.type === 'team_certificate' && r.valid) {
       html = `<section class="card" style="border-left:6px solid var(--ok);border-radius:0 var(--r) var(--r) 0">
         <p class="pill ok">${esc(t('v_team_ok'))}</p>

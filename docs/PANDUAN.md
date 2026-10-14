@@ -1,6 +1,6 @@
 # Jabar Open 2026 — Panduan Sistem Pendaftaran & Konsol Panitia
 
-*Versi 2, 12 Oktober 2026 (tambahan: beregu Artistik, musik Ritmik, email kontak baru). Disusun untuk Daffa Adjisena (owner sistem).*
+*Versi 3, 14 Oktober 2026 (aturan penghargaan dari lampiran Medali & Piala Artistik, beregu hanya WAG L1–6, tanda tangan sertifikat, ekspor Nominative Form & kebutuhan medali, tampilan konsol baru). Disusun untuk Daffa Adjisena (owner sistem).*
 
 ## 1. Gambaran sistem
 
@@ -47,8 +47,8 @@ Kode akses bisa ditambah kapan saja dari **Konsol → Kode akses**. Kode hanya t
 
 Atlet WNA: tanpa QRIS dan kode unik; panitia menghubungi lewat email, superadmin menandai lunas dengan nominal yang diterima.
 
-### Beregu Artistik (MAG/WAG)
-- Pilihan ketiga di `daftar.html`: **Beregu Artistik**, Rp650.000 per tim, di luar biaya perorangan. Wajib klub; satu tim = satu level (kelompok usia boleh campur), 1–6 pesenam. Satu klub boleh beberapa tim per level dengan nama berbeda.
+### Beregu Artistik Putri (WAG Level 1–6)
+- Pilihan ketiga di `daftar.html`: **Beregu Artistik**, Rp650.000 per tim, di luar biaya perorangan. Hanya Artistik Putri Level 1–6 (sesuai Piala Beregu di lampiran medali; daftar level diatur di pengaturan `team_levels`). Wajib klub; satu tim = satu level (kelompok usia boleh campur), 1–6 pesenam. Satu klub boleh beberapa tim per level dengan nama berbeda. Beregu Level 6 berjalan bila peminat cukup.
 - Setiap anggota dipilih sebagai **Juga perorangan** (sudah terdaftar perorangan di level itu lewat klub yang sama; dicocokkan dari nama dan tanggal lahir) atau **Khusus beregu** (data lengkap + dokumen; dinilai di kelompok usianya tetapi tidak diperingkat perorangan; biaya sudah termasuk biaya tim; dapat e-ticket sendiri).
 - Nilai tim = jumlah 4 nilai serba bisa terbaik. Peringkat dihitung otomatis dari nilai di halaman Penilaian. Setelah dipublikasikan, setiap anggota tim peringkat 1–3 mengunduh **Sertifikat Juara Beregu** (dengan QR verifikasi) dari halaman status.
 
@@ -84,6 +84,16 @@ Atlet WNA: tanpa QRIS dan kode unik; panitia menghubungi lewat email, superadmin
 
 **Musik Ritmik**: Konsol → Musik Ritmik (admin RG dan superadmin). Buka setiap tautan, pastikan folder bisa diakses dan berisi MP3, lalu *Bisa dibuka* atau *Tidak bisa dibuka* (catatan dikirim ke pendaftar). Filter *Perlu tindakan* menampilkan yang belum beres; *Unduh Excel* untuk operator musik. Riwayat ganti per atlet ada di detail pendaftaran.
 
+**Penghargaan** (lampiran Medali & Piala Artistik 12/10/2026), diatur per kategori di Kategori → Ubah (superadmin):
+- Semua kategori Artistik: medali serba bisa peringkat 1–3, medali mini peringkat 4–6, sertifikat peserta untuk semua.
+- WAG Level 4–6, Pre Junior, Junior dan MAG Junior: juga medali per alat peringkat 1–3, dengan sertifikat per alat (kode verifikasi `<kode>-<alat>`).
+- WAG Level 4–6, Pre Junior, Junior: maks. 2 pesenam per klub untuk setiap penghargaan; pesenam ke-3 dst. dari klub yang sama dilewati dan penghargaan turun ke pesenam berikutnya. Nilai kembar per alat sementara berbagi peringkat (tie-break FIG belum diterapkan).
+- Tabel medali menghitung medali serba bisa dan per alat; medali mini tidak dihitung.
+
+**Ekspor**: Data atlet → *Nominative Form* (format lampiran panitia: Gymnasts List + Team, per klub atau semua). Hasil & medali → Tabel medali → *Kebutuhan medali (Excel)* (format lampiran medali, dari jumlah pendaftar; baris Cadangan diisi manual).
+
+**Tanda tangan sertifikat**: Pengaturan → Penanda tangan sertifikat → *Unggah tanda tangan* (PNG/JPG; latar putih dibuat transparan) → Simpan pengaturan. Tanda tangan Pak Dika sudah terpasang.
+
 **Ledger** (superadmin): ringkasan per disiplin (biaya perorangan, beregu dan jumlah tim, Priangan, kode unik), semua tagihan dengan jenis dan nama tim, siapa yang memverifikasi, unduh Excel.
 
 ## 5. Skenario demo Senin (± 15 menit)
@@ -105,11 +115,13 @@ Setelah demo dan sebelum peluncuran: jalankan `supabase/reset-data-uji.sql` di S
 | Usia | Usia 2026 = 2026 − tahun lahir (Undangan: "umur pada tahun kompetisi") | — |
 | Ritmik kelompok umur | KU 5–6 = lahir 2020–2021, KU 7–8 = 2018–2019, KU 9–10 = 2016–2017, KU 11–12 = 2014–2015, Junior = 2012–2013 (Undangan hanya mencantumkan satu tahun) | Konsol → Kategori |
 | Ritmik | Hanya putri; kategori A Profesional dan B Amatir. Kategori C "Priangan" di Undangan dijalankan sebagai Priangan lintas disiplin (sesuai arahan), sehingga alat khusus C (mis. KU 7–8 hanya simpai) tidak dipakai | Kategori |
-| WAG Level 5–6 | Dua level terpisah (Level 5 dan Level 6), masing-masing 12 ke bawah dan 13 ke atas | Kategori |
+| WAG Level 5–6 | Dua level terpisah (Level 5 dan Level 6), masing-masing 11 ke bawah dan 12 ke atas | Kategori |
 | MAG Level 1–4 | Keenam alat dinilai | Kategori → alat |
 | Batas per klub | MAG/WAG 10 per kategori, Aerobik 4 per kategori | Kategori |
 | Biaya Priangan | Rp150.000 per entri (satu pasangan MP = satu entri) | Pengaturan |
-| Medali | Sementara peringkat 1–3 serba bisa per kategori. Aturan Undangan (ambang 85/90% MAG L1–4 & WAG L1–3, peringkat 1–6 AA, maks. 2 per klub, festival 50/30/20 Ritmik) menunggu rumus resmi | — |
+| Medali Artistik | Sesuai lampiran medali 12/10/2026 (lihat bagian 4). Ambang 85/90% MAG L1–4 & WAG L1–3 belum diterapkan | Kategori → Ubah |
+| Kelompok usia WAG L4–6 | L4: 10 ke bawah / 11 ke atas; L5–L6: 11 ke bawah / 12 ke atas (lampiran medali) | Kategori |
+| Medali Ritmik & Aerobik | Peringkat 1–3; festival 50/30/20 Ritmik menunggu rumus resmi | — |
 | Refund, juri klub Ritmik & denda Rp1.000.000 | Belum ditangani (sesuai arahan) | — |
 
 ## 7. Batasan & keamanan

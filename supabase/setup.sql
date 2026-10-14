@@ -567,42 +567,69 @@ begin
   return round(coalesce(d,0) + coalesce(e,0) + coalesce(a,0) - coalesce(pen,0), 3);
 end $$;
 
--- Hasil satu kategori: peringkat serba bisa, nilai per alat, medali, peringkat Priangan
+-- Hasil satu kategori. Aturan dari medal_rule:
+--   places (medali 1-3), aa_places (peringkat serba bisa yang dihargai, 4-6 = medali mini),
+--   apparatus_medals (medali 1-3 per alat), club_cap (maks. pesenam per klub untuk setiap penghargaan;
+--   pesenam ke-3 dst. dari klub yang sama dilewati dan penghargaan turun ke pesenam berikutnya).
 create or replace function jo.category_results(p_cat integer) returns jsonb
 language plpgsql stable set search_path = '' as $$
-declare c jo.categories; places integer; res jsonb;
+declare c jo.categories; places integer; aa_places integer; cap integer; app_med boolean; res jsonb;
 begin
   select * into c from jo.categories where id = p_cat;
   if c.id is null then return '[]'::jsonb; end if;
-  places := coalesce((c.medal_rule->>'places')::integer, 3);
+  places    := coalesce((c.medal_rule->>'places')::integer, 3);
+  aa_places := greatest(places, coalesce((c.medal_rule->>'aa_places')::integer, places));
+  cap       := nullif((c.medal_rule->>'club_cap')::integer, 0);
+  app_med   := coalesce((c.medal_rule->>'apparatus_medals')::boolean, false);
 
   with e as (
-    select en.id, (en.priangan_status = 'disetujui' and not en.team_only) as pri, en.team_only as tonly, en.start_order, en.group_no
+    select en.id, (en.priangan_status = 'disetujui' and not en.team_only) as pri, en.team_only as tonly,
+           en.start_order, en.group_no, coalesce(s.club_id::text, en.id::text) as clubkey
     from jo.entries en join jo.submissions s on s.id = en.submission_id
     where en.category_id = p_cat and en.status = 'aktif' and s.status = 'lunas'
   ),
   ap as (select unnest(c.apparatus) as app),
   sc as (
-    select e.id, ap.app, jo.apparatus_score(e.id, ap.app) as score from e cross join ap
+    select e.id, e.tonly, e.clubkey, ap.app, jo.apparatus_score(e.id, ap.app) as score from e cross join ap
   ),
   apr as (
-    select id, app, score,
-      case when score is not null then rank() over (partition by app, (score is null) order by score desc) end as arank
+    select id, app, score, tonly, clubkey,
+      case when score is not null then rank() over (partition by app, (score is null) order by score desc) end as arank,
+      case when score is not null and not tonly
+           then row_number() over (partition by app, clubkey, (score is null or tonly) order by score desc) end as club_n
     from sc
+  ),
+  apa as (
+    -- peringkat penghargaan per alat (setelah batas per klub)
+    select id, app, score, arank,
+      case when score is not null and not tonly and (cap is null or club_n <= cap)
+           then rank() over (partition by app, (score is null or tonly or (cap is not null and club_n > cap)) order by score desc) end as award
+    from apr
   ),
   tot as (
     select id, round(sum(score), 3) as total, count(score) as n_scored,
       jsonb_object_agg(app, score) as scores,
-      jsonb_object_agg(app, arank) as app_ranks
-    from apr group by id
+      jsonb_object_agg(app, arank) as app_ranks,
+      case when app_med then coalesce(jsonb_object_agg(app,
+          case award when 1 then 'emas' when 2 then 'perak' when 3 then 'perunggu' end)
+        filter (where award between 1 and 3), '{}'::jsonb) else '{}'::jsonb end as app_medals
+    from apa group by id
   ),
   rk as (
     -- anggota "khusus beregu" dinilai tetapi tidak ikut peringkat perorangan
-    select e.id, e.pri, e.tonly, e.start_order, e.group_no, t.total, t.n_scored, t.scores, t.app_ranks,
+    select e.id, e.pri, e.tonly, e.clubkey, e.start_order, e.group_no, t.total, t.n_scored, t.scores, t.app_ranks, t.app_medals,
       case when t.total is not null and not e.tonly then rank() over (partition by (t.total is null or e.tonly) order by t.total desc) end as rnk,
+      case when t.total is not null and not e.tonly
+           then row_number() over (partition by e.clubkey, (t.total is null or e.tonly) order by t.total desc, e.start_order nulls last) end as club_n,
       case when e.pri and t.total is not null
            then rank() over (partition by (e.pri and t.total is not null) order by t.total desc) end as prnk
     from e join tot t on t.id = e.id
+  ),
+  rk2 as (
+    select rk.*,
+      case when rnk is not null and (cap is null or club_n <= cap)
+           then rank() over (partition by (rnk is null or (cap is not null and club_n > cap)) order by total desc) end as award
+    from rk
   )
   select coalesce(jsonb_agg(jsonb_build_object(
       'entry_id', rk.id,
@@ -616,8 +643,12 @@ begin
       'scores', rk.scores,
       'app_ranks', rk.app_ranks,
       'rank', rk.rnk,
-      'medal', case when c.exhibition or rk.rnk is null or rk.rnk > places then null
-                    when rk.rnk = 1 then 'emas' when rk.rnk = 2 then 'perak' else 'perunggu' end,
+      'award_rank', case when rk.award <= aa_places then rk.award end,
+      'capped', rk.rnk is not null and cap is not null and rk.club_n > cap and rk.rnk <= aa_places,
+      'medal', case when c.exhibition or rk.award is null or rk.award > places then null
+                    when rk.award = 1 then 'emas' when rk.award = 2 then 'perak' else 'perunggu' end,
+      'mini', not c.exhibition and rk.award is not null and rk.award > places and rk.award <= aa_places,
+      'app_medals', case when c.exhibition then '{}'::jsonb else rk.app_medals end,
       'team_only', rk.tonly,
       'priangan', rk.pri,
       'priangan_rank', rk.prnk,
@@ -625,7 +656,7 @@ begin
                     when rk.prnk = 1 then 'emas' when rk.prnk = 2 then 'perak' else 'perunggu' end
     ) order by rk.rnk nulls last, rk.tonly, rk.start_order nulls last), '[]'::jsonb)
   into res
-  from rk;
+  from rk2 rk;
   return res;
 end $$;
 
@@ -711,6 +742,11 @@ begin
     select discipline, x->>'club' as club, x->>'region' as region,
       case when p_priangan then x->>'priangan_medal' else x->>'medal' end as medal
     from rows
+    union all
+    -- medali per alat (hanya tabel Jabar Open, bukan Priangan)
+    select r.discipline, r.x->>'club', r.x->>'region', am.value
+    from rows r cross join lateral jsonb_each_text(coalesce(r.x->'app_medals', '{}'::jsonb)) am
+    where not p_priangan
   ),
   m2 as (select * from m where medal is not null),
   by_club as (
@@ -1042,6 +1078,7 @@ language sql stable security definer set search_path = '' as $$
       'team_fee', coalesce(jo.setting_int('team_fee'), 650000),
       'team_max', coalesce(jo.setting_int('team_max'), 6),
       'team_counting', coalesce(jo.setting_int('team_counting'), 4),
+      'team_levels', coalesce(jo.setting('team_levels'), '{}'::jsonb),
       'qris_cap', coalesce(jo.setting_int('qris_cap'), 10000000)),
     'payment', jsonb_build_object(
       'qris_image_url', jo.setting_text('qris_image_url'),
@@ -1152,8 +1189,8 @@ begin
   if v_type not in ('individu','klub','beregu') then
     raise exception 'Pilih jenis pendaftar: perorangan, klub/sekolah, atau beregu.' using hint = 'ERR_TYPE';
   end if;
-  if v_type = 'beregu' and v_disc.code not in ('MAG','WAG') then
-    raise exception 'Beregu hanya untuk Artistik Putra dan Artistik Putri.' using hint = 'ERR_TEAM';
+  if v_type = 'beregu' and not (jo.setting('team_levels') ? v_disc.code) then
+    raise exception 'Beregu hanya untuk Artistik Putri Level 1–6.' using hint = 'ERR_TEAM';
   end if;
 
   -- Kontak
@@ -1244,8 +1281,9 @@ begin
     --  BEREGU (Artistik): satu tim, 1–6 pesenam, satu level
     -- =================================================================
     v_level := trim(coalesce(v_team->>'level',''));
-    if not exists (select 1 from jo.categories where discipline = v_disc.code and level = v_level and active) then
-      raise exception 'Pilih level beregu.' using hint = 'ERR_TEAM_LEVEL';
+    if not exists (select 1 from jo.categories where discipline = v_disc.code and level = v_level and active)
+       or not coalesce(jo.setting('team_levels')->v_disc.code ? v_level, false) then
+      raise exception 'Beregu tidak tersedia untuk %.', coalesce(nullif(v_level,''), 'level ini') using hint = 'ERR_TEAM_LEVEL';
     end if;
     v_tname := regexp_replace(trim(coalesce(v_team->>'name','')), '\s+', ' ', 'g');
     if length(v_tname) < 2 then
@@ -1664,6 +1702,7 @@ language sql stable set search_path = '' as $$
       'note', jo.setting_text('payment_note'),
       'deadline_label', jo.setting_text('payment_deadline_label')),
     'signatories', jo.setting('signatories'),
+    'apparatus_names', (select jsonb_object_agg(x->>'code', jsonb_build_object('id', x->>'id', 'en', x->>'en')) from jsonb_array_elements(d.apparatus) x),
     'athletes', (select coalesce(jsonb_agg(jsonb_build_object(
         'id', a.id, 'athlete_no', a.athlete_no, 'full_name', a.full_name, 'gender', a.gender,
         'birth_date', a.birth_date, 'nationality', a.nationality, 'province', a.province, 'kab_kota', a.kab_kota,
@@ -1854,6 +1893,31 @@ begin
         'discipline', tt.discipline, 'level', tt.level, 'rank', tr->'rank', 'total', tr->'total');
     end if;
   end;
+  -- sertifikat medali per alat: <kode sertifikat>-<alat>, mis. CABC123XYZ-VT
+  declare v_app text;
+  begin
+    if v ~ '^[A-Z0-9]+-[A-Z]+$' then
+      v_app := split_part(v, '-', 2);
+      select * into ea from jo.entry_athletes where cert_code = split_part(v, '-', 1);
+      if ea.entry_id is not null then
+        select * into en from jo.entries where id = ea.entry_id;
+        select * into c from jo.categories where id = en.category_id;
+        select * into a from jo.athletes where id = ea.athlete_id;
+        select * into s from jo.submissions where id = en.submission_id;
+        select x into r from jsonb_array_elements(jo.category_results(c.id)) x where x->>'entry_id' = en.id::text;
+        if not c.results_published or s.status <> 'lunas' or (r->'app_medals'->>v_app) is null then
+          return jsonb_build_object('type', 'apparatus_certificate', 'valid', false);
+        end if;
+        return jsonb_build_object('type', 'apparatus_certificate', 'valid', true,
+          'name', a.full_name, 'athlete_no', a.athlete_no, 'club', r->>'club', 'region', r->>'region',
+          'category_name_id', c.name_id, 'category_name_en', c.name_en, 'discipline', c.discipline,
+          'apparatus', v_app,
+          'apparatus_name_id', (select x->>'id' from jo.disciplines d cross join jsonb_array_elements(d.apparatus) x where d.code = c.discipline and x->>'code' = v_app),
+          'apparatus_name_en', (select x->>'en' from jo.disciplines d cross join jsonb_array_elements(d.apparatus) x where d.code = c.discipline and x->>'code' = v_app),
+          'medal', r->'app_medals'->>v_app, 'score', r->'scores'->v_app);
+      end if;
+    end if;
+  end;
   select * into ea from jo.entry_athletes where cert_code = v;
   if ea.entry_id is not null then
     select * into en from jo.entries where id = ea.entry_id;
@@ -1867,7 +1931,7 @@ begin
     return jsonb_build_object('type', 'certificate', 'valid', true,
       'name', a.full_name, 'athlete_no', a.athlete_no, 'club', r->>'club', 'region', r->>'region',
       'category_id', c.id, 'category_name_id', c.name_id, 'category_name_en', c.name_en, 'discipline', c.discipline,
-      'rank', r->'rank', 'medal', r->'medal', 'total', r->'total',
+      'rank', r->'rank', 'award_rank', r->'award_rank', 'medal', r->'medal', 'mini', r->'mini', 'total', r->'total',
       'priangan', r->'priangan', 'priangan_rank', r->'priangan_rank', 'priangan_medal', r->'priangan_medal');
   end if;
   return jsonb_build_object('type', null, 'valid', false);
@@ -2469,6 +2533,7 @@ begin
   d := coalesce(st.discipline, nullif(p_discipline,''));
   return jsonb_build_object(
     'disciplines', (select coalesce(jsonb_agg(to_jsonb(x) order by x.sort), '[]'::jsonb) from jo.disciplines x where d is null or x.code = d),
+    'team_levels', coalesce(jo.setting('team_levels'), '{}'::jsonb),
     'categories', (select coalesce(jsonb_agg(to_jsonb(c) || jsonb_build_object(
         'registered', (select count(*) from jo.entries e join jo.submissions s on s.id = e.submission_id where e.category_id = c.id and e.status = 'aktif' and s.status <> 'dibatalkan'),
         'paid', (select count(*) from jo.entries e join jo.submissions s on s.id = e.submission_id where e.category_id = c.id and e.status = 'aktif' and s.status = 'lunas'),
@@ -3154,6 +3219,38 @@ begin
   return public.console_staff_list();
 end $$;
 
+-- Nominative Form Artistik (format lampiran panitia): daftar pesenam & tim per klub
+create or replace function public.console_nominative(p_discipline text, p_club uuid default null) returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare st jo.staff;
+begin
+  st := jo.require_staff(array['owner','superadmin','admin']);
+  if p_discipline not in ('MAG','WAG') then raise exception 'Nominative Form hanya untuk Artistik.'; end if;
+  perform jo.check_discipline(st, p_discipline);
+  return jsonb_build_object(
+    'gymnasts', (select coalesce(jsonb_agg(jsonb_build_object(
+        'club', coalesce(k.name, 'Perorangan'), 'name', a.full_name, 'birth_date', a.birth_date,
+        'age', 2026 - extract(year from a.birth_date)::integer, 'discipline', c.discipline,
+        'level', c.level, 'category', c.age_label, 'athlete_no', a.athlete_no,
+        'code', s.code, 'status', s.status, 'priangan', e.priangan_status = 'disetujui')
+      order by coalesce(k.name, 'zzz'), c.sort, a.full_name), '[]'::jsonb)
+      from jo.entries e join jo.categories c on c.id = e.category_id
+      join jo.submissions s on s.id = e.submission_id
+      join jo.entry_athletes ea on ea.entry_id = e.id join jo.athletes a on a.id = ea.athlete_id
+      left join jo.clubs k on k.id = s.club_id
+      where c.discipline = p_discipline and not e.team_only and e.status <> 'dibatalkan' and s.status <> 'dibatalkan'
+        and (p_club is null or s.club_id = p_club)),
+    'teams', (select coalesce(jsonb_agg(jsonb_build_object(
+        'club', coalesce(k.name, 'Perorangan'), 'discipline', t.discipline, 'level', t.level, 'name', t.name,
+        'code', s.code, 'status', s.status,
+        'members', (select coalesce(jsonb_agg(jsonb_build_object('name', a.full_name, 'team_only', m.team_only) order by m.sort), '[]'::jsonb)
+                      from jo.team_members m join jo.athletes a on a.id = m.athlete_id where m.team_id = t.id))
+      order by coalesce(k.name, 'zzz'), t.level, t.name), '[]'::jsonb)
+      from jo.teams t join jo.submissions s on s.id = t.submission_id left join jo.clubs k on k.id = s.club_id
+      where t.discipline = p_discipline and s.status <> 'dibatalkan' and (p_club is null or s.club_id = p_club)),
+    'team_levels', coalesce(jo.setting('team_levels'), '{}'::jsonb));
+end $$;
+
 -- ---------------------------------------------------------------------
 -- Pengaturan, klub, log, email
 -- ---------------------------------------------------------------------
@@ -3291,52 +3388,52 @@ insert into jo.disciplines (code, name_id, name_en, date_start, date_end, appara
   ('AER', 'Aerobik', 'Aerobic', '2026-12-19', '2026-12-20', '[{"code": "RTN", "id": "Rangkaian", "en": "Routine"}]'::jsonb, '[{"code": "A", "id": "Nilai A (artistik)", "en": "A score (artistry)"}, {"code": "E", "id": "Nilai E (eksekusi)", "en": "E score (execution)"}, {"code": "D", "id": "Nilai D (kesulitan)", "en": "D score (difficulty)"}, {"code": "PEN", "id": "Penalti", "en": "Penalties"}]'::jsonb, 'Mustika Fitri', '0816-605-281', 4)
 on conflict (code) do nothing;
 
-insert into jo.categories (discipline, code, level, age_label, division, name_id, name_en, gender, birth_year_min, birth_year_max, entry_type, fee, apparatus, max_per_club, sort, note) values
-  ('MAG', 'MAG-L1-A', 'Level 1', '6 tahun ke bawah', null, 'Artistik Putra Level 1 (6 tahun ke bawah)', 'Men''s Artistic Level 1 (6 & under)', 'M', 2020, null, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 10, null),
-  ('MAG', 'MAG-L1-B', 'Level 1', '7–8 tahun', null, 'Artistik Putra Level 1 (7–8 tahun)', 'Men''s Artistic Level 1 (7–8)', 'M', 2018, 2019, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 20, null),
-  ('MAG', 'MAG-L1-C', 'Level 1', '9 tahun ke atas', null, 'Artistik Putra Level 1 (9 tahun ke atas)', 'Men''s Artistic Level 1 (9 & over)', 'M', null, 2017, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 30, null),
-  ('MAG', 'MAG-L2-A', 'Level 2', '7 tahun ke bawah', null, 'Artistik Putra Level 2 (7 tahun ke bawah)', 'Men''s Artistic Level 2 (7 & under)', 'M', 2019, null, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 40, null),
-  ('MAG', 'MAG-L2-B', 'Level 2', '8–9 tahun', null, 'Artistik Putra Level 2 (8–9 tahun)', 'Men''s Artistic Level 2 (8–9)', 'M', 2017, 2018, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 50, null),
-  ('MAG', 'MAG-L2-C', 'Level 2', '10 tahun ke atas', null, 'Artistik Putra Level 2 (10 tahun ke atas)', 'Men''s Artistic Level 2 (10 & over)', 'M', null, 2016, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 60, null),
-  ('MAG', 'MAG-L3', 'Level 3', 'Usia terbuka', null, 'Artistik Putra Level 3 (usia terbuka)', 'Men''s Artistic Level 3 (open age)', 'M', null, null, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 70, null),
-  ('MAG', 'MAG-L4', 'Level 4', 'Usia terbuka', null, 'Artistik Putra Level 4 (usia terbuka)', 'Men''s Artistic Level 4 (open age)', 'M', null, null, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 80, null),
-  ('MAG', 'MAG-JR', 'Junior', '12–16 tahun', null, 'Artistik Putra Junior (12–16 tahun)', 'Men''s Artistic Junior (12–16)', 'M', 2010, 2014, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 90, null),
-  ('WAG', 'WAG-L1-A', 'Level 1', '6 tahun ke bawah', null, 'Artistik Putri Level 1 (6 tahun ke bawah)', 'Women''s Artistic Level 1 (6 & under)', 'F', 2020, null, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 100, null),
-  ('WAG', 'WAG-L1-B', 'Level 1', '7–8 tahun', null, 'Artistik Putri Level 1 (7–8 tahun)', 'Women''s Artistic Level 1 (7–8)', 'F', 2018, 2019, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 110, null),
-  ('WAG', 'WAG-L1-C', 'Level 1', '9 tahun ke atas', null, 'Artistik Putri Level 1 (9 tahun ke atas)', 'Women''s Artistic Level 1 (9 & over)', 'F', null, 2017, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 120, null),
-  ('WAG', 'WAG-L2-A', 'Level 2', '6 tahun ke bawah', null, 'Artistik Putri Level 2 (6 tahun ke bawah)', 'Women''s Artistic Level 2 (6 & under)', 'F', 2020, null, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 130, null),
-  ('WAG', 'WAG-L2-B', 'Level 2', '7–8 tahun', null, 'Artistik Putri Level 2 (7–8 tahun)', 'Women''s Artistic Level 2 (7–8)', 'F', 2018, 2019, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 140, null),
-  ('WAG', 'WAG-L2-C', 'Level 2', '9 tahun ke atas', null, 'Artistik Putri Level 2 (9 tahun ke atas)', 'Women''s Artistic Level 2 (9 & over)', 'F', null, 2017, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 150, null),
-  ('WAG', 'WAG-L3-A', 'Level 3', '9 tahun ke bawah', null, 'Artistik Putri Level 3 (9 tahun ke bawah)', 'Women''s Artistic Level 3 (9 & under)', 'F', 2017, null, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 160, null),
-  ('WAG', 'WAG-L3-B', 'Level 3', '10 tahun ke atas', null, 'Artistik Putri Level 3 (10 tahun ke atas)', 'Women''s Artistic Level 3 (10 & over)', 'F', null, 2016, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 170, null),
-  ('WAG', 'WAG-L4-A', 'Level 4', '11 tahun ke bawah', null, 'Artistik Putri Level 4 (11 tahun ke bawah)', 'Women''s Artistic Level 4 (11 & under)', 'F', 2015, null, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 180, null),
-  ('WAG', 'WAG-L4-B', 'Level 4', '12 tahun ke atas', null, 'Artistik Putri Level 4 (12 tahun ke atas)', 'Women''s Artistic Level 4 (12 & over)', 'F', null, 2014, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 190, null),
-  ('WAG', 'WAG-L5-A', 'Level 5', '12 tahun ke bawah', null, 'Artistik Putri Level 5 (12 tahun ke bawah)', 'Women''s Artistic Level 5 (12 & under)', 'F', 2014, null, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 200, null),
-  ('WAG', 'WAG-L5-B', 'Level 5', '13 tahun ke atas', null, 'Artistik Putri Level 5 (13 tahun ke atas)', 'Women''s Artistic Level 5 (13 & over)', 'F', null, 2013, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 210, null),
-  ('WAG', 'WAG-L6-A', 'Level 6', '12 tahun ke bawah', null, 'Artistik Putri Level 6 (12 tahun ke bawah)', 'Women''s Artistic Level 6 (12 & under)', 'F', 2014, null, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 220, null),
-  ('WAG', 'WAG-L6-B', 'Level 6', '13 tahun ke atas', null, 'Artistik Putri Level 6 (13 tahun ke atas)', 'Women''s Artistic Level 6 (13 & over)', 'F', null, 2013, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 230, null),
-  ('WAG', 'WAG-PJ', 'Pre Junior', '11–13 tahun', null, 'Artistik Putri Pre Junior (11–13 tahun)', 'Women''s Artistic Pre Junior (11–13)', 'F', 2013, 2015, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 240, null),
-  ('WAG', 'WAG-JR', 'Junior', '14–15 tahun', null, 'Artistik Putri Junior (14–15 tahun)', 'Women''s Artistic Junior (14–15)', 'F', 2011, 2012, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 250, null),
-  ('RG', 'RG-A-KU56', 'KU 5–6', 'Kelahiran 2020–2021', 'Profesional', 'Ritmik Profesional KU 5–6', 'Rhythmic Professional KU 5–6', 'F', 2020, 2021, 'individual', 750000, array['FH','BALL']::text[], null, 260, null),
-  ('RG', 'RG-A-KU78', 'KU 7–8', 'Kelahiran 2018–2019', 'Profesional', 'Ritmik Profesional KU 7–8', 'Rhythmic Professional KU 7–8', 'F', 2018, 2019, 'individual', 750000, array['FH','HOOP']::text[], null, 270, null),
-  ('RG', 'RG-A-KU910', 'KU 9–10', 'Kelahiran 2016–2017', 'Profesional', 'Ritmik Profesional KU 9–10', 'Rhythmic Professional KU 9–10', 'F', 2016, 2017, 'individual', 750000, array['FH','HOOP','BALL']::text[], null, 280, null),
-  ('RG', 'RG-A-KU1112', 'KU 11–12', 'Kelahiran 2014–2015', 'Profesional', 'Ritmik Profesional KU 11–12', 'Rhythmic Professional KU 11–12', 'F', 2014, 2015, 'individual', 750000, array['FH','BALL','CLUBS']::text[], null, 290, null),
-  ('RG', 'RG-A-JR', 'Junior', 'Kelahiran 2012–2013', 'Profesional', 'Ritmik Profesional Junior', 'Rhythmic Professional Junior', 'F', 2012, 2013, 'individual', 750000, array['HOOP','BALL','CLUBS','RIBBON']::text[], null, 300, null),
-  ('RG', 'RG-B-KU56', 'KU 5–6', 'Kelahiran 2020–2021', 'Amatir', 'Ritmik Amatir KU 5–6', 'Rhythmic Amateur KU 5–6', 'F', 2020, 2021, 'individual', 750000, array['FH','BALL']::text[], null, 310, null),
-  ('RG', 'RG-B-KU78', 'KU 7–8', 'Kelahiran 2018–2019', 'Amatir', 'Ritmik Amatir KU 7–8', 'Rhythmic Amateur KU 7–8', 'F', 2018, 2019, 'individual', 750000, array['FH','HOOP']::text[], null, 320, null),
-  ('RG', 'RG-B-KU910', 'KU 9–10', 'Kelahiran 2016–2017', 'Amatir', 'Ritmik Amatir KU 9–10', 'Rhythmic Amateur KU 9–10', 'F', 2016, 2017, 'individual', 750000, array['FH','HOOP','BALL']::text[], null, 330, null),
-  ('RG', 'RG-B-KU1112', 'KU 11–12', 'Kelahiran 2014–2015', 'Amatir', 'Ritmik Amatir KU 11–12', 'Rhythmic Amateur KU 11–12', 'F', 2014, 2015, 'individual', 750000, array['FH','BALL','CLUBS']::text[], null, 340, null),
-  ('RG', 'RG-B-JR', 'Junior', 'Kelahiran 2012–2013', 'Amatir', 'Ritmik Amatir Junior', 'Rhythmic Amateur Junior', 'F', 2012, 2013, 'individual', 750000, array['HOOP','BALL','CLUBS','RIBBON']::text[], null, 350, null),
-  ('AER', 'AER-JR-IM', 'Junior', '15–17 tahun', null, 'Aerobik Junior Perorangan Putra (IM)', 'Aerobic Junior Individual Men (IM)', 'M', 2009, 2011, 'individual', 300000, array['RTN']::text[], 4, 360, null),
-  ('AER', 'AER-JR-IW', 'Junior', '15–17 tahun', null, 'Aerobik Junior Perorangan Putri (IW)', 'Aerobic Junior Individual Women (IW)', 'F', 2009, 2011, 'individual', 300000, array['RTN']::text[], 4, 370, null),
-  ('AER', 'AER-JR-MP', 'Junior', '15–17 tahun', null, 'Aerobik Junior Pasangan Campuran (MP)', 'Aerobic Junior Mixed Pair (MP)', 'X', 2009, 2011, 'pair', 400000, array['RTN']::text[], 4, 380, null),
-  ('AER', 'AER-YT-IM', 'Youth', '12–14 tahun', null, 'Aerobik Youth Perorangan Putra (IM)', 'Aerobic Youth Individual Men (IM)', 'M', 2012, 2014, 'individual', 300000, array['RTN']::text[], 4, 390, null),
-  ('AER', 'AER-YT-IW', 'Youth', '12–14 tahun', null, 'Aerobik Youth Perorangan Putri (IW)', 'Aerobic Youth Individual Women (IW)', 'F', 2012, 2014, 'individual', 300000, array['RTN']::text[], 4, 400, null),
-  ('AER', 'AER-YT-MP', 'Youth', '12–14 tahun', null, 'Aerobik Youth Pasangan Campuran (MP)', 'Aerobic Youth Mixed Pair (MP)', 'X', 2012, 2014, 'pair', 400000, array['RTN']::text[], 4, 410, null),
-  ('AER', 'AER-ND-IM', 'National Development', '9–11 tahun', null, 'Aerobik National Development Perorangan Putra (IM)', 'Aerobic National Development Individual Men (IM)', 'M', 2015, 2017, 'individual', 300000, array['RTN']::text[], 4, 420, null),
-  ('AER', 'AER-ND-IW', 'National Development', '9–11 tahun', null, 'Aerobik National Development Perorangan Putri (IW)', 'Aerobic National Development Individual Women (IW)', 'F', 2015, 2017, 'individual', 300000, array['RTN']::text[], 4, 430, null),
-  ('AER', 'AER-PND-IM', 'Pre National Development', '6–8 tahun', null, 'Aerobik Pre National Development Perorangan Putra (IM)', 'Aerobic Pre National Development Individual Men (IM)', 'M', 2018, 2020, 'individual', 300000, array['RTN']::text[], 4, 440, null),
-  ('AER', 'AER-PND-IW', 'Pre National Development', '6–8 tahun', null, 'Aerobik Pre National Development Perorangan Putri (IW)', 'Aerobic Pre National Development Individual Women (IW)', 'F', 2018, 2020, 'individual', 300000, array['RTN']::text[], 4, 450, null)
+insert into jo.categories (discipline, code, level, age_label, division, name_id, name_en, gender, birth_year_min, birth_year_max, entry_type, fee, apparatus, max_per_club, sort, note, medal_rule) values
+  ('MAG', 'MAG-L1-A', 'Level 1', '6 tahun ke bawah', null, 'Artistik Putra Level 1 (6 tahun ke bawah)', 'Men''s Artistic Level 1 (6 & under)', 'M', 2020, null, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 10, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
+  ('MAG', 'MAG-L1-B', 'Level 1', '7–8 tahun', null, 'Artistik Putra Level 1 (7–8 tahun)', 'Men''s Artistic Level 1 (7–8)', 'M', 2018, 2019, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 20, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
+  ('MAG', 'MAG-L1-C', 'Level 1', '9 tahun ke atas', null, 'Artistik Putra Level 1 (9 tahun ke atas)', 'Men''s Artistic Level 1 (9 & over)', 'M', null, 2017, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 30, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
+  ('MAG', 'MAG-L2-A', 'Level 2', '7 tahun ke bawah', null, 'Artistik Putra Level 2 (7 tahun ke bawah)', 'Men''s Artistic Level 2 (7 & under)', 'M', 2019, null, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 40, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
+  ('MAG', 'MAG-L2-B', 'Level 2', '8–9 tahun', null, 'Artistik Putra Level 2 (8–9 tahun)', 'Men''s Artistic Level 2 (8–9)', 'M', 2017, 2018, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 50, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
+  ('MAG', 'MAG-L2-C', 'Level 2', '10 tahun ke atas', null, 'Artistik Putra Level 2 (10 tahun ke atas)', 'Men''s Artistic Level 2 (10 & over)', 'M', null, 2016, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 60, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
+  ('MAG', 'MAG-L3', 'Level 3', 'Usia terbuka', null, 'Artistik Putra Level 3 (usia terbuka)', 'Men''s Artistic Level 3 (open age)', 'M', null, null, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 70, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
+  ('MAG', 'MAG-L4', 'Level 4', 'Usia terbuka', null, 'Artistik Putra Level 4 (usia terbuka)', 'Men''s Artistic Level 4 (open age)', 'M', null, null, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 80, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
+  ('MAG', 'MAG-JR', 'Junior', '12–16 tahun', null, 'Artistik Putra Junior (12–16 tahun)', 'Men''s Artistic Junior (12–16)', 'M', 2010, 2014, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 90, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true}'::jsonb),
+  ('WAG', 'WAG-L1-A', 'Level 1', '6 tahun ke bawah', null, 'Artistik Putri Level 1 (6 tahun ke bawah)', 'Women''s Artistic Level 1 (6 & under)', 'F', 2020, null, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 100, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
+  ('WAG', 'WAG-L1-B', 'Level 1', '7–8 tahun', null, 'Artistik Putri Level 1 (7–8 tahun)', 'Women''s Artistic Level 1 (7–8)', 'F', 2018, 2019, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 110, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
+  ('WAG', 'WAG-L1-C', 'Level 1', '9 tahun ke atas', null, 'Artistik Putri Level 1 (9 tahun ke atas)', 'Women''s Artistic Level 1 (9 & over)', 'F', null, 2017, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 120, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
+  ('WAG', 'WAG-L2-A', 'Level 2', '6 tahun ke bawah', null, 'Artistik Putri Level 2 (6 tahun ke bawah)', 'Women''s Artistic Level 2 (6 & under)', 'F', 2020, null, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 130, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
+  ('WAG', 'WAG-L2-B', 'Level 2', '7–8 tahun', null, 'Artistik Putri Level 2 (7–8 tahun)', 'Women''s Artistic Level 2 (7–8)', 'F', 2018, 2019, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 140, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
+  ('WAG', 'WAG-L2-C', 'Level 2', '9 tahun ke atas', null, 'Artistik Putri Level 2 (9 tahun ke atas)', 'Women''s Artistic Level 2 (9 & over)', 'F', null, 2017, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 150, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
+  ('WAG', 'WAG-L3-A', 'Level 3', '9 tahun ke bawah', null, 'Artistik Putri Level 3 (9 tahun ke bawah)', 'Women''s Artistic Level 3 (9 & under)', 'F', 2017, null, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 160, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
+  ('WAG', 'WAG-L3-B', 'Level 3', '10 tahun ke atas', null, 'Artistik Putri Level 3 (10 tahun ke atas)', 'Women''s Artistic Level 3 (10 & over)', 'F', null, 2016, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 170, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
+  ('WAG', 'WAG-L4-A', 'Level 4', '10 tahun ke bawah', null, 'Artistik Putri Level 4 (10 tahun ke bawah)', 'Women''s Artistic Level 4 (10 & under)', 'F', 2016, null, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 180, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true, "club_cap": 2}'::jsonb),
+  ('WAG', 'WAG-L4-B', 'Level 4', '11 tahun ke atas', null, 'Artistik Putri Level 4 (11 tahun ke atas)', 'Women''s Artistic Level 4 (11 & over)', 'F', null, 2015, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 190, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true, "club_cap": 2}'::jsonb),
+  ('WAG', 'WAG-L5-A', 'Level 5', '11 tahun ke bawah', null, 'Artistik Putri Level 5 (11 tahun ke bawah)', 'Women''s Artistic Level 5 (11 & under)', 'F', 2015, null, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 200, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true, "club_cap": 2}'::jsonb),
+  ('WAG', 'WAG-L5-B', 'Level 5', '12 tahun ke atas', null, 'Artistik Putri Level 5 (12 tahun ke atas)', 'Women''s Artistic Level 5 (12 & over)', 'F', null, 2014, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 210, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true, "club_cap": 2}'::jsonb),
+  ('WAG', 'WAG-L6-A', 'Level 6', '11 tahun ke bawah', null, 'Artistik Putri Level 6 (11 tahun ke bawah)', 'Women''s Artistic Level 6 (11 & under)', 'F', 2015, null, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 220, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true, "club_cap": 2}'::jsonb),
+  ('WAG', 'WAG-L6-B', 'Level 6', '12 tahun ke atas', null, 'Artistik Putri Level 6 (12 tahun ke atas)', 'Women''s Artistic Level 6 (12 & over)', 'F', null, 2014, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 230, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true, "club_cap": 2}'::jsonb),
+  ('WAG', 'WAG-PJ', 'Pre Junior', '11–13 tahun', null, 'Artistik Putri Pre Junior (11–13 tahun)', 'Women''s Artistic Pre Junior (11–13)', 'F', 2013, 2015, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 240, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true, "club_cap": 2}'::jsonb),
+  ('WAG', 'WAG-JR', 'Junior', '14–15 tahun', null, 'Artistik Putri Junior (14–15 tahun)', 'Women''s Artistic Junior (14–15)', 'F', 2011, 2012, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 250, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true, "club_cap": 2}'::jsonb),
+  ('RG', 'RG-A-KU56', 'KU 5–6', 'Kelahiran 2020–2021', 'Profesional', 'Ritmik Profesional KU 5–6', 'Rhythmic Professional KU 5–6', 'F', 2020, 2021, 'individual', 750000, array['FH','BALL']::text[], null, 260, null, '{"type": "rank", "places": 3}'::jsonb),
+  ('RG', 'RG-A-KU78', 'KU 7–8', 'Kelahiran 2018–2019', 'Profesional', 'Ritmik Profesional KU 7–8', 'Rhythmic Professional KU 7–8', 'F', 2018, 2019, 'individual', 750000, array['FH','HOOP']::text[], null, 270, null, '{"type": "rank", "places": 3}'::jsonb),
+  ('RG', 'RG-A-KU910', 'KU 9–10', 'Kelahiran 2016–2017', 'Profesional', 'Ritmik Profesional KU 9–10', 'Rhythmic Professional KU 9–10', 'F', 2016, 2017, 'individual', 750000, array['FH','HOOP','BALL']::text[], null, 280, null, '{"type": "rank", "places": 3}'::jsonb),
+  ('RG', 'RG-A-KU1112', 'KU 11–12', 'Kelahiran 2014–2015', 'Profesional', 'Ritmik Profesional KU 11–12', 'Rhythmic Professional KU 11–12', 'F', 2014, 2015, 'individual', 750000, array['FH','BALL','CLUBS']::text[], null, 290, null, '{"type": "rank", "places": 3}'::jsonb),
+  ('RG', 'RG-A-JR', 'Junior', 'Kelahiran 2012–2013', 'Profesional', 'Ritmik Profesional Junior', 'Rhythmic Professional Junior', 'F', 2012, 2013, 'individual', 750000, array['HOOP','BALL','CLUBS','RIBBON']::text[], null, 300, null, '{"type": "rank", "places": 3}'::jsonb),
+  ('RG', 'RG-B-KU56', 'KU 5–6', 'Kelahiran 2020–2021', 'Amatir', 'Ritmik Amatir KU 5–6', 'Rhythmic Amateur KU 5–6', 'F', 2020, 2021, 'individual', 750000, array['FH','BALL']::text[], null, 310, null, '{"type": "rank", "places": 3}'::jsonb),
+  ('RG', 'RG-B-KU78', 'KU 7–8', 'Kelahiran 2018–2019', 'Amatir', 'Ritmik Amatir KU 7–8', 'Rhythmic Amateur KU 7–8', 'F', 2018, 2019, 'individual', 750000, array['FH','HOOP']::text[], null, 320, null, '{"type": "rank", "places": 3}'::jsonb),
+  ('RG', 'RG-B-KU910', 'KU 9–10', 'Kelahiran 2016–2017', 'Amatir', 'Ritmik Amatir KU 9–10', 'Rhythmic Amateur KU 9–10', 'F', 2016, 2017, 'individual', 750000, array['FH','HOOP','BALL']::text[], null, 330, null, '{"type": "rank", "places": 3}'::jsonb),
+  ('RG', 'RG-B-KU1112', 'KU 11–12', 'Kelahiran 2014–2015', 'Amatir', 'Ritmik Amatir KU 11–12', 'Rhythmic Amateur KU 11–12', 'F', 2014, 2015, 'individual', 750000, array['FH','BALL','CLUBS']::text[], null, 340, null, '{"type": "rank", "places": 3}'::jsonb),
+  ('RG', 'RG-B-JR', 'Junior', 'Kelahiran 2012–2013', 'Amatir', 'Ritmik Amatir Junior', 'Rhythmic Amateur Junior', 'F', 2012, 2013, 'individual', 750000, array['HOOP','BALL','CLUBS','RIBBON']::text[], null, 350, null, '{"type": "rank", "places": 3}'::jsonb),
+  ('AER', 'AER-JR-IM', 'Junior', '15–17 tahun', null, 'Aerobik Junior Perorangan Putra (IM)', 'Aerobic Junior Individual Men (IM)', 'M', 2009, 2011, 'individual', 300000, array['RTN']::text[], 4, 360, null, '{"type": "rank", "places": 3}'::jsonb),
+  ('AER', 'AER-JR-IW', 'Junior', '15–17 tahun', null, 'Aerobik Junior Perorangan Putri (IW)', 'Aerobic Junior Individual Women (IW)', 'F', 2009, 2011, 'individual', 300000, array['RTN']::text[], 4, 370, null, '{"type": "rank", "places": 3}'::jsonb),
+  ('AER', 'AER-JR-MP', 'Junior', '15–17 tahun', null, 'Aerobik Junior Pasangan Campuran (MP)', 'Aerobic Junior Mixed Pair (MP)', 'X', 2009, 2011, 'pair', 400000, array['RTN']::text[], 4, 380, null, '{"type": "rank", "places": 3}'::jsonb),
+  ('AER', 'AER-YT-IM', 'Youth', '12–14 tahun', null, 'Aerobik Youth Perorangan Putra (IM)', 'Aerobic Youth Individual Men (IM)', 'M', 2012, 2014, 'individual', 300000, array['RTN']::text[], 4, 390, null, '{"type": "rank", "places": 3}'::jsonb),
+  ('AER', 'AER-YT-IW', 'Youth', '12–14 tahun', null, 'Aerobik Youth Perorangan Putri (IW)', 'Aerobic Youth Individual Women (IW)', 'F', 2012, 2014, 'individual', 300000, array['RTN']::text[], 4, 400, null, '{"type": "rank", "places": 3}'::jsonb),
+  ('AER', 'AER-YT-MP', 'Youth', '12–14 tahun', null, 'Aerobik Youth Pasangan Campuran (MP)', 'Aerobic Youth Mixed Pair (MP)', 'X', 2012, 2014, 'pair', 400000, array['RTN']::text[], 4, 410, null, '{"type": "rank", "places": 3}'::jsonb),
+  ('AER', 'AER-ND-IM', 'National Development', '9–11 tahun', null, 'Aerobik National Development Perorangan Putra (IM)', 'Aerobic National Development Individual Men (IM)', 'M', 2015, 2017, 'individual', 300000, array['RTN']::text[], 4, 420, null, '{"type": "rank", "places": 3}'::jsonb),
+  ('AER', 'AER-ND-IW', 'National Development', '9–11 tahun', null, 'Aerobik National Development Perorangan Putri (IW)', 'Aerobic National Development Individual Women (IW)', 'F', 2015, 2017, 'individual', 300000, array['RTN']::text[], 4, 430, null, '{"type": "rank", "places": 3}'::jsonb),
+  ('AER', 'AER-PND-IM', 'Pre National Development', '6–8 tahun', null, 'Aerobik Pre National Development Perorangan Putra (IM)', 'Aerobic Pre National Development Individual Men (IM)', 'M', 2018, 2020, 'individual', 300000, array['RTN']::text[], 4, 440, null, '{"type": "rank", "places": 3}'::jsonb),
+  ('AER', 'AER-PND-IW', 'Pre National Development', '6–8 tahun', null, 'Aerobik Pre National Development Perorangan Putri (IW)', 'Aerobic Pre National Development Individual Women (IW)', 'F', 2018, 2020, 'individual', 300000, array['RTN']::text[], 4, 450, null, '{"type": "rank", "places": 3}'::jsonb)
 on conflict (code) do nothing;
 
 insert into jo.settings (key, value) values
@@ -3357,10 +3454,11 @@ insert into jo.settings (key, value) values
   ('team_fee', '650000'::jsonb),
   ('team_max', '6'::jsonb),
   ('team_counting', '4'::jsonb),
+  ('team_levels', '{"WAG": ["Level 1", "Level 2", "Level 3", "Level 4", "Level 5", "Level 6"]}'::jsonb),
   ('instagram', '"gimnastikjabar"'::jsonb),
   ('email_guardians', 'true'::jsonb),
   ('venue', '{"name": "Gymnasium Arcamanik", "address": "Jl. Pacuan Kuda No. 15b, Sukamiskin, Arcamanik, Kota Bandung, Jawa Barat 40231"}'::jsonb),
-  ('signatories', '[{"name": "Andi Juliandi", "title": "Ketua Pelaksana Jabar Open 2026"}, {"name": "Dika Chrisna Irzandi, S.A.B., M.B.A", "title": "Ketua Gimnastik Indonesia (GI) Jawa Barat"}]'::jsonb)
+  ('signatories', '[{"name": "Andi Juliandi", "title": "Ketua Pelaksana Jabar Open 2026"}, {"name": "Dika Chrisna Irzandi, S.A.B., M.B.A", "title": "Ketua Gimnastik Indonesia (GI) Jawa Barat", "sig": "assets/img/ttd/dika.png"}]'::jsonb)
 on conflict (key) do nothing;
 -- =====================================================================
 --  Penyesuaian data untuk instalasi yang sudah berjalan (aman diulang)
@@ -3368,6 +3466,32 @@ on conflict (key) do nothing;
 -- v3: email kontak resmi pindah ke jabaropen2026@gmail.com, PM tetap tercantum
 update jo.settings set value = '"jabaropen2026@gmail.com"'::jsonb, updated_at = now()
  where key = 'contact_email' and value = '"adjisena.daffa@gmail.com"'::jsonb;
+
+-- v4 (14/10/2026): lampiran Medali & Piala Artistik — sekali jalan (ditandai di settings)
+do $$
+begin
+  if not exists (select 1 from jo.settings where key = 'migrasi_v4_medali') then
+    -- kelompok usia WAG Level 4–6
+    update jo.categories set age_label = '10 tahun ke bawah', name_id = 'Artistik Putri Level 4 (10 tahun ke bawah)', name_en = 'Women''s Artistic Level 4 (10 & under)', birth_year_min = 2016, birth_year_max = null where code = 'WAG-L4-A';
+    update jo.categories set age_label = '11 tahun ke atas', name_id = 'Artistik Putri Level 4 (11 tahun ke atas)', name_en = 'Women''s Artistic Level 4 (11 & over)', birth_year_min = null, birth_year_max = 2015 where code = 'WAG-L4-B';
+    update jo.categories set age_label = '11 tahun ke bawah', name_id = 'Artistik Putri Level ' || substr(code, 6, 1) || ' (11 tahun ke bawah)', name_en = 'Women''s Artistic Level ' || substr(code, 6, 1) || ' (11 & under)', birth_year_min = 2015, birth_year_max = null where code in ('WAG-L5-A','WAG-L6-A');
+    update jo.categories set age_label = '12 tahun ke atas', name_id = 'Artistik Putri Level ' || substr(code, 6, 1) || ' (12 tahun ke atas)', name_en = 'Women''s Artistic Level ' || substr(code, 6, 1) || ' (12 & over)', birth_year_min = null, birth_year_max = 2014 where code in ('WAG-L5-B','WAG-L6-B');
+    -- aturan penghargaan
+    update jo.categories set medal_rule = '{"type":"rank","places":3,"aa_places":6}'::jsonb where discipline in ('MAG','WAG');
+    update jo.categories set medal_rule = medal_rule || '{"apparatus_medals":true}'::jsonb
+     where code in ('WAG-L4-A','WAG-L4-B','WAG-L5-A','WAG-L5-B','WAG-L6-A','WAG-L6-B','WAG-PJ','WAG-JR','MAG-JR');
+    update jo.categories set medal_rule = medal_rule || '{"club_cap":2}'::jsonb
+     where code in ('WAG-L4-A','WAG-L4-B','WAG-L5-A','WAG-L5-B','WAG-L6-A','WAG-L6-B','WAG-PJ','WAG-JR');
+    -- tanda tangan Ketua GI Jawa Barat
+    update jo.settings set value = (
+      select jsonb_agg(case when x->>'name' ilike 'Dika%' and not (x ? 'sig') then x || '{"sig":"assets/img/ttd/dika.png"}'::jsonb else x end)
+        from jsonb_array_elements(value) x), updated_at = now()
+     where key = 'signatories' and jsonb_typeof(value) = 'array';
+    insert into jo.settings (key, value) values ('team_levels', '{"WAG":["Level 1","Level 2","Level 3","Level 4","Level 5","Level 6"]}'::jsonb)
+      on conflict (key) do update set value = excluded.value, updated_at = now();
+    insert into jo.settings (key, value) values ('migrasi_v4_medali', to_jsonb(now()));
+  end if;
+end $$;
 -- =====================================================================
 --  Penyimpanan berkas (Supabase Storage)
 --   dokumen : identitas & foto atlet (privat)

@@ -183,42 +183,69 @@ begin
   return round(coalesce(d,0) + coalesce(e,0) + coalesce(a,0) - coalesce(pen,0), 3);
 end $$;
 
--- Hasil satu kategori: peringkat serba bisa, nilai per alat, medali, peringkat Priangan
+-- Hasil satu kategori. Aturan dari medal_rule:
+--   places (medali 1-3), aa_places (peringkat serba bisa yang dihargai, 4-6 = medali mini),
+--   apparatus_medals (medali 1-3 per alat), club_cap (maks. pesenam per klub untuk setiap penghargaan;
+--   pesenam ke-3 dst. dari klub yang sama dilewati dan penghargaan turun ke pesenam berikutnya).
 create or replace function jo.category_results(p_cat integer) returns jsonb
 language plpgsql stable set search_path = '' as $$
-declare c jo.categories; places integer; res jsonb;
+declare c jo.categories; places integer; aa_places integer; cap integer; app_med boolean; res jsonb;
 begin
   select * into c from jo.categories where id = p_cat;
   if c.id is null then return '[]'::jsonb; end if;
-  places := coalesce((c.medal_rule->>'places')::integer, 3);
+  places    := coalesce((c.medal_rule->>'places')::integer, 3);
+  aa_places := greatest(places, coalesce((c.medal_rule->>'aa_places')::integer, places));
+  cap       := nullif((c.medal_rule->>'club_cap')::integer, 0);
+  app_med   := coalesce((c.medal_rule->>'apparatus_medals')::boolean, false);
 
   with e as (
-    select en.id, (en.priangan_status = 'disetujui' and not en.team_only) as pri, en.team_only as tonly, en.start_order, en.group_no
+    select en.id, (en.priangan_status = 'disetujui' and not en.team_only) as pri, en.team_only as tonly,
+           en.start_order, en.group_no, coalesce(s.club_id::text, en.id::text) as clubkey
     from jo.entries en join jo.submissions s on s.id = en.submission_id
     where en.category_id = p_cat and en.status = 'aktif' and s.status = 'lunas'
   ),
   ap as (select unnest(c.apparatus) as app),
   sc as (
-    select e.id, ap.app, jo.apparatus_score(e.id, ap.app) as score from e cross join ap
+    select e.id, e.tonly, e.clubkey, ap.app, jo.apparatus_score(e.id, ap.app) as score from e cross join ap
   ),
   apr as (
-    select id, app, score,
-      case when score is not null then rank() over (partition by app, (score is null) order by score desc) end as arank
+    select id, app, score, tonly, clubkey,
+      case when score is not null then rank() over (partition by app, (score is null) order by score desc) end as arank,
+      case when score is not null and not tonly
+           then row_number() over (partition by app, clubkey, (score is null or tonly) order by score desc) end as club_n
     from sc
+  ),
+  apa as (
+    -- peringkat penghargaan per alat (setelah batas per klub)
+    select id, app, score, arank,
+      case when score is not null and not tonly and (cap is null or club_n <= cap)
+           then rank() over (partition by app, (score is null or tonly or (cap is not null and club_n > cap)) order by score desc) end as award
+    from apr
   ),
   tot as (
     select id, round(sum(score), 3) as total, count(score) as n_scored,
       jsonb_object_agg(app, score) as scores,
-      jsonb_object_agg(app, arank) as app_ranks
-    from apr group by id
+      jsonb_object_agg(app, arank) as app_ranks,
+      case when app_med then coalesce(jsonb_object_agg(app,
+          case award when 1 then 'emas' when 2 then 'perak' when 3 then 'perunggu' end)
+        filter (where award between 1 and 3), '{}'::jsonb) else '{}'::jsonb end as app_medals
+    from apa group by id
   ),
   rk as (
     -- anggota "khusus beregu" dinilai tetapi tidak ikut peringkat perorangan
-    select e.id, e.pri, e.tonly, e.start_order, e.group_no, t.total, t.n_scored, t.scores, t.app_ranks,
+    select e.id, e.pri, e.tonly, e.clubkey, e.start_order, e.group_no, t.total, t.n_scored, t.scores, t.app_ranks, t.app_medals,
       case when t.total is not null and not e.tonly then rank() over (partition by (t.total is null or e.tonly) order by t.total desc) end as rnk,
+      case when t.total is not null and not e.tonly
+           then row_number() over (partition by e.clubkey, (t.total is null or e.tonly) order by t.total desc, e.start_order nulls last) end as club_n,
       case when e.pri and t.total is not null
            then rank() over (partition by (e.pri and t.total is not null) order by t.total desc) end as prnk
     from e join tot t on t.id = e.id
+  ),
+  rk2 as (
+    select rk.*,
+      case when rnk is not null and (cap is null or club_n <= cap)
+           then rank() over (partition by (rnk is null or (cap is not null and club_n > cap)) order by total desc) end as award
+    from rk
   )
   select coalesce(jsonb_agg(jsonb_build_object(
       'entry_id', rk.id,
@@ -232,8 +259,12 @@ begin
       'scores', rk.scores,
       'app_ranks', rk.app_ranks,
       'rank', rk.rnk,
-      'medal', case when c.exhibition or rk.rnk is null or rk.rnk > places then null
-                    when rk.rnk = 1 then 'emas' when rk.rnk = 2 then 'perak' else 'perunggu' end,
+      'award_rank', case when rk.award <= aa_places then rk.award end,
+      'capped', rk.rnk is not null and cap is not null and rk.club_n > cap and rk.rnk <= aa_places,
+      'medal', case when c.exhibition or rk.award is null or rk.award > places then null
+                    when rk.award = 1 then 'emas' when rk.award = 2 then 'perak' else 'perunggu' end,
+      'mini', not c.exhibition and rk.award is not null and rk.award > places and rk.award <= aa_places,
+      'app_medals', case when c.exhibition then '{}'::jsonb else rk.app_medals end,
       'team_only', rk.tonly,
       'priangan', rk.pri,
       'priangan_rank', rk.prnk,
@@ -241,7 +272,7 @@ begin
                     when rk.prnk = 1 then 'emas' when rk.prnk = 2 then 'perak' else 'perunggu' end
     ) order by rk.rnk nulls last, rk.tonly, rk.start_order nulls last), '[]'::jsonb)
   into res
-  from rk;
+  from rk2 rk;
   return res;
 end $$;
 
@@ -327,6 +358,11 @@ begin
     select discipline, x->>'club' as club, x->>'region' as region,
       case when p_priangan then x->>'priangan_medal' else x->>'medal' end as medal
     from rows
+    union all
+    -- medali per alat (hanya tabel Jabar Open, bukan Priangan)
+    select r.discipline, r.x->>'club', r.x->>'region', am.value
+    from rows r cross join lateral jsonb_each_text(coalesce(r.x->'app_medals', '{}'::jsonb)) am
+    where not p_priangan
   ),
   m2 as (select * from m where medal is not null),
   by_club as (

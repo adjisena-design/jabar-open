@@ -24,6 +24,9 @@
     s_ticket: ['Unduh e-ticket (PDF)', 'Download e-ticket (PDF)'], s_ticket_wait: ['E-ticket tersedia setelah pembayaran lunas.', 'E-ticket is available once payment is confirmed.'],
     s_start: ['Jadwal tampil', 'Competition slot'], s_group: ['grup', 'group'], s_order: ['urutan', 'order'],
     s_result: ['Hasil', 'Result'], s_rank: ['Peringkat {r}', 'Rank {r}'], s_cert: ['Unduh sertifikat', 'Download certificate'],
+    s_mini: ['Medali mini, peringkat {r}', 'Mini medal, place {r}'],
+    s_capped: ['Penghargaan serba bisa diberikan ke pesenam berikutnya (maks. 2 pesenam per klub).', 'The all-around award passed to the next gymnast (max. 2 gymnasts per club).'],
+    s_app_medals: ['Medali per alat', 'Apparatus medals'], s_cert_app: ['Sertifikat {a}', '{a} certificate'],
     s_pri_rank: ['Priangan: peringkat {r}', 'Priangan: rank {r}'],
     s_making: ['Membuat PDF…', 'Creating PDF…'],
     s_cancelled: ['Pendaftaran ini dibatalkan oleh panitia.', 'This registration was cancelled by the committee.'],
@@ -75,6 +78,7 @@
   }
 
   const catName = (e) => (JO.lang === 'en' ? e.category_name_en : e.category_name_id);
+  const appName = (k) => { const n = D && D.apparatus_names && D.apparatus_names[k]; return n ? (JO.lang === 'en' ? n.en : n.id) : k; };
   function startText(s) {
     if (!s) return '';
     const parts = [s.session, s.day ? JO.fmtDate(s.day, { weekday: 'long', day: 'numeric', month: 'long' }) : '', s.start_time ? s.start_time.slice(0, 5) : '',
@@ -117,9 +121,14 @@
             ${e.start ? `<div class="small"><strong>${esc(t('s_start'))}:</strong> ${esc(startText(e.start))}</div>` : ''}
             ${e.result ? `<div class="small" style="margin-top:4px"><strong>${esc(t('s_result'))}:</strong> ${e.result.rank ? esc(t('s_rank', { r: e.result.rank })) : e.team_only ? esc(t('s_team_only_res')) : '–'}
                 ${e.result.medal ? ` <span class="medal ${e.result.medal}"></span> ${esc(t('medal_' + e.result.medal))}` : ''}
+                ${e.result.mini ? ` <span class="pill">${esc(t('s_mini', { r: e.result.award_rank }))}</span>` : ''}
                 ${e.result.total != null ? ` <span class="muted num">(${Number(e.result.total).toFixed(3)})</span>` : ''}
+                ${e.result.capped ? `<br><span class="muted">${esc(t('s_capped'))}</span>` : ''}
+                ${Object.keys(e.result.app_medals || {}).length ? `<br>${esc(t('s_app_medals'))}: ${Object.entries(e.result.app_medals).map(([k, m]) => `${esc(appName(k))} <span class="medal ${m}"></span> ${esc(t('medal_' + m))}`).join(', ')}` : ''}
                 ${e.result.priangan_rank ? `<br>${esc(t('s_pri_rank', { r: e.result.priangan_rank }))}${e.result.priangan_medal ? ` <span class="medal ${e.result.priangan_medal}"></span> ${esc(t('medal_' + e.result.priangan_medal))}` : ''}` : ''}</div>
-              <button class="btn btn-ghost btn-sm" style="margin-top:8px" data-cert="${e.id}" data-ath="${a.id}">${esc(t('s_cert'))}</button>` : ''}
+              <div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap">
+                <button class="btn btn-ghost btn-sm" data-cert="${e.id}" data-ath="${a.id}">${esc(t('s_cert'))}</button>
+                ${Object.keys(e.result.app_medals || {}).map((k) => `<button class="btn btn-ghost btn-sm" data-cert="${e.id}" data-ath="${a.id}" data-app="${k}">${esc(t('s_cert_app', { a: appName(k) }))}</button>`).join('')}</div>` : ''}
           </div>`).join('')}
           <div style="margin-top:10px">${a.ticket_code ? `<button class="btn btn-dark btn-sm" data-ticket="${a.id}">${esc(t('s_ticket'))}</button>` : `<span class="small muted">${esc(t('s_ticket_wait'))}</span>`}</div>
         </div>`;
@@ -235,15 +244,20 @@
     const e = D.entries.find((x) => x.id === btn.dataset.cert);
     const a = D.athletes.find((x) => x.id === btn.dataset.ath);
     const cert = (e.certificates || []).find((c) => c.athlete_id === a.id);
+    const app = btn.dataset.app;
     const old = btn.textContent; btn.disabled = true; btn.textContent = t('s_making');
     try {
-      const doc = await JO.certificatePdf({
+      const doc = await JO.certificatePdf(app ? {
         name: a.full_name, club: D.club ? D.club.name : 'Perorangan', discipline: D.discipline,
-        category: e.category_name_id, rank: e.result.rank, medal: e.result.medal,
+        apparatus: (D.apparatus_names && D.apparatus_names[app] ? D.apparatus_names[app].id : app), medal: e.result.app_medals[app],
+        category: e.category_name_id, cert_code: cert.cert_code + '-' + app, signatories: D.signatories,
+      } : {
+        name: a.full_name, club: D.club ? D.club.name : 'Perorangan', discipline: D.discipline,
+        category: e.category_name_id, rank: e.result.award_rank, medal: e.result.medal, mini: e.result.mini,
         priangan_rank: e.result.priangan_rank, priangan_medal: e.result.priangan_medal,
         cert_code: cert.cert_code, signatories: D.signatories,
       });
-      doc.save(`sertifikat-${a.athlete_no}-${a.full_name.replace(/[^a-z0-9]+/gi, '-')}.pdf`);
+      doc.save(`sertifikat-${a.athlete_no}${app ? '-' + app : ''}-${a.full_name.replace(/[^a-z0-9]+/gi, '-')}.pdf`);
     } catch (err) { JO.toast(err.message, 'bad'); }
     finally { btn.disabled = false; btn.textContent = old; }
   }

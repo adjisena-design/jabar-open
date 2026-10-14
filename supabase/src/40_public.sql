@@ -23,6 +23,7 @@ language sql stable security definer set search_path = '' as $$
       'team_fee', coalesce(jo.setting_int('team_fee'), 650000),
       'team_max', coalesce(jo.setting_int('team_max'), 6),
       'team_counting', coalesce(jo.setting_int('team_counting'), 4),
+      'team_levels', coalesce(jo.setting('team_levels'), '{}'::jsonb),
       'qris_cap', coalesce(jo.setting_int('qris_cap'), 10000000)),
     'payment', jsonb_build_object(
       'qris_image_url', jo.setting_text('qris_image_url'),
@@ -133,8 +134,8 @@ begin
   if v_type not in ('individu','klub','beregu') then
     raise exception 'Pilih jenis pendaftar: perorangan, klub/sekolah, atau beregu.' using hint = 'ERR_TYPE';
   end if;
-  if v_type = 'beregu' and v_disc.code not in ('MAG','WAG') then
-    raise exception 'Beregu hanya untuk Artistik Putra dan Artistik Putri.' using hint = 'ERR_TEAM';
+  if v_type = 'beregu' and not (jo.setting('team_levels') ? v_disc.code) then
+    raise exception 'Beregu hanya untuk Artistik Putri Level 1–6.' using hint = 'ERR_TEAM';
   end if;
 
   -- Kontak
@@ -225,8 +226,9 @@ begin
     --  BEREGU (Artistik): satu tim, 1–6 pesenam, satu level
     -- =================================================================
     v_level := trim(coalesce(v_team->>'level',''));
-    if not exists (select 1 from jo.categories where discipline = v_disc.code and level = v_level and active) then
-      raise exception 'Pilih level beregu.' using hint = 'ERR_TEAM_LEVEL';
+    if not exists (select 1 from jo.categories where discipline = v_disc.code and level = v_level and active)
+       or not coalesce(jo.setting('team_levels')->v_disc.code ? v_level, false) then
+      raise exception 'Beregu tidak tersedia untuk %.', coalesce(nullif(v_level,''), 'level ini') using hint = 'ERR_TEAM_LEVEL';
     end if;
     v_tname := regexp_replace(trim(coalesce(v_team->>'name','')), '\s+', ' ', 'g');
     if length(v_tname) < 2 then
@@ -645,6 +647,7 @@ language sql stable set search_path = '' as $$
       'note', jo.setting_text('payment_note'),
       'deadline_label', jo.setting_text('payment_deadline_label')),
     'signatories', jo.setting('signatories'),
+    'apparatus_names', (select jsonb_object_agg(x->>'code', jsonb_build_object('id', x->>'id', 'en', x->>'en')) from jsonb_array_elements(d.apparatus) x),
     'athletes', (select coalesce(jsonb_agg(jsonb_build_object(
         'id', a.id, 'athlete_no', a.athlete_no, 'full_name', a.full_name, 'gender', a.gender,
         'birth_date', a.birth_date, 'nationality', a.nationality, 'province', a.province, 'kab_kota', a.kab_kota,
@@ -835,6 +838,31 @@ begin
         'discipline', tt.discipline, 'level', tt.level, 'rank', tr->'rank', 'total', tr->'total');
     end if;
   end;
+  -- sertifikat medali per alat: <kode sertifikat>-<alat>, mis. CABC123XYZ-VT
+  declare v_app text;
+  begin
+    if v ~ '^[A-Z0-9]+-[A-Z]+$' then
+      v_app := split_part(v, '-', 2);
+      select * into ea from jo.entry_athletes where cert_code = split_part(v, '-', 1);
+      if ea.entry_id is not null then
+        select * into en from jo.entries where id = ea.entry_id;
+        select * into c from jo.categories where id = en.category_id;
+        select * into a from jo.athletes where id = ea.athlete_id;
+        select * into s from jo.submissions where id = en.submission_id;
+        select x into r from jsonb_array_elements(jo.category_results(c.id)) x where x->>'entry_id' = en.id::text;
+        if not c.results_published or s.status <> 'lunas' or (r->'app_medals'->>v_app) is null then
+          return jsonb_build_object('type', 'apparatus_certificate', 'valid', false);
+        end if;
+        return jsonb_build_object('type', 'apparatus_certificate', 'valid', true,
+          'name', a.full_name, 'athlete_no', a.athlete_no, 'club', r->>'club', 'region', r->>'region',
+          'category_name_id', c.name_id, 'category_name_en', c.name_en, 'discipline', c.discipline,
+          'apparatus', v_app,
+          'apparatus_name_id', (select x->>'id' from jo.disciplines d cross join jsonb_array_elements(d.apparatus) x where d.code = c.discipline and x->>'code' = v_app),
+          'apparatus_name_en', (select x->>'en' from jo.disciplines d cross join jsonb_array_elements(d.apparatus) x where d.code = c.discipline and x->>'code' = v_app),
+          'medal', r->'app_medals'->>v_app, 'score', r->'scores'->v_app);
+      end if;
+    end if;
+  end;
   select * into ea from jo.entry_athletes where cert_code = v;
   if ea.entry_id is not null then
     select * into en from jo.entries where id = ea.entry_id;
@@ -848,7 +876,7 @@ begin
     return jsonb_build_object('type', 'certificate', 'valid', true,
       'name', a.full_name, 'athlete_no', a.athlete_no, 'club', r->>'club', 'region', r->>'region',
       'category_id', c.id, 'category_name_id', c.name_id, 'category_name_en', c.name_en, 'discipline', c.discipline,
-      'rank', r->'rank', 'medal', r->'medal', 'total', r->'total',
+      'rank', r->'rank', 'award_rank', r->'award_rank', 'medal', r->'medal', 'mini', r->'mini', 'total', r->'total',
       'priangan', r->'priangan', 'priangan_rank', r->'priangan_rank', 'priangan_medal', r->'priangan_medal');
   end if;
   return jsonb_build_object('type', null, 'valid', false);

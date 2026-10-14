@@ -6,12 +6,12 @@
 
   JO.addDict({
     d_title: ['Pendaftaran atlet', 'Athlete registration'],
-    d_lead: ['Satu pendaftaran untuk satu disiplin. Perorangan untuk satu atlet, klub atau sekolah hingga lima atlet sekaligus, dan beregu untuk satu tim Artistik.', 'One registration covers one discipline. Individuals register one athlete, clubs or schools up to five at once, and a team entry registers one Artistic team.'],
+    d_lead: ['Satu pendaftaran untuk satu disiplin. Perorangan untuk satu atlet, klub atau sekolah hingga lima atlet sekaligus, dan beregu untuk satu tim Artistik Putri.', "One registration covers one discipline. Individuals register one athlete, clubs or schools up to five at once, and a team entry registers one Women's Artistic team."],
     d_ready_t: ['Siapkan sebelum mendaftar', 'Have this ready'],
     d_ready: ['Identitas atlet (KTP, akta kelahiran, ijazah, atau paspor), data orang tua/wali untuk atlet di bawah 18 tahun, serta BPJS atau asuransi. Ritmik: tautan folder Google Drive berisi musik tiap atlet.', "Athlete ID (national ID, birth certificate, school certificate or passport), parent/guardian details for athletes under 18, and BPJS or insurance. Rhythmic: a Google Drive folder link with each athlete's music."],
-    type_beregu: ['Beregu Artistik', 'Artistic team'], type_beregu_sub: ['Satu tim berisi 1–{n} pesenam dari satu level. {fee} per tim.', 'One team of 1–{n} gymnasts from one level. {fee} per team.'],
-    disc_no_team: ['Beregu hanya untuk Artistik', 'Teams are Artistic only'],
-    err_team_disc: ['Beregu hanya untuk Artistik Putra atau Artistik Putri.', "Teams are only for Men's or Women's Artistic."],
+    type_beregu: ['Beregu Artistik', 'Artistic team'], type_beregu_sub: ['Artistik Putri Level 1–6. Satu tim berisi 1–{n} pesenam dari satu level. {fee} per tim.', "Women's Artistic Levels 1–6. One team of 1–{n} gymnasts from one level. {fee} per team."],
+    disc_no_team: ['Beregu hanya untuk Artistik Putri', "Teams are Women's Artistic only"],
+    err_team_disc: ['Beregu hanya untuk Artistik Putri Level 1–6.', "Teams are only for Women's Artistic Levels 1–6."],
     st3_team: ['Tim & pesenam', 'Team & gymnasts'],
     tm_title: ['Tim', 'Team'], tm_level: ['Level', 'Level'], tm_name: ['Nama tim', 'Team name'], tm_name_ph: ['mis. {c} A', 'e.g. {c} A'],
     tm_hint: ['Satu tim untuk satu level; kelompok usia boleh campur. Satu klub boleh mengirim beberapa tim di level yang sama dengan nama berbeda.', 'One team per level; age groups can be mixed. A club may enter several teams in the same level under different names.'],
@@ -142,13 +142,14 @@
     id_doc: null, photo: null, uploading: 0, guardian: { name: '', phone: '', email: '', relation: '' }, cat: null, pri: false, music: '' });
   const newMember = () => ({ key: 'm' + (++seq), kind: S.club.mode === 'existing' ? 'individu' : 'tim', full_name: '', birth_date: '', nationality: 'WNI', country: '',
     id_doc: null, photo: null, uploading: 0, guardian: { name: '', phone: '', email: '', relation: '' } });
-  const TEAM_DISCS = ['MAG', 'WAG'];
+  const teamLevels = () => (CFG && CFG.registration.team_levels) || { WAG: ['Level 1', 'Level 2', 'Level 3', 'Level 4', 'Level 5', 'Level 6'] };
+  const teamOK = (d) => Object.prototype.hasOwnProperty.call(teamLevels(), d);
   const teamFee = () => (CFG && CFG.registration.team_fee) || 650000;
   const teamMax = () => (CFG && CFG.registration.team_max) || 6;
   const teamCount = () => (CFG && CFG.registration.team_counting) || 4;
   const validDrive = (u) => /^https:\/\/(drive|docs)\.google\.com\/\S+$/i.test((u || '').trim());
   const normName = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
-  const levels = () => [...new Set(cats().filter((c) => c.entry_type === 'individual').map((c) => c.level))];
+  const levels = () => [...new Set(cats().filter((c) => c.entry_type === 'individual').map((c) => c.level))].filter((l) => (teamLevels()[S.discipline] || []).includes(l));
   const memberCat = (m) => {
     if (!S.team.level || !m.birth_date) return null;
     const g = S.discipline === 'MAG' ? 'M' : 'F';
@@ -273,11 +274,11 @@
     const discBox = box.querySelector('#discs');
     function drawDiscs() {
       const team = S.type === 'beregu';
-      if (team && S.discipline && !TEAM_DISCS.includes(S.discipline)) S.discipline = null;
+      if (team && S.discipline && !teamOK(S.discipline)) S.discipline = null;
       discBox.innerHTML = ds.map((d) => {
         const fees = [...new Set(CFG.categories.filter((c) => c.discipline === d.code).map((c) => c.fee))].sort((a, b) => a - b);
         const closed = !d.registration_open;
-        const noTeam = team && !TEAM_DISCS.includes(d.code);
+        const noTeam = team && !teamOK(d.code);
         const off = closed || noTeam;
         const sub = closed ? t('disc_closed') : noTeam ? t('disc_no_team') : team ? fmtRp(teamFee()) + (JO.lang === 'en' ? ' per team' : ' per tim') : fees.map(fmtRp).join(' / ');
         return `<label class="choice ${off ? 'disabled' : ''}"><input type="radio" name="disc" value="${d.code}" ${S.discipline === d.code && !off ? 'checked' : ''} ${off ? 'disabled' : ''}>
@@ -308,7 +309,7 @@
       let bad = false;
       if (!S.type) { fieldErr(box.querySelector('#types'), t('err_type')); bad = true; }
       if (!S.discipline) { fieldErr(box.querySelector('#discs'), t('err_disc')); bad = true; }
-      else if (S.type === 'beregu' && !TEAM_DISCS.includes(S.discipline)) { fieldErr(box.querySelector('#discs'), t('err_team_disc')); bad = true; }
+      else if (S.type === 'beregu' && !teamOK(S.discipline)) { fieldErr(box.querySelector('#discs'), t('err_team_disc')); bad = true; }
       if (S.contact.name.trim().length < 3) { fieldErr(box.querySelector('#c_name'), t('err_name')); bad = true; }
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(S.contact.email.trim())) { fieldErr(box.querySelector('#c_email'), t('err_email')); bad = true; }
       if (S.contact.phone.replace(/\D/g, '').length < 9) { fieldErr(box.querySelector('#c_phone'), t('err_phone')); bad = true; }

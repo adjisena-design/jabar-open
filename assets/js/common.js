@@ -295,11 +295,11 @@
     doc.setFillColor(228, 200, 125); doc.rect(9, 9, W - 18, 2.5, 'F');
     const lw = 46, lh = lw * logo.h / logo.w; doc.addImage(logo.data, 'PNG', 24, 22, lw, lh, 'jo-logo', 'FAST');
     const ow = 62, oh = ow * org.h / org.w; doc.addImage(org.data, 'PNG', W - 24 - ow, 26, ow, oh, 'jo-org', 'FAST');
-    const winner = !!c.team || !!c.medal || !!c.priangan_medal;
+    const winner = !!c.team || !!c.medal || !!c.mini || !!c.priangan_medal;
     doc.setTextColor(19, 40, 74); doc.setFont('helvetica', 'bold'); doc.setFontSize(34);
     doc.text('Sertifikat', W / 2, 62, { align: 'center' });
     doc.setFont('helvetica', 'normal'); doc.setFontSize(13); doc.setTextColor(91, 107, 136);
-    doc.text(c.team ? 'Juara Beregu' : winner ? 'Pemenang' : 'Peserta', W / 2, 71, { align: 'center' });
+    doc.text(c.team ? 'Juara Beregu' : c.apparatus ? 'Juara Per Alat' : winner ? 'Pemenang' : 'Peserta', W / 2, 71, { align: 'center' });
     doc.setFontSize(11); doc.text('diberikan kepada', W / 2, 84, { align: 'center' });
     doc.setTextColor(19, 40, 74); doc.setFont('helvetica', 'bold'); doc.setFontSize(28);
     doc.text(c.name, W / 2, 98, { align: 'center' });
@@ -307,9 +307,11 @@
     doc.text(c.club || '', W / 2, 106, { align: 'center' });
     let line;
     const mName = { emas: 'Medali Emas', perak: 'Medali Perak', perunggu: 'Medali Perunggu' };
+    const mRank = { emas: 1, perak: 2, perunggu: 3 };
     if (c.team) line = `sebagai Juara ${c.rank} Beregu`;
-    else if (c.medal) line = `sebagai Juara ${c.rank} (${mName[c.medal]})`;
-    else if (c.rank) line = `meraih peringkat ${c.rank}`;
+    else if (c.apparatus) line = `sebagai Juara ${mRank[c.medal]} ${c.apparatus} (${mName[c.medal]})`;
+    else if (c.medal) line = `sebagai Juara ${c.rank} Serba Bisa (${mName[c.medal]})`;
+    else if (c.mini) line = `meraih Peringkat ${c.rank} Serba Bisa`;
     else line = 'atas partisipasinya';
     doc.setFontSize(14); doc.setTextColor(19, 40, 74); doc.setFont('helvetica', 'bold');
     doc.text(line, W / 2, 119, { align: 'center' });
@@ -325,13 +327,21 @@
     // tanda tangan
     const sig = c.signatories || [];
     const xs = [W / 2 - 62, W / 2 + 62];
-    sig.slice(0, 2).forEach((s, i) => {
+    for (let i = 0; i < Math.min(2, sig.length); i++) {
+      const s = sig[i];
+      if (s.sig) {
+        try {
+          const im = await imgData(/^https?:/.test(s.sig) ? s.sig : relRoot() + s.sig);
+          const sh = 24, sw = Math.min(56, sh * im.w / im.h);
+          doc.addImage(im.data, 'PNG', xs[i] - sw / 2, 175 - sh, sw, sh, 'sig-' + i + '-' + s.sig.length, 'FAST');
+        } catch (e) { /* tanda tangan gagal dimuat: lanjut tanpa gambar */ }
+      }
       doc.setDrawColor(201, 209, 224); doc.line(xs[i] - 40, 176, xs[i] + 40, 176);
       doc.setTextColor(19, 40, 74); doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5);
       doc.text(s.name, xs[i], 182, { align: 'center' });
       doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(91, 107, 136);
       doc.text(s.title, xs[i], 187, { align: 'center' });
-    });
+    }
     pdfQr(doc, siteUrl() + 'verifikasi.html?c=' + c.cert_code, 24, 160, 24);
     doc.setFontSize(7); doc.setTextColor(91, 107, 136);
     doc.text('Verifikasi: ' + c.cert_code, 24, 190);

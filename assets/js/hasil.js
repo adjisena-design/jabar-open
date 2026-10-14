@@ -15,6 +15,9 @@
     h_exhibition: ['Eksibisi: medali tidak dihitung dalam perolehan.', 'Exhibition: medals do not count toward the table.'],
     h_rank: ['Per.', 'Rank'], h_pri_rank: ['Priangan', 'Priangan'],
     h_published: ['Dipublikasikan {d}', 'Published {d}'],
+    h_mini: ['mini {r}', 'mini {r}'], h_capped: ['batas klub', 'club cap'],
+    h_capped_t: ['Maks. 2 pesenam per klub untuk setiap penghargaan; penghargaan turun ke pesenam berikutnya.', 'Max. 2 gymnasts per club per award; the award passes to the next gymnast.'],
+    h_rules_app: ['Medali per alat untuk peringkat 1–3 ditandai di kolom alat.', 'Apparatus medals (places 1–3) are marked in the apparatus columns.'],
     h_team: ['Beregu {d} {l}', 'Team {d} {l}'],
     h_team_note: ['Nilai tim adalah jumlah {k} nilai serba bisa terbaik dari anggotanya. Nilai yang dihitung ditebalkan.', 'The team score is the sum of the best {k} all-around scores among its members. Counted scores are in bold.'],
     h_team_name: ['Tim', 'Team'], h_members: ['Anggota', 'Members'],
@@ -55,6 +58,7 @@
         <td class="r num"><strong>${r.total != null ? Number(r.total).toFixed(3) : '–'}</strong></td></tr>`).join('')}
       </tbody></table></div></section>`;
   }
+  function appName(x) { const d = (((window.JO_DISC || {})[tab] || {}).apparatus || []).find((y) => y.code === x); return d ? (JO.lang === 'en' ? d.en : d.id) : x; }
   function renderDisc(box, code) {
     const cats = R.filter((c) => c.discipline === code);
     const teams = TR.filter((x) => x.discipline === code);
@@ -63,16 +67,16 @@
     box.innerHTML = cats.map((c) => {
       const apps = c.apparatus || [];
       const anyPri = c.results.some((r) => r.priangan);
-      const appName = (x) => { const d = (disc.apparatus || []).find((y) => y.code === x); return d ? (JO.lang === 'en' ? d.en : d.id) : x; };
+
       return `<section class="card" style="margin-bottom:16px"><h2>${esc(JO.lang === 'en' ? c.name_en : c.name_id)}</h2>
-        <p class="tiny muted">${esc(t('h_published', { d: JO.fmtDateTime(c.published_at) }))}${c.exhibition ? '. ' + esc(t('h_exhibition')) : ''}</p>
+        <p class="tiny muted">${esc(t('h_published', { d: JO.fmtDateTime(c.published_at) }))}${c.exhibition ? '. ' + esc(t('h_exhibition')) : ''}${c.results.some((r) => r.app_medals && Object.keys(r.app_medals).length) ? '. ' + esc(t('h_rules_app')) : ''}</p>
         <div class="tbl-wrap"><table class="tbl"><thead><tr><th class="c">${esc(t('h_rank'))}</th><th>${esc(t('h_name'))}</th><th>${esc(t('h_club'))}</th>
           ${apps.length > 1 ? apps.map((a) => `<th class="r" title="${esc(appName(a))}">${esc(a)}</th>`).join('') : ''}
           <th class="r">${esc(t('h_total'))}</th>${anyPri ? `<th class="c">${esc(t('h_pri_rank'))}</th>` : ''}</tr></thead><tbody>
-          ${c.results.map((r) => `<tr><td class="c"><span class="rank">${r.rank || '–'}</span>${r.medal ? ` <span class="medal ${r.medal}" title="${esc(t('medal_' + r.medal))}"></span>` : ''}</td>
+          ${c.results.map((r) => `<tr><td class="c"><span class="rank">${r.rank || '–'}</span>${r.medal ? ` <span class="medal ${r.medal}" title="${esc(t('medal_' + r.medal))}"></span>` : ''}${r.mini ? `<br><span class="tiny muted">${esc(t('h_mini', { r: r.award_rank }))}</span>` : ''}${r.capped ? `<br><span class="tiny muted" title="${esc(t('h_capped_t'))}">${esc(t('h_capped'))}</span>` : ''}</td>
             <td>${r.athletes.map((a) => `${esc(a.name)} <span class="tiny muted">${esc(a.athlete_no || '')}</span>`).join('<br>')}</td>
             <td>${esc(r.club)}<br><span class="tiny muted">${esc(r.region || '')}</span></td>
-            ${apps.length > 1 ? apps.map((a) => `<td class="r num">${r.scores && r.scores[a] != null ? Number(r.scores[a]).toFixed(3) : '–'}</td>`).join('') : ''}
+            ${apps.length > 1 ? apps.map((a) => `<td class="r num">${r.scores && r.scores[a] != null ? Number(r.scores[a]).toFixed(3) : '–'}${r.app_medals && r.app_medals[a] ? ` <span class="medal ${r.app_medals[a]}" title="${esc(t('medal_' + r.app_medals[a]))} ${esc(appName(a))}"></span>` : ''}</td>`).join('') : ''}
             <td class="r num"><strong>${r.total != null ? Number(r.total).toFixed(3) : '–'}</strong></td>
             ${anyPri ? `<td class="c">${r.priangan_rank ? `<span class="num">${r.priangan_rank}</span>${r.priangan_medal ? ` <span class="medal ${r.priangan_medal}"></span>` : ''}` : ''}</td>` : ''}</tr>`).join('')}
         </tbody></table></div></section>`;

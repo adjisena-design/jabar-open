@@ -36,9 +36,9 @@ for lvl, groups in [
     (1, [('A','6 tahun ke bawah','6 & under',None,6), ('B','7–8 tahun','7–8',7,8), ('C','9 tahun ke atas','9 & over',9,None)]),
     (2, [('A','6 tahun ke bawah','6 & under',None,6), ('B','7–8 tahun','7–8',7,8), ('C','9 tahun ke atas','9 & over',9,None)]),
     (3, [('A','9 tahun ke bawah','9 & under',None,9), ('B','10 tahun ke atas','10 & over',10,None)]),
-    (4, [('A','11 tahun ke bawah','11 & under',None,11), ('B','12 tahun ke atas','12 & over',12,None)]),
-    (5, [('A','12 tahun ke bawah','12 & under',None,12), ('B','13 tahun ke atas','13 & over',13,None)]),
-    (6, [('A','12 tahun ke bawah','12 & under',None,12), ('B','13 tahun ke atas','13 & over',13,None)]),
+    (4, [('A','10 tahun ke bawah','10 & under',None,10), ('B','11 tahun ke atas','11 & over',11,None)]),
+    (5, [('A','11 tahun ke bawah','11 & under',None,11), ('B','12 tahun ke atas','12 & over',12,None)]),
+    (6, [('A','11 tahun ke bawah','11 & under',None,11), ('B','12 tahun ke atas','12 & over',12,None)]),
 ]:
     for g, lid, len_, a0, a1 in groups:
         add('WAG', f'WAG-L{lvl}-{g}', f'Level {lvl}', lid, f'Artistik Putri Level {lvl} ({lid})', f"Women's Artistic Level {lvl} ({len_})", 'F', a0, a1, 750000, WAG_APP, 10)
@@ -71,6 +71,19 @@ for g, lvl, lid, len_, a0, a1, evs in aer:
     for e in evs:
         nid, nen, gender, et, fee = ev[e]
         add('AER', f'AER-{g}-{e}', lvl, lid, f'Aerobik {lvl} {nid} ({e})', f'Aerobic {lvl} {nen} ({e})', gender, a0, a1, fee, ['RTN'], 4, entry=et)
+
+# Aturan penghargaan (lampiran Medali & Piala Artistik 12/10/2026)
+#  aa_places: peringkat serba bisa yang dihargai (1-3 medali, 4-6 medali mini)
+#  apparatus_medals: medali per alat 1-3;  club_cap: maks. pesenam per klub untuk setiap penghargaan
+APP_MEDAL = {'WAG-L4-A','WAG-L4-B','WAG-L5-A','WAG-L5-B','WAG-L6-A','WAG-L6-B','WAG-PJ','WAG-JR','MAG-JR'}
+CLUB_CAP = {'WAG-L4-A','WAG-L4-B','WAG-L5-A','WAG-L5-B','WAG-L6-A','WAG-L6-B','WAG-PJ','WAG-JR'}
+for c in cats:
+    r = {'type':'rank','places':3}
+    if c['discipline'] in ('MAG','WAG'):
+        r['aa_places'] = 6
+        if c['code'] in APP_MEDAL: r['apparatus_medals'] = True
+        if c['code'] in CLUB_CAP: r['club_cap'] = 2
+    c['medal_rule'] = r
 
 def q(v):
     if v is None: return 'null'
@@ -111,11 +124,11 @@ for code,nid,nen,ds,de,app,comp,cn,cp,so in disc:
     rows.append(f"  ({q(code)}, {q(nid)}, {q(nen)}, {q(ds)}, {q(de)}, {q(appj)}::jsonb, {q(compj)}::jsonb, {q(cn)}, {q(cp)}, {so})")
 out.append(",\n".join(rows) + "\non conflict (code) do nothing;\n")
 
-cols = ['discipline','code','level','age_label','division','name_id','name_en','gender','birth_year_min','birth_year_max','entry_type','fee','apparatus','max_per_club','sort','note']
+cols = ['discipline','code','level','age_label','division','name_id','name_en','gender','birth_year_min','birth_year_max','entry_type','fee','apparatus','max_per_club','sort','note','medal_rule']
 out.append("insert into jo.categories (" + ", ".join(cols) + ") values")
 rows=[]
 for c in cats:
-    rows.append("  (" + ", ".join(q(c[k]) for k in cols) + ")")
+    rows.append("  (" + ", ".join((q(json.dumps(c[k]))+'::jsonb') if k == 'medal_rule' else q(c[k]) for k in cols) + ")")
 out.append(",\n".join(rows) + "\non conflict (code) do nothing;\n")
 
 settings = {
@@ -136,12 +149,13 @@ settings = {
  'team_fee': 650000,
  'team_max': 6,
  'team_counting': 4,
+ 'team_levels': {'WAG': ['Level 1','Level 2','Level 3','Level 4','Level 5','Level 6']},
  'instagram': 'gimnastikjabar',
  'email_guardians': True,
  'venue': {'name':'Gymnasium Arcamanik','address':'Jl. Pacuan Kuda No. 15b, Sukamiskin, Arcamanik, Kota Bandung, Jawa Barat 40231'},
  'signatories': [
    {'name':'Andi Juliandi','title':'Ketua Pelaksana Jabar Open 2026'},
-   {'name':'Dika Chrisna Irzandi, S.A.B., M.B.A','title':'Ketua Gimnastik Indonesia (GI) Jawa Barat'}],
+   {'name':'Dika Chrisna Irzandi, S.A.B., M.B.A','title':'Ketua Gimnastik Indonesia (GI) Jawa Barat','sig':'assets/img/ttd/dika.png'}],
 }
 out.append("insert into jo.settings (key, value) values")
 rows=[]

@@ -439,6 +439,7 @@ begin
   d := coalesce(st.discipline, nullif(p_discipline,''));
   return jsonb_build_object(
     'disciplines', (select coalesce(jsonb_agg(to_jsonb(x) order by x.sort), '[]'::jsonb) from jo.disciplines x where d is null or x.code = d),
+    'team_levels', coalesce(jo.setting('team_levels'), '{}'::jsonb),
     'categories', (select coalesce(jsonb_agg(to_jsonb(c) || jsonb_build_object(
         'registered', (select count(*) from jo.entries e join jo.submissions s on s.id = e.submission_id where e.category_id = c.id and e.status = 'aktif' and s.status <> 'dibatalkan'),
         'paid', (select count(*) from jo.entries e join jo.submissions s on s.id = e.submission_id where e.category_id = c.id and e.status = 'aktif' and s.status = 'lunas'),
@@ -1122,6 +1123,38 @@ begin
   delete from jo.staff where id = x.id;
   perform jo.log(st.id, 'kode_dihapus', 'staff', x.id::text, jsonb_build_object('name', x.name, 'role', x.role, 'discipline', x.discipline));
   return public.console_staff_list();
+end $$;
+
+-- Nominative Form Artistik (format lampiran panitia): daftar pesenam & tim per klub
+create or replace function public.console_nominative(p_discipline text, p_club uuid default null) returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare st jo.staff;
+begin
+  st := jo.require_staff(array['owner','superadmin','admin']);
+  if p_discipline not in ('MAG','WAG') then raise exception 'Nominative Form hanya untuk Artistik.'; end if;
+  perform jo.check_discipline(st, p_discipline);
+  return jsonb_build_object(
+    'gymnasts', (select coalesce(jsonb_agg(jsonb_build_object(
+        'club', coalesce(k.name, 'Perorangan'), 'name', a.full_name, 'birth_date', a.birth_date,
+        'age', 2026 - extract(year from a.birth_date)::integer, 'discipline', c.discipline,
+        'level', c.level, 'category', c.age_label, 'athlete_no', a.athlete_no,
+        'code', s.code, 'status', s.status, 'priangan', e.priangan_status = 'disetujui')
+      order by coalesce(k.name, 'zzz'), c.sort, a.full_name), '[]'::jsonb)
+      from jo.entries e join jo.categories c on c.id = e.category_id
+      join jo.submissions s on s.id = e.submission_id
+      join jo.entry_athletes ea on ea.entry_id = e.id join jo.athletes a on a.id = ea.athlete_id
+      left join jo.clubs k on k.id = s.club_id
+      where c.discipline = p_discipline and not e.team_only and e.status <> 'dibatalkan' and s.status <> 'dibatalkan'
+        and (p_club is null or s.club_id = p_club)),
+    'teams', (select coalesce(jsonb_agg(jsonb_build_object(
+        'club', coalesce(k.name, 'Perorangan'), 'discipline', t.discipline, 'level', t.level, 'name', t.name,
+        'code', s.code, 'status', s.status,
+        'members', (select coalesce(jsonb_agg(jsonb_build_object('name', a.full_name, 'team_only', m.team_only) order by m.sort), '[]'::jsonb)
+                      from jo.team_members m join jo.athletes a on a.id = m.athlete_id where m.team_id = t.id))
+      order by coalesce(k.name, 'zzz'), t.level, t.name), '[]'::jsonb)
+      from jo.teams t join jo.submissions s on s.id = t.submission_id left join jo.clubs k on k.id = s.club_id
+      where t.discipline = p_discipline and s.status <> 'dibatalkan' and (p_club is null or s.club_id = p_club)),
+    'team_levels', coalesce(jo.setting('team_levels'), '{}'::jsonb));
 end $$;
 
 -- ---------------------------------------------------------------------
