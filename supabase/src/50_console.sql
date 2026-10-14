@@ -55,10 +55,11 @@ $$;
 -- Dasbor
 -- ---------------------------------------------------------------------
 create or replace function public.console_dashboard() returns jsonb
-language plpgsql stable security definer set search_path = '' as $$
+language plpgsql volatile security definer set search_path = '' as $$
 declare st jo.staff; d text; is_super boolean;
 begin
   st := jo.require_staff(array['owner','superadmin','admin']);
+  perform jo.expire_unpaid();
   d := st.discipline;
   is_super := st.role in ('owner','superadmin');
   return jsonb_build_object(
@@ -107,10 +108,11 @@ end $$;
 -- Pendaftaran: daftar & detail
 -- ---------------------------------------------------------------------
 create or replace function public.console_submissions(p_filter jsonb default '{}'::jsonb) returns jsonb
-language plpgsql stable security definer set search_path = '' as $$
+language plpgsql volatile security definer set search_path = '' as $$
 declare st jo.staff; f jsonb := coalesce(p_filter, '{}'::jsonb); q text; d text;
 begin
   st := jo.require_staff(array['owner','superadmin','admin']);
+  perform jo.expire_unpaid();
   d := coalesce(st.discipline, nullif(f->>'discipline',''));
   q := '%' || lower(coalesce(f->>'q','')) || '%';
   return (select coalesce(jsonb_agg(row_to_json(x)::jsonb order by x.created_at desc), '[]'::jsonb) from (
@@ -121,6 +123,8 @@ begin
       (select t.name || ' (' || t.level || ', ' || (select count(*) from jo.team_members m where m.team_id = t.id) || ' pesenam)' from jo.teams t where t.submission_id = s.id) as team_name,
       (select count(*) from jo.entries e where e.submission_id = s.id and e.status <> 'dibatalkan' and e.music_status in ('menunggu','belum','tidak_bisa')) as music_pending,
       s.total_amount, s.unique_code, s.status, s.payment_method, s.proof_uploaded_at, s.paid_at,
+      case when s.payment_method = 'qris' and s.status = 'menunggu_pembayaran' and s.proof_path is null
+           then s.created_at + interval '15 minutes' end as expires_at,
       (select count(*) from jo.athletes a where a.submission_id = s.id and a.doc_status = 'menunggu') as docs_pending,
       (select count(*) from jo.entries e where e.submission_id = s.id and e.priangan_status = 'menunggu') as priangan_pending,
       exists (select 1 from jo.mutations m where m.submission_id = s.id and m.match_status in ('otomatis','manual')) as mutation_matched
@@ -162,10 +166,10 @@ begin
         'fee', e.fee, 'priangan_requested', e.priangan_requested, 'priangan_fee', e.priangan_fee,
         'priangan_status', e.priangan_status, 'priangan_note', e.priangan_note, 'status', e.status,
         'team_only', e.team_only, 'discipline', c.discipline,
-        'music_url', e.music_url, 'music_status', e.music_status, 'music_note', e.music_note,
-        'music_changes', e.music_changes, 'music_updated_at', e.music_updated_at,
+        'music', e.music, 'apparatus', c.apparatus, 'music_status', e.music_status, 'music_note', e.music_note,
+        'music_changes', e.music_changes, 'music_updated_at', e.music_updated_at, 'jabar_only', c.jabar_only,
         'music_checked_by', (select name from jo.staff where id = e.music_checked_by), 'music_checked_at', e.music_checked_at,
-        'music_log', (select coalesce(jsonb_agg(jsonb_build_object('at', ml.at, 'action', ml.action, 'old_url', ml.old_url, 'new_url', ml.new_url,
+        'music_log', (select coalesce(jsonb_agg(jsonb_build_object('at', ml.at, 'action', ml.action, 'apparatus', ml.apparatus, 'old_url', ml.old_url, 'new_url', ml.new_url,
             'staff', (select name from jo.staff where id = ml.staff_id), 'note', ml.note) order by ml.at), '[]'::jsonb)
             from jo.music_log ml where ml.entry_id = e.id),
         'in_team', (select jsonb_build_object('team', t.name, 'submission_id', t.submission_id, 'code', ts.code)
@@ -358,7 +362,12 @@ begin
     raise exception 'Tidak bisa memindahkan antara nomor perorangan dan pasangan.';
   end if;
   if length(trim(coalesce(p_reason,''))) < 3 then raise exception 'Tulis alasan pemindahan (mis. penggabungan kategori).'; end if;
-  update jo.entries set category_id = c_new.id, session_id = null, group_no = null, start_order = null where id = e.id;
+  update jo.entries set category_id = c_new.id, session_id = null, group_no = null, start_order = null,
+    priangan_requested = c_new.jabar_only,
+    priangan_status = case when not c_new.jabar_only then 'tidak' when c_old.jabar_only then priangan_status else 'menunggu' end,
+    music_status = case when c_new.discipline = 'RG' and exists (select 1 from unnest(c_new.apparatus) x where coalesce(e.music->>x,'') = '')
+                        then 'belum' else music_status end
+   where id = e.id;
   perform jo.log(st.id, 'pindah_kategori', 'entry', e.id::text,
     jsonb_build_object('from', c_old.name_id, 'to', c_new.name_id, 'reason', p_reason));
   return public.console_submission(s.id);
@@ -400,10 +409,11 @@ end $$;
 -- Data atlet (tabel & ekspor)
 -- ---------------------------------------------------------------------
 create or replace function public.console_athletes(p_filter jsonb default '{}'::jsonb) returns jsonb
-language plpgsql stable security definer set search_path = '' as $$
+language plpgsql volatile security definer set search_path = '' as $$
 declare st jo.staff; f jsonb := coalesce(p_filter,'{}'::jsonb); d text; q text;
 begin
   st := jo.require_staff(array['owner','superadmin','admin']);
+  perform jo.expire_unpaid();
   d := coalesce(st.discipline, nullif(f->>'discipline',''));
   q := '%' || lower(coalesce(f->>'q','')) || '%';
   return (select coalesce(jsonb_agg(row_to_json(x)::jsonb order by x.athlete_no), '[]'::jsonb) from (
@@ -414,10 +424,11 @@ begin
       a.doc_status, a.guardian_name, a.guardian_phone, a.guardian_email, a.guardian_relation,
       s.contact_name, s.contact_phone, s.contact_email,
       (select string_agg(cat.name_id || case when e.team_only then ' [khusus beregu]' else '' end
-                         || case when e.priangan_requested then ' [Priangan: ' || e.priangan_status || ']' else '' end, '; ' order by cat.sort)
+                         || case when e.priangan_requested then ' [cek Jawa Barat: ' || e.priangan_status || ']' else '' end, '; ' order by cat.sort)
          from jo.entry_athletes ea join jo.entries e on e.id = ea.entry_id join jo.categories cat on cat.id = e.category_id
         where ea.athlete_id = a.id and e.status <> 'dibatalkan') as categories,
-      a.id_doc_path, a.photo_path
+      a.id_doc_path, a.photo_path, a.akte_path, a.ktp_path, a.ijazah_path, a.passport_path, a.bpjs_path,
+      a.bpjs_path is not null as has_bpjs
     from jo.athletes a join jo.submissions s on s.id = a.submission_id
     left join jo.clubs c on c.id = s.club_id
     where (d is null or s.discipline = d)
@@ -834,7 +845,7 @@ begin
     select e.id as entry_id, a.full_name, a.athlete_no, c.name_id as category, c.sort as category_sort, c.apparatus,
       coalesce(k.name, 'Perorangan') as club, s.code, s.id as submission_id, s.status as payment_status,
       s.contact_name, s.contact_phone, s.contact_email,
-      e.music_url, e.music_status, e.music_note, e.music_changes, e.music_updated_at,
+      e.music, e.music_status, e.music_note, e.music_changes, e.music_updated_at,
       (select name from jo.staff where id = e.music_checked_by) as checked_by, e.music_checked_at,
       c.startlist_published
     from jo.entries e join jo.categories c on c.id = e.category_id
@@ -858,7 +869,7 @@ begin
   if e.id is null then raise exception 'Entri tidak ditemukan.'; end if;
   select * into c from jo.categories where id = e.category_id;
   perform jo.check_discipline(st, c.discipline);
-  if e.music_url is null then raise exception 'Belum ada tautan musik untuk diperiksa.'; end if;
+  if e.music = '{}'::jsonb then raise exception 'Belum ada tautan musik untuk diperiksa.'; end if;
   if not p_ok and length(trim(coalesce(p_note,''))) < 3 then
     raise exception 'Tulis apa masalahnya (mis. folder belum dibagikan, file kosong). Catatan dikirim ke pendaftar.';
   end if;
@@ -866,7 +877,7 @@ begin
     music_note = case when p_ok then null else trim(p_note) end, music_checked_by = st.id, music_checked_at = now()
    where id = e.id;
   insert into jo.music_log (entry_id, action, new_url, staff_id, note)
-  values (e.id, case when p_ok then 'ok' else 'tidak_bisa' end, e.music_url, st.id, nullif(trim(coalesce(p_note,'')),''));
+  values (e.id, case when p_ok then 'ok' else 'tidak_bisa' end, e.music::text, st.id, nullif(trim(coalesce(p_note,'')),''));
   perform jo.log(st.id, case when p_ok then 'musik_ok' else 'musik_tidak_bisa' end, 'entry', e.id::text, jsonb_build_object('note', p_note));
   if not p_ok then perform jo.queue_music_email(e.id, 'musik_perbaiki'); end if;
   return jsonb_build_object('ok', true);

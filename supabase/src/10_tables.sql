@@ -453,6 +453,22 @@ create table if not exists jo.jury_applications (
   review_note text
 );
 
+-- ---------------------------------------------------------------------
+-- v6 (14 Okt 2026, revisi PDF): Priangan khusus Ritmik, musik per nomor,
+--     dokumen atlet terpisah + BPJS TK, juri satu disiplin + BPJS TK
+-- ---------------------------------------------------------------------
+alter table jo.categories add column if not exists jabar_only boolean not null default false;
+alter table jo.categories alter column allow_priangan set default false;
+alter table jo.entries add column if not exists music jsonb not null default '{}'::jsonb;   -- {"FH":"https://drive…","BALL":"…"}
+alter table jo.music_log add column if not exists apparatus text;
+alter table jo.athletes add column if not exists akte_path text;
+alter table jo.athletes add column if not exists ktp_path text;
+alter table jo.athletes add column if not exists ijazah_path text;
+alter table jo.athletes add column if not exists passport_path text;
+alter table jo.athletes add column if not exists bpjs_path text;
+alter table jo.athletes add column if not exists photo_thumb text;   -- pas foto kecil (data URL JPEG) untuk kartu atlet
+alter table jo.jury_applications add column if not exists bpjs_path text;
+
 -- Semua tabel di skema jo: RLS aktif tanpa policy.
 -- Akses hanya lewat fungsi (RPC) yang memeriksa hak.
 do $$ declare t record; begin

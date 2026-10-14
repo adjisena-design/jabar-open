@@ -199,7 +199,7 @@ begin
   app_med   := coalesce((c.medal_rule->>'apparatus_medals')::boolean, false);
 
   with e as (
-    select en.id, (en.priangan_status = 'disetujui' and not en.team_only) as pri, en.team_only as tonly,
+    select en.id, (en.priangan_status = 'disetujui' and not en.team_only and not c.jabar_only) as pri, en.team_only as tonly,
            en.start_order, en.group_no, coalesce(s.club_id::text, en.id::text) as clubkey
     from jo.entries en join jo.submissions s on s.id = en.submission_id
     where en.category_id = p_cat and en.status = 'aktif' and s.status = 'lunas'
@@ -353,16 +353,15 @@ begin
     from jo.categories c
     cross join lateral jsonb_array_elements(jo.category_results(c.id)) x
     where c.active and not c.exhibition and (c.results_published or not p_published_only)
+      and c.jabar_only = p_priangan   -- v6: tabel Priangan = kategori Ritmik Priangan saja
   ),
   m as (
-    select discipline, x->>'club' as club, x->>'region' as region,
-      case when p_priangan then x->>'priangan_medal' else x->>'medal' end as medal
+    select discipline, x->>'club' as club, x->>'region' as region, x->>'medal' as medal
     from rows
     union all
-    -- medali per alat (hanya tabel Jabar Open, bukan Priangan)
+    -- medali per alat
     select r.discipline, r.x->>'club', r.x->>'region', am.value
     from rows r cross join lateral jsonb_each_text(coalesce(r.x->'app_medals', '{}'::jsonb)) am
-    where not p_priangan
   ),
   m2 as (select * from m where medal is not null),
   by_club as (

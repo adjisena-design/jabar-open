@@ -1,6 +1,6 @@
 # Jabar Open 2026 — Panduan Sistem Pendaftaran & Konsol Panitia
 
-*Versi 4, 14 Oktober 2026 (chat panitia, laporan masalah, halaman kontak WhatsApp, pendaftaran juri, peran TD, daftar 53 klub di formulir, hapus klub). Versi 3: aturan penghargaan dari lampiran Medali & Piala Artistik, beregu hanya WAG L1–6, tanda tangan sertifikat, ekspor Nominative Form & kebutuhan medali, tampilan konsol baru). Disusun untuk Daffa Adjisena (owner sistem).*
+*Versi 5, 14 Oktober 2026 (revisi PDF panitia: Priangan menjadi kategori Ritmik tersendiri, musik per nomor, dokumen atlet terpisah + BPJS TK, pas foto wajib dan Athlete Identification Card (AIC), juri satu disiplin + BPJS TK, batas 15 menit bukti bayar, hapus data oleh owner/superadmin). Versi 4: chat panitia, laporan masalah, halaman kontak WhatsApp, pendaftaran juri, peran TD, daftar 53 klub di formulir, hapus klub). Versi 3: aturan penghargaan dari lampiran Medali & Piala Artistik, beregu hanya WAG L1–6, tanda tangan sertifikat, ekspor Nominative Form & kebutuhan medali, tampilan konsol baru). Disusun untuk Daffa Adjisena (owner sistem).*
 
 ## 1. Gambaran sistem
 
@@ -144,3 +144,15 @@ Setelah demo dan sebelum peluncuran: jalankan `supabase/reset-data-uji.sql` di S
 - **Data anak**: halaman publik hanya menampilkan nama, nomor atlet, klub, dan hasil; tanggal lahir dan dokumen tidak pernah tampil. Pernyataan persetujuan wali tersimpan bersama waktu persetujuan.
 - **Sebelum peluncuran publik**: teks pernyataan dan persetujuan ditinjau Bidang Hukum (Pak Mangiring Sibagariang); jadwal penghapusan dokumen identitas setelah kejuaraan ditetapkan.
 - **Uang masuk**: QRIS atas nama bendahara GI Jawa Barat / Jabar Open 2026. Ledger hanya akurat bila mutasi GoBiz diimpor rutin.
+
+## 8. Revisi 14 Oktober 2026 (versi 5)
+
+- **Priangan** hanya di Ritmik, sebagai kategori tersendiri di bawah Amatir: Ritmik Profesional, Ritmik Amatir, Ritmik Priangan (KU 5–6, 7–8, 9–10, 11–12, Junior), Rp750.000, tanpa biaya tambahan. Syarat: atlet WNI dengan alamat identitas di Jawa Barat dan klub di Jawa Barat (asal penanggung jawab/pelatih tidak berpengaruh). Satu atlet satu level. Admin menandai "Memenuhi / Tidak memenuhi" di halaman pendaftaran; bila tidak memenuhi, pindahkan ke Amatir. Tabel medali Priangan = kategori Ritmik Priangan saja. Priangan di Artistik dihapus.
+- **Junior Ritmik**: kelahiran 2011–2013 (13–15 tahun).
+- **Musik Ritmik**: satu tautan Google Drive per nomor (mis. KU 9–10: Tanpa Alat, Simpai, Bola; Junior: Simpai, Bola, Gada, Pita), semua wajib saat daftar. Ganti satu kali per atlet (boleh beberapa nomor sekaligus) sampai start list terbit, lewat `musik.html`.
+- **Dokumen atlet** diunggah terpisah: Akte Kelahiran (wajib), KTP dan Ijazah (bila ada), BPJS Ketenagakerjaan (opsional saat daftar; bila tidak diunggah, wajib dibawa ke meja panitia di venue, tanpa unggah susulan), pas foto (wajib). Atlet WNA: paspor dan pas foto. Atlet tanpa BPJS ditandai di konsol, email, halaman status, dan AIC.
+- **Pas foto & AIC**: pas foto wajib (wajah jelas, bukan swafoto, bukan pose santai). Kartu atlet sekarang bernama **Athlete Identification Card (AIC) Jabar Open 2026**, memuat pas foto dan "Didaftarkan oleh". Ditunjukkan dalam bentuk digital di venue, tidak dicetak. Memindai QR di AIC membuka halaman verifikasi yang menampilkan pas foto, data atlet, dan nama pendaftar. AIC tersedia setelah pembayaran lunas.
+- **Batas 15 menit**: pendaftaran QRIS tanpa bukti bayar dihapus otomatis 15 menit setelah dikirim (tanpa email). Formulir dan halaman status menampilkan hitung mundur. Setelah bukti diunggah, pendaftaran aman walau belum diverifikasi. Atlet WNA tidak terkena aturan ini.
+- **Hapus data (owner & superadmin)**: hapus pendaftaran permanen (halaman pendaftaran), hapus atlet (Data atlet atau halaman pendaftaran; tagihan dihitung ulang bila belum lunas), hapus pendaftar juri, laporan masalah, dan pesan chat. Semua tercatat di Log (hanya owner & superadmin). Berkasnya ikut dihapus. Pengaturan → Berkas tak terpakai membersihkan berkas sisa (mis. dari pendaftaran yang kedaluwarsa).
+- **Juri**: satu disiplin saja (Artistik Putra, Artistik Putri, atau Ritmik; Aerobik tidak membuka pendaftaran juri), tanpa bagian ketersediaan, kartu BPJS Ketenagakerjaan wajib.
+- **Klub**: BJS Gymnastic (sekolah/klub, Jawa Barat) ditambahkan ke daftar.

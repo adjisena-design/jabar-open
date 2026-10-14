@@ -1,17 +1,19 @@
-/* Jabar Open 2026 — verifikasi QR e-ticket & sertifikat */
+/* Jabar Open 2026 — verifikasi QR AIC & sertifikat */
 (function () {
   'use strict';
   const { t, esc, rpc } = JO;
   JO.addDict({
     v_title: ['Verifikasi', 'Verification'],
-    v_lead: ['Periksa keaslian e-ticket atau sertifikat Jabar Open 2026 dengan kode di bawah QR.', 'Check whether a Jabar Open 2026 e-ticket or certificate is genuine using the code under its QR.'],
+    v_lead: ['Periksa keaslian Athlete Identification Card (AIC) atau sertifikat Jabar Open 2026 dengan kode di bawah QR.', 'Check whether a Jabar Open 2026 Athlete Identification Card (AIC) or certificate is genuine using the code under its QR.'],
     v_code: ['Kode verifikasi', 'Verification code'], v_check: ['Periksa', 'Check'],
-    v_ticket_ok: ['E-ticket asli dan lunas', 'Genuine, paid e-ticket'],
-    v_ticket_unpaid: ['E-ticket terdaftar, tetapi pembayaran belum lunas', 'Registered e-ticket, but payment is not confirmed'],
+    v_ticket_ok: ['Athlete Identification Card (AIC) asli dan lunas', 'Genuine, paid Athlete Identification Card (AIC)'],
+    v_ticket_unpaid: ['AIC terdaftar, tetapi pembayaran belum lunas', 'Registered AIC, but payment is not confirmed'],
     v_cert_ok: ['Sertifikat asli', 'Genuine certificate'],
     v_cert_wait: ['Kode sertifikat dikenal, tetapi hasil kategorinya belum dipublikasikan', 'Known certificate code, but results for its category are not published yet'],
     v_none: ['Kode tidak dikenal. Periksa kembali penulisannya. Jika kode berasal dari dokumen resmi, hubungi panitia.', 'Unknown code. Check the spelling. If the code comes from an official document, contact the committee.'],
-    v_name: ['Nama', 'Name'], v_no: ['Nomor atlet', 'Athlete number'], v_club: ['Klub', 'Club'], v_cat: ['Kategori', 'Category'],
+    v_photo: ['Pas foto', 'Photo'], v_regby: ['Didaftarkan oleh', 'Registered by'],
+    v_photo_hint: ['Cocokkan wajah pemegang kartu dengan pas foto di atas.', "Match the cardholder's face with the photo above."],
+        v_name: ['Nama', 'Name'], v_no: ['Nomor atlet', 'Athlete number'], v_club: ['Klub', 'Club'], v_cat: ['Kategori', 'Category'],
     v_team_ok: ['Sertifikat Juara Beregu asli', 'Genuine team champion certificate'],
     v_app_ok: ['Sertifikat medali per alat asli', 'Genuine apparatus medal certificate'],
     v_app_wait: ['Kode sertifikat dikenal, tetapi hasil belum dipublikasikan atau medali alat ini tidak berlaku', 'Known certificate code, but results are not published or this apparatus medal does not apply'],
@@ -40,10 +42,13 @@
     if (r.type === 'ticket') {
       html = `<section class="card" style="border-left:6px solid ${r.valid ? 'var(--ok)' : 'var(--warn)'};border-radius:0 var(--r) var(--r) 0">
         <p class="pill ${r.valid ? 'ok' : 'warn'}">${esc(t(r.valid ? 'v_ticket_ok' : 'v_ticket_unpaid'))}</p>
+        <div class="aic-v">${r.photo ? `<img class="aic-photo" src="${esc(r.photo)}" alt="${esc(t('v_photo'))} ${esc(r.name)}" width="120" height="160">` : ''}
         <dl class="kv" style="margin-top:12px"><dt>${esc(t('v_no'))}</dt><dd><span class="bib">${esc(r.athlete_no)}</span></dd>
           <dt>${esc(t('v_name'))}</dt><dd>${esc(r.name)}</dd><dt>${esc(t('v_club'))}</dt><dd>${esc(r.club)}</dd>
           <dt>${esc(t('v_disc'))}</dt><dd>${esc(DN[r.discipline] || r.discipline)}</dd>
-          <dt>${esc(t('v_cat'))}</dt><dd>${(r.categories || []).map(esc).join('<br>')}</dd></dl></section>`;
+          <dt>${esc(t('v_cat'))}</dt><dd>${(r.categories || []).map(esc).join('<br>')}</dd>
+          ${r.registered_by ? `<dt>${esc(t('v_regby'))}</dt><dd>${esc(r.registered_by)}</dd>` : ''}</dl></div>
+        ${r.valid ? `<p class="small muted" style="margin:10px 0 0">${esc(t('v_photo_hint'))}</p>` : ''}</section>`;
     } else if (r.type === 'certificate' && r.valid) {
       const cat = JO.lang === 'en' ? r.category_name_en : r.category_name_id;
       html = `<section class="card" style="border-left:6px solid var(--ok);border-radius:0 var(--r) var(--r) 0">

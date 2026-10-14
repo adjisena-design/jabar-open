@@ -96,3 +96,108 @@ begin
     insert into jo.settings (key, value) values ('migrasi_v5_klub', to_jsonb(now()));
   end if;
 end $$;
+
+-- v6 (14/10/2026, revisi PDF): Priangan hanya Ritmik sebagai kategori tersendiri, Junior Ritmik 13–15 tahun,
+--     musik per nomor, urutan kategori — sekali jalan
+do $$
+begin
+  if not exists (select 1 from jo.settings where key = 'migrasi_v6_revisi') then
+    update jo.categories set allow_priangan = false;
+    update jo.categories set jabar_only = (code like 'RG-C-%');
+    update jo.categories set birth_year_min = 2011, birth_year_max = 2013, age_label = 'Kelahiran 2011–2013'
+     where code in ('RG-A-JR','RG-B-JR','RG-C-JR');
+    update jo.categories c set sort = v.sort from (values
+      ('MAG-L1-A', 10),
+      ('MAG-L1-B', 20),
+      ('MAG-L1-C', 30),
+      ('MAG-L2-A', 40),
+      ('MAG-L2-B', 50),
+      ('MAG-L2-C', 60),
+      ('MAG-L3', 70),
+      ('MAG-L4', 80),
+      ('MAG-JR', 90),
+      ('WAG-L1-A', 100),
+      ('WAG-L1-B', 110),
+      ('WAG-L1-C', 120),
+      ('WAG-L2-A', 130),
+      ('WAG-L2-B', 140),
+      ('WAG-L2-C', 150),
+      ('WAG-L3-A', 160),
+      ('WAG-L3-B', 170),
+      ('WAG-L4-A', 180),
+      ('WAG-L4-B', 190),
+      ('WAG-L5-A', 200),
+      ('WAG-L5-B', 210),
+      ('WAG-L6-A', 220),
+      ('WAG-L6-B', 230),
+      ('WAG-PJ', 240),
+      ('WAG-JR', 250),
+      ('RG-A-KU56', 260),
+      ('RG-A-KU78', 270),
+      ('RG-A-KU910', 280),
+      ('RG-A-KU1112', 290),
+      ('RG-A-JR', 300),
+      ('RG-B-KU56', 310),
+      ('RG-B-KU78', 320),
+      ('RG-B-KU910', 330),
+      ('RG-B-KU1112', 340),
+      ('RG-B-JR', 350),
+      ('RG-C-KU56', 360),
+      ('RG-C-KU78', 370),
+      ('RG-C-KU910', 380),
+      ('RG-C-KU1112', 390),
+      ('RG-C-JR', 400),
+      ('AER-JR-IM', 410),
+      ('AER-JR-IW', 420),
+      ('AER-JR-MP', 430),
+      ('AER-YT-IM', 440),
+      ('AER-YT-IW', 450),
+      ('AER-YT-MP', 460),
+      ('AER-ND-IM', 470),
+      ('AER-ND-IW', 480),
+      ('AER-PND-IM', 490),
+      ('AER-PND-IW', 500)
+    ) as v(code, sort) where c.code = v.code;
+    -- Priangan lama (tambahan pada kategori biasa) dihapus; tagihan Priangan menjadi nol untuk yang belum lunas
+    update jo.entries e set priangan_requested = false, priangan_status = 'tidak', priangan_fee = 0
+      from jo.categories c where c.id = e.category_id and not c.jabar_only and e.priangan_requested;
+    update jo.submissions s set total_amount = total_amount - priangan_amount, priangan_amount = 0
+     where priangan_amount > 0 and status in ('menunggu_pembayaran','perlu_perbaikan');
+    -- satu tautan lama dipakai untuk semua nomor
+    update jo.entries e set music = (select jsonb_object_agg(x, e.music_url) from unnest(c.apparatus) x)
+      from jo.categories c where c.id = e.category_id and e.music_url is not null and e.music = '{}'::jsonb;
+    insert into jo.clubs (name, kind, province, country, verified, created_via, note)
+    select 'BJS Gymnastic', 'sekolah', 'Jawa Barat', 'Indonesia', true, 'daftar_awal', 'Sekolah / Club · Lokasi: Jawa Barat'
+     where not exists (select 1 from jo.clubs where lower(name) = 'bjs gymnastic' and merged_into is null);
+    insert into jo.settings (key, value) values ('migrasi_v6_revisi', to_jsonb(now()));
+  end if;
+end $$;
+
+-- v6: hapus data uji coba 14/10/2026 (dibuat sebelum 22.30 WIB) — sekali jalan, disetujui PM
+do $$
+declare r record; v_bound timestamptz := '2026-10-14 15:30:00+00'; n integer := 0;
+begin
+  if not exists (select 1 from jo.settings where key = 'migrasi_v6_hapus_uji') then
+    for r in select id from jo.submissions where created_at < v_bound loop
+      perform jo.purge_submission(r.id); n := n + 1;
+    end loop;
+    delete from jo.sessions s where not exists (select 1 from jo.entries e where e.session_id = s.id);
+    delete from jo.clubs k where k.created_via = 'pendaftaran' and k.created_at < v_bound
+       and not exists (select 1 from jo.submissions s where s.club_id = k.id)
+       and not exists (select 1 from jo.clubs m where m.merged_into = k.id);
+    delete from jo.outbox where created_at < v_bound;
+    delete from jo.rate_events where at < v_bound;
+    delete from jo.login_attempts where at < v_bound;
+    delete from jo.audit where at < v_bound;
+    update jo.categories c set scores_locked = false, results_published = false, results_published_at = null, startlist_published = false
+     where not exists (select 1 from jo.entries e where e.category_id = c.id);
+    update jo.team_levels set published = false, published_at = null;
+    perform setval('jo.submission_seq',
+      greatest(1, coalesce((select max(nullif(regexp_replace(code, '^.*-', ''), '')::integer) from jo.submissions), 0) + 1), false);
+    if n > 0 then
+      perform jo.log((select id from jo.staff where role = 'owner' limit 1), 'data_uji_dihapus', 'system', 'v6',
+        jsonb_build_object('submissions', n, 'note', 'Data uji coba 14 Okt 2026 dihapus atas permintaan PM'));
+    end if;
+    insert into jo.settings (key, value) values ('migrasi_v6_hapus_uji', to_jsonb(now()));
+  end if;
+end $$;

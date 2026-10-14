@@ -35,6 +35,12 @@ create policy "jo: panitia baca dokumen" on storage.objects
   for select to authenticated
   using (bucket_id in ('dokumen','bukti') and public.jo_is_staff(array['owner','superadmin','admin']));
 
+-- v6: owner & superadmin menghapus berkas saat membersihkan data (tercatat di Log)
+drop policy if exists "jo: superadmin hapus berkas" on storage.objects;
+create policy "jo: superadmin hapus berkas" on storage.objects
+  for delete to authenticated
+  using (bucket_id in ('dokumen','bukti') and public.jo_is_staff(array['owner','superadmin']));
+
 drop policy if exists "jo: superadmin unggah publik" on storage.objects;
 create policy "jo: superadmin unggah publik" on storage.objects
   for insert to authenticated

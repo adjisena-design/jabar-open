@@ -134,6 +134,16 @@
     const ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); ctx.drawImage(img, 0, 0, w, h);
     return await new Promise((r) => cv.toBlob(r, 'image/jpeg', quality || 0.82));
   }
+  // pas foto kecil 3:4 (dipotong di tengah) sebagai data URL JPEG, untuk kartu atlet
+  async function photoThumb(file) {
+    const img = await loadImage(file);
+    const W = 240, H = 320, sw = img.naturalWidth, sh = img.naturalHeight;
+    const r = Math.max(W / sw, H / sh), dw = sw * r, dh = sh * r;
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    const ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+    ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    return cv.toDataURL('image/jpeg', 0.8);
+  }
   addDict({
     up_type: ['Format berkas harus JPG, PNG, WEBP, atau PDF.', 'File must be JPG, PNG, WEBP or PDF.'],
     up_size: ['Ukuran berkas maksimal 5 MB.', 'Maximum file size is 5 MB.'],
@@ -236,52 +246,72 @@
   const DISC_DATES = { MAG: '12–15 Desember 2026', WAG: '12–15 Desember 2026', RG: '16–18 Desember 2026', AER: '19–20 Desember 2026' };
   const DISC_NAME = { MAG: 'Artistik Putra', WAG: 'Artistik Putri', RG: 'Ritmik', AER: 'Aerobik' };
 
+  // Athlete Identification Card (AIC) — kartu digital, ditunjukkan di venue (tidak perlu dicetak)
   async function ticketPdf(t_, docIn) {
     const { jsPDF } = window.jspdf;
     const doc = docIn || new jsPDF({ unit: 'mm', format: 'a5', orientation: 'portrait' });
     if (docIn) doc.addPage('a5', 'portrait');
-    const W = 148, H = 210;
+    const W = 148;
     const logo = await imgData(relRoot() + 'assets/img/logo-jabar-open.png');
     doc.setFillColor(19, 40, 74); doc.rect(0, 0, W, 46, 'F');
     doc.setFillColor(228, 200, 125); doc.rect(0, 46, W, 2.2, 'F');
     doc.setFillColor(255, 255, 255); doc.roundedRect(10, 9, 44, 30, 2, 2, 'F');
     const lw = 38, lh = lw * logo.h / logo.w; doc.addImage(logo.data, 'PNG', 13, 9 + (30 - lh) / 2, lw, lh, 'jo-logo', 'FAST');
-    doc.setTextColor(168, 191, 224); doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
-    doc.text('E-ticket atlet', 62, 17);
+    doc.setTextColor(168, 191, 224); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+    doc.text('Athlete Identification Card (AIC)', 62, 16);
     doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(17);
-    doc.text('Jabar Open 2026', 62, 26);
+    doc.text('Jabar Open 2026', 62, 25);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
-    doc.text(DISC_NAME[t_.discipline] || t_.discipline, 62, 33);
-    doc.text(DISC_DATES[t_.discipline] || '', 62, 38.5);
+    doc.text(DISC_NAME[t_.discipline] || t_.discipline, 62, 32);
+    doc.text(DISC_DATES[t_.discipline] || '', 62, 37.5);
 
-    doc.setTextColor(91, 107, 136); doc.setFontSize(9); doc.text('Nomor atlet', 12, 62);
-    doc.setTextColor(19, 40, 74); doc.setFont('helvetica', 'bold'); doc.setFontSize(40);
-    doc.text(t_.athlete_no || '-', 12, 78);
-    doc.setFontSize(15); const nameLines = doc.splitTextToSize(t_.name, 124); doc.text(nameLines, 12, 90);
-    let y = 90 + nameLines.length * 6.5;
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(52, 71, 106);
-    doc.text(t_.club || 'Perorangan', 12, y); y += 9;
+    // pas foto (3:4) di kanan
+    const px = W - 12 - 33, py = 55, pw = 33, ph = 44;
+    doc.setDrawColor(205, 214, 228); doc.setLineWidth(0.4); doc.rect(px - 0.6, py - 0.6, pw + 1.2, ph + 1.2);
+    if (t_.photo) { try { doc.addImage(t_.photo, 'JPEG', px, py, pw, ph, undefined, 'FAST'); } catch (e) { /* lewati bila gagal */ } }
+    else { doc.setFillColor(244, 246, 250); doc.rect(px, py, pw, ph, 'F'); doc.setFontSize(7); doc.setTextColor(140, 150, 170); doc.text('Pas foto', px + pw / 2, py + ph / 2, { align: 'center' }); }
+
+    const tw = px - 12 - 6;
+    doc.setTextColor(91, 107, 136); doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.text('Nomor atlet', 12, 60);
+    doc.setTextColor(19, 40, 74); doc.setFont('helvetica', 'bold'); doc.setFontSize(34);
+    doc.text(t_.athlete_no || '-', 12, 74);
+    doc.setFontSize(14); const nameLines = doc.splitTextToSize(t_.name, tw); doc.text(nameLines, 12, 84);
+    let y = 84 + nameLines.length * 6;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(52, 71, 106);
+    const clubL = doc.splitTextToSize(t_.club || 'Perorangan', tw); doc.text(clubL, 12, y); y = Math.max(y + clubL.length * 4.6 + 4, py + ph + 6);
     doc.setTextColor(91, 107, 136); doc.setFontSize(8.5); doc.text('Kategori', 12, y); y += 5;
     doc.setTextColor(19, 40, 74); doc.setFontSize(10.5);
-    (t_.categories || []).forEach((c) => { const l = doc.splitTextToSize(c, 124); doc.text(l, 12, y); y += l.length * 5 + 1.5; });
-    y += 3;
+    (t_.categories || []).forEach((c) => { const l = doc.splitTextToSize(c, W - 24); doc.text(l, 12, y); y += l.length * 5 + 1.5; });
+    y += 2;
     if (t_.start) {
       doc.setTextColor(91, 107, 136); doc.setFontSize(8.5); doc.text('Jadwal tampil', 12, y); y += 5;
-      doc.setTextColor(19, 40, 74); doc.setFontSize(10.5); doc.text(t_.start, 12, y); y += 7;
+      doc.setTextColor(19, 40, 74); doc.setFontSize(10.5); doc.text(doc.splitTextToSize(t_.start, W - 24), 12, y);
     }
     // QR + status
-    const qy = 150; pdfQr(doc, siteUrl() + 'verifikasi.html?c=' + t_.ticket_code, 12, qy, 38);
-    doc.setFillColor(230, 245, 236); doc.roundedRect(58, qy, 78, 14, 2, 2, 'F');
-    doc.setTextColor(27, 127, 71); doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
-    doc.text('Lunas', 63, qy + 9.2);
+    const qy = 144, qs_ = 34; pdfQr(doc, siteUrl() + 'verifikasi.html?c=' + t_.ticket_code, 12, qy, qs_);
+    doc.setFillColor(230, 245, 236); doc.roundedRect(52, qy, 84, 13, 2, 2, 'F');
+    doc.setTextColor(27, 127, 71); doc.setFont('helvetica', 'bold'); doc.setFontSize(12.5);
+    doc.text('Lunas', 56, qy + 8.6);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(52, 71, 106);
-    doc.text('Kode pendaftaran ' + t_.submission_code, 82, qy + 9);
-    doc.setTextColor(91, 107, 136); doc.setFontSize(8);
-    doc.text(doc.splitTextToSize('Kode verifikasi ' + t_.ticket_code + '. Pindai QR untuk memeriksa keaslian tiket.', 78), 58, qy + 21);
-    doc.text(doc.splitTextToSize('Gymnasium Arcamanik, Jl. Pacuan Kuda No. 15b, Kota Bandung.', 78), 58, qy + 30);
-    doc.setDrawColor(223, 228, 238); doc.line(12, 196, W - 12, 196);
-    doc.setFontSize(7.5);
-    doc.text(doc.splitTextToSize('Tidak ada registrasi ulang. Datang sesuai jadwal yang diumumkan di Instagram @gimnastikjabar dan situs Jabar Open 2026. Tunjukkan e-ticket ini bila diminta panitia.', W - 24), 12, 201);
+    doc.text('Kode pendaftaran ' + t_.submission_code, 76, qy + 8.4);
+    doc.setTextColor(91, 107, 136); doc.setFontSize(7.8);
+    doc.text(doc.splitTextToSize('Kode verifikasi ' + t_.ticket_code + '. Panitia memindai QR ini; data dan pas foto atlet tampil di layar untuk dicocokkan.', 84), 52, qy + 19);
+    doc.text(doc.splitTextToSize('Gymnasium Arcamanik, Jl. Pacuan Kuda No. 15b, Kota Bandung.', 84), 52, qy + 29);
+    if (t_.bpjs_missing) {
+      // tanda bagi panitia — BPJS Ketenagakerjaan belum diunggah saat pendaftaran
+      doc.setFillColor(253, 243, 220); doc.setDrawColor(228, 200, 125); doc.roundedRect(12, 181, W - 24, 10, 2, 2, 'FD');
+      doc.setTextColor(154, 98, 0); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+      doc.text('BPJS Ketenagakerjaan: BELUM DIUNGGAH', 15, 185.2);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.3);
+      doc.text('Wajib dibawa ke meja panitia di venue sebelum bertanding.', 15, 188.8);
+    }
+    doc.setDrawColor(223, 228, 238); doc.setLineWidth(0.2); doc.line(12, 194, W - 12, 194);
+    doc.setTextColor(91, 107, 136); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.3);
+    doc.text(doc.splitTextToSize('Tunjukkan AIC ini dalam bentuk digital (ponsel) di venue; tidak perlu dicetak. Tidak ada registrasi ulang; datang sesuai jadwal di Instagram @gimnastikjabar dan situs Jabar Open 2026.', W - 24), 12, 198);
+    if (t_.registered_by) {
+      doc.setFontSize(7); doc.setTextColor(120, 132, 155);
+      doc.text('Didaftarkan oleh: ' + t_.registered_by, 12, 206);
+    }
     return doc;
   }
 
@@ -353,7 +383,7 @@
   window.JO = {
     sb, config: C, t, addDict, applyI18n, setLang, onLang, get lang() { return lang; },
     fmtRp, fmtDate, fmtDateTime, esc, statusPill, amountHtml, compAge, isMinor,
-    ensureSession, rpc, uploadFile, toast, header, footer, qs, siteUrl, qrSvg, ticketPdf, certificatePdf,
+    ensureSession, rpc, uploadFile, photoThumb, toast, header, footer, qs, siteUrl, qrSvg, ticketPdf, certificatePdf,
     DISC_DATES, DISC_NAME,
   };
 })();

@@ -4,8 +4,10 @@
 -- =====================================================================
 
 create or replace function public.public_config() returns jsonb
-language sql stable security definer set search_path = '' as $$
-  select jsonb_build_object(
+language plpgsql volatile security definer set search_path = '' as $$
+begin
+  perform jo.expire_unpaid();
+  return jsonb_build_object(
     'event', jsonb_build_object(
       'name', jo.setting_text('event_name'),
       'year', jo.setting_int('event_year'),
@@ -40,14 +42,14 @@ language sql stable security definer set search_path = '' as $$
         'name_id', c.name_id, 'name_en', c.name_en, 'gender', c.gender,
         'birth_year_min', c.birth_year_min, 'birth_year_max', c.birth_year_max,
         'entry_type', c.entry_type, 'fee', c.fee, 'apparatus', c.apparatus,
-        'max_per_club', c.max_per_club, 'allow_priangan', c.allow_priangan) order by c.sort, c.id), '[]'::jsonb)
+        'max_per_club', c.max_per_club, 'allow_priangan', c.allow_priangan, 'jabar_only', c.jabar_only) order by c.sort, c.id), '[]'::jsonb)
         from jo.categories c where c.active),
     'clubs', (select coalesce(jsonb_agg(jsonb_build_object(
         'id', k.id, 'name', k.name, 'kind', k.kind, 'kab_kota', k.kab_kota,
         'province', k.province, 'country', k.country) order by k.name), '[]'::jsonb)
         from jo.clubs k where k.merged_into is null)
-  )
-$$;
+  );
+end $$;
 
 -- ---------------------------------------------------------------------
 -- Pendaftaran
@@ -56,6 +58,92 @@ create or replace function jo.valid_drive_url(u text) returns boolean
 language sql immutable set search_path = '' as $$
   select coalesce(trim(u), '') ~* '^https://(drive|docs)\.google\.com/[^\s]+$'
 $$;
+
+-- ---------------------------------------------------------------------
+-- v6: dokumen identitas atlet terpisah (Akte wajib; KTP & Ijazah bila ada;
+--     WNA: paspor wajib; BPJS Ketenagakerjaan opsional saat daftar)
+-- ---------------------------------------------------------------------
+create or replace function jo.check_athlete_docs(a jsonb, p_label text, p_uid uuid) returns void
+language plpgsql stable set search_path = '' as $$
+declare k text;
+begin
+  if coalesce(a->>'nationality','WNI') = 'WNA' then
+    if coalesce(a->>'passport_path','') = '' then
+      raise exception '%: unggah paspor.', p_label using hint = 'ERR_ATHLETE_DOC';
+    end if;
+  elsif coalesce(a->>'akte_path','') = '' then
+    raise exception '%: unggah Akte Kelahiran.', p_label using hint = 'ERR_ATHLETE_DOC';
+  end if;
+  if coalesce(a->>'photo_path','') = '' then
+    raise exception '%: unggah pas foto (wajib untuk Athlete Identification Card).', p_label using hint = 'ERR_ATHLETE_PHOTO';
+  end if;
+  if coalesce(a->>'photo_thumb','') !~ '^data:image/jpeg;base64,[A-Za-z0-9+/=]+$' or length(a->>'photo_thumb') > 150000 then
+    raise exception '%: pas foto tidak terbaca. Unggah ulang pas foto (JPG atau PNG).', p_label using hint = 'ERR_ATHLETE_PHOTO';
+  end if;
+  foreach k in array array['akte_path','ktp_path','ijazah_path','passport_path','bpjs_path','photo_path'] loop
+    if coalesce(a->>k,'') <> '' and split_part(a->>k, '/', 1) <> p_uid::text then
+      raise exception 'Berkas unggahan tidak valid. Unggah ulang dokumen.' using hint = 'ERR_UPLOAD';
+    end if;
+  end loop;
+end $$;
+
+create or replace function jo.apparatus_label(p_disc text, p_code text) returns text
+language sql stable set search_path = '' as $$
+  select coalesce((select x->>'id' from jo.disciplines d cross join jsonb_array_elements(d.apparatus) x
+                    where d.code = p_disc and x->>'code' = p_code), p_code)
+$$;
+
+-- v6: pendaftaran QRIS tanpa bukti bayar dalam 15 menit dihapus otomatis
+create or replace function jo.expire_unpaid() returns integer
+language plpgsql volatile set search_path = '' as $$
+declare r record; n integer := 0;
+begin
+  for r in select id, code, contact_name, discipline, total_amount from jo.submissions
+            where payment_method = 'qris' and status = 'menunggu_pembayaran' and proof_path is null
+              and created_at < now() - interval '15 minutes'
+            for update skip locked loop
+    perform jo.purge_submission(r.id);
+    perform jo.log(null, 'pendaftaran_kedaluwarsa', 'submission', r.id::text,
+      jsonb_build_object('code', r.code, 'contact', r.contact_name, 'discipline', r.discipline, 'total', r.total_amount,
+                         'reason', 'Tidak ada bukti bayar dalam 15 menit'));
+    n := n + 1;
+  end loop;
+  if n > 0 then
+    -- klub baru yang dibuat pendaftaran itu dan kini tidak dipakai
+    delete from jo.clubs k
+     where k.created_via = 'pendaftaran' and k.created_at < now() - interval '15 minutes'
+       and not exists (select 1 from jo.submissions s where s.club_id = k.id)
+       and not exists (select 1 from jo.clubs m where m.merged_into = k.id);
+  end if;
+  return n;
+end $$;
+
+-- Hapus satu pendaftaran beserta atlet, entri, tim, nilai, dan riwayat musiknya.
+-- Mengembalikan daftar berkas (bucket/path) agar konsol bisa menghapusnya dari penyimpanan.
+create or replace function jo.purge_submission(p_id uuid) returns jsonb
+language plpgsql volatile set search_path = '' as $$
+declare v_files jsonb;
+begin
+  select coalesce(jsonb_agg(distinct f), '[]'::jsonb) into v_files from (
+    select jsonb_build_object('bucket', 'bukti', 'path', s.proof_path) f from jo.submissions s where s.id = p_id and s.proof_path is not null
+    union all
+    select jsonb_build_object('bucket', 'dokumen', 'path', x) from jo.athletes a
+      cross join lateral unnest(array[a.id_doc_path, a.akte_path, a.ktp_path, a.ijazah_path, a.passport_path, a.bpjs_path, a.photo_path]) x
+     where a.submission_id = p_id and x is not null
+  ) z;
+  delete from jo.score_log where entry_id in (select id from jo.entries where submission_id = p_id);
+  delete from jo.scores where entry_id in (select id from jo.entries where submission_id = p_id);
+  delete from jo.music_log where entry_id in (select id from jo.entries where submission_id = p_id);
+  delete from jo.team_members where team_id in (select id from jo.teams where submission_id = p_id)
+     or entry_id in (select id from jo.entries where submission_id = p_id);
+  delete from jo.teams where submission_id = p_id;
+  delete from jo.entry_athletes where entry_id in (select id from jo.entries where submission_id = p_id);
+  delete from jo.entries where submission_id = p_id;
+  delete from jo.athletes where submission_id = p_id;
+  update jo.mutations set submission_id = null, match_status = 'belum' where submission_id = p_id;
+  delete from jo.submissions where id = p_id;
+  return v_files;
+end $$;
 
 create or replace function public.public_register(p jsonb) returns jsonb
 language plpgsql volatile security definer set search_path = '' as $$
@@ -108,10 +196,12 @@ declare
   v_mbirth    date;
   v_mgender   text;
   v_music     text;
+  v_mus       jsonb;
 begin
   if v_uid is null then
     raise exception 'Sesi browser belum siap. Muat ulang halaman lalu coba lagi.' using hint = 'ERR_SESSION';
   end if;
+  perform jo.expire_unpaid();
 
   if (select count(*) from jo.rate_events where uid = v_uid and action = 'register' and at > now() - interval '1 hour') >= 12 then
     raise exception 'Terlalu banyak pendaftaran dari perangkat ini dalam satu jam. Coba lagi nanti.' using hint = 'ERR_RATE';
@@ -303,13 +393,7 @@ begin
             raise exception 'Anggota %: isi negara asal.', i using hint = 'ERR_ATHLETE_ADDRESS';
           end if;
         end if;
-        if coalesce(a->>'id_doc_path','') = '' then
-          raise exception 'Anggota %: unggah dokumen identitas (KTP / Akte Kelahiran / Ijazah / Paspor).', i using hint = 'ERR_ATHLETE_DOC';
-        end if;
-        if split_part(a->>'id_doc_path', '/', 1) <> v_uid::text
-           or (coalesce(a->>'photo_path','') <> '' and split_part(a->>'photo_path', '/', 1) <> v_uid::text) then
-          raise exception 'Berkas unggahan tidak valid. Unggah ulang dokumen.' using hint = 'ERR_UPLOAD';
-        end if;
+        perform jo.check_athlete_docs(a, 'Anggota ' || i, v_uid);
         if jo.is_minor(v_mbirth) then
           v_any_minor := true;
           if length(trim(coalesce(a->'guardian'->>'name',''))) < 3
@@ -337,10 +421,13 @@ begin
           end if;
         end if;
         insert into jo.athletes (submission_id, full_name, gender, birth_date, nationality, country, province, kab_kota,
-           id_doc_path, photo_path, guardian_name, guardian_phone, guardian_email, guardian_relation, ticket_code, sort)
+           id_doc_path, akte_path, ktp_path, ijazah_path, passport_path, bpjs_path, photo_thumb,
+           photo_path, guardian_name, guardian_phone, guardian_email, guardian_relation, ticket_code, sort)
         values (v_sub_id, v_mname, v_mgender, v_mbirth, coalesce(a->>'nationality','WNI'),
            case when coalesce(a->>'nationality','WNI') = 'WNI' then 'Indonesia' else trim(a->>'country') end,
-           null, null, a->>'id_doc_path', nullif(a->>'photo_path',''),
+           null, null, coalesce(nullif(a->>'akte_path',''), nullif(a->>'passport_path','')),
+           nullif(a->>'akte_path',''), nullif(a->>'ktp_path',''), nullif(a->>'ijazah_path',''), nullif(a->>'passport_path',''), nullif(a->>'bpjs_path',''), nullif(a->>'photo_thumb',''),
+           nullif(a->>'photo_path',''),
            nullif(trim(coalesce(a->'guardian'->>'name','')),''), nullif(trim(coalesce(a->'guardian'->>'phone','')),''),
            nullif(lower(trim(coalesce(a->'guardian'->>'email',''))),''), nullif(trim(coalesce(a->'guardian'->>'relation','')),''),
            'T' || jo.rand_code(9), i)
@@ -395,13 +482,7 @@ begin
           raise exception 'Atlet %: isi negara asal.', i using hint = 'ERR_ATHLETE_ADDRESS';
         end if;
       end if;
-      if coalesce(a->>'id_doc_path','') = '' then
-        raise exception 'Atlet %: unggah dokumen identitas (KTP / Akte Kelahiran / Ijazah / Paspor).', i using hint = 'ERR_ATHLETE_DOC';
-      end if;
-      if split_part(a->>'id_doc_path', '/', 1) <> v_uid::text
-         or (coalesce(a->>'photo_path','') <> '' and split_part(a->>'photo_path', '/', 1) <> v_uid::text) then
-        raise exception 'Berkas unggahan tidak valid. Unggah ulang dokumen.' using hint = 'ERR_UPLOAD';
-      end if;
+      perform jo.check_athlete_docs(a, 'Atlet ' || i, v_uid);
       if jo.is_minor((a->>'birth_date')::date) then
         v_any_minor := true;
         if length(trim(coalesce(a->'guardian'->>'name',''))) < 3
@@ -412,12 +493,15 @@ begin
       end if;
 
       insert into jo.athletes (submission_id, full_name, gender, birth_date, nationality, country, province, kab_kota,
-         id_doc_path, photo_path, guardian_name, guardian_phone, guardian_email, guardian_relation, ticket_code, sort)
+         id_doc_path, akte_path, ktp_path, ijazah_path, passport_path, bpjs_path, photo_thumb,
+         photo_path, guardian_name, guardian_phone, guardian_email, guardian_relation, ticket_code, sort)
       values (v_sub_id, trim(a->>'full_name'), a->>'gender', (a->>'birth_date')::date,
          coalesce(a->>'nationality','WNI'),
          case when coalesce(a->>'nationality','WNI') = 'WNI' then 'Indonesia' else trim(a->>'country') end,
          nullif(trim(coalesce(a->>'province','')),''), nullif(trim(coalesce(a->>'kab_kota','')),''),
-         a->>'id_doc_path', nullif(a->>'photo_path',''),
+         coalesce(nullif(a->>'akte_path',''), nullif(a->>'passport_path','')),
+         nullif(a->>'akte_path',''), nullif(a->>'ktp_path',''), nullif(a->>'ijazah_path',''), nullif(a->>'passport_path',''), nullif(a->>'bpjs_path',''), nullif(a->>'photo_thumb',''),
+         nullif(a->>'photo_path',''),
          nullif(trim(coalesce(a->'guardian'->>'name','')),''), nullif(trim(coalesce(a->'guardian'->>'phone','')),''),
          nullif(lower(trim(coalesce(a->'guardian'->>'email',''))),''), nullif(trim(coalesce(a->'guardian'->>'relation','')),''),
          'T' || jo.rand_code(9), i)
@@ -503,35 +587,38 @@ begin
         end if;
       end if;
 
-      if coalesce((e->>'priangan')::boolean, false) then
-        if not v_cat.allow_priangan then
-          raise exception 'Kategori % tidak membuka penilaian Priangan.', v_cat.name_id using hint = 'ERR_PRIANGAN';
-        end if;
-        if not v_pri_ok then
-          raise exception 'Kategori Priangan hanya untuk atlet WNI dengan alamat identitas di Jawa Barat dan klub di Jawa Barat (%).', v_cat.name_id using hint = 'ERR_PRIANGAN';
-        end if;
+      -- v6: Priangan bukan tambahan; kategori Priangan (khusus Jawa Barat) berdiri sendiri, tanpa biaya tambahan
+      if coalesce((e->>'priangan')::boolean, false) and not v_cat.allow_priangan then
+        raise exception 'Priangan kini kategori tersendiri (khusus Ritmik). Pilih kategori Ritmik Priangan.' using hint = 'ERR_PRIANGAN';
+      end if;
+      if v_cat.jabar_only and not v_pri_ok then
+        raise exception '% khusus atlet WNI dengan alamat identitas di Jawa Barat dan klub di Jawa Barat.', v_cat.name_id using hint = 'ERR_PRIANGAN';
       end if;
 
-      -- musik Ritmik: tautan Google Drive wajib
-      v_music := null;
+      -- musik Ritmik (v6): satu tautan Google Drive untuk setiap nomor (alat) kategori, semua wajib
+      v_mus := '{}'::jsonb;
       if v_disc.code = 'RG' then
-        v_music := trim(coalesce(e->>'music_url',''));
-        if not jo.valid_drive_url(v_music) then
-          raise exception 'Isi tautan Google Drive musik untuk % (diawali https://drive.google.com/).', v_ath.full_name using hint = 'ERR_MUSIC';
-        end if;
+        foreach k in array v_cat.apparatus loop
+          v_music := trim(coalesce(e->'music'->>k, ''));
+          if not jo.valid_drive_url(v_music) then
+            raise exception 'Isi tautan Google Drive musik % untuk % (diawali https://drive.google.com/).',
+              jo.apparatus_label(v_disc.code, k), v_ath.full_name using hint = 'ERR_MUSIC';
+          end if;
+          v_mus := v_mus || jsonb_build_object(k, v_music);
+        end loop;
       end if;
 
       insert into jo.entries (submission_id, category_id, fee, priangan_requested, priangan_fee, priangan_status,
-                              music_url, music_status, music_updated_at)
+                              music, music_status, music_updated_at)
       values (v_sub_id, v_cat.id, v_cat.fee,
-              coalesce((e->>'priangan')::boolean, false),
-              case when coalesce((e->>'priangan')::boolean, false) then v_pri_fee else 0 end,
-              case when coalesce((e->>'priangan')::boolean, false) then 'menunggu' else 'tidak' end,
-              v_music, case when v_music is not null then 'menunggu' else 'tidak_perlu' end,
-              case when v_music is not null then now() end)
+              v_cat.jabar_only, 0,
+              case when v_cat.jabar_only then 'menunggu' else 'tidak' end,
+              v_mus, case when v_mus <> '{}'::jsonb then 'menunggu' else 'tidak_perlu' end,
+              case when v_mus <> '{}'::jsonb then now() end)
       returning id into v_entry_id;
-      if v_music is not null then
-        insert into jo.music_log (entry_id, action, new_url) values (v_entry_id, 'daftar', v_music);
+      if v_mus <> '{}'::jsonb then
+        insert into jo.music_log (entry_id, action, apparatus, new_url)
+        select v_entry_id, 'daftar', x.key, x.value from jsonb_each_text(v_mus) x;
       end if;
 
       foreach k in array v_eath loop
@@ -540,7 +627,6 @@ begin
       end loop;
 
       v_base := v_base + v_cat.fee;
-      if coalesce((e->>'priangan')::boolean, false) then v_pri := v_pri + v_pri_fee; end if;
     end loop;
 
     -- setiap atlet harus punya minimal satu nomor
@@ -582,7 +668,8 @@ begin
 
   return jsonb_build_object(
     'code', v_code, 'token', v_token, 'status', 'menunggu_pembayaran', 'payment_method', v_pm,
-    'base_amount', v_base, 'priangan_amount', v_pri, 'unique_code', v_uc, 'total_amount', v_total);
+    'base_amount', v_base, 'priangan_amount', v_pri, 'unique_code', v_uc, 'total_amount', v_total,
+    'expires_at', case when v_pm = 'qris' then now() + interval '15 minutes' end);
 end $$;
 
 -- ---------------------------------------------------------------------
@@ -633,7 +720,7 @@ language sql stable set search_path = '' as $$
     'code', s.code, 'status', s.status, 'discipline', s.discipline,
     'discipline_name_id', d.name_id, 'discipline_name_en', d.name_en,
     'registrant_type', s.registrant_type,
-    'contact', jsonb_build_object('name', s.contact_name, 'email', s.contact_email, 'phone', s.contact_phone),
+    'contact', jsonb_build_object('name', s.contact_name, 'email', s.contact_email, 'phone', s.contact_phone, 'role', s.contact_role),
     'club', case when c.id is null then null else jsonb_build_object('name', c.name, 'kab_kota', c.kab_kota, 'province', c.province, 'country', c.country) end,
     'payment_method', s.payment_method,
     'base_amount', s.base_amount, 'priangan_amount', s.priangan_amount,
@@ -641,6 +728,8 @@ language sql stable set search_path = '' as $$
     'proof_uploaded_at', s.proof_uploaded_at, 'paid_at', s.paid_at,
     'verify_note', case when s.status = 'perlu_perbaikan' then s.verify_note end,
     'created_at', s.created_at,
+    'expires_at', case when s.payment_method = 'qris' and s.status = 'menunggu_pembayaran' and s.proof_path is null
+                       then s.created_at + interval '15 minutes' end,
     'payment', jsonb_build_object(
       'qris_image_url', jo.setting_text('qris_image_url'),
       'qris_merchant', jo.setting_text('qris_merchant'),
@@ -651,7 +740,9 @@ language sql stable set search_path = '' as $$
     'athletes', (select coalesce(jsonb_agg(jsonb_build_object(
         'id', a.id, 'athlete_no', a.athlete_no, 'full_name', a.full_name, 'gender', a.gender,
         'birth_date', a.birth_date, 'nationality', a.nationality, 'province', a.province, 'kab_kota', a.kab_kota,
-        'doc_status', a.doc_status,
+        'doc_status', a.doc_status, 'has_bpjs', a.bpjs_path is not null, 'photo_thumb', a.photo_thumb,
+        'docs', jsonb_build_object('akte', a.akte_path is not null, 'ktp', a.ktp_path is not null, 'ijazah', a.ijazah_path is not null,
+                                   'passport', a.passport_path is not null, 'bpjs', a.bpjs_path is not null),
         'ticket_code', case when s.status = 'lunas' then a.ticket_code end
       ) order by a.sort), '[]'::jsonb) from jo.athletes a where a.submission_id = s.id),
     'entries', (select coalesce(jsonb_agg(jsonb_build_object(
@@ -659,8 +750,8 @@ language sql stable set search_path = '' as $$
         'level', cat.level, 'age_label', cat.age_label, 'apparatus', cat.apparatus,
         'fee', en.fee, 'priangan_requested', en.priangan_requested, 'priangan_status', en.priangan_status,
         'status', en.status, 'team_only', en.team_only,
-        'music_url', en.music_url, 'music_status', en.music_status, 'music_note', en.music_note,
-        'music_changes', en.music_changes, 'startlist_published', cat.startlist_published,
+        'music', en.music, 'music_status', en.music_status, 'music_note', en.music_note,
+        'music_changes', en.music_changes, 'startlist_published', cat.startlist_published, 'jabar_only', cat.jabar_only,
         'athlete_ids', (select jsonb_agg(ea.athlete_id) from jo.entry_athletes ea where ea.entry_id = en.id),
         'start', case when cat.startlist_published and s.status = 'lunas' then jsonb_build_object(
             'session', ses.name, 'day', ses.day, 'start_time', ses.start_time,
@@ -696,12 +787,13 @@ language sql stable set search_path = '' as $$
 $$;
 
 create or replace function public.public_get_submission(p_code text, p_token text) returns jsonb
-language plpgsql stable security definer set search_path = '' as $$
+language plpgsql volatile security definer set search_path = '' as $$
 declare s jo.submissions;
 begin
+  perform jo.expire_unpaid();
   select * into s from jo.submissions where code = upper(trim(p_code)) and token = trim(p_token);
   if s.id is null then
-    raise exception 'Pendaftaran tidak ditemukan. Periksa kembali tautan dari email Anda.' using hint = 'ERR_NOT_FOUND';
+    raise exception 'Pendaftaran tidak ditemukan. Periksa tautan dari email Anda. Pendaftaran yang tidak mengunggah bukti bayar dalam 15 menit dihapus otomatis; silakan daftar ulang.' using hint = 'ERR_NOT_FOUND';
   end if;
   return jo.submission_public_json(s);
 end $$;
@@ -713,9 +805,10 @@ begin
   if v_uid is null then
     raise exception 'Sesi browser belum siap. Muat ulang halaman.' using hint = 'ERR_SESSION';
   end if;
+  -- sengaja tidak memanggil expire_unpaid di sini: bukti yang tiba tepat di menit ke-15 tetap diterima
   select * into s from jo.submissions where code = upper(trim(p_code)) and token = trim(p_token);
   if s.id is null then
-    raise exception 'Pendaftaran tidak ditemukan.' using hint = 'ERR_NOT_FOUND';
+    raise exception 'Pendaftaran tidak ditemukan atau sudah kedaluwarsa (bukti bayar tidak diunggah dalam 15 menit). Silakan daftar ulang.' using hint = 'ERR_NOT_FOUND';
   end if;
   if s.status not in ('menunggu_pembayaran','menunggu_verifikasi','perlu_perbaikan') then
     raise exception 'Pendaftaran ini sudah tidak menunggu pembayaran.' using hint = 'ERR_STATUS';
@@ -817,6 +910,8 @@ begin
     select coalesce(k.name, 'Perorangan') into club from jo.submissions x left join jo.clubs k on k.id = x.club_id where x.id = s.id;
     return jsonb_build_object('type', 'ticket', 'valid', s.status = 'lunas', 'status', s.status,
       'athlete_no', a.athlete_no, 'name', a.full_name, 'club', club, 'discipline', s.discipline,
+      'photo', case when s.status = 'lunas' then a.photo_thumb end,
+      'registered_by', case when s.status = 'lunas' then s.contact_name end,
       'categories', (select jsonb_agg(cc.name_id) from jo.entry_athletes x join jo.entries e on e.id = x.entry_id
                      join jo.categories cc on cc.id = e.category_id where x.athlete_id = a.id and e.status <> 'dibatalkan'));
   end if;
@@ -893,12 +988,13 @@ language sql stable set search_path = '' as $$
     'entries', (select coalesce(jsonb_agg(jsonb_build_object(
         'entry_id', e.id, 'athlete_name', a.full_name, 'athlete_no', a.athlete_no,
         'category_name_id', c.name_id, 'category_name_en', c.name_en, 'apparatus', c.apparatus,
-        'music_url', e.music_url, 'music_status', e.music_status, 'music_note', e.music_note,
+        'music', e.music, 'music_status', e.music_status, 'music_note', e.music_note,
         'music_changes', e.music_changes, 'music_updated_at', e.music_updated_at,
         'startlist_published', c.startlist_published,
-        'can_fill', e.music_url is null and not c.scores_locked,
-        'can_fix', e.music_url is not null and e.music_status = 'tidak_bisa' and not c.scores_locked,
-        'can_change', e.music_url is not null and e.music_status <> 'tidak_bisa' and e.music_changes < 1 and not c.startlist_published
+        'complete', (select bool_and(coalesce(e.music->>x, '') <> '') from unnest(c.apparatus) x),
+        'can_fill', not c.scores_locked and exists (select 1 from unnest(c.apparatus) x where coalesce(e.music->>x, '') = ''),
+        'can_fix', e.music_status = 'tidak_bisa' and not c.scores_locked,
+        'can_change', e.music_status <> 'tidak_bisa' and e.music_changes < 1 and not c.startlist_published
       ) order by a.sort), '[]'::jsonb)
       from jo.entries e join jo.categories c on c.id = e.category_id
       join jo.entry_athletes ea on ea.entry_id = e.id join jo.athletes a on a.id = ea.athlete_id
@@ -932,23 +1028,45 @@ begin
   return jo.music_json(s);
 end $$;
 
-create or replace function public.public_music_set(p_code text, p_email text, p_entry uuid, p_url text) returns jsonb
+drop function if exists public.public_music_set(text, text, uuid, text);
+-- v6: tautan per nomor (alat). Mengganti tautan yang sudah ada = satu kesempatan ganti per atlet
+-- (boleh beberapa nomor sekaligus). Mengisi nomor yang kosong atau memperbaiki tautan "tidak bisa dibuka" tidak memakai jatah.
+create or replace function public.public_music_set(p_code text, p_email text, p_entry uuid, p_music jsonb) returns jsonb
 language plpgsql volatile security definer set search_path = '' as $$
-declare s jo.submissions; e jo.entries; c jo.categories; v_url text := trim(coalesce(p_url,'')); v_action text;
+declare s jo.submissions; e jo.entries; c jo.categories; k text; v_url text; v_old text;
+        v_new jsonb; v_replaced integer := 0; v_changed integer := 0; v_action text;
 begin
   s := jo.music_auth(p_code, p_email);
   select * into e from jo.entries where id = p_entry and submission_id = s.id and status <> 'dibatalkan' for update;
   if e.id is null then raise exception 'Atlet tidak ditemukan di pendaftaran ini.' using hint = 'ERR_NOT_FOUND'; end if;
   select * into c from jo.categories where id = e.category_id;
   if c.discipline <> 'RG' then raise exception 'Tautan musik hanya untuk Ritmik.'; end if;
-  if not jo.valid_drive_url(v_url) then
-    raise exception 'Tautan harus dari Google Drive (diawali https://drive.google.com/).' using hint = 'ERR_MUSIC';
+  if c.scores_locked then
+    raise exception 'Nilai kategori ini sudah dikunci; musik tidak bisa diubah lagi.' using hint = 'ERR_MUSIC_CLOSED';
   end if;
-  if e.music_url is null then
-    v_action := 'isi';
-  elsif e.music_status = 'tidak_bisa' then
+  v_new := e.music;
+  foreach k in array c.apparatus loop
+    v_url := trim(coalesce(p_music->>k, ''));
+    v_old := nullif(e.music->>k, '');
+    if v_url = '' then
+      if v_old is null then
+        raise exception 'Isi tautan musik %.', jo.apparatus_label('RG', k) using hint = 'ERR_MUSIC';
+      end if;
+      continue;
+    end if;
+    if not jo.valid_drive_url(v_url) then
+      raise exception 'Tautan % harus dari Google Drive (diawali https://drive.google.com/).', jo.apparatus_label('RG', k) using hint = 'ERR_MUSIC';
+    end if;
+    if v_old is distinct from v_url then
+      v_changed := v_changed + 1;
+      if v_old is not null then v_replaced := v_replaced + 1; end if;
+      v_new := v_new || jsonb_build_object(k, v_url);
+    end if;
+  end loop;
+  if v_changed = 0 then raise exception 'Tidak ada tautan yang berubah.' using hint = 'ERR_MUSIC'; end if;
+  if e.music_status = 'tidak_bisa' then
     v_action := 'perbaiki';
-  else
+  elsif v_replaced > 0 then
     v_action := 'ganti';
     if c.startlist_published then
       raise exception 'Batas ganti musik sudah lewat: start list kategori ini sudah terbit. Hubungi narahubung Ritmik.' using hint = 'ERR_MUSIC_CLOSED';
@@ -956,19 +1074,17 @@ begin
     if e.music_changes >= 1 then
       raise exception 'Musik atlet ini sudah pernah diganti. Kesempatan ganti hanya satu kali.' using hint = 'ERR_MUSIC_USED';
     end if;
-    if v_url = e.music_url then
-      raise exception 'Tautan baru sama dengan tautan sekarang.' using hint = 'ERR_MUSIC';
-    end if;
+  else
+    v_action := 'isi';
   end if;
-  if v_action <> 'ganti' and c.scores_locked then
-    raise exception 'Nilai kategori ini sudah dikunci; musik tidak bisa diubah lagi.' using hint = 'ERR_MUSIC_CLOSED';
-  end if;
-  update jo.entries set music_url = v_url, music_status = 'menunggu', music_note = null, music_updated_at = now(),
+  update jo.entries set music = v_new, music_status = 'menunggu', music_note = null, music_updated_at = now(),
     music_changes = music_changes + case when v_action = 'ganti' then 1 else 0 end,
     music_checked_by = null, music_checked_at = null
    where id = e.id;
-  insert into jo.music_log (entry_id, action, old_url, new_url) values (e.id, v_action, e.music_url, v_url);
-  perform jo.log(null, 'musik_' || v_action, 'entry', e.id::text, jsonb_build_object('code', s.code, 'old', e.music_url, 'new', v_url));
+  insert into jo.music_log (entry_id, action, apparatus, old_url, new_url)
+  select e.id, v_action, x.key, e.music->>x.key, x.value from jsonb_each_text(v_new) x
+   where (e.music->>x.key) is distinct from x.value;
+  perform jo.log(null, 'musik_' || v_action, 'entry', e.id::text, jsonb_build_object('code', s.code, 'old', e.music, 'new', v_new));
   perform jo.queue_music_email(e.id, 'musik_diterima');
   return jo.music_json(s);
 end $$;
@@ -998,6 +1114,7 @@ begin
   end if;
   insert into jo.settings (key, value) values ('outbox_last_poll', to_jsonb(now()))
     on conflict (key) do update set value = excluded.value, updated_at = now();
+  perform jo.expire_unpaid();
   with picked as (
     select id from jo.outbox
      where (status = 'pending')

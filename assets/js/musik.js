@@ -6,9 +6,9 @@
     m_title: ['Musik Ritmik', 'Rhythmic music'],
     m_lead: ['Isi, perbaiki, atau ganti tautan musik atlet Ritmik. Masuk dengan kode pendaftaran dan email penanggung jawab.', 'Add, fix or change the music link for Rhythmic athletes. Sign in with the registration code and contact email.'],
     m_rules_t: ['Ketentuan musik', 'Music rules'],
-    m_rule1: ['Satu folder Google Drive untuk setiap atlet, berisi semua file MP3 yang akan dipakai.', 'One Google Drive folder per athlete, holding every MP3 they will use.'],
-    m_rule2: ['Atur akses folder ke "Siapa saja yang memiliki link" agar panitia bisa membukanya.', 'Set the folder access to "Anyone with the link" so the committee can open it.'],
-    m_rule3: ['Musik bisa diganti satu kali per atlet, sampai start list kategorinya terbit. Perubahan berlaku langsung dan konfirmasi dikirim ke email penanggung jawab.', 'Music can be changed once per athlete, until the start list for its category is published. Changes apply at once and a confirmation goes to the contact email.'],
+    m_rule1: ['Satu tautan Google Drive untuk setiap nomor (mis. Tanpa Alat, Simpai, Bola), sesuai kategori atlet.', 'One Google Drive link for each routine (e.g. Freehand, Hoop, Ball), matching the athlete\'s category.'],
+    m_rule2: ['Atur akses ke "Siapa saja yang memiliki link" agar panitia bisa membukanya.', 'Set access to "Anyone with the link" so the committee can open it.'],
+    m_rule3: ['Musik bisa diganti satu kali per atlet (satu atau beberapa nomor sekaligus), sampai start list kategorinya terbit. Perubahan berlaku langsung dan konfirmasi dikirim ke email penanggung jawab.', 'Music can be changed once per athlete (one or several routines at a time), until the start list for its category is published. Changes apply at once and a confirmation goes to the contact email.'],
     m_rule4: ['Jika panitia menandai tautan "tidak bisa dibuka", perbaiki aksesnya lalu kirim lagi. Perbaikan ini tidak memakai kesempatan ganti.', 'If the committee marks a link "cannot be opened", fix the sharing and send it again. A fix does not use up the change.'],
     m_code: ['Kode pendaftaran', 'Registration code'], m_email: ['Email penanggung jawab', 'Contact email'],
     m_open: ['Buka', 'Open'], m_out: ['Keluar', 'Sign out'],
@@ -19,7 +19,8 @@
     st_belum: ['Belum ada tautan', 'No link yet'], st_menunggu: ['Menunggu pemeriksaan panitia', 'Awaiting committee check'],
     st_ok: ['Sudah diperiksa, bisa dibuka', 'Checked, opens fine'], st_tidak_bisa: ['Tidak bisa dibuka', 'Cannot be opened'],
     m_note: ['Catatan panitia', 'Committee note'],
-    m_new: ['Tautan folder Google Drive', 'Google Drive folder link'],
+    m_new: ['Tautan Google Drive per nomor', 'Google Drive link per routine'],
+    m_keep: ['Kosongkan nomor yang tidak diganti.', 'Leave routines you are not changing as they are.'],
     m_fill: ['Simpan tautan', 'Save link'],
     m_fix: ['Kirim perbaikan', 'Send fix'],
     m_fix_hint: ['Periksa akses folder, lalu kirim lagi tautan yang sama atau tautan baru. Tidak memakai kesempatan ganti.', 'Check the folder access, then send the same link again or a new one. This does not use up the change.'],
@@ -105,13 +106,15 @@
     const el = document.createElement('section');
     el.className = 'ath';
     const cat = JO.lang === 'en' ? e.category_name_en : e.category_name_id;
-    const st = e.music_url ? e.music_status : 'belum';
+    const st = e.complete ? e.music_status : 'belum';
+    const apName = (k) => { const d = CFG && CFG.disciplines.find((x) => x.code === 'RG'); const a = d && d.apparatus.find((x) => x.code === k); return a ? (JO.lang === 'en' ? a.en : a.id) : k; };
+    const mus = e.music || {};
     el.innerHTML = `<div class="ath-head"><span class="bib">${esc(e.athlete_no || '')}</span><strong>${esc(e.athlete_name)}</strong></div>
       <div class="ath-body">
         <p class="small muted" style="margin:0 0 10px">${esc(cat)}</p>
         <p class="small" style="margin:0 0 6px"><span class="pill ${PILL[st] || ''}">${esc(t('st_' + st))}</span>
           ${e.music_updated_at ? ` <span class="muted">${esc(t('m_updated', { d: JO.fmtDateTime(e.music_updated_at) }))}</span>` : ''}</p>
-        ${e.music_url ? `<p class="small" style="margin:0 0 6px"><strong>${esc(t('m_current'))}:</strong><br><a class="mono-link" href="${esc(e.music_url)}" target="_blank" rel="noopener">${esc(e.music_url)}</a></p>` : `<p class="small muted">${esc(t('m_no_link'))}</p>`}
+        <p class="small" style="margin:0 0 6px"><strong>${esc(t('m_current'))}:</strong>${(e.apparatus || []).map((k) => `<br>${esc(apName(k))}: ${mus[k] ? `<a class="mono-link" href="${esc(mus[k])}" target="_blank" rel="noopener">${esc(mus[k])}</a>` : `<span class="muted">${esc(t('m_no_link'))}</span>`}`).join('')}</p>
         ${st === 'tidak_bisa' && e.music_note ? `<p class="note bad small" style="margin:8px 0">${esc(t('m_note'))}: ${esc(e.music_note)}</p>` : ''}
         <div class="m-act"></div>
       </div>`;
@@ -121,30 +124,33 @@
       const isChange = kind === 'change';
       act.innerHTML = `<div class="m-form">
           ${isChange ? `<h3 style="margin:12px 0 8px">${esc(t('m_change_t'))}</h3>` : ''}
-          <div class="field music"><label class="f" for="u_${e.entry_id}">${esc(t('m_new'))}</label>
-            <input id="u_${e.entry_id}" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://drive.google.com/drive/folders/…" value="${kind === 'fix' ? esc(e.music_url || '') : ''}">
-            ${kind === 'fix' ? `<div class="f-hint">${esc(t('m_fix_hint'))}</div>` : ''}</div>
+          <div class="field music"><span class="f">${esc(t('m_new'))}</span>
+            ${(e.apparatus || []).map((k) => `<div class="mu-row"><label class="small" for="u_${e.entry_id}_${k}">${esc(apName(k))}</label>
+              <input id="u_${e.entry_id}_${k}" data-ap="${k}" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://drive.google.com/…" value="${esc(mus[k] || '')}"></div>`).join('')}
+            <div class="f-hint">${esc(t(kind === 'fix' ? 'm_fix_hint' : isChange ? 'm_keep' : 'm_rule2'))}</div></div>
           ${isChange ? `<label class="check"><input type="checkbox" data-ok><span>${esc(t('m_change_ok'))}</span></label>` : ''}
           <div class="row" style="gap:8px;margin-top:6px">
             <button type="button" class="btn btn-primary btn-sm" data-go>${esc(t(kind === 'fill' ? 'm_fill' : kind === 'fix' ? 'm_fix' : 'm_change_go'))}</button>
             ${isChange ? `<button type="button" class="btn btn-ghost btn-sm" data-cancel>${esc(t('m_cancel'))}</button>` : ''}
           </div>
           <div data-err></div></div>`;
-      const inp = act.querySelector('input[type=url]');
+      const inps = [...act.querySelectorAll('input[data-ap]')];
       const err = act.querySelector('[data-err]');
       const cancel = act.querySelector('[data-cancel]');
       if (cancel) cancel.onclick = () => draw();
       act.querySelector('[data-go]').onclick = async (ev) => {
         err.innerHTML = '';
-        if (!validDrive(inp.value)) { err.innerHTML = `<p class="f-err">${esc(t('m_err_url'))}</p>`; inp.setAttribute('aria-invalid', 'true'); inp.focus(); return; }
+        const bad = inps.find((i) => !validDrive(i.value));
+        if (bad) { err.innerHTML = `<p class="f-err">${esc(t('m_err_url'))} (${esc(apName(bad.dataset.ap))})</p>`; bad.setAttribute('aria-invalid', 'true'); bad.focus(); return; }
         if (isChange && !act.querySelector('[data-ok]').checked) { err.innerHTML = `<p class="f-err">${esc(t('m_err_confirm'))}</p>`; return; }
         const b = ev.currentTarget; b.disabled = true; const old = b.textContent; b.textContent = t('m_saving');
         try {
-          D = await rpc('public_music_set', { p_code: auth.code, p_email: auth.email, p_entry: e.entry_id, p_url: inp.value.trim() });
+          const music = {}; inps.forEach((i) => { music[i.dataset.ap] = i.value.trim(); });
+          D = await rpc('public_music_set', { p_code: auth.code, p_email: auth.email, p_entry: e.entry_id, p_music: music });
           renderList(); JO.toast(t('m_saved'));
         } catch (x) { err.innerHTML = `<p class="note bad small" role="alert" style="margin-top:8px">${esc(x.message)}</p>`; b.disabled = false; b.textContent = old; }
       };
-      if (isChange) inp.focus();
+      if (isChange && inps[0]) inps[0].focus();
     }
     function draw() {
       if (e.can_fill) return form('fill');

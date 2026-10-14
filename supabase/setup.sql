@@ -453,6 +453,22 @@ create table if not exists jo.jury_applications (
   review_note text
 );
 
+-- ---------------------------------------------------------------------
+-- v6 (14 Okt 2026, revisi PDF): Priangan khusus Ritmik, musik per nomor,
+--     dokumen atlet terpisah + BPJS TK, juri satu disiplin + BPJS TK
+-- ---------------------------------------------------------------------
+alter table jo.categories add column if not exists jabar_only boolean not null default false;
+alter table jo.categories alter column allow_priangan set default false;
+alter table jo.entries add column if not exists music jsonb not null default '{}'::jsonb;   -- {"FH":"https://drive…","BALL":"…"}
+alter table jo.music_log add column if not exists apparatus text;
+alter table jo.athletes add column if not exists akte_path text;
+alter table jo.athletes add column if not exists ktp_path text;
+alter table jo.athletes add column if not exists ijazah_path text;
+alter table jo.athletes add column if not exists passport_path text;
+alter table jo.athletes add column if not exists bpjs_path text;
+alter table jo.athletes add column if not exists photo_thumb text;   -- pas foto kecil (data URL JPEG) untuk kartu atlet
+alter table jo.jury_applications add column if not exists bpjs_path text;
+
 -- Semua tabel di skema jo: RLS aktif tanpa policy.
 -- Akses hanya lewat fungsi (RPC) yang memeriksa hak.
 do $$ declare t record; begin
@@ -661,7 +677,7 @@ begin
   app_med   := coalesce((c.medal_rule->>'apparatus_medals')::boolean, false);
 
   with e as (
-    select en.id, (en.priangan_status = 'disetujui' and not en.team_only) as pri, en.team_only as tonly,
+    select en.id, (en.priangan_status = 'disetujui' and not en.team_only and not c.jabar_only) as pri, en.team_only as tonly,
            en.start_order, en.group_no, coalesce(s.club_id::text, en.id::text) as clubkey
     from jo.entries en join jo.submissions s on s.id = en.submission_id
     where en.category_id = p_cat and en.status = 'aktif' and s.status = 'lunas'
@@ -815,16 +831,15 @@ begin
     from jo.categories c
     cross join lateral jsonb_array_elements(jo.category_results(c.id)) x
     where c.active and not c.exhibition and (c.results_published or not p_published_only)
+      and c.jabar_only = p_priangan   -- v6: tabel Priangan = kategori Ritmik Priangan saja
   ),
   m as (
-    select discipline, x->>'club' as club, x->>'region' as region,
-      case when p_priangan then x->>'priangan_medal' else x->>'medal' end as medal
+    select discipline, x->>'club' as club, x->>'region' as region, x->>'medal' as medal
     from rows
     union all
-    -- medali per alat (hanya tabel Jabar Open, bukan Priangan)
+    -- medali per alat
     select r.discipline, r.x->>'club', r.x->>'region', am.value
     from rows r cross join lateral jsonb_each_text(coalesce(r.x->'app_medals', '{}'::jsonb)) am
-    where not p_priangan
   ),
   m2 as (select * from m where medal is not null),
   by_club as (
@@ -948,10 +963,13 @@ language sql stable set search_path = '' as $$
   select '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:8px 0 4px">'
     || coalesce(string_agg(
       '<tr><td style="padding:8px 0;border-bottom:1px solid #e2e8f1;vertical-align:top"><b>' || jo.h(a.full_name) || '</b>'
-      || '<div style="font-size:13px;color:#5b6b88">' || jo.h(coalesce(a.athlete_no,'')) || '</div></td>'
+      || '<div style="font-size:13px;color:#5b6b88">' || jo.h(coalesce(a.athlete_no,'')) || '</div>'
+      || case when a.nationality = 'WNI' and a.bpjs_path is null then '<div style="font-size:12px;color:#9a6200">'
+           || jo.tr(p_lang, 'BPJS Ketenagakerjaan belum diunggah: bawa ke meja panitia di venue sebelum bertanding.',
+                            'BPJS Ketenagakerjaan not uploaded: bring it to the committee desk at the venue before competing.') || '</div>' else '' end
+      || '</td>'
       || '<td style="padding:8px 0;border-bottom:1px solid #e2e8f1;text-align:right;font-size:13px;vertical-align:top">'
-      || coalesce((select string_agg(jo.h(case when p_lang = 'en' then c.name_en else c.name_id end)
-                     || case when e.priangan_requested then ' + Priangan' else '' end, '<br>')
+      || coalesce((select string_agg(jo.h(case when p_lang = 'en' then c.name_en else c.name_id end), '<br>')
                    from jo.entry_athletes ea join jo.entries e on e.id = ea.entry_id
                    join jo.categories c on c.id = e.category_id
                    where ea.athlete_id = a.id and e.status <> 'dibatalkan'), '')
@@ -1013,7 +1031,11 @@ begin
       || jo.fmt_rp(s.total_amount) || '</b>. '
       || jo.tr(l,'Tiga digit terakhir adalah kode unik yang mencocokkan pembayaran Anda dengan pendaftaran ini. Setelah membayar, unggah bukti pembayaran di halaman status.',
                  'The last three digits are a unique code that matches your payment to this registration. After paying, upload the payment proof on the status page.')
-      || '</p>';
+      || '</p><p style="background:#fdf3dc;border-left:4px solid #e4c87d;padding:10px 14px"><b>'
+      || jo.tr(l,'Penting: unggah bukti bayar paling lambat 15 menit setelah mendaftar','Important: upload the payment proof within 15 minutes of registering')
+      || '</b> (' || to_char(s.created_at at time zone 'Asia/Jakarta' + interval '15 minutes', 'HH24:MI') || ' WIB). '
+      || jo.tr(l,'Bila tidak, pendaftaran ini dihapus otomatis dan Anda perlu mendaftar ulang.',
+                 'Otherwise this registration is deleted automatically and you will need to register again.') || '</p>';
   else
     body := body || '<p>' || jo.tr(l,
       'Pendaftaran atlet internasional dibayar terpisah. Panitia akan menghubungi Anda melalui email ini untuk cara pembayaran.',
@@ -1046,11 +1068,11 @@ begin
     || '<p>' || jo.tr(l,'Pembayaran untuk pendaftaran ','Payment for registration ') || '<b>' || jo.h(s.code) || '</b> '
     || jo.tr(l,'sudah kami verifikasi. Status: <b style="color:#1b8a4b">LUNAS</b>.','has been verified. Status: <b style="color:#1b8a4b">PAID</b>.') || '</p>'
     || case when s.registrant_type = 'beregu' then coalesce(jo.email_team(s.id, l), '') else jo.email_roster(s.id, l) end
-    || '<p>' || jo.tr(l,'E-ticket (PDF) untuk setiap atlet dapat diunduh di halaman status. Tidak ada registrasi ulang: cukup datang sesuai jadwal yang diumumkan di Instagram dan situs Jabar Open 2026.',
-                      'Each athlete''s e-ticket (PDF) can be downloaded from the status page. There is no on-site check-in: just come at the schedule announced on Instagram and the Jabar Open 2026 website.') || '</p>'
-    || jo.email_button(jo.status_link(s.code, s.token), jo.tr(l,'Unduh e-ticket','Download e-tickets'));
+    || '<p>' || jo.tr(l,'Athlete Identification Card (AIC) Jabar Open 2026 untuk setiap atlet dapat diunduh di halaman status dan wajib ditunjukkan secara digital (dari ponsel, tanpa dicetak) di venue. Tidak ada registrasi ulang: cukup datang sesuai jadwal yang diumumkan di Instagram dan situs Jabar Open 2026.',
+                      'Each athlete''s Athlete Identification Card (AIC) Jabar Open 2026 can be downloaded from the status page and must be shown digitally (on a phone, no printing) at the venue. There is no on-site check-in: just come at the schedule announced on Instagram and the Jabar Open 2026 website.') || '</p>'
+    || jo.email_button(jo.status_link(s.code, s.token), jo.tr(l,'Unduh AIC','Download AIC'));
   perform jo.queue_email(s.id, 'lunas', s.contact_email, cc,
-    jo.tr(l,'Pembayaran lunas — e-ticket ','Payment confirmed — e-tickets ') || s.code,
+    jo.tr(l,'Pembayaran lunas — Athlete Identification Card (AIC) ','Payment confirmed — Athlete Identification Cards (AIC) ') || s.code,
     jo.email_layout(jo.tr(l,'Pembayaran lunas','Payment confirmed'), body, l));
 end $$;
 
@@ -1121,7 +1143,10 @@ begin
     body := body || '<p>' || jo.tr(l,'Tautan musik untuk ','The music link for ') || '<b>' || jo.h(a.full_name) || '</b> ('
       || jo.h(case when l = 'en' then c.name_en else c.name_id end) || ') '
       || jo.tr(l,'sudah tersimpan:','has been saved:') || '</p>'
-      || '<p style="word-break:break-all"><a href="' || jo.h(e.music_url) || '">' || jo.h(e.music_url) || '</a></p>'
+      || '<table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px;margin:6px 0 12px">'
+      || coalesce((select string_agg('<tr><td style="padding:3px 12px 3px 0;white-space:nowrap"><b>' || jo.h(jo.apparatus_label('RG', x)) || '</b></td>'
+           || '<td style="padding:3px 0;word-break:break-all"><a href="' || jo.h(e.music->>x) || '">' || jo.h(e.music->>x) || '</a></td></tr>', '' order by ord)
+           from unnest(c.apparatus) with ordinality as u(x, ord) where coalesce(e.music->>x,'') <> ''), '') || '</table>'
       || '<p>' || case when e.music_changes >= 1
            then jo.tr(l,'Kesempatan ganti musik untuk atlet ini sudah dipakai.','The music change for this athlete has now been used.')
            else jo.tr(l,'Musik dapat diganti satu kali sampai start list kategori ini terbit.','The music can be changed once until this category''s start list is published.') end
@@ -1137,8 +1162,10 @@ end $$;
 -- =====================================================================
 
 create or replace function public.public_config() returns jsonb
-language sql stable security definer set search_path = '' as $$
-  select jsonb_build_object(
+language plpgsql volatile security definer set search_path = '' as $$
+begin
+  perform jo.expire_unpaid();
+  return jsonb_build_object(
     'event', jsonb_build_object(
       'name', jo.setting_text('event_name'),
       'year', jo.setting_int('event_year'),
@@ -1173,14 +1200,14 @@ language sql stable security definer set search_path = '' as $$
         'name_id', c.name_id, 'name_en', c.name_en, 'gender', c.gender,
         'birth_year_min', c.birth_year_min, 'birth_year_max', c.birth_year_max,
         'entry_type', c.entry_type, 'fee', c.fee, 'apparatus', c.apparatus,
-        'max_per_club', c.max_per_club, 'allow_priangan', c.allow_priangan) order by c.sort, c.id), '[]'::jsonb)
+        'max_per_club', c.max_per_club, 'allow_priangan', c.allow_priangan, 'jabar_only', c.jabar_only) order by c.sort, c.id), '[]'::jsonb)
         from jo.categories c where c.active),
     'clubs', (select coalesce(jsonb_agg(jsonb_build_object(
         'id', k.id, 'name', k.name, 'kind', k.kind, 'kab_kota', k.kab_kota,
         'province', k.province, 'country', k.country) order by k.name), '[]'::jsonb)
         from jo.clubs k where k.merged_into is null)
-  )
-$$;
+  );
+end $$;
 
 -- ---------------------------------------------------------------------
 -- Pendaftaran
@@ -1189,6 +1216,92 @@ create or replace function jo.valid_drive_url(u text) returns boolean
 language sql immutable set search_path = '' as $$
   select coalesce(trim(u), '') ~* '^https://(drive|docs)\.google\.com/[^\s]+$'
 $$;
+
+-- ---------------------------------------------------------------------
+-- v6: dokumen identitas atlet terpisah (Akte wajib; KTP & Ijazah bila ada;
+--     WNA: paspor wajib; BPJS Ketenagakerjaan opsional saat daftar)
+-- ---------------------------------------------------------------------
+create or replace function jo.check_athlete_docs(a jsonb, p_label text, p_uid uuid) returns void
+language plpgsql stable set search_path = '' as $$
+declare k text;
+begin
+  if coalesce(a->>'nationality','WNI') = 'WNA' then
+    if coalesce(a->>'passport_path','') = '' then
+      raise exception '%: unggah paspor.', p_label using hint = 'ERR_ATHLETE_DOC';
+    end if;
+  elsif coalesce(a->>'akte_path','') = '' then
+    raise exception '%: unggah Akte Kelahiran.', p_label using hint = 'ERR_ATHLETE_DOC';
+  end if;
+  if coalesce(a->>'photo_path','') = '' then
+    raise exception '%: unggah pas foto (wajib untuk Athlete Identification Card).', p_label using hint = 'ERR_ATHLETE_PHOTO';
+  end if;
+  if coalesce(a->>'photo_thumb','') !~ '^data:image/jpeg;base64,[A-Za-z0-9+/=]+$' or length(a->>'photo_thumb') > 150000 then
+    raise exception '%: pas foto tidak terbaca. Unggah ulang pas foto (JPG atau PNG).', p_label using hint = 'ERR_ATHLETE_PHOTO';
+  end if;
+  foreach k in array array['akte_path','ktp_path','ijazah_path','passport_path','bpjs_path','photo_path'] loop
+    if coalesce(a->>k,'') <> '' and split_part(a->>k, '/', 1) <> p_uid::text then
+      raise exception 'Berkas unggahan tidak valid. Unggah ulang dokumen.' using hint = 'ERR_UPLOAD';
+    end if;
+  end loop;
+end $$;
+
+create or replace function jo.apparatus_label(p_disc text, p_code text) returns text
+language sql stable set search_path = '' as $$
+  select coalesce((select x->>'id' from jo.disciplines d cross join jsonb_array_elements(d.apparatus) x
+                    where d.code = p_disc and x->>'code' = p_code), p_code)
+$$;
+
+-- v6: pendaftaran QRIS tanpa bukti bayar dalam 15 menit dihapus otomatis
+create or replace function jo.expire_unpaid() returns integer
+language plpgsql volatile set search_path = '' as $$
+declare r record; n integer := 0;
+begin
+  for r in select id, code, contact_name, discipline, total_amount from jo.submissions
+            where payment_method = 'qris' and status = 'menunggu_pembayaran' and proof_path is null
+              and created_at < now() - interval '15 minutes'
+            for update skip locked loop
+    perform jo.purge_submission(r.id);
+    perform jo.log(null, 'pendaftaran_kedaluwarsa', 'submission', r.id::text,
+      jsonb_build_object('code', r.code, 'contact', r.contact_name, 'discipline', r.discipline, 'total', r.total_amount,
+                         'reason', 'Tidak ada bukti bayar dalam 15 menit'));
+    n := n + 1;
+  end loop;
+  if n > 0 then
+    -- klub baru yang dibuat pendaftaran itu dan kini tidak dipakai
+    delete from jo.clubs k
+     where k.created_via = 'pendaftaran' and k.created_at < now() - interval '15 minutes'
+       and not exists (select 1 from jo.submissions s where s.club_id = k.id)
+       and not exists (select 1 from jo.clubs m where m.merged_into = k.id);
+  end if;
+  return n;
+end $$;
+
+-- Hapus satu pendaftaran beserta atlet, entri, tim, nilai, dan riwayat musiknya.
+-- Mengembalikan daftar berkas (bucket/path) agar konsol bisa menghapusnya dari penyimpanan.
+create or replace function jo.purge_submission(p_id uuid) returns jsonb
+language plpgsql volatile set search_path = '' as $$
+declare v_files jsonb;
+begin
+  select coalesce(jsonb_agg(distinct f), '[]'::jsonb) into v_files from (
+    select jsonb_build_object('bucket', 'bukti', 'path', s.proof_path) f from jo.submissions s where s.id = p_id and s.proof_path is not null
+    union all
+    select jsonb_build_object('bucket', 'dokumen', 'path', x) from jo.athletes a
+      cross join lateral unnest(array[a.id_doc_path, a.akte_path, a.ktp_path, a.ijazah_path, a.passport_path, a.bpjs_path, a.photo_path]) x
+     where a.submission_id = p_id and x is not null
+  ) z;
+  delete from jo.score_log where entry_id in (select id from jo.entries where submission_id = p_id);
+  delete from jo.scores where entry_id in (select id from jo.entries where submission_id = p_id);
+  delete from jo.music_log where entry_id in (select id from jo.entries where submission_id = p_id);
+  delete from jo.team_members where team_id in (select id from jo.teams where submission_id = p_id)
+     or entry_id in (select id from jo.entries where submission_id = p_id);
+  delete from jo.teams where submission_id = p_id;
+  delete from jo.entry_athletes where entry_id in (select id from jo.entries where submission_id = p_id);
+  delete from jo.entries where submission_id = p_id;
+  delete from jo.athletes where submission_id = p_id;
+  update jo.mutations set submission_id = null, match_status = 'belum' where submission_id = p_id;
+  delete from jo.submissions where id = p_id;
+  return v_files;
+end $$;
 
 create or replace function public.public_register(p jsonb) returns jsonb
 language plpgsql volatile security definer set search_path = '' as $$
@@ -1241,10 +1354,12 @@ declare
   v_mbirth    date;
   v_mgender   text;
   v_music     text;
+  v_mus       jsonb;
 begin
   if v_uid is null then
     raise exception 'Sesi browser belum siap. Muat ulang halaman lalu coba lagi.' using hint = 'ERR_SESSION';
   end if;
+  perform jo.expire_unpaid();
 
   if (select count(*) from jo.rate_events where uid = v_uid and action = 'register' and at > now() - interval '1 hour') >= 12 then
     raise exception 'Terlalu banyak pendaftaran dari perangkat ini dalam satu jam. Coba lagi nanti.' using hint = 'ERR_RATE';
@@ -1436,13 +1551,7 @@ begin
             raise exception 'Anggota %: isi negara asal.', i using hint = 'ERR_ATHLETE_ADDRESS';
           end if;
         end if;
-        if coalesce(a->>'id_doc_path','') = '' then
-          raise exception 'Anggota %: unggah dokumen identitas (KTP / Akte Kelahiran / Ijazah / Paspor).', i using hint = 'ERR_ATHLETE_DOC';
-        end if;
-        if split_part(a->>'id_doc_path', '/', 1) <> v_uid::text
-           or (coalesce(a->>'photo_path','') <> '' and split_part(a->>'photo_path', '/', 1) <> v_uid::text) then
-          raise exception 'Berkas unggahan tidak valid. Unggah ulang dokumen.' using hint = 'ERR_UPLOAD';
-        end if;
+        perform jo.check_athlete_docs(a, 'Anggota ' || i, v_uid);
         if jo.is_minor(v_mbirth) then
           v_any_minor := true;
           if length(trim(coalesce(a->'guardian'->>'name',''))) < 3
@@ -1470,10 +1579,13 @@ begin
           end if;
         end if;
         insert into jo.athletes (submission_id, full_name, gender, birth_date, nationality, country, province, kab_kota,
-           id_doc_path, photo_path, guardian_name, guardian_phone, guardian_email, guardian_relation, ticket_code, sort)
+           id_doc_path, akte_path, ktp_path, ijazah_path, passport_path, bpjs_path, photo_thumb,
+           photo_path, guardian_name, guardian_phone, guardian_email, guardian_relation, ticket_code, sort)
         values (v_sub_id, v_mname, v_mgender, v_mbirth, coalesce(a->>'nationality','WNI'),
            case when coalesce(a->>'nationality','WNI') = 'WNI' then 'Indonesia' else trim(a->>'country') end,
-           null, null, a->>'id_doc_path', nullif(a->>'photo_path',''),
+           null, null, coalesce(nullif(a->>'akte_path',''), nullif(a->>'passport_path','')),
+           nullif(a->>'akte_path',''), nullif(a->>'ktp_path',''), nullif(a->>'ijazah_path',''), nullif(a->>'passport_path',''), nullif(a->>'bpjs_path',''), nullif(a->>'photo_thumb',''),
+           nullif(a->>'photo_path',''),
            nullif(trim(coalesce(a->'guardian'->>'name','')),''), nullif(trim(coalesce(a->'guardian'->>'phone','')),''),
            nullif(lower(trim(coalesce(a->'guardian'->>'email',''))),''), nullif(trim(coalesce(a->'guardian'->>'relation','')),''),
            'T' || jo.rand_code(9), i)
@@ -1528,13 +1640,7 @@ begin
           raise exception 'Atlet %: isi negara asal.', i using hint = 'ERR_ATHLETE_ADDRESS';
         end if;
       end if;
-      if coalesce(a->>'id_doc_path','') = '' then
-        raise exception 'Atlet %: unggah dokumen identitas (KTP / Akte Kelahiran / Ijazah / Paspor).', i using hint = 'ERR_ATHLETE_DOC';
-      end if;
-      if split_part(a->>'id_doc_path', '/', 1) <> v_uid::text
-         or (coalesce(a->>'photo_path','') <> '' and split_part(a->>'photo_path', '/', 1) <> v_uid::text) then
-        raise exception 'Berkas unggahan tidak valid. Unggah ulang dokumen.' using hint = 'ERR_UPLOAD';
-      end if;
+      perform jo.check_athlete_docs(a, 'Atlet ' || i, v_uid);
       if jo.is_minor((a->>'birth_date')::date) then
         v_any_minor := true;
         if length(trim(coalesce(a->'guardian'->>'name',''))) < 3
@@ -1545,12 +1651,15 @@ begin
       end if;
 
       insert into jo.athletes (submission_id, full_name, gender, birth_date, nationality, country, province, kab_kota,
-         id_doc_path, photo_path, guardian_name, guardian_phone, guardian_email, guardian_relation, ticket_code, sort)
+         id_doc_path, akte_path, ktp_path, ijazah_path, passport_path, bpjs_path, photo_thumb,
+         photo_path, guardian_name, guardian_phone, guardian_email, guardian_relation, ticket_code, sort)
       values (v_sub_id, trim(a->>'full_name'), a->>'gender', (a->>'birth_date')::date,
          coalesce(a->>'nationality','WNI'),
          case when coalesce(a->>'nationality','WNI') = 'WNI' then 'Indonesia' else trim(a->>'country') end,
          nullif(trim(coalesce(a->>'province','')),''), nullif(trim(coalesce(a->>'kab_kota','')),''),
-         a->>'id_doc_path', nullif(a->>'photo_path',''),
+         coalesce(nullif(a->>'akte_path',''), nullif(a->>'passport_path','')),
+         nullif(a->>'akte_path',''), nullif(a->>'ktp_path',''), nullif(a->>'ijazah_path',''), nullif(a->>'passport_path',''), nullif(a->>'bpjs_path',''), nullif(a->>'photo_thumb',''),
+         nullif(a->>'photo_path',''),
          nullif(trim(coalesce(a->'guardian'->>'name','')),''), nullif(trim(coalesce(a->'guardian'->>'phone','')),''),
          nullif(lower(trim(coalesce(a->'guardian'->>'email',''))),''), nullif(trim(coalesce(a->'guardian'->>'relation','')),''),
          'T' || jo.rand_code(9), i)
@@ -1636,35 +1745,38 @@ begin
         end if;
       end if;
 
-      if coalesce((e->>'priangan')::boolean, false) then
-        if not v_cat.allow_priangan then
-          raise exception 'Kategori % tidak membuka penilaian Priangan.', v_cat.name_id using hint = 'ERR_PRIANGAN';
-        end if;
-        if not v_pri_ok then
-          raise exception 'Kategori Priangan hanya untuk atlet WNI dengan alamat identitas di Jawa Barat dan klub di Jawa Barat (%).', v_cat.name_id using hint = 'ERR_PRIANGAN';
-        end if;
+      -- v6: Priangan bukan tambahan; kategori Priangan (khusus Jawa Barat) berdiri sendiri, tanpa biaya tambahan
+      if coalesce((e->>'priangan')::boolean, false) and not v_cat.allow_priangan then
+        raise exception 'Priangan kini kategori tersendiri (khusus Ritmik). Pilih kategori Ritmik Priangan.' using hint = 'ERR_PRIANGAN';
+      end if;
+      if v_cat.jabar_only and not v_pri_ok then
+        raise exception '% khusus atlet WNI dengan alamat identitas di Jawa Barat dan klub di Jawa Barat.', v_cat.name_id using hint = 'ERR_PRIANGAN';
       end if;
 
-      -- musik Ritmik: tautan Google Drive wajib
-      v_music := null;
+      -- musik Ritmik (v6): satu tautan Google Drive untuk setiap nomor (alat) kategori, semua wajib
+      v_mus := '{}'::jsonb;
       if v_disc.code = 'RG' then
-        v_music := trim(coalesce(e->>'music_url',''));
-        if not jo.valid_drive_url(v_music) then
-          raise exception 'Isi tautan Google Drive musik untuk % (diawali https://drive.google.com/).', v_ath.full_name using hint = 'ERR_MUSIC';
-        end if;
+        foreach k in array v_cat.apparatus loop
+          v_music := trim(coalesce(e->'music'->>k, ''));
+          if not jo.valid_drive_url(v_music) then
+            raise exception 'Isi tautan Google Drive musik % untuk % (diawali https://drive.google.com/).',
+              jo.apparatus_label(v_disc.code, k), v_ath.full_name using hint = 'ERR_MUSIC';
+          end if;
+          v_mus := v_mus || jsonb_build_object(k, v_music);
+        end loop;
       end if;
 
       insert into jo.entries (submission_id, category_id, fee, priangan_requested, priangan_fee, priangan_status,
-                              music_url, music_status, music_updated_at)
+                              music, music_status, music_updated_at)
       values (v_sub_id, v_cat.id, v_cat.fee,
-              coalesce((e->>'priangan')::boolean, false),
-              case when coalesce((e->>'priangan')::boolean, false) then v_pri_fee else 0 end,
-              case when coalesce((e->>'priangan')::boolean, false) then 'menunggu' else 'tidak' end,
-              v_music, case when v_music is not null then 'menunggu' else 'tidak_perlu' end,
-              case when v_music is not null then now() end)
+              v_cat.jabar_only, 0,
+              case when v_cat.jabar_only then 'menunggu' else 'tidak' end,
+              v_mus, case when v_mus <> '{}'::jsonb then 'menunggu' else 'tidak_perlu' end,
+              case when v_mus <> '{}'::jsonb then now() end)
       returning id into v_entry_id;
-      if v_music is not null then
-        insert into jo.music_log (entry_id, action, new_url) values (v_entry_id, 'daftar', v_music);
+      if v_mus <> '{}'::jsonb then
+        insert into jo.music_log (entry_id, action, apparatus, new_url)
+        select v_entry_id, 'daftar', x.key, x.value from jsonb_each_text(v_mus) x;
       end if;
 
       foreach k in array v_eath loop
@@ -1673,7 +1785,6 @@ begin
       end loop;
 
       v_base := v_base + v_cat.fee;
-      if coalesce((e->>'priangan')::boolean, false) then v_pri := v_pri + v_pri_fee; end if;
     end loop;
 
     -- setiap atlet harus punya minimal satu nomor
@@ -1715,7 +1826,8 @@ begin
 
   return jsonb_build_object(
     'code', v_code, 'token', v_token, 'status', 'menunggu_pembayaran', 'payment_method', v_pm,
-    'base_amount', v_base, 'priangan_amount', v_pri, 'unique_code', v_uc, 'total_amount', v_total);
+    'base_amount', v_base, 'priangan_amount', v_pri, 'unique_code', v_uc, 'total_amount', v_total,
+    'expires_at', case when v_pm = 'qris' then now() + interval '15 minutes' end);
 end $$;
 
 -- ---------------------------------------------------------------------
@@ -1766,7 +1878,7 @@ language sql stable set search_path = '' as $$
     'code', s.code, 'status', s.status, 'discipline', s.discipline,
     'discipline_name_id', d.name_id, 'discipline_name_en', d.name_en,
     'registrant_type', s.registrant_type,
-    'contact', jsonb_build_object('name', s.contact_name, 'email', s.contact_email, 'phone', s.contact_phone),
+    'contact', jsonb_build_object('name', s.contact_name, 'email', s.contact_email, 'phone', s.contact_phone, 'role', s.contact_role),
     'club', case when c.id is null then null else jsonb_build_object('name', c.name, 'kab_kota', c.kab_kota, 'province', c.province, 'country', c.country) end,
     'payment_method', s.payment_method,
     'base_amount', s.base_amount, 'priangan_amount', s.priangan_amount,
@@ -1774,6 +1886,8 @@ language sql stable set search_path = '' as $$
     'proof_uploaded_at', s.proof_uploaded_at, 'paid_at', s.paid_at,
     'verify_note', case when s.status = 'perlu_perbaikan' then s.verify_note end,
     'created_at', s.created_at,
+    'expires_at', case when s.payment_method = 'qris' and s.status = 'menunggu_pembayaran' and s.proof_path is null
+                       then s.created_at + interval '15 minutes' end,
     'payment', jsonb_build_object(
       'qris_image_url', jo.setting_text('qris_image_url'),
       'qris_merchant', jo.setting_text('qris_merchant'),
@@ -1784,7 +1898,9 @@ language sql stable set search_path = '' as $$
     'athletes', (select coalesce(jsonb_agg(jsonb_build_object(
         'id', a.id, 'athlete_no', a.athlete_no, 'full_name', a.full_name, 'gender', a.gender,
         'birth_date', a.birth_date, 'nationality', a.nationality, 'province', a.province, 'kab_kota', a.kab_kota,
-        'doc_status', a.doc_status,
+        'doc_status', a.doc_status, 'has_bpjs', a.bpjs_path is not null, 'photo_thumb', a.photo_thumb,
+        'docs', jsonb_build_object('akte', a.akte_path is not null, 'ktp', a.ktp_path is not null, 'ijazah', a.ijazah_path is not null,
+                                   'passport', a.passport_path is not null, 'bpjs', a.bpjs_path is not null),
         'ticket_code', case when s.status = 'lunas' then a.ticket_code end
       ) order by a.sort), '[]'::jsonb) from jo.athletes a where a.submission_id = s.id),
     'entries', (select coalesce(jsonb_agg(jsonb_build_object(
@@ -1792,8 +1908,8 @@ language sql stable set search_path = '' as $$
         'level', cat.level, 'age_label', cat.age_label, 'apparatus', cat.apparatus,
         'fee', en.fee, 'priangan_requested', en.priangan_requested, 'priangan_status', en.priangan_status,
         'status', en.status, 'team_only', en.team_only,
-        'music_url', en.music_url, 'music_status', en.music_status, 'music_note', en.music_note,
-        'music_changes', en.music_changes, 'startlist_published', cat.startlist_published,
+        'music', en.music, 'music_status', en.music_status, 'music_note', en.music_note,
+        'music_changes', en.music_changes, 'startlist_published', cat.startlist_published, 'jabar_only', cat.jabar_only,
         'athlete_ids', (select jsonb_agg(ea.athlete_id) from jo.entry_athletes ea where ea.entry_id = en.id),
         'start', case when cat.startlist_published and s.status = 'lunas' then jsonb_build_object(
             'session', ses.name, 'day', ses.day, 'start_time', ses.start_time,
@@ -1829,12 +1945,13 @@ language sql stable set search_path = '' as $$
 $$;
 
 create or replace function public.public_get_submission(p_code text, p_token text) returns jsonb
-language plpgsql stable security definer set search_path = '' as $$
+language plpgsql volatile security definer set search_path = '' as $$
 declare s jo.submissions;
 begin
+  perform jo.expire_unpaid();
   select * into s from jo.submissions where code = upper(trim(p_code)) and token = trim(p_token);
   if s.id is null then
-    raise exception 'Pendaftaran tidak ditemukan. Periksa kembali tautan dari email Anda.' using hint = 'ERR_NOT_FOUND';
+    raise exception 'Pendaftaran tidak ditemukan. Periksa tautan dari email Anda. Pendaftaran yang tidak mengunggah bukti bayar dalam 15 menit dihapus otomatis; silakan daftar ulang.' using hint = 'ERR_NOT_FOUND';
   end if;
   return jo.submission_public_json(s);
 end $$;
@@ -1846,9 +1963,10 @@ begin
   if v_uid is null then
     raise exception 'Sesi browser belum siap. Muat ulang halaman.' using hint = 'ERR_SESSION';
   end if;
+  -- sengaja tidak memanggil expire_unpaid di sini: bukti yang tiba tepat di menit ke-15 tetap diterima
   select * into s from jo.submissions where code = upper(trim(p_code)) and token = trim(p_token);
   if s.id is null then
-    raise exception 'Pendaftaran tidak ditemukan.' using hint = 'ERR_NOT_FOUND';
+    raise exception 'Pendaftaran tidak ditemukan atau sudah kedaluwarsa (bukti bayar tidak diunggah dalam 15 menit). Silakan daftar ulang.' using hint = 'ERR_NOT_FOUND';
   end if;
   if s.status not in ('menunggu_pembayaran','menunggu_verifikasi','perlu_perbaikan') then
     raise exception 'Pendaftaran ini sudah tidak menunggu pembayaran.' using hint = 'ERR_STATUS';
@@ -1950,6 +2068,8 @@ begin
     select coalesce(k.name, 'Perorangan') into club from jo.submissions x left join jo.clubs k on k.id = x.club_id where x.id = s.id;
     return jsonb_build_object('type', 'ticket', 'valid', s.status = 'lunas', 'status', s.status,
       'athlete_no', a.athlete_no, 'name', a.full_name, 'club', club, 'discipline', s.discipline,
+      'photo', case when s.status = 'lunas' then a.photo_thumb end,
+      'registered_by', case when s.status = 'lunas' then s.contact_name end,
       'categories', (select jsonb_agg(cc.name_id) from jo.entry_athletes x join jo.entries e on e.id = x.entry_id
                      join jo.categories cc on cc.id = e.category_id where x.athlete_id = a.id and e.status <> 'dibatalkan'));
   end if;
@@ -2026,12 +2146,13 @@ language sql stable set search_path = '' as $$
     'entries', (select coalesce(jsonb_agg(jsonb_build_object(
         'entry_id', e.id, 'athlete_name', a.full_name, 'athlete_no', a.athlete_no,
         'category_name_id', c.name_id, 'category_name_en', c.name_en, 'apparatus', c.apparatus,
-        'music_url', e.music_url, 'music_status', e.music_status, 'music_note', e.music_note,
+        'music', e.music, 'music_status', e.music_status, 'music_note', e.music_note,
         'music_changes', e.music_changes, 'music_updated_at', e.music_updated_at,
         'startlist_published', c.startlist_published,
-        'can_fill', e.music_url is null and not c.scores_locked,
-        'can_fix', e.music_url is not null and e.music_status = 'tidak_bisa' and not c.scores_locked,
-        'can_change', e.music_url is not null and e.music_status <> 'tidak_bisa' and e.music_changes < 1 and not c.startlist_published
+        'complete', (select bool_and(coalesce(e.music->>x, '') <> '') from unnest(c.apparatus) x),
+        'can_fill', not c.scores_locked and exists (select 1 from unnest(c.apparatus) x where coalesce(e.music->>x, '') = ''),
+        'can_fix', e.music_status = 'tidak_bisa' and not c.scores_locked,
+        'can_change', e.music_status <> 'tidak_bisa' and e.music_changes < 1 and not c.startlist_published
       ) order by a.sort), '[]'::jsonb)
       from jo.entries e join jo.categories c on c.id = e.category_id
       join jo.entry_athletes ea on ea.entry_id = e.id join jo.athletes a on a.id = ea.athlete_id
@@ -2065,23 +2186,45 @@ begin
   return jo.music_json(s);
 end $$;
 
-create or replace function public.public_music_set(p_code text, p_email text, p_entry uuid, p_url text) returns jsonb
+drop function if exists public.public_music_set(text, text, uuid, text);
+-- v6: tautan per nomor (alat). Mengganti tautan yang sudah ada = satu kesempatan ganti per atlet
+-- (boleh beberapa nomor sekaligus). Mengisi nomor yang kosong atau memperbaiki tautan "tidak bisa dibuka" tidak memakai jatah.
+create or replace function public.public_music_set(p_code text, p_email text, p_entry uuid, p_music jsonb) returns jsonb
 language plpgsql volatile security definer set search_path = '' as $$
-declare s jo.submissions; e jo.entries; c jo.categories; v_url text := trim(coalesce(p_url,'')); v_action text;
+declare s jo.submissions; e jo.entries; c jo.categories; k text; v_url text; v_old text;
+        v_new jsonb; v_replaced integer := 0; v_changed integer := 0; v_action text;
 begin
   s := jo.music_auth(p_code, p_email);
   select * into e from jo.entries where id = p_entry and submission_id = s.id and status <> 'dibatalkan' for update;
   if e.id is null then raise exception 'Atlet tidak ditemukan di pendaftaran ini.' using hint = 'ERR_NOT_FOUND'; end if;
   select * into c from jo.categories where id = e.category_id;
   if c.discipline <> 'RG' then raise exception 'Tautan musik hanya untuk Ritmik.'; end if;
-  if not jo.valid_drive_url(v_url) then
-    raise exception 'Tautan harus dari Google Drive (diawali https://drive.google.com/).' using hint = 'ERR_MUSIC';
+  if c.scores_locked then
+    raise exception 'Nilai kategori ini sudah dikunci; musik tidak bisa diubah lagi.' using hint = 'ERR_MUSIC_CLOSED';
   end if;
-  if e.music_url is null then
-    v_action := 'isi';
-  elsif e.music_status = 'tidak_bisa' then
+  v_new := e.music;
+  foreach k in array c.apparatus loop
+    v_url := trim(coalesce(p_music->>k, ''));
+    v_old := nullif(e.music->>k, '');
+    if v_url = '' then
+      if v_old is null then
+        raise exception 'Isi tautan musik %.', jo.apparatus_label('RG', k) using hint = 'ERR_MUSIC';
+      end if;
+      continue;
+    end if;
+    if not jo.valid_drive_url(v_url) then
+      raise exception 'Tautan % harus dari Google Drive (diawali https://drive.google.com/).', jo.apparatus_label('RG', k) using hint = 'ERR_MUSIC';
+    end if;
+    if v_old is distinct from v_url then
+      v_changed := v_changed + 1;
+      if v_old is not null then v_replaced := v_replaced + 1; end if;
+      v_new := v_new || jsonb_build_object(k, v_url);
+    end if;
+  end loop;
+  if v_changed = 0 then raise exception 'Tidak ada tautan yang berubah.' using hint = 'ERR_MUSIC'; end if;
+  if e.music_status = 'tidak_bisa' then
     v_action := 'perbaiki';
-  else
+  elsif v_replaced > 0 then
     v_action := 'ganti';
     if c.startlist_published then
       raise exception 'Batas ganti musik sudah lewat: start list kategori ini sudah terbit. Hubungi narahubung Ritmik.' using hint = 'ERR_MUSIC_CLOSED';
@@ -2089,19 +2232,17 @@ begin
     if e.music_changes >= 1 then
       raise exception 'Musik atlet ini sudah pernah diganti. Kesempatan ganti hanya satu kali.' using hint = 'ERR_MUSIC_USED';
     end if;
-    if v_url = e.music_url then
-      raise exception 'Tautan baru sama dengan tautan sekarang.' using hint = 'ERR_MUSIC';
-    end if;
+  else
+    v_action := 'isi';
   end if;
-  if v_action <> 'ganti' and c.scores_locked then
-    raise exception 'Nilai kategori ini sudah dikunci; musik tidak bisa diubah lagi.' using hint = 'ERR_MUSIC_CLOSED';
-  end if;
-  update jo.entries set music_url = v_url, music_status = 'menunggu', music_note = null, music_updated_at = now(),
+  update jo.entries set music = v_new, music_status = 'menunggu', music_note = null, music_updated_at = now(),
     music_changes = music_changes + case when v_action = 'ganti' then 1 else 0 end,
     music_checked_by = null, music_checked_at = null
    where id = e.id;
-  insert into jo.music_log (entry_id, action, old_url, new_url) values (e.id, v_action, e.music_url, v_url);
-  perform jo.log(null, 'musik_' || v_action, 'entry', e.id::text, jsonb_build_object('code', s.code, 'old', e.music_url, 'new', v_url));
+  insert into jo.music_log (entry_id, action, apparatus, old_url, new_url)
+  select e.id, v_action, x.key, e.music->>x.key, x.value from jsonb_each_text(v_new) x
+   where (e.music->>x.key) is distinct from x.value;
+  perform jo.log(null, 'musik_' || v_action, 'entry', e.id::text, jsonb_build_object('code', s.code, 'old', e.music, 'new', v_new));
   perform jo.queue_music_email(e.id, 'musik_diterima');
   return jo.music_json(s);
 end $$;
@@ -2131,6 +2272,7 @@ begin
   end if;
   insert into jo.settings (key, value) values ('outbox_last_poll', to_jsonb(now()))
     on conflict (key) do update set value = excluded.value, updated_at = now();
+  perform jo.expire_unpaid();
   with picked as (
     select id from jo.outbox
      where (status = 'pending')
@@ -2227,10 +2369,11 @@ $$;
 -- Dasbor
 -- ---------------------------------------------------------------------
 create or replace function public.console_dashboard() returns jsonb
-language plpgsql stable security definer set search_path = '' as $$
+language plpgsql volatile security definer set search_path = '' as $$
 declare st jo.staff; d text; is_super boolean;
 begin
   st := jo.require_staff(array['owner','superadmin','admin']);
+  perform jo.expire_unpaid();
   d := st.discipline;
   is_super := st.role in ('owner','superadmin');
   return jsonb_build_object(
@@ -2279,10 +2422,11 @@ end $$;
 -- Pendaftaran: daftar & detail
 -- ---------------------------------------------------------------------
 create or replace function public.console_submissions(p_filter jsonb default '{}'::jsonb) returns jsonb
-language plpgsql stable security definer set search_path = '' as $$
+language plpgsql volatile security definer set search_path = '' as $$
 declare st jo.staff; f jsonb := coalesce(p_filter, '{}'::jsonb); q text; d text;
 begin
   st := jo.require_staff(array['owner','superadmin','admin']);
+  perform jo.expire_unpaid();
   d := coalesce(st.discipline, nullif(f->>'discipline',''));
   q := '%' || lower(coalesce(f->>'q','')) || '%';
   return (select coalesce(jsonb_agg(row_to_json(x)::jsonb order by x.created_at desc), '[]'::jsonb) from (
@@ -2293,6 +2437,8 @@ begin
       (select t.name || ' (' || t.level || ', ' || (select count(*) from jo.team_members m where m.team_id = t.id) || ' pesenam)' from jo.teams t where t.submission_id = s.id) as team_name,
       (select count(*) from jo.entries e where e.submission_id = s.id and e.status <> 'dibatalkan' and e.music_status in ('menunggu','belum','tidak_bisa')) as music_pending,
       s.total_amount, s.unique_code, s.status, s.payment_method, s.proof_uploaded_at, s.paid_at,
+      case when s.payment_method = 'qris' and s.status = 'menunggu_pembayaran' and s.proof_path is null
+           then s.created_at + interval '15 minutes' end as expires_at,
       (select count(*) from jo.athletes a where a.submission_id = s.id and a.doc_status = 'menunggu') as docs_pending,
       (select count(*) from jo.entries e where e.submission_id = s.id and e.priangan_status = 'menunggu') as priangan_pending,
       exists (select 1 from jo.mutations m where m.submission_id = s.id and m.match_status in ('otomatis','manual')) as mutation_matched
@@ -2334,10 +2480,10 @@ begin
         'fee', e.fee, 'priangan_requested', e.priangan_requested, 'priangan_fee', e.priangan_fee,
         'priangan_status', e.priangan_status, 'priangan_note', e.priangan_note, 'status', e.status,
         'team_only', e.team_only, 'discipline', c.discipline,
-        'music_url', e.music_url, 'music_status', e.music_status, 'music_note', e.music_note,
-        'music_changes', e.music_changes, 'music_updated_at', e.music_updated_at,
+        'music', e.music, 'apparatus', c.apparatus, 'music_status', e.music_status, 'music_note', e.music_note,
+        'music_changes', e.music_changes, 'music_updated_at', e.music_updated_at, 'jabar_only', c.jabar_only,
         'music_checked_by', (select name from jo.staff where id = e.music_checked_by), 'music_checked_at', e.music_checked_at,
-        'music_log', (select coalesce(jsonb_agg(jsonb_build_object('at', ml.at, 'action', ml.action, 'old_url', ml.old_url, 'new_url', ml.new_url,
+        'music_log', (select coalesce(jsonb_agg(jsonb_build_object('at', ml.at, 'action', ml.action, 'apparatus', ml.apparatus, 'old_url', ml.old_url, 'new_url', ml.new_url,
             'staff', (select name from jo.staff where id = ml.staff_id), 'note', ml.note) order by ml.at), '[]'::jsonb)
             from jo.music_log ml where ml.entry_id = e.id),
         'in_team', (select jsonb_build_object('team', t.name, 'submission_id', t.submission_id, 'code', ts.code)
@@ -2530,7 +2676,12 @@ begin
     raise exception 'Tidak bisa memindahkan antara nomor perorangan dan pasangan.';
   end if;
   if length(trim(coalesce(p_reason,''))) < 3 then raise exception 'Tulis alasan pemindahan (mis. penggabungan kategori).'; end if;
-  update jo.entries set category_id = c_new.id, session_id = null, group_no = null, start_order = null where id = e.id;
+  update jo.entries set category_id = c_new.id, session_id = null, group_no = null, start_order = null,
+    priangan_requested = c_new.jabar_only,
+    priangan_status = case when not c_new.jabar_only then 'tidak' when c_old.jabar_only then priangan_status else 'menunggu' end,
+    music_status = case when c_new.discipline = 'RG' and exists (select 1 from unnest(c_new.apparatus) x where coalesce(e.music->>x,'') = '')
+                        then 'belum' else music_status end
+   where id = e.id;
   perform jo.log(st.id, 'pindah_kategori', 'entry', e.id::text,
     jsonb_build_object('from', c_old.name_id, 'to', c_new.name_id, 'reason', p_reason));
   return public.console_submission(s.id);
@@ -2572,10 +2723,11 @@ end $$;
 -- Data atlet (tabel & ekspor)
 -- ---------------------------------------------------------------------
 create or replace function public.console_athletes(p_filter jsonb default '{}'::jsonb) returns jsonb
-language plpgsql stable security definer set search_path = '' as $$
+language plpgsql volatile security definer set search_path = '' as $$
 declare st jo.staff; f jsonb := coalesce(p_filter,'{}'::jsonb); d text; q text;
 begin
   st := jo.require_staff(array['owner','superadmin','admin']);
+  perform jo.expire_unpaid();
   d := coalesce(st.discipline, nullif(f->>'discipline',''));
   q := '%' || lower(coalesce(f->>'q','')) || '%';
   return (select coalesce(jsonb_agg(row_to_json(x)::jsonb order by x.athlete_no), '[]'::jsonb) from (
@@ -2586,10 +2738,11 @@ begin
       a.doc_status, a.guardian_name, a.guardian_phone, a.guardian_email, a.guardian_relation,
       s.contact_name, s.contact_phone, s.contact_email,
       (select string_agg(cat.name_id || case when e.team_only then ' [khusus beregu]' else '' end
-                         || case when e.priangan_requested then ' [Priangan: ' || e.priangan_status || ']' else '' end, '; ' order by cat.sort)
+                         || case when e.priangan_requested then ' [cek Jawa Barat: ' || e.priangan_status || ']' else '' end, '; ' order by cat.sort)
          from jo.entry_athletes ea join jo.entries e on e.id = ea.entry_id join jo.categories cat on cat.id = e.category_id
         where ea.athlete_id = a.id and e.status <> 'dibatalkan') as categories,
-      a.id_doc_path, a.photo_path
+      a.id_doc_path, a.photo_path, a.akte_path, a.ktp_path, a.ijazah_path, a.passport_path, a.bpjs_path,
+      a.bpjs_path is not null as has_bpjs
     from jo.athletes a join jo.submissions s on s.id = a.submission_id
     left join jo.clubs c on c.id = s.club_id
     where (d is null or s.discipline = d)
@@ -3006,7 +3159,7 @@ begin
     select e.id as entry_id, a.full_name, a.athlete_no, c.name_id as category, c.sort as category_sort, c.apparatus,
       coalesce(k.name, 'Perorangan') as club, s.code, s.id as submission_id, s.status as payment_status,
       s.contact_name, s.contact_phone, s.contact_email,
-      e.music_url, e.music_status, e.music_note, e.music_changes, e.music_updated_at,
+      e.music, e.music_status, e.music_note, e.music_changes, e.music_updated_at,
       (select name from jo.staff where id = e.music_checked_by) as checked_by, e.music_checked_at,
       c.startlist_published
     from jo.entries e join jo.categories c on c.id = e.category_id
@@ -3030,7 +3183,7 @@ begin
   if e.id is null then raise exception 'Entri tidak ditemukan.'; end if;
   select * into c from jo.categories where id = e.category_id;
   perform jo.check_discipline(st, c.discipline);
-  if e.music_url is null then raise exception 'Belum ada tautan musik untuk diperiksa.'; end if;
+  if e.music = '{}'::jsonb then raise exception 'Belum ada tautan musik untuk diperiksa.'; end if;
   if not p_ok and length(trim(coalesce(p_note,''))) < 3 then
     raise exception 'Tulis apa masalahnya (mis. folder belum dibagikan, file kosong). Catatan dikirim ke pendaftar.';
   end if;
@@ -3038,7 +3191,7 @@ begin
     music_note = case when p_ok then null else trim(p_note) end, music_checked_by = st.id, music_checked_at = now()
    where id = e.id;
   insert into jo.music_log (entry_id, action, new_url, staff_id, note)
-  values (e.id, case when p_ok then 'ok' else 'tidak_bisa' end, e.music_url, st.id, nullif(trim(coalesce(p_note,'')),''));
+  values (e.id, case when p_ok then 'ok' else 'tidak_bisa' end, e.music::text, st.id, nullif(trim(coalesce(p_note,'')),''));
   perform jo.log(st.id, case when p_ok then 'musik_ok' else 'musik_tidak_bisa' end, 'entry', e.id::text, jsonb_build_object('note', p_note));
   if not p_ok then perform jo.queue_music_email(e.id, 'musik_perbaiki'); end if;
   return jsonb_build_object('ok', true);
@@ -3789,11 +3942,12 @@ begin
   if length(trim(coalesce(p->>'full_name',''))) < 3 then raise exception 'Isi nama lengkap.' using hint = 'ERR_JURY'; end if;
   if length(regexp_replace(coalesce(p->>'phone',''), '[^0-9]', '', 'g')) < 9 then raise exception 'Isi nomor WhatsApp yang valid.' using hint = 'ERR_JURY'; end if;
   if p_require_docs and coalesce(p->>'email','') !~* '^[^@\s]+@[^@\s]+\.[^@\s]+$' then raise exception 'Isi email yang valid.' using hint = 'ERR_JURY'; end if;
-  if jsonb_typeof(p->'disciplines') <> 'array' or jsonb_array_length(p->'disciplines') < 1 then
-    raise exception 'Pilih minimal satu disiplin.' using hint = 'ERR_JURY';
+  -- v6: satu disiplin saja; Aerobik tidak membuka pendaftaran juri
+  if jsonb_typeof(p->'disciplines') <> 'array' or jsonb_array_length(p->'disciplines') <> 1 then
+    raise exception 'Pilih satu disiplin.' using hint = 'ERR_JURY';
   end if;
   for d in select jsonb_array_elements_text(p->'disciplines') loop
-    if not exists (select 1 from jo.disciplines where code = d) then raise exception 'Disiplin tidak dikenal.' using hint = 'ERR_JURY'; end if;
+    if d not in ('MAG','WAG','RG') then raise exception 'Pendaftaran juri hanya untuk Artistik Putra, Artistik Putri, dan Ritmik.' using hint = 'ERR_JURY'; end if;
     if coalesce(p->'brevet'->d->>'level', '') = '' then raise exception 'Pilih tingkat brevet untuk %.', d using hint = 'ERR_JURY'; end if;
   end loop;
   if jsonb_typeof(p->'availability') = 'array' then
@@ -3802,13 +3956,14 @@ begin
     end loop;
   end if;
   if p_require_docs then
-    if coalesce(jsonb_array_length(p->'availability'), 0) < 1 then raise exception 'Pilih minimal satu hari ketersediaan.' using hint = 'ERR_JURY'; end if;
+    if coalesce(p->>'bpjs_path','') = '' then raise exception 'Unggah kartu BPJS Ketenagakerjaan.' using hint = 'ERR_JURY'; end if;
     if coalesce(p->>'ktp_path','') = '' then raise exception 'Unggah KTP atau identitas.' using hint = 'ERR_JURY'; end if;
     if coalesce(p->>'photo_path','') = '' then raise exception 'Unggah pas foto.' using hint = 'ERR_JURY'; end if;
   end if;
   if (nullif(p->>'ktp_path','') is not null and split_part(p->>'ktp_path','/',1) <> v_uid)
      or (nullif(p->>'photo_path','') is not null and split_part(p->>'photo_path','/',1) <> v_uid)
-     or (nullif(p->>'cert_path','') is not null and split_part(p->>'cert_path','/',1) <> v_uid) then
+     or (nullif(p->>'cert_path','') is not null and split_part(p->>'cert_path','/',1) <> v_uid)
+     or (nullif(p->>'bpjs_path','') is not null and split_part(p->>'bpjs_path','/',1) <> v_uid) then
     raise exception 'Berkas unggahan tidak valid. Unggah ulang.' using hint = 'ERR_UPLOAD';
   end if;
 end $$;
@@ -3818,13 +3973,13 @@ language plpgsql volatile set search_path = '' as $$
 declare v_id uuid;
 begin
   insert into jo.jury_applications (source, auth_uid, full_name, phone, email, city, province, disciplines, brevet,
-     cert_path, availability, ktp_path, photo_path, note)
+     cert_path, availability, ktp_path, photo_path, bpjs_path, note)
   values (p_source, auth.uid(), trim(p->>'full_name'), regexp_replace(p->>'phone', '[^0-9+]', '', 'g'),
      nullif(lower(trim(coalesce(p->>'email',''))),''), nullif(trim(coalesce(p->>'city','')),''), nullif(trim(coalesce(p->>'province','')),''),
      (select array_agg(x) from jsonb_array_elements_text(p->'disciplines') x),
      coalesce(p->'brevet', '{}'::jsonb), nullif(p->>'cert_path',''),
      coalesce((select array_agg(x::date order by x) from jsonb_array_elements_text(case when jsonb_typeof(p->'availability') = 'array' then p->'availability' else '[]'::jsonb end) x), '{}'),
-     nullif(p->>'ktp_path',''), nullif(p->>'photo_path',''), nullif(trim(coalesce(p->>'note','')),''))
+     nullif(p->>'ktp_path',''), nullif(p->>'photo_path',''), nullif(p->>'bpjs_path',''), nullif(trim(coalesce(p->>'note','')),''))
   returning id into v_id;
   return v_id;
 end $$;
@@ -3925,6 +4080,132 @@ begin
   return public.console_jury_list('{}'::jsonb);
 end $$;
 -- =====================================================================
+--  v6: hapus data oleh owner & superadmin (tercatat di Log; Log hanya
+--      bisa dilihat owner & superadmin). Konsol menghapus berkasnya dari
+--      penyimpanan memakai daftar berkas yang dikembalikan fungsi.
+-- =====================================================================
+
+create or replace function public.console_delete_submission(p_id uuid, p_reason text) returns jsonb
+language plpgsql volatile security definer set search_path = '' as $$
+declare st jo.staff; s jo.submissions; v_files jsonb; v_detail jsonb;
+begin
+  st := jo.require_staff(array['owner','superadmin']);
+  if length(trim(coalesce(p_reason,''))) < 3 then raise exception 'Tulis alasan penghapusan (masuk Log).'; end if;
+  select * into s from jo.submissions where id = p_id for update;
+  if s.id is null then raise exception 'Pendaftaran tidak ditemukan.'; end if;
+  v_detail := jsonb_build_object('code', s.code, 'status', s.status, 'discipline', s.discipline, 'type', s.registrant_type,
+    'contact', s.contact_name, 'email', s.contact_email, 'phone', s.contact_phone, 'total', s.total_amount, 'paid', s.paid_amount,
+    'club', (select name from jo.clubs where id = s.club_id),
+    'athletes', (select jsonb_agg(a.full_name || coalesce(' (' || a.athlete_no || ')', '') order by a.sort) from jo.athletes a where a.submission_id = s.id),
+    'team', (select t.name || ' ' || t.level from jo.teams t where t.submission_id = s.id),
+    'reason', trim(p_reason));
+  v_files := jo.purge_submission(s.id);
+  perform jo.log(st.id, 'pendaftaran_dihapus', 'submission', s.id::text, v_detail);
+  return jsonb_build_object('ok', true, 'files', v_files);
+end $$;
+
+create or replace function public.console_delete_athlete(p_athlete uuid, p_reason text) returns jsonb
+language plpgsql volatile security definer set search_path = '' as $$
+declare st jo.staff; a jo.athletes; s jo.submissions; v_files jsonb; v_base integer; v_e uuid[];
+begin
+  st := jo.require_staff(array['owner','superadmin']);
+  if length(trim(coalesce(p_reason,''))) < 3 then raise exception 'Tulis alasan penghapusan (masuk Log).'; end if;
+  select * into a from jo.athletes where id = p_athlete for update;
+  if a.id is null then raise exception 'Atlet tidak ditemukan.'; end if;
+  select * into s from jo.submissions where id = a.submission_id for update;
+  if (select count(*) from jo.athletes x where x.submission_id = s.id) <= 1 then
+    raise exception 'Ini satu-satunya atlet di pendaftaran %. Hapus pendaftarannya.', s.code;
+  end if;
+  select coalesce(jsonb_agg(distinct jsonb_build_object('bucket', 'dokumen', 'path', x)), '[]'::jsonb) into v_files
+    from unnest(array[a.id_doc_path, a.akte_path, a.ktp_path, a.ijazah_path, a.passport_path, a.bpjs_path, a.photo_path]) x where x is not null;
+  -- nomor yang melibatkan atlet ini (termasuk pasangan) ikut dihapus
+  v_e := array(select ea.entry_id from jo.entry_athletes ea where ea.athlete_id = a.id);
+  delete from jo.score_log where entry_id in (select unnest(v_e));
+  delete from jo.scores where entry_id in (select unnest(v_e));
+  delete from jo.music_log where entry_id in (select unnest(v_e));
+  delete from jo.team_members where athlete_id = a.id or entry_id in (select unnest(v_e));
+  delete from jo.entry_athletes where entry_id in (select unnest(v_e));
+  delete from jo.entries where id = any(v_e);
+  delete from jo.athletes where id = a.id;
+  -- tagihan dihitung ulang bila belum lunas (perorangan/klub)
+  if s.status <> 'lunas' and s.registrant_type <> 'beregu' then
+    select coalesce(sum(fee), 0) into v_base from jo.entries where submission_id = s.id and status <> 'dibatalkan';
+    update jo.submissions set base_amount = v_base, priangan_amount = 0,
+      total_amount = v_base + unique_code, updated_at = now() where id = s.id;
+  end if;
+  perform jo.log(st.id, 'atlet_dihapus', 'submission', s.id::text,
+    jsonb_build_object('code', s.code, 'athlete', a.full_name, 'athlete_no', a.athlete_no, 'birth_date', a.birth_date,
+                       'reason', trim(p_reason), 'old_total', s.total_amount));
+  return jsonb_build_object('ok', true, 'files', v_files);
+end $$;
+
+create or replace function public.console_delete_jury(p_id uuid, p_reason text) returns jsonb
+language plpgsql volatile security definer set search_path = '' as $$
+declare st jo.staff; j jo.jury_applications; v_files jsonb;
+begin
+  st := jo.require_staff(array['owner','superadmin']);
+  select * into j from jo.jury_applications where id = p_id for update;
+  if j.id is null then raise exception 'Pendaftar juri tidak ditemukan.'; end if;
+  select coalesce(jsonb_agg(jsonb_build_object('bucket', 'dokumen', 'path', x)), '[]'::jsonb) into v_files
+    from unnest(array[j.ktp_path, j.photo_path, j.cert_path, j.bpjs_path]) x where x is not null;
+  delete from jo.jury_applications where id = j.id;
+  perform jo.log(st.id, 'juri_dihapus', 'jury', j.id::text,
+    jsonb_build_object('name', j.full_name, 'phone', j.phone, 'status', j.status, 'disciplines', j.disciplines,
+                       'staff_code_kept', j.staff_id is not null, 'reason', nullif(trim(coalesce(p_reason,'')),'')));
+  return jsonb_build_object('ok', true, 'files', v_files);
+end $$;
+
+create or replace function public.console_delete_issue(p_id bigint) returns jsonb
+language plpgsql volatile security definer set search_path = '' as $$
+declare st jo.staff; i jo.issues;
+begin
+  st := jo.require_staff(array['owner','superadmin']);
+  select * into i from jo.issues where id = p_id for update;
+  if i.id is null then raise exception 'Laporan tidak ditemukan.'; end if;
+  delete from jo.issues where id = i.id;
+  perform jo.log(st.id, 'laporan_dihapus', 'issue', i.id::text,
+    jsonb_build_object('title', i.title, 'reporter', i.reporter_name, 'status', i.status));
+  return jsonb_build_object('ok', true, 'files',
+    case when i.shot_path is null then '[]'::jsonb else jsonb_build_array(jsonb_build_object('bucket', 'dokumen', 'path', i.shot_path)) end);
+end $$;
+
+create or replace function public.console_delete_chat_message(p_id bigint) returns jsonb
+language plpgsql volatile security definer set search_path = '' as $$
+declare st jo.staff; m jo.chat_messages;
+begin
+  st := jo.require_staff(array['owner','superadmin']);
+  select * into m from jo.chat_messages where id = p_id for update;
+  if m.id is null then raise exception 'Pesan tidak ditemukan.'; end if;
+  delete from jo.chat_messages where id = m.id;
+  perform jo.log(st.id, 'pesan_dihapus', 'chat', m.id::text,
+    jsonb_build_object('room', m.room, 'sender', m.sender_name, 'at', m.created_at, 'body', left(m.body, 300)));
+  return jsonb_build_object('ok', true);
+end $$;
+
+-- Berkas di penyimpanan yang tidak lagi dipakai data mana pun (mis. pendaftaran kedaluwarsa)
+create or replace function public.console_orphan_files() returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare st jo.staff;
+begin
+  st := jo.require_staff(array['owner','superadmin']);
+  return (select coalesce(jsonb_agg(jsonb_build_object('bucket', o.bucket_id, 'path', o.name, 'size', (o.metadata->>'size')::bigint, 'at', o.created_at) order by o.created_at), '[]'::jsonb)
+    from storage.objects o
+    where o.bucket_id in ('dokumen','bukti') and o.created_at < now() - interval '1 hour'
+      and not exists (select 1 from jo.submissions s where s.proof_path = o.name)
+      and not exists (select 1 from jo.athletes a where o.name in (a.id_doc_path, a.akte_path, a.ktp_path, a.ijazah_path, a.passport_path, a.bpjs_path, a.photo_path))
+      and not exists (select 1 from jo.jury_applications j where o.name in (j.ktp_path, j.photo_path, j.cert_path, j.bpjs_path))
+      and not exists (select 1 from jo.issues i where i.shot_path = o.name));
+end $$;
+
+create or replace function public.console_log_files_removed(p_count integer, p_context text) returns jsonb
+language plpgsql volatile security definer set search_path = '' as $$
+declare st jo.staff;
+begin
+  st := jo.require_staff(array['owner','superadmin']);
+  perform jo.log(st.id, 'berkas_dihapus', 'storage', coalesce(p_context, '-'), jsonb_build_object('count', p_count));
+  return jsonb_build_object('ok', true);
+end $$;
+-- =====================================================================
 --  Data awal: disiplin, kategori (Undangan 06/10/2026), pengaturan
 --  'on conflict do nothing' -> perubahan dari konsol tidak tertimpa
 -- =====================================================================
@@ -3936,52 +4217,57 @@ insert into jo.disciplines (code, name_id, name_en, date_start, date_end, appara
   ('AER', 'Aerobik', 'Aerobic', '2026-12-19', '2026-12-20', '[{"code": "RTN", "id": "Rangkaian", "en": "Routine"}]'::jsonb, '[{"code": "A", "id": "Nilai A (artistik)", "en": "A score (artistry)"}, {"code": "E", "id": "Nilai E (eksekusi)", "en": "E score (execution)"}, {"code": "D", "id": "Nilai D (kesulitan)", "en": "D score (difficulty)"}, {"code": "PEN", "id": "Penalti", "en": "Penalties"}]'::jsonb, 'Mustika Fitri', '0816-605-281', 4)
 on conflict (code) do nothing;
 
-insert into jo.categories (discipline, code, level, age_label, division, name_id, name_en, gender, birth_year_min, birth_year_max, entry_type, fee, apparatus, max_per_club, sort, note, medal_rule) values
-  ('MAG', 'MAG-L1-A', 'Level 1', '6 tahun ke bawah', null, 'Artistik Putra Level 1 (6 tahun ke bawah)', 'Men''s Artistic Level 1 (6 & under)', 'M', 2020, null, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 10, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
-  ('MAG', 'MAG-L1-B', 'Level 1', '7–8 tahun', null, 'Artistik Putra Level 1 (7–8 tahun)', 'Men''s Artistic Level 1 (7–8)', 'M', 2018, 2019, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 20, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
-  ('MAG', 'MAG-L1-C', 'Level 1', '9 tahun ke atas', null, 'Artistik Putra Level 1 (9 tahun ke atas)', 'Men''s Artistic Level 1 (9 & over)', 'M', null, 2017, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 30, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
-  ('MAG', 'MAG-L2-A', 'Level 2', '7 tahun ke bawah', null, 'Artistik Putra Level 2 (7 tahun ke bawah)', 'Men''s Artistic Level 2 (7 & under)', 'M', 2019, null, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 40, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
-  ('MAG', 'MAG-L2-B', 'Level 2', '8–9 tahun', null, 'Artistik Putra Level 2 (8–9 tahun)', 'Men''s Artistic Level 2 (8–9)', 'M', 2017, 2018, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 50, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
-  ('MAG', 'MAG-L2-C', 'Level 2', '10 tahun ke atas', null, 'Artistik Putra Level 2 (10 tahun ke atas)', 'Men''s Artistic Level 2 (10 & over)', 'M', null, 2016, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 60, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
-  ('MAG', 'MAG-L3', 'Level 3', 'Usia terbuka', null, 'Artistik Putra Level 3 (usia terbuka)', 'Men''s Artistic Level 3 (open age)', 'M', null, null, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 70, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
-  ('MAG', 'MAG-L4', 'Level 4', 'Usia terbuka', null, 'Artistik Putra Level 4 (usia terbuka)', 'Men''s Artistic Level 4 (open age)', 'M', null, null, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 80, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
-  ('MAG', 'MAG-JR', 'Junior', '12–16 tahun', null, 'Artistik Putra Junior (12–16 tahun)', 'Men''s Artistic Junior (12–16)', 'M', 2010, 2014, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 90, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true}'::jsonb),
-  ('WAG', 'WAG-L1-A', 'Level 1', '6 tahun ke bawah', null, 'Artistik Putri Level 1 (6 tahun ke bawah)', 'Women''s Artistic Level 1 (6 & under)', 'F', 2020, null, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 100, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
-  ('WAG', 'WAG-L1-B', 'Level 1', '7–8 tahun', null, 'Artistik Putri Level 1 (7–8 tahun)', 'Women''s Artistic Level 1 (7–8)', 'F', 2018, 2019, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 110, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
-  ('WAG', 'WAG-L1-C', 'Level 1', '9 tahun ke atas', null, 'Artistik Putri Level 1 (9 tahun ke atas)', 'Women''s Artistic Level 1 (9 & over)', 'F', null, 2017, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 120, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
-  ('WAG', 'WAG-L2-A', 'Level 2', '6 tahun ke bawah', null, 'Artistik Putri Level 2 (6 tahun ke bawah)', 'Women''s Artistic Level 2 (6 & under)', 'F', 2020, null, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 130, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
-  ('WAG', 'WAG-L2-B', 'Level 2', '7–8 tahun', null, 'Artistik Putri Level 2 (7–8 tahun)', 'Women''s Artistic Level 2 (7–8)', 'F', 2018, 2019, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 140, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
-  ('WAG', 'WAG-L2-C', 'Level 2', '9 tahun ke atas', null, 'Artistik Putri Level 2 (9 tahun ke atas)', 'Women''s Artistic Level 2 (9 & over)', 'F', null, 2017, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 150, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
-  ('WAG', 'WAG-L3-A', 'Level 3', '9 tahun ke bawah', null, 'Artistik Putri Level 3 (9 tahun ke bawah)', 'Women''s Artistic Level 3 (9 & under)', 'F', 2017, null, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 160, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
-  ('WAG', 'WAG-L3-B', 'Level 3', '10 tahun ke atas', null, 'Artistik Putri Level 3 (10 tahun ke atas)', 'Women''s Artistic Level 3 (10 & over)', 'F', null, 2016, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 170, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb),
-  ('WAG', 'WAG-L4-A', 'Level 4', '10 tahun ke bawah', null, 'Artistik Putri Level 4 (10 tahun ke bawah)', 'Women''s Artistic Level 4 (10 & under)', 'F', 2016, null, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 180, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true, "club_cap": 2}'::jsonb),
-  ('WAG', 'WAG-L4-B', 'Level 4', '11 tahun ke atas', null, 'Artistik Putri Level 4 (11 tahun ke atas)', 'Women''s Artistic Level 4 (11 & over)', 'F', null, 2015, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 190, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true, "club_cap": 2}'::jsonb),
-  ('WAG', 'WAG-L5-A', 'Level 5', '11 tahun ke bawah', null, 'Artistik Putri Level 5 (11 tahun ke bawah)', 'Women''s Artistic Level 5 (11 & under)', 'F', 2015, null, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 200, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true, "club_cap": 2}'::jsonb),
-  ('WAG', 'WAG-L5-B', 'Level 5', '12 tahun ke atas', null, 'Artistik Putri Level 5 (12 tahun ke atas)', 'Women''s Artistic Level 5 (12 & over)', 'F', null, 2014, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 210, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true, "club_cap": 2}'::jsonb),
-  ('WAG', 'WAG-L6-A', 'Level 6', '11 tahun ke bawah', null, 'Artistik Putri Level 6 (11 tahun ke bawah)', 'Women''s Artistic Level 6 (11 & under)', 'F', 2015, null, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 220, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true, "club_cap": 2}'::jsonb),
-  ('WAG', 'WAG-L6-B', 'Level 6', '12 tahun ke atas', null, 'Artistik Putri Level 6 (12 tahun ke atas)', 'Women''s Artistic Level 6 (12 & over)', 'F', null, 2014, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 230, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true, "club_cap": 2}'::jsonb),
-  ('WAG', 'WAG-PJ', 'Pre Junior', '11–13 tahun', null, 'Artistik Putri Pre Junior (11–13 tahun)', 'Women''s Artistic Pre Junior (11–13)', 'F', 2013, 2015, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 240, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true, "club_cap": 2}'::jsonb),
-  ('WAG', 'WAG-JR', 'Junior', '14–15 tahun', null, 'Artistik Putri Junior (14–15 tahun)', 'Women''s Artistic Junior (14–15)', 'F', 2011, 2012, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 250, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true, "club_cap": 2}'::jsonb),
-  ('RG', 'RG-A-KU56', 'KU 5–6', 'Kelahiran 2020–2021', 'Profesional', 'Ritmik Profesional KU 5–6', 'Rhythmic Professional KU 5–6', 'F', 2020, 2021, 'individual', 750000, array['FH','BALL']::text[], null, 260, null, '{"type": "rank", "places": 3}'::jsonb),
-  ('RG', 'RG-A-KU78', 'KU 7–8', 'Kelahiran 2018–2019', 'Profesional', 'Ritmik Profesional KU 7–8', 'Rhythmic Professional KU 7–8', 'F', 2018, 2019, 'individual', 750000, array['FH','HOOP']::text[], null, 270, null, '{"type": "rank", "places": 3}'::jsonb),
-  ('RG', 'RG-A-KU910', 'KU 9–10', 'Kelahiran 2016–2017', 'Profesional', 'Ritmik Profesional KU 9–10', 'Rhythmic Professional KU 9–10', 'F', 2016, 2017, 'individual', 750000, array['FH','HOOP','BALL']::text[], null, 280, null, '{"type": "rank", "places": 3}'::jsonb),
-  ('RG', 'RG-A-KU1112', 'KU 11–12', 'Kelahiran 2014–2015', 'Profesional', 'Ritmik Profesional KU 11–12', 'Rhythmic Professional KU 11–12', 'F', 2014, 2015, 'individual', 750000, array['FH','BALL','CLUBS']::text[], null, 290, null, '{"type": "rank", "places": 3}'::jsonb),
-  ('RG', 'RG-A-JR', 'Junior', 'Kelahiran 2012–2013', 'Profesional', 'Ritmik Profesional Junior', 'Rhythmic Professional Junior', 'F', 2012, 2013, 'individual', 750000, array['HOOP','BALL','CLUBS','RIBBON']::text[], null, 300, null, '{"type": "rank", "places": 3}'::jsonb),
-  ('RG', 'RG-B-KU56', 'KU 5–6', 'Kelahiran 2020–2021', 'Amatir', 'Ritmik Amatir KU 5–6', 'Rhythmic Amateur KU 5–6', 'F', 2020, 2021, 'individual', 750000, array['FH','BALL']::text[], null, 310, null, '{"type": "rank", "places": 3}'::jsonb),
-  ('RG', 'RG-B-KU78', 'KU 7–8', 'Kelahiran 2018–2019', 'Amatir', 'Ritmik Amatir KU 7–8', 'Rhythmic Amateur KU 7–8', 'F', 2018, 2019, 'individual', 750000, array['FH','HOOP']::text[], null, 320, null, '{"type": "rank", "places": 3}'::jsonb),
-  ('RG', 'RG-B-KU910', 'KU 9–10', 'Kelahiran 2016–2017', 'Amatir', 'Ritmik Amatir KU 9–10', 'Rhythmic Amateur KU 9–10', 'F', 2016, 2017, 'individual', 750000, array['FH','HOOP','BALL']::text[], null, 330, null, '{"type": "rank", "places": 3}'::jsonb),
-  ('RG', 'RG-B-KU1112', 'KU 11–12', 'Kelahiran 2014–2015', 'Amatir', 'Ritmik Amatir KU 11–12', 'Rhythmic Amateur KU 11–12', 'F', 2014, 2015, 'individual', 750000, array['FH','BALL','CLUBS']::text[], null, 340, null, '{"type": "rank", "places": 3}'::jsonb),
-  ('RG', 'RG-B-JR', 'Junior', 'Kelahiran 2012–2013', 'Amatir', 'Ritmik Amatir Junior', 'Rhythmic Amateur Junior', 'F', 2012, 2013, 'individual', 750000, array['HOOP','BALL','CLUBS','RIBBON']::text[], null, 350, null, '{"type": "rank", "places": 3}'::jsonb),
-  ('AER', 'AER-JR-IM', 'Junior', '15–17 tahun', null, 'Aerobik Junior Perorangan Putra (IM)', 'Aerobic Junior Individual Men (IM)', 'M', 2009, 2011, 'individual', 300000, array['RTN']::text[], 4, 360, null, '{"type": "rank", "places": 3}'::jsonb),
-  ('AER', 'AER-JR-IW', 'Junior', '15–17 tahun', null, 'Aerobik Junior Perorangan Putri (IW)', 'Aerobic Junior Individual Women (IW)', 'F', 2009, 2011, 'individual', 300000, array['RTN']::text[], 4, 370, null, '{"type": "rank", "places": 3}'::jsonb),
-  ('AER', 'AER-JR-MP', 'Junior', '15–17 tahun', null, 'Aerobik Junior Pasangan Campuran (MP)', 'Aerobic Junior Mixed Pair (MP)', 'X', 2009, 2011, 'pair', 400000, array['RTN']::text[], 4, 380, null, '{"type": "rank", "places": 3}'::jsonb),
-  ('AER', 'AER-YT-IM', 'Youth', '12–14 tahun', null, 'Aerobik Youth Perorangan Putra (IM)', 'Aerobic Youth Individual Men (IM)', 'M', 2012, 2014, 'individual', 300000, array['RTN']::text[], 4, 390, null, '{"type": "rank", "places": 3}'::jsonb),
-  ('AER', 'AER-YT-IW', 'Youth', '12–14 tahun', null, 'Aerobik Youth Perorangan Putri (IW)', 'Aerobic Youth Individual Women (IW)', 'F', 2012, 2014, 'individual', 300000, array['RTN']::text[], 4, 400, null, '{"type": "rank", "places": 3}'::jsonb),
-  ('AER', 'AER-YT-MP', 'Youth', '12–14 tahun', null, 'Aerobik Youth Pasangan Campuran (MP)', 'Aerobic Youth Mixed Pair (MP)', 'X', 2012, 2014, 'pair', 400000, array['RTN']::text[], 4, 410, null, '{"type": "rank", "places": 3}'::jsonb),
-  ('AER', 'AER-ND-IM', 'National Development', '9–11 tahun', null, 'Aerobik National Development Perorangan Putra (IM)', 'Aerobic National Development Individual Men (IM)', 'M', 2015, 2017, 'individual', 300000, array['RTN']::text[], 4, 420, null, '{"type": "rank", "places": 3}'::jsonb),
-  ('AER', 'AER-ND-IW', 'National Development', '9–11 tahun', null, 'Aerobik National Development Perorangan Putri (IW)', 'Aerobic National Development Individual Women (IW)', 'F', 2015, 2017, 'individual', 300000, array['RTN']::text[], 4, 430, null, '{"type": "rank", "places": 3}'::jsonb),
-  ('AER', 'AER-PND-IM', 'Pre National Development', '6–8 tahun', null, 'Aerobik Pre National Development Perorangan Putra (IM)', 'Aerobic Pre National Development Individual Men (IM)', 'M', 2018, 2020, 'individual', 300000, array['RTN']::text[], 4, 440, null, '{"type": "rank", "places": 3}'::jsonb),
-  ('AER', 'AER-PND-IW', 'Pre National Development', '6–8 tahun', null, 'Aerobik Pre National Development Perorangan Putri (IW)', 'Aerobic Pre National Development Individual Women (IW)', 'F', 2018, 2020, 'individual', 300000, array['RTN']::text[], 4, 450, null, '{"type": "rank", "places": 3}'::jsonb)
+insert into jo.categories (discipline, code, level, age_label, division, name_id, name_en, gender, birth_year_min, birth_year_max, entry_type, fee, apparatus, max_per_club, sort, note, medal_rule, allow_priangan, jabar_only) values
+  ('MAG', 'MAG-L1-A', 'Level 1', '6 tahun ke bawah', null, 'Artistik Putra Level 1 (6 tahun ke bawah)', 'Men''s Artistic Level 1 (6 & under)', 'M', 2020, null, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 10, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb, false, false),
+  ('MAG', 'MAG-L1-B', 'Level 1', '7–8 tahun', null, 'Artistik Putra Level 1 (7–8 tahun)', 'Men''s Artistic Level 1 (7–8)', 'M', 2018, 2019, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 20, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb, false, false),
+  ('MAG', 'MAG-L1-C', 'Level 1', '9 tahun ke atas', null, 'Artistik Putra Level 1 (9 tahun ke atas)', 'Men''s Artistic Level 1 (9 & over)', 'M', null, 2017, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 30, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb, false, false),
+  ('MAG', 'MAG-L2-A', 'Level 2', '7 tahun ke bawah', null, 'Artistik Putra Level 2 (7 tahun ke bawah)', 'Men''s Artistic Level 2 (7 & under)', 'M', 2019, null, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 40, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb, false, false),
+  ('MAG', 'MAG-L2-B', 'Level 2', '8–9 tahun', null, 'Artistik Putra Level 2 (8–9 tahun)', 'Men''s Artistic Level 2 (8–9)', 'M', 2017, 2018, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 50, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb, false, false),
+  ('MAG', 'MAG-L2-C', 'Level 2', '10 tahun ke atas', null, 'Artistik Putra Level 2 (10 tahun ke atas)', 'Men''s Artistic Level 2 (10 & over)', 'M', null, 2016, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 60, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb, false, false),
+  ('MAG', 'MAG-L3', 'Level 3', 'Usia terbuka', null, 'Artistik Putra Level 3 (usia terbuka)', 'Men''s Artistic Level 3 (open age)', 'M', null, null, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 70, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb, false, false),
+  ('MAG', 'MAG-L4', 'Level 4', 'Usia terbuka', null, 'Artistik Putra Level 4 (usia terbuka)', 'Men''s Artistic Level 4 (open age)', 'M', null, null, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 80, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb, false, false),
+  ('MAG', 'MAG-JR', 'Junior', '12–16 tahun', null, 'Artistik Putra Junior (12–16 tahun)', 'Men''s Artistic Junior (12–16)', 'M', 2010, 2014, 'individual', 750000, array['FX','PH','SR','VT','PB','HB']::text[], 10, 90, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true}'::jsonb, false, false),
+  ('WAG', 'WAG-L1-A', 'Level 1', '6 tahun ke bawah', null, 'Artistik Putri Level 1 (6 tahun ke bawah)', 'Women''s Artistic Level 1 (6 & under)', 'F', 2020, null, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 100, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb, false, false),
+  ('WAG', 'WAG-L1-B', 'Level 1', '7–8 tahun', null, 'Artistik Putri Level 1 (7–8 tahun)', 'Women''s Artistic Level 1 (7–8)', 'F', 2018, 2019, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 110, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb, false, false),
+  ('WAG', 'WAG-L1-C', 'Level 1', '9 tahun ke atas', null, 'Artistik Putri Level 1 (9 tahun ke atas)', 'Women''s Artistic Level 1 (9 & over)', 'F', null, 2017, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 120, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb, false, false),
+  ('WAG', 'WAG-L2-A', 'Level 2', '6 tahun ke bawah', null, 'Artistik Putri Level 2 (6 tahun ke bawah)', 'Women''s Artistic Level 2 (6 & under)', 'F', 2020, null, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 130, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb, false, false),
+  ('WAG', 'WAG-L2-B', 'Level 2', '7–8 tahun', null, 'Artistik Putri Level 2 (7–8 tahun)', 'Women''s Artistic Level 2 (7–8)', 'F', 2018, 2019, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 140, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb, false, false),
+  ('WAG', 'WAG-L2-C', 'Level 2', '9 tahun ke atas', null, 'Artistik Putri Level 2 (9 tahun ke atas)', 'Women''s Artistic Level 2 (9 & over)', 'F', null, 2017, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 150, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb, false, false),
+  ('WAG', 'WAG-L3-A', 'Level 3', '9 tahun ke bawah', null, 'Artistik Putri Level 3 (9 tahun ke bawah)', 'Women''s Artistic Level 3 (9 & under)', 'F', 2017, null, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 160, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb, false, false),
+  ('WAG', 'WAG-L3-B', 'Level 3', '10 tahun ke atas', null, 'Artistik Putri Level 3 (10 tahun ke atas)', 'Women''s Artistic Level 3 (10 & over)', 'F', null, 2016, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 170, null, '{"type": "rank", "places": 3, "aa_places": 6}'::jsonb, false, false),
+  ('WAG', 'WAG-L4-A', 'Level 4', '10 tahun ke bawah', null, 'Artistik Putri Level 4 (10 tahun ke bawah)', 'Women''s Artistic Level 4 (10 & under)', 'F', 2016, null, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 180, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true, "club_cap": 2}'::jsonb, false, false),
+  ('WAG', 'WAG-L4-B', 'Level 4', '11 tahun ke atas', null, 'Artistik Putri Level 4 (11 tahun ke atas)', 'Women''s Artistic Level 4 (11 & over)', 'F', null, 2015, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 190, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true, "club_cap": 2}'::jsonb, false, false),
+  ('WAG', 'WAG-L5-A', 'Level 5', '11 tahun ke bawah', null, 'Artistik Putri Level 5 (11 tahun ke bawah)', 'Women''s Artistic Level 5 (11 & under)', 'F', 2015, null, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 200, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true, "club_cap": 2}'::jsonb, false, false),
+  ('WAG', 'WAG-L5-B', 'Level 5', '12 tahun ke atas', null, 'Artistik Putri Level 5 (12 tahun ke atas)', 'Women''s Artistic Level 5 (12 & over)', 'F', null, 2014, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 210, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true, "club_cap": 2}'::jsonb, false, false),
+  ('WAG', 'WAG-L6-A', 'Level 6', '11 tahun ke bawah', null, 'Artistik Putri Level 6 (11 tahun ke bawah)', 'Women''s Artistic Level 6 (11 & under)', 'F', 2015, null, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 220, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true, "club_cap": 2}'::jsonb, false, false),
+  ('WAG', 'WAG-L6-B', 'Level 6', '12 tahun ke atas', null, 'Artistik Putri Level 6 (12 tahun ke atas)', 'Women''s Artistic Level 6 (12 & over)', 'F', null, 2014, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 230, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true, "club_cap": 2}'::jsonb, false, false),
+  ('WAG', 'WAG-PJ', 'Pre Junior', '11–13 tahun', null, 'Artistik Putri Pre Junior (11–13 tahun)', 'Women''s Artistic Pre Junior (11–13)', 'F', 2013, 2015, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 240, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true, "club_cap": 2}'::jsonb, false, false),
+  ('WAG', 'WAG-JR', 'Junior', '14–15 tahun', null, 'Artistik Putri Junior (14–15 tahun)', 'Women''s Artistic Junior (14–15)', 'F', 2011, 2012, 'individual', 750000, array['VT','UB','BB','FX']::text[], 10, 250, null, '{"type": "rank", "places": 3, "aa_places": 6, "apparatus_medals": true, "club_cap": 2}'::jsonb, false, false),
+  ('RG', 'RG-A-KU56', 'KU 5–6', 'Kelahiran 2020–2021', 'Profesional', 'Ritmik Profesional KU 5–6', 'Rhythmic Professional KU 5–6', 'F', 2020, 2021, 'individual', 750000, array['FH','BALL']::text[], null, 260, null, '{"type": "rank", "places": 3}'::jsonb, false, false),
+  ('RG', 'RG-A-KU78', 'KU 7–8', 'Kelahiran 2018–2019', 'Profesional', 'Ritmik Profesional KU 7–8', 'Rhythmic Professional KU 7–8', 'F', 2018, 2019, 'individual', 750000, array['FH','HOOP']::text[], null, 270, null, '{"type": "rank", "places": 3}'::jsonb, false, false),
+  ('RG', 'RG-A-KU910', 'KU 9–10', 'Kelahiran 2016–2017', 'Profesional', 'Ritmik Profesional KU 9–10', 'Rhythmic Professional KU 9–10', 'F', 2016, 2017, 'individual', 750000, array['FH','HOOP','BALL']::text[], null, 280, null, '{"type": "rank", "places": 3}'::jsonb, false, false),
+  ('RG', 'RG-A-KU1112', 'KU 11–12', 'Kelahiran 2014–2015', 'Profesional', 'Ritmik Profesional KU 11–12', 'Rhythmic Professional KU 11–12', 'F', 2014, 2015, 'individual', 750000, array['FH','BALL','CLUBS']::text[], null, 290, null, '{"type": "rank", "places": 3}'::jsonb, false, false),
+  ('RG', 'RG-A-JR', 'Junior', 'Kelahiran 2011–2013', 'Profesional', 'Ritmik Profesional Junior', 'Rhythmic Professional Junior', 'F', 2011, 2013, 'individual', 750000, array['HOOP','BALL','CLUBS','RIBBON']::text[], null, 300, null, '{"type": "rank", "places": 3}'::jsonb, false, false),
+  ('RG', 'RG-B-KU56', 'KU 5–6', 'Kelahiran 2020–2021', 'Amatir', 'Ritmik Amatir KU 5–6', 'Rhythmic Amateur KU 5–6', 'F', 2020, 2021, 'individual', 750000, array['FH','BALL']::text[], null, 310, null, '{"type": "rank", "places": 3}'::jsonb, false, false),
+  ('RG', 'RG-B-KU78', 'KU 7–8', 'Kelahiran 2018–2019', 'Amatir', 'Ritmik Amatir KU 7–8', 'Rhythmic Amateur KU 7–8', 'F', 2018, 2019, 'individual', 750000, array['FH','HOOP']::text[], null, 320, null, '{"type": "rank", "places": 3}'::jsonb, false, false),
+  ('RG', 'RG-B-KU910', 'KU 9–10', 'Kelahiran 2016–2017', 'Amatir', 'Ritmik Amatir KU 9–10', 'Rhythmic Amateur KU 9–10', 'F', 2016, 2017, 'individual', 750000, array['FH','HOOP','BALL']::text[], null, 330, null, '{"type": "rank", "places": 3}'::jsonb, false, false),
+  ('RG', 'RG-B-KU1112', 'KU 11–12', 'Kelahiran 2014–2015', 'Amatir', 'Ritmik Amatir KU 11–12', 'Rhythmic Amateur KU 11–12', 'F', 2014, 2015, 'individual', 750000, array['FH','BALL','CLUBS']::text[], null, 340, null, '{"type": "rank", "places": 3}'::jsonb, false, false),
+  ('RG', 'RG-B-JR', 'Junior', 'Kelahiran 2011–2013', 'Amatir', 'Ritmik Amatir Junior', 'Rhythmic Amateur Junior', 'F', 2011, 2013, 'individual', 750000, array['HOOP','BALL','CLUBS','RIBBON']::text[], null, 350, null, '{"type": "rank", "places": 3}'::jsonb, false, false),
+  ('RG', 'RG-C-KU56', 'KU 5–6', 'Kelahiran 2020–2021', 'Priangan', 'Ritmik Priangan KU 5–6', 'Rhythmic Priangan KU 5–6', 'F', 2020, 2021, 'individual', 750000, array['FH','BALL']::text[], null, 360, 'Khusus atlet WNI beralamat di Jawa Barat dari klub di Jawa Barat', '{"type": "rank", "places": 3}'::jsonb, false, true),
+  ('RG', 'RG-C-KU78', 'KU 7–8', 'Kelahiran 2018–2019', 'Priangan', 'Ritmik Priangan KU 7–8', 'Rhythmic Priangan KU 7–8', 'F', 2018, 2019, 'individual', 750000, array['FH','HOOP']::text[], null, 370, 'Khusus atlet WNI beralamat di Jawa Barat dari klub di Jawa Barat', '{"type": "rank", "places": 3}'::jsonb, false, true),
+  ('RG', 'RG-C-KU910', 'KU 9–10', 'Kelahiran 2016–2017', 'Priangan', 'Ritmik Priangan KU 9–10', 'Rhythmic Priangan KU 9–10', 'F', 2016, 2017, 'individual', 750000, array['FH','HOOP','BALL']::text[], null, 380, 'Khusus atlet WNI beralamat di Jawa Barat dari klub di Jawa Barat', '{"type": "rank", "places": 3}'::jsonb, false, true),
+  ('RG', 'RG-C-KU1112', 'KU 11–12', 'Kelahiran 2014–2015', 'Priangan', 'Ritmik Priangan KU 11–12', 'Rhythmic Priangan KU 11–12', 'F', 2014, 2015, 'individual', 750000, array['FH','BALL','CLUBS']::text[], null, 390, 'Khusus atlet WNI beralamat di Jawa Barat dari klub di Jawa Barat', '{"type": "rank", "places": 3}'::jsonb, false, true),
+  ('RG', 'RG-C-JR', 'Junior', 'Kelahiran 2011–2013', 'Priangan', 'Ritmik Priangan Junior', 'Rhythmic Priangan Junior', 'F', 2011, 2013, 'individual', 750000, array['HOOP','BALL','CLUBS','RIBBON']::text[], null, 400, 'Khusus atlet WNI beralamat di Jawa Barat dari klub di Jawa Barat', '{"type": "rank", "places": 3}'::jsonb, false, true),
+  ('AER', 'AER-JR-IM', 'Junior', '15–17 tahun', null, 'Aerobik Junior Perorangan Putra (IM)', 'Aerobic Junior Individual Men (IM)', 'M', 2009, 2011, 'individual', 300000, array['RTN']::text[], 4, 410, null, '{"type": "rank", "places": 3}'::jsonb, false, false),
+  ('AER', 'AER-JR-IW', 'Junior', '15–17 tahun', null, 'Aerobik Junior Perorangan Putri (IW)', 'Aerobic Junior Individual Women (IW)', 'F', 2009, 2011, 'individual', 300000, array['RTN']::text[], 4, 420, null, '{"type": "rank", "places": 3}'::jsonb, false, false),
+  ('AER', 'AER-JR-MP', 'Junior', '15–17 tahun', null, 'Aerobik Junior Pasangan Campuran (MP)', 'Aerobic Junior Mixed Pair (MP)', 'X', 2009, 2011, 'pair', 400000, array['RTN']::text[], 4, 430, null, '{"type": "rank", "places": 3}'::jsonb, false, false),
+  ('AER', 'AER-YT-IM', 'Youth', '12–14 tahun', null, 'Aerobik Youth Perorangan Putra (IM)', 'Aerobic Youth Individual Men (IM)', 'M', 2012, 2014, 'individual', 300000, array['RTN']::text[], 4, 440, null, '{"type": "rank", "places": 3}'::jsonb, false, false),
+  ('AER', 'AER-YT-IW', 'Youth', '12–14 tahun', null, 'Aerobik Youth Perorangan Putri (IW)', 'Aerobic Youth Individual Women (IW)', 'F', 2012, 2014, 'individual', 300000, array['RTN']::text[], 4, 450, null, '{"type": "rank", "places": 3}'::jsonb, false, false),
+  ('AER', 'AER-YT-MP', 'Youth', '12–14 tahun', null, 'Aerobik Youth Pasangan Campuran (MP)', 'Aerobic Youth Mixed Pair (MP)', 'X', 2012, 2014, 'pair', 400000, array['RTN']::text[], 4, 460, null, '{"type": "rank", "places": 3}'::jsonb, false, false),
+  ('AER', 'AER-ND-IM', 'National Development', '9–11 tahun', null, 'Aerobik National Development Perorangan Putra (IM)', 'Aerobic National Development Individual Men (IM)', 'M', 2015, 2017, 'individual', 300000, array['RTN']::text[], 4, 470, null, '{"type": "rank", "places": 3}'::jsonb, false, false),
+  ('AER', 'AER-ND-IW', 'National Development', '9–11 tahun', null, 'Aerobik National Development Perorangan Putri (IW)', 'Aerobic National Development Individual Women (IW)', 'F', 2015, 2017, 'individual', 300000, array['RTN']::text[], 4, 480, null, '{"type": "rank", "places": 3}'::jsonb, false, false),
+  ('AER', 'AER-PND-IM', 'Pre National Development', '6–8 tahun', null, 'Aerobik Pre National Development Perorangan Putra (IM)', 'Aerobic Pre National Development Individual Men (IM)', 'M', 2018, 2020, 'individual', 300000, array['RTN']::text[], 4, 490, null, '{"type": "rank", "places": 3}'::jsonb, false, false),
+  ('AER', 'AER-PND-IW', 'Pre National Development', '6–8 tahun', null, 'Aerobik Pre National Development Perorangan Putri (IW)', 'Aerobic Pre National Development Individual Women (IW)', 'F', 2018, 2020, 'individual', 300000, array['RTN']::text[], 4, 500, null, '{"type": "rank", "places": 3}'::jsonb, false, false)
 on conflict (code) do nothing;
 
 insert into jo.settings (key, value) values
@@ -4106,6 +4392,111 @@ begin
     insert into jo.settings (key, value) values ('migrasi_v5_klub', to_jsonb(now()));
   end if;
 end $$;
+
+-- v6 (14/10/2026, revisi PDF): Priangan hanya Ritmik sebagai kategori tersendiri, Junior Ritmik 13–15 tahun,
+--     musik per nomor, urutan kategori — sekali jalan
+do $$
+begin
+  if not exists (select 1 from jo.settings where key = 'migrasi_v6_revisi') then
+    update jo.categories set allow_priangan = false;
+    update jo.categories set jabar_only = (code like 'RG-C-%');
+    update jo.categories set birth_year_min = 2011, birth_year_max = 2013, age_label = 'Kelahiran 2011–2013'
+     where code in ('RG-A-JR','RG-B-JR','RG-C-JR');
+    update jo.categories c set sort = v.sort from (values
+      ('MAG-L1-A', 10),
+      ('MAG-L1-B', 20),
+      ('MAG-L1-C', 30),
+      ('MAG-L2-A', 40),
+      ('MAG-L2-B', 50),
+      ('MAG-L2-C', 60),
+      ('MAG-L3', 70),
+      ('MAG-L4', 80),
+      ('MAG-JR', 90),
+      ('WAG-L1-A', 100),
+      ('WAG-L1-B', 110),
+      ('WAG-L1-C', 120),
+      ('WAG-L2-A', 130),
+      ('WAG-L2-B', 140),
+      ('WAG-L2-C', 150),
+      ('WAG-L3-A', 160),
+      ('WAG-L3-B', 170),
+      ('WAG-L4-A', 180),
+      ('WAG-L4-B', 190),
+      ('WAG-L5-A', 200),
+      ('WAG-L5-B', 210),
+      ('WAG-L6-A', 220),
+      ('WAG-L6-B', 230),
+      ('WAG-PJ', 240),
+      ('WAG-JR', 250),
+      ('RG-A-KU56', 260),
+      ('RG-A-KU78', 270),
+      ('RG-A-KU910', 280),
+      ('RG-A-KU1112', 290),
+      ('RG-A-JR', 300),
+      ('RG-B-KU56', 310),
+      ('RG-B-KU78', 320),
+      ('RG-B-KU910', 330),
+      ('RG-B-KU1112', 340),
+      ('RG-B-JR', 350),
+      ('RG-C-KU56', 360),
+      ('RG-C-KU78', 370),
+      ('RG-C-KU910', 380),
+      ('RG-C-KU1112', 390),
+      ('RG-C-JR', 400),
+      ('AER-JR-IM', 410),
+      ('AER-JR-IW', 420),
+      ('AER-JR-MP', 430),
+      ('AER-YT-IM', 440),
+      ('AER-YT-IW', 450),
+      ('AER-YT-MP', 460),
+      ('AER-ND-IM', 470),
+      ('AER-ND-IW', 480),
+      ('AER-PND-IM', 490),
+      ('AER-PND-IW', 500)
+    ) as v(code, sort) where c.code = v.code;
+    -- Priangan lama (tambahan pada kategori biasa) dihapus; tagihan Priangan menjadi nol untuk yang belum lunas
+    update jo.entries e set priangan_requested = false, priangan_status = 'tidak', priangan_fee = 0
+      from jo.categories c where c.id = e.category_id and not c.jabar_only and e.priangan_requested;
+    update jo.submissions s set total_amount = total_amount - priangan_amount, priangan_amount = 0
+     where priangan_amount > 0 and status in ('menunggu_pembayaran','perlu_perbaikan');
+    -- satu tautan lama dipakai untuk semua nomor
+    update jo.entries e set music = (select jsonb_object_agg(x, e.music_url) from unnest(c.apparatus) x)
+      from jo.categories c where c.id = e.category_id and e.music_url is not null and e.music = '{}'::jsonb;
+    insert into jo.clubs (name, kind, province, country, verified, created_via, note)
+    select 'BJS Gymnastic', 'sekolah', 'Jawa Barat', 'Indonesia', true, 'daftar_awal', 'Sekolah / Club · Lokasi: Jawa Barat'
+     where not exists (select 1 from jo.clubs where lower(name) = 'bjs gymnastic' and merged_into is null);
+    insert into jo.settings (key, value) values ('migrasi_v6_revisi', to_jsonb(now()));
+  end if;
+end $$;
+
+-- v6: hapus data uji coba 14/10/2026 (dibuat sebelum 22.30 WIB) — sekali jalan, disetujui PM
+do $$
+declare r record; v_bound timestamptz := '2026-10-14 15:30:00+00'; n integer := 0;
+begin
+  if not exists (select 1 from jo.settings where key = 'migrasi_v6_hapus_uji') then
+    for r in select id from jo.submissions where created_at < v_bound loop
+      perform jo.purge_submission(r.id); n := n + 1;
+    end loop;
+    delete from jo.sessions s where not exists (select 1 from jo.entries e where e.session_id = s.id);
+    delete from jo.clubs k where k.created_via = 'pendaftaran' and k.created_at < v_bound
+       and not exists (select 1 from jo.submissions s where s.club_id = k.id)
+       and not exists (select 1 from jo.clubs m where m.merged_into = k.id);
+    delete from jo.outbox where created_at < v_bound;
+    delete from jo.rate_events where at < v_bound;
+    delete from jo.login_attempts where at < v_bound;
+    delete from jo.audit where at < v_bound;
+    update jo.categories c set scores_locked = false, results_published = false, results_published_at = null, startlist_published = false
+     where not exists (select 1 from jo.entries e where e.category_id = c.id);
+    update jo.team_levels set published = false, published_at = null;
+    perform setval('jo.submission_seq',
+      greatest(1, coalesce((select max(nullif(regexp_replace(code, '^.*-', ''), '')::integer) from jo.submissions), 0) + 1), false);
+    if n > 0 then
+      perform jo.log((select id from jo.staff where role = 'owner' limit 1), 'data_uji_dihapus', 'system', 'v6',
+        jsonb_build_object('submissions', n, 'note', 'Data uji coba 14 Okt 2026 dihapus atas permintaan PM'));
+    end if;
+    insert into jo.settings (key, value) values ('migrasi_v6_hapus_uji', to_jsonb(now()));
+  end if;
+end $$;
 -- =====================================================================
 --  Penyimpanan berkas (Supabase Storage)
 --   dokumen : identitas & foto atlet (privat)
@@ -4142,6 +4533,12 @@ drop policy if exists "jo: panitia baca dokumen" on storage.objects;
 create policy "jo: panitia baca dokumen" on storage.objects
   for select to authenticated
   using (bucket_id in ('dokumen','bukti') and public.jo_is_staff(array['owner','superadmin','admin']));
+
+-- v6: owner & superadmin menghapus berkas saat membersihkan data (tercatat di Log)
+drop policy if exists "jo: superadmin hapus berkas" on storage.objects;
+create policy "jo: superadmin hapus berkas" on storage.objects
+  for delete to authenticated
+  using (bucket_id in ('dokumen','bukti') and public.jo_is_staff(array['owner','superadmin']));
 
 drop policy if exists "jo: superadmin unggah publik" on storage.objects;
 create policy "jo: superadmin unggah publik" on storage.objects

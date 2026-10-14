@@ -322,11 +322,12 @@ begin
   if length(trim(coalesce(p->>'full_name',''))) < 3 then raise exception 'Isi nama lengkap.' using hint = 'ERR_JURY'; end if;
   if length(regexp_replace(coalesce(p->>'phone',''), '[^0-9]', '', 'g')) < 9 then raise exception 'Isi nomor WhatsApp yang valid.' using hint = 'ERR_JURY'; end if;
   if p_require_docs and coalesce(p->>'email','') !~* '^[^@\s]+@[^@\s]+\.[^@\s]+$' then raise exception 'Isi email yang valid.' using hint = 'ERR_JURY'; end if;
-  if jsonb_typeof(p->'disciplines') <> 'array' or jsonb_array_length(p->'disciplines') < 1 then
-    raise exception 'Pilih minimal satu disiplin.' using hint = 'ERR_JURY';
+  -- v6: satu disiplin saja; Aerobik tidak membuka pendaftaran juri
+  if jsonb_typeof(p->'disciplines') <> 'array' or jsonb_array_length(p->'disciplines') <> 1 then
+    raise exception 'Pilih satu disiplin.' using hint = 'ERR_JURY';
   end if;
   for d in select jsonb_array_elements_text(p->'disciplines') loop
-    if not exists (select 1 from jo.disciplines where code = d) then raise exception 'Disiplin tidak dikenal.' using hint = 'ERR_JURY'; end if;
+    if d not in ('MAG','WAG','RG') then raise exception 'Pendaftaran juri hanya untuk Artistik Putra, Artistik Putri, dan Ritmik.' using hint = 'ERR_JURY'; end if;
     if coalesce(p->'brevet'->d->>'level', '') = '' then raise exception 'Pilih tingkat brevet untuk %.', d using hint = 'ERR_JURY'; end if;
   end loop;
   if jsonb_typeof(p->'availability') = 'array' then
@@ -335,13 +336,14 @@ begin
     end loop;
   end if;
   if p_require_docs then
-    if coalesce(jsonb_array_length(p->'availability'), 0) < 1 then raise exception 'Pilih minimal satu hari ketersediaan.' using hint = 'ERR_JURY'; end if;
+    if coalesce(p->>'bpjs_path','') = '' then raise exception 'Unggah kartu BPJS Ketenagakerjaan.' using hint = 'ERR_JURY'; end if;
     if coalesce(p->>'ktp_path','') = '' then raise exception 'Unggah KTP atau identitas.' using hint = 'ERR_JURY'; end if;
     if coalesce(p->>'photo_path','') = '' then raise exception 'Unggah pas foto.' using hint = 'ERR_JURY'; end if;
   end if;
   if (nullif(p->>'ktp_path','') is not null and split_part(p->>'ktp_path','/',1) <> v_uid)
      or (nullif(p->>'photo_path','') is not null and split_part(p->>'photo_path','/',1) <> v_uid)
-     or (nullif(p->>'cert_path','') is not null and split_part(p->>'cert_path','/',1) <> v_uid) then
+     or (nullif(p->>'cert_path','') is not null and split_part(p->>'cert_path','/',1) <> v_uid)
+     or (nullif(p->>'bpjs_path','') is not null and split_part(p->>'bpjs_path','/',1) <> v_uid) then
     raise exception 'Berkas unggahan tidak valid. Unggah ulang.' using hint = 'ERR_UPLOAD';
   end if;
 end $$;
@@ -351,13 +353,13 @@ language plpgsql volatile set search_path = '' as $$
 declare v_id uuid;
 begin
   insert into jo.jury_applications (source, auth_uid, full_name, phone, email, city, province, disciplines, brevet,
-     cert_path, availability, ktp_path, photo_path, note)
+     cert_path, availability, ktp_path, photo_path, bpjs_path, note)
   values (p_source, auth.uid(), trim(p->>'full_name'), regexp_replace(p->>'phone', '[^0-9+]', '', 'g'),
      nullif(lower(trim(coalesce(p->>'email',''))),''), nullif(trim(coalesce(p->>'city','')),''), nullif(trim(coalesce(p->>'province','')),''),
      (select array_agg(x) from jsonb_array_elements_text(p->'disciplines') x),
      coalesce(p->'brevet', '{}'::jsonb), nullif(p->>'cert_path',''),
      coalesce((select array_agg(x::date order by x) from jsonb_array_elements_text(case when jsonb_typeof(p->'availability') = 'array' then p->'availability' else '[]'::jsonb end) x), '{}'),
-     nullif(p->>'ktp_path',''), nullif(p->>'photo_path',''), nullif(trim(coalesce(p->>'note','')),''))
+     nullif(p->>'ktp_path',''), nullif(p->>'photo_path',''), nullif(p->>'bpjs_path',''), nullif(trim(coalesce(p->>'note','')),''))
   returning id into v_id;
   return v_id;
 end $$;

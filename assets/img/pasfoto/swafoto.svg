@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 120" width="90" height="120">
+  <defs><filter id="b" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3.2"/></filter></defs>
+  <rect width="90" height="120" fill="#b9d3c2"/><rect x="0" y="0" width="90" height="40" fill="#e7efe9"/><rect x="58" y="10" width="22" height="30" fill="#8fb39c"/>
+  <path d="M-4 120c4-20 18-28 38-28s32 8 36 28z" fill="#6b8fd6"/>
+  <path d="M66 120l-6-46 14-4 10 50z" fill="#d6a37e"/>
+  <g transform="rotate(-14 40 58)"><ellipse cx="40" cy="40" rx="22" ry="18" fill="#2b2118"/>
+  <g filter="url(#b)"><ellipse cx="40" cy="58" rx="20" ry="25" fill="#e0b38f"/><ellipse cx="32" cy="55" rx="3" ry="2" fill="#4b3427"/><ellipse cx="48" cy="55" rx="3" ry="2" fill="#4b3427"/><path d="M32 69q8 7 16 0" stroke="#9b5d4a" stroke-width="2.4" fill="none"/></g></g>
+</svg>

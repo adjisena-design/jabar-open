@@ -253,3 +253,26 @@ dialog::backdrop{background:rgba(19,40,74,.5)}
 .day span{white-space:nowrap}
 .day{display:flex;align-items:center;gap:8px;border:1px solid var(--line-2);border-radius:var(--r-sm);padding:8px 10px;cursor:pointer;background:#fff;font-size:.9rem}
 .day:has(input:checked){border-color:var(--blue);background:var(--blue-lt);box-shadow:0 0 0 1px var(--blue) inset}
+/* v6: dokumen terpisah, musik per nomor, hitung mundur bayar */
+.doc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin-top:6px}
+.doc-slot{margin:0}
+.doc-slot .upload{padding:10px;min-height:56px}
+.mu-row{display:grid;grid-template-columns:150px minmax(0,1fr);gap:10px;align-items:center;margin:6px 0}
+.mu-row label{font-weight:600;color:var(--ink)}
+@media (max-width:560px){.mu-row{grid-template-columns:1fr;gap:4px}}
+.cat .pri-t{color:var(--blue-d);font-weight:600}
+.timer{border-color:#e4c87d;background:#fdf8ea}
+.timer h2{font-variant-numeric:tabular-nums}
+.timer.over{border-color:var(--bad);background:var(--bad-lt)}
+.photo-rules{margin:8px 0;border:1px solid var(--line);border-radius:var(--r-sm);padding:8px 12px;background:#fbfcfe}
+.photo-rules summary{cursor:pointer}
+.pr-body{margin-top:8px}
+.pr-ex{display:flex;gap:12px;flex-wrap:wrap}
+.pr-ex figure{margin:0;text-align:center;font-size:.78rem;font-weight:600}
+.pr-ex img{width:90px;height:120px;border-radius:6px;border:2px solid var(--line);display:block}
+.pr-ex .ok img{border-color:var(--ok)} .pr-ex .ok figcaption{color:var(--ok)}
+.pr-ex .no img{border-color:var(--bad);opacity:.85} .pr-ex .no figcaption{color:var(--bad)}
+.pr-ex .no figcaption::before{content:"\2715  "} .pr-ex .ok figcaption::before{content:"\2713  "}
+.aic-v{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.aic-photo{width:120px;height:160px;object-fit:cover;border-radius:8px;border:1px solid var(--line);margin-top:12px;flex:none}
+.aic-v .kv{flex:1;min-width:220px}

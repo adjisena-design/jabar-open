@@ -63,10 +63,13 @@ language sql stable set search_path = '' as $$
   select '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:8px 0 4px">'
     || coalesce(string_agg(
       '<tr><td style="padding:8px 0;border-bottom:1px solid #e2e8f1;vertical-align:top"><b>' || jo.h(a.full_name) || '</b>'
-      || '<div style="font-size:13px;color:#5b6b88">' || jo.h(coalesce(a.athlete_no,'')) || '</div></td>'
+      || '<div style="font-size:13px;color:#5b6b88">' || jo.h(coalesce(a.athlete_no,'')) || '</div>'
+      || case when a.nationality = 'WNI' and a.bpjs_path is null then '<div style="font-size:12px;color:#9a6200">'
+           || jo.tr(p_lang, 'BPJS Ketenagakerjaan belum diunggah: bawa ke meja panitia di venue sebelum bertanding.',
+                            'BPJS Ketenagakerjaan not uploaded: bring it to the committee desk at the venue before competing.') || '</div>' else '' end
+      || '</td>'
       || '<td style="padding:8px 0;border-bottom:1px solid #e2e8f1;text-align:right;font-size:13px;vertical-align:top">'
-      || coalesce((select string_agg(jo.h(case when p_lang = 'en' then c.name_en else c.name_id end)
-                     || case when e.priangan_requested then ' + Priangan' else '' end, '<br>')
+      || coalesce((select string_agg(jo.h(case when p_lang = 'en' then c.name_en else c.name_id end), '<br>')
                    from jo.entry_athletes ea join jo.entries e on e.id = ea.entry_id
                    join jo.categories c on c.id = e.category_id
                    where ea.athlete_id = a.id and e.status <> 'dibatalkan'), '')
@@ -128,7 +131,11 @@ begin
       || jo.fmt_rp(s.total_amount) || '</b>. '
       || jo.tr(l,'Tiga digit terakhir adalah kode unik yang mencocokkan pembayaran Anda dengan pendaftaran ini. Setelah membayar, unggah bukti pembayaran di halaman status.',
                  'The last three digits are a unique code that matches your payment to this registration. After paying, upload the payment proof on the status page.')
-      || '</p>';
+      || '</p><p style="background:#fdf3dc;border-left:4px solid #e4c87d;padding:10px 14px"><b>'
+      || jo.tr(l,'Penting: unggah bukti bayar paling lambat 15 menit setelah mendaftar','Important: upload the payment proof within 15 minutes of registering')
+      || '</b> (' || to_char(s.created_at at time zone 'Asia/Jakarta' + interval '15 minutes', 'HH24:MI') || ' WIB). '
+      || jo.tr(l,'Bila tidak, pendaftaran ini dihapus otomatis dan Anda perlu mendaftar ulang.',
+                 'Otherwise this registration is deleted automatically and you will need to register again.') || '</p>';
   else
     body := body || '<p>' || jo.tr(l,
       'Pendaftaran atlet internasional dibayar terpisah. Panitia akan menghubungi Anda melalui email ini untuk cara pembayaran.',
@@ -161,11 +168,11 @@ begin
     || '<p>' || jo.tr(l,'Pembayaran untuk pendaftaran ','Payment for registration ') || '<b>' || jo.h(s.code) || '</b> '
     || jo.tr(l,'sudah kami verifikasi. Status: <b style="color:#1b8a4b">LUNAS</b>.','has been verified. Status: <b style="color:#1b8a4b">PAID</b>.') || '</p>'
     || case when s.registrant_type = 'beregu' then coalesce(jo.email_team(s.id, l), '') else jo.email_roster(s.id, l) end
-    || '<p>' || jo.tr(l,'E-ticket (PDF) untuk setiap atlet dapat diunduh di halaman status. Tidak ada registrasi ulang: cukup datang sesuai jadwal yang diumumkan di Instagram dan situs Jabar Open 2026.',
-                      'Each athlete''s e-ticket (PDF) can be downloaded from the status page. There is no on-site check-in: just come at the schedule announced on Instagram and the Jabar Open 2026 website.') || '</p>'
-    || jo.email_button(jo.status_link(s.code, s.token), jo.tr(l,'Unduh e-ticket','Download e-tickets'));
+    || '<p>' || jo.tr(l,'Athlete Identification Card (AIC) Jabar Open 2026 untuk setiap atlet dapat diunduh di halaman status dan wajib ditunjukkan secara digital (dari ponsel, tanpa dicetak) di venue. Tidak ada registrasi ulang: cukup datang sesuai jadwal yang diumumkan di Instagram dan situs Jabar Open 2026.',
+                      'Each athlete''s Athlete Identification Card (AIC) Jabar Open 2026 can be downloaded from the status page and must be shown digitally (on a phone, no printing) at the venue. There is no on-site check-in: just come at the schedule announced on Instagram and the Jabar Open 2026 website.') || '</p>'
+    || jo.email_button(jo.status_link(s.code, s.token), jo.tr(l,'Unduh AIC','Download AIC'));
   perform jo.queue_email(s.id, 'lunas', s.contact_email, cc,
-    jo.tr(l,'Pembayaran lunas — e-ticket ','Payment confirmed — e-tickets ') || s.code,
+    jo.tr(l,'Pembayaran lunas — Athlete Identification Card (AIC) ','Payment confirmed — Athlete Identification Cards (AIC) ') || s.code,
     jo.email_layout(jo.tr(l,'Pembayaran lunas','Payment confirmed'), body, l));
 end $$;
 
@@ -236,7 +243,10 @@ begin
     body := body || '<p>' || jo.tr(l,'Tautan musik untuk ','The music link for ') || '<b>' || jo.h(a.full_name) || '</b> ('
       || jo.h(case when l = 'en' then c.name_en else c.name_id end) || ') '
       || jo.tr(l,'sudah tersimpan:','has been saved:') || '</p>'
-      || '<p style="word-break:break-all"><a href="' || jo.h(e.music_url) || '">' || jo.h(e.music_url) || '</a></p>'
+      || '<table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px;margin:6px 0 12px">'
+      || coalesce((select string_agg('<tr><td style="padding:3px 12px 3px 0;white-space:nowrap"><b>' || jo.h(jo.apparatus_label('RG', x)) || '</b></td>'
+           || '<td style="padding:3px 0;word-break:break-all"><a href="' || jo.h(e.music->>x) || '">' || jo.h(e.music->>x) || '</a></td></tr>', '' order by ord)
+           from unnest(c.apparatus) with ordinality as u(x, ord) where coalesce(e.music->>x,'') <> ''), '') || '</table>'
       || '<p>' || case when e.music_changes >= 1
            then jo.tr(l,'Kesempatan ganti musik untuk atlet ini sudah dipakai.','The music change for this athlete has now been used.')
            else jo.tr(l,'Musik dapat diganti satu kali sampai start list kategori ini terbit.','The music can be changed once until this category''s start list is published.') end

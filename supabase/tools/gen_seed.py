@@ -9,13 +9,14 @@ def yrs(age_min=None, age_max=None):
 
 cats = []
 sort = 0
-def add(disc, code, level, age_label, name_id, name_en, gender, age_min, age_max, fee, app, max_club=None, entry='individual', division=None, note=None, years=None):
+def add(disc, code, level, age_label, name_id, name_en, gender, age_min, age_max, fee, app, max_club=None, entry='individual', division=None, note=None, years=None, jabar_only=False):
     global sort
     sort += 10
     bmin, bmax = years if years else yrs(age_min, age_max)
     cats.append(dict(discipline=disc, code=code, level=level, age_label=age_label, division=division,
         name_id=name_id, name_en=name_en, gender=gender, birth_year_min=bmin, birth_year_max=bmax,
-        entry_type=entry, fee=fee, apparatus=app, max_per_club=max_club, sort=sort, note=note))
+        entry_type=entry, fee=fee, apparatus=app, max_per_club=max_club, sort=sort, note=note,
+        allow_priangan=False, jabar_only=jabar_only))
 
 MAG_APP = ['FX','PH','SR','VT','PB','HB']
 WAG_APP = ['VT','UB','BB','FX']
@@ -45,17 +46,18 @@ for lvl, groups in [
 add('WAG','WAG-PJ','Pre Junior','11–13 tahun','Artistik Putri Pre Junior (11–13 tahun)',"Women's Artistic Pre Junior (11–13)",'F',11,13,750000,WAG_APP,10)
 add('WAG','WAG-JR','Junior','14–15 tahun','Artistik Putri Junior (14–15 tahun)',"Women's Artistic Junior (14–15)",'F',14,15,750000,WAG_APP,10)
 
-# --- RG (Kategori A Profesional, B Amatir) ---
+# --- RG (Kategori A Profesional, B Amatir, C Priangan khusus Jawa Barat; revisi 14/10/2026) ---
 rg_groups = [
     ('KU56','KU 5–6','KU 5–6',(2020,2021),['FH','BALL']),
     ('KU78','KU 7–8','KU 7–8',(2018,2019),['FH','HOOP']),
     ('KU910','KU 9–10','KU 9–10',(2016,2017),['FH','HOOP','BALL']),
     ('KU1112','KU 11–12','KU 11–12',(2014,2015),['FH','BALL','CLUBS']),
-    ('JR','Junior','Junior',(2012,2013),['HOOP','BALL','CLUBS','RIBBON']),
+    ('JR','Junior','Junior',(2011,2013),['HOOP','BALL','CLUBS','RIBBON']),
 ]
-for div, div_id, div_en in [('A','Profesional','Professional'),('B','Amatir','Amateur')]:
+for div, div_id, div_en in [('A','Profesional','Professional'),('B','Amatir','Amateur'),('C','Priangan','Priangan')]:
     for g, lid, len_, years, app in rg_groups:
-        add('RG', f'RG-{div}-{g}', lid, f'Kelahiran {years[0]}–{years[1]}', f'Ritmik {div_id} {lid}', f'Rhythmic {div_en} {len_}', 'F', None, None, 750000, app, None, division=div_id, years=years)
+        add('RG', f'RG-{div}-{g}', lid, f'Kelahiran {years[0]}–{years[1]}', f'Ritmik {div_id} {lid}', f'Rhythmic {div_en} {len_}', 'F', None, None, 750000, app, None, division=div_id, years=years,
+            note='Khusus atlet WNI beralamat di Jawa Barat dari klub di Jawa Barat' if div == 'C' else None, jabar_only=(div == 'C'))
 
 # --- AER ---
 aer = [
@@ -124,7 +126,7 @@ for code,nid,nen,ds,de,app,comp,cn,cp,so in disc:
     rows.append(f"  ({q(code)}, {q(nid)}, {q(nen)}, {q(ds)}, {q(de)}, {q(appj)}::jsonb, {q(compj)}::jsonb, {q(cn)}, {q(cp)}, {so})")
 out.append(",\n".join(rows) + "\non conflict (code) do nothing;\n")
 
-cols = ['discipline','code','level','age_label','division','name_id','name_en','gender','birth_year_min','birth_year_max','entry_type','fee','apparatus','max_per_club','sort','note','medal_rule']
+cols = ['discipline','code','level','age_label','division','name_id','name_en','gender','birth_year_min','birth_year_max','entry_type','fee','apparatus','max_per_club','sort','note','medal_rule','allow_priangan','jabar_only']
 out.append("insert into jo.categories (" + ", ".join(cols) + ") values")
 rows=[]
 for c in cats:
@@ -164,5 +166,8 @@ for k,v in settings.items():
 out.append(",\n".join(rows) + "\non conflict (key) do nothing;\n")
 
 open('/home/claude/jabar-open/supabase/src/70_seed.sql','w').write("\n".join(out))
+# urutan & tahun lahir untuk migrasi v6 (dipakai 75_migrate)
+json.dump([{'code': c['code'], 'sort': c['sort'], 'bmin': c['birth_year_min'], 'bmax': c['birth_year_max']} for c in cats],
+          open('/home/claude/jabar-open/supabase/tools/cat_sort.json','w'))
 print(len(cats), 'categories')
 for c in cats: print(c['code'], c['birth_year_min'], c['birth_year_max'], c['gender'], c['fee'], c['apparatus'])

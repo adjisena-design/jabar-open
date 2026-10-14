@@ -14,14 +14,14 @@
     s_club: ['Klub', 'Club'], s_contact: ['Penanggung jawab', 'Contact'], s_created: ['Didaftarkan', 'Registered'],
     s_individual: ['Perorangan', 'Independent'],
     s_pay: ['Pembayaran', 'Payment'],
-    s_pay_waiting: ['Bukti pembayaran sudah diterima pada {d}. Panitia sedang memverifikasi; e-ticket dikirim lewat email setelah lunas.', 'Payment proof received on {d}. The committee is verifying it; e-tickets are emailed once confirmed.'],
+    s_pay_waiting: ['Bukti pembayaran sudah diterima pada {d}. Panitia sedang memverifikasi; AIC dikirim lewat email setelah lunas.', 'Payment proof received on {d}. The committee is verifying it; AIC are emailed once confirmed.'],
     s_pay_fix: ['Bukti pembayaran perlu diperbaiki', 'Payment proof needs attention'],
     s_paid: ['Lunas pada {d}.', 'Paid on {d}.'],
     s_proof_again: ['Unggah bukti lain', 'Upload another proof'],
     s_athletes: ['Atlet', 'Athletes'],
     s_doc_menunggu: ['Dokumen belum diperiksa', 'Document not yet checked'], s_doc_valid: ['Dokumen valid', 'Document verified'], s_doc_tidak_valid: ['Dokumen perlu diganti, hubungi panitia', 'Document needs replacing, contact the committee'],
     s_pri: ['Priangan', 'Priangan'], s_pri_menunggu: ['menunggu verifikasi', 'pending'], s_pri_disetujui: ['disetujui', 'approved'], s_pri_ditolak: ['ditolak', 'rejected'],
-    s_ticket: ['Unduh e-ticket (PDF)', 'Download e-ticket (PDF)'], s_ticket_wait: ['E-ticket tersedia setelah pembayaran lunas.', 'E-ticket is available once payment is confirmed.'],
+    s_ticket: ['Unduh Athlete Identification Card (AIC)', 'Download Athlete Identification Card (AIC)'], s_ticket_wait: ['Athlete Identification Card (AIC) tersedia setelah pembayaran lunas. Tunjukkan secara digital di venue; tidak perlu dicetak.', 'The Athlete Identification Card (AIC) is available once payment is confirmed. Show it digitally at the venue; no printing needed.'],
     s_start: ['Jadwal tampil', 'Competition slot'], s_group: ['grup', 'group'], s_order: ['urutan', 'order'],
     s_result: ['Hasil', 'Result'], s_rank: ['Peringkat {r}', 'Rank {r}'], s_cert: ['Unduh sertifikat', 'Download certificate'],
     s_mini: ['Medali mini, peringkat {r}', 'Mini medal, place {r}'],
@@ -33,7 +33,7 @@
     s_reload: ['Muat ulang', 'Reload'],
     s_team: ['Beregu', 'Team'],
     s_team_ind: ['juga perorangan', 'also individual'], s_team_tim: ['khusus beregu', 'team only'],
-    s_team_ind_note: ['Anggota "juga perorangan" memakai e-ticket dari pendaftaran perorangannya. E-ticket anggota "khusus beregu" ada di bagian Atlet di bawah.', 'Members entered "also individual" use the e-ticket from their individual registration. E-tickets for "team only" members are under Athletes below.'],
+    s_team_ind_note: ['Anggota "juga perorangan" memakai AIC dari pendaftaran perorangannya. AIC anggota "khusus beregu" ada di bagian Atlet di bawah.', 'Members entered "also individual" use the AIC from their individual registration. AICs for "team only" members are under Athletes below.'],
     s_team_rank: ['Peringkat beregu {r}', 'Team rank {r}'],
     s_team_total: ['Nilai tim {v}', 'Team score {v}'],
     s_team_counted: ['dihitung', 'counted'],
@@ -41,6 +41,9 @@
     s_team_wait: ['Peringkat beregu tampil di sini setelah hasil level ini dipublikasikan.', 'The team ranking appears here once results for this level are published.'],
     s_team_only_res: ['tidak diperingkat perorangan', 'not ranked individually'],
     s_music: ['Musik', 'Music'],
+    s_jabar: ['Kategori Priangan: cek syarat Jawa Barat', 'Priangan category: West Java check'],
+    s_bpjs_no: ['BPJS Ketenagakerjaan belum diunggah: bawa kartunya ke meja panitia di venue sebelum bertanding.', 'BPJS Ketenagakerjaan not uploaded: bring the card to the committee desk at the venue before competing.'],
+    s_timer: ['Unggah bukti bayar dalam {m}. Bila tidak, pendaftaran ini dihapus otomatis pukul {h}.', 'Upload the payment proof within {m}. Otherwise this registration is deleted automatically at {h}.'],
     s_music_belum: ['Belum ada tautan', 'No link yet'], s_music_menunggu: ['Menunggu pemeriksaan panitia', 'Awaiting committee check'],
     s_music_ok: ['Sudah diperiksa, bisa dibuka', 'Checked, opens fine'], s_music_tidak_bisa: ['Tidak bisa dibuka, perbaiki akses', 'Cannot be opened, fix the sharing'],
     s_music_tidak_perlu: ['Tidak perlu', 'Not needed'],
@@ -114,9 +117,10 @@
       el.innerHTML = `<div class="ath-head"><span class="bib">${esc(a.athlete_no || '')}</span><strong>${esc(a.full_name)}</strong></div>
         <div class="ath-body">
           <p class="small" style="margin-bottom:8px"><span class="pill ${a.doc_status === 'valid' ? 'ok' : a.doc_status === 'tidak_valid' ? 'bad' : ''}">${esc(t('s_doc_' + a.doc_status))}</span></p>
+          ${a.nationality === 'WNI' && !a.has_bpjs ? `<p class="note warn small" style="margin:0 0 8px">${esc(t('s_bpjs_no'))}</p>` : ''}
           ${ents.map((e) => `<div style="padding:8px 0;border-top:1px solid var(--line)">
             <div><strong>${esc(catName(e))}</strong>${e.team_only ? ` <span class="pill gold">${esc(t('s_team_tim'))}</span>` : ''}${e.athlete_ids.length > 1 ? ` <span class="small muted">(${esc(e.athlete_ids.map((x) => (d.athletes.find((y) => y.id === x) || {}).full_name).join(' & '))})</span>` : ''}</div>
-            ${e.priangan_requested ? `<div class="small">${esc(t('s_pri'))}: ${esc(t('s_pri_' + e.priangan_status))}</div>` : ''}
+            ${e.priangan_requested ? `<div class="small">${esc(t('s_jabar'))}: ${esc(t('s_pri_' + e.priangan_status))}</div>` : ''}
             ${musicLine(e)}
             ${e.start ? `<div class="small"><strong>${esc(t('s_start'))}:</strong> ${esc(startText(e.start))}</div>` : ''}
             ${e.result ? `<div class="small" style="margin-top:4px"><strong>${esc(t('s_result'))}:</strong> ${e.result.rank ? esc(t('s_rank', { r: e.result.rank })) : e.team_only ? esc(t('s_team_only_res')) : '–'}
@@ -125,7 +129,7 @@
                 ${e.result.total != null ? ` <span class="muted num">(${Number(e.result.total).toFixed(3)})</span>` : ''}
                 ${e.result.capped ? `<br><span class="muted">${esc(t('s_capped'))}</span>` : ''}
                 ${Object.keys(e.result.app_medals || {}).length ? `<br>${esc(t('s_app_medals'))}: ${Object.entries(e.result.app_medals).map(([k, m]) => `${esc(appName(k))} <span class="medal ${m}"></span> ${esc(t('medal_' + m))}`).join(', ')}` : ''}
-                ${e.result.priangan_rank ? `<br>${esc(t('s_pri_rank', { r: e.result.priangan_rank }))}${e.result.priangan_medal ? ` <span class="medal ${e.result.priangan_medal}"></span> ${esc(t('medal_' + e.result.priangan_medal))}` : ''}` : ''}</div>
+</div>
               <div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap">
                 <button class="btn btn-ghost btn-sm" data-cert="${e.id}" data-ath="${a.id}">${esc(t('s_cert'))}</button>
                 ${Object.keys(e.result.app_medals || {}).map((k) => `<button class="btn btn-ghost btn-sm" data-cert="${e.id}" data-ath="${a.id}" data-app="${k}">${esc(t('s_cert_app', { a: appName(k) }))}</button>`).join('')}</div>` : ''}
@@ -137,6 +141,18 @@
     box.querySelectorAll('[data-ticket]').forEach((b) => b.onclick = () => downloadTicket(b));
     box.querySelectorAll('[data-cert]').forEach((b) => b.onclick = () => downloadCert(b));
     app.querySelectorAll('[data-tcert]').forEach((b) => b.onclick = () => downloadTeamCert(b));
+    const tmEl = app.querySelector('#s_timer');
+    if (tmEl) {
+      const end = new Date(d.expires_at).getTime();
+      const hh = new Date(end).toLocaleTimeString(JO.lang === 'en' ? 'en-GB' : 'id-ID', { hour: '2-digit', minute: '2-digit' });
+      const tick = () => {
+        if (!document.body.contains(tmEl)) return clearInterval(iv);
+        const left = Math.max(0, Math.round((end - Date.now()) / 1000));
+        tmEl.textContent = t('s_timer', { m: Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0'), h: hh });
+        if (!left) { clearInterval(iv); setTimeout(() => location.reload(), 3000); }
+      };
+      const iv = setInterval(tick, 1000); tick();
+    }
     const up = app.querySelector('#proof_up');
     if (up) up.querySelector('input').onchange = async (e) => {
       const file = e.target.files[0]; if (!file) return;
@@ -156,6 +172,7 @@
     const p = d.payment || {};
     const waiting = d.status === 'menunggu_verifikasi';
     return `<section class="card"><h2>${esc(t('s_pay'))}</h2>
+      ${d.expires_at ? `<p class="note warn" id="s_timer"></p>` : ''}
       ${d.status === 'perlu_perbaikan' ? `<div class="note bad" style="margin-bottom:14px"><strong>${esc(t('s_pay_fix'))}.</strong> ${esc(d.verify_note || '')}</div>` : ''}
       ${waiting ? `<p class="note info">${esc(t('s_pay_waiting', { d: JO.fmtDateTime(d.proof_uploaded_at) }))}</p>` : ''}
       <div class="pay">
@@ -166,7 +183,6 @@
           <p class="small muted">${esc(t('pay_why'))}</p>
           <table class="breakdown" style="margin:12px 0"><tbody>
             <tr><td>${esc(t(d.registrant_type === 'beregu' ? 'sum_team' : 'sum_fees'))}</td><td>${fmtRp(d.base_amount)}</td></tr>
-            ${d.priangan_amount ? `<tr><td>${esc(t('sum_pri'))}</td><td>${fmtRp(d.priangan_amount)}</td></tr>` : ''}
             <tr><td>${esc(t('sum_uc'))}</td><td>${fmtRp(d.unique_code)}</td></tr>
           </tbody></table>
           ${p.note ? `<p class="small">${esc(p.note)}</p>` : ''}
@@ -186,7 +202,7 @@
     const link = `musik.html?k=${encodeURIComponent(D.code)}`;
     return `<div class="small" style="margin:4px 0"><strong>${esc(t('s_music'))}:</strong>
       <span class="pill ${MUSIC_PILL[e.music_status] || ''}">${esc(t('s_music_' + e.music_status))}</span>
-      ${e.music_url ? `<br><a class="mono-link" href="${esc(e.music_url)}" target="_blank" rel="noopener">${esc(e.music_url)}</a>` : ''}
+      ${(e.apparatus || []).map((ap) => (e.music || {})[ap] ? `<br>${esc(appName(ap))}: <a class="mono-link" href="${esc(e.music[ap])}" target="_blank" rel="noopener">${esc(e.music[ap])}</a>` : `<br>${esc(appName(ap))}: <span class="bad-t">${esc(t('s_music_belum'))}</span>`).join('')}
       ${e.music_status === 'tidak_bisa' && e.music_note ? `<br><span class="bad-t">${esc(e.music_note)}</span>` : ''}
       ${e.music_changes > 0 ? `<br><span class="muted">${esc(t('s_music_used'))}</span>` : ''}
       ${D.status !== 'dibatalkan' ? `<br><a href="${link}">${esc(t('s_music_change'))}</a>` : ''}</div>`;
@@ -232,11 +248,13 @@
     try {
       const doc = await JO.ticketPdf({
         discipline: D.discipline, athlete_no: a.athlete_no, name: a.full_name, club: D.club ? D.club.name : 'Perorangan',
-        categories: ents.map((e) => e.category_name_id + (e.team_only && D.team ? ` (khusus beregu, tim ${D.team.name})` : '') + (e.priangan_status === 'disetujui' ? ' + Priangan' : '')),
+        categories: ents.map((e) => e.category_name_id + (e.team_only && D.team ? ` (khusus beregu, tim ${D.team.name})` : '')),
+        bpjs_missing: a.nationality === 'WNI' && !a.has_bpjs,
+        photo: a.photo_thumb, registered_by: D.contact ? D.contact.name : '',
         start: ents.map((e) => startText(e.start)).filter(Boolean).join(' / '),
         ticket_code: a.ticket_code, submission_code: D.code,
       });
-      doc.save(`e-ticket-${a.athlete_no}-${a.full_name.replace(/[^a-z0-9]+/gi, '-')}.pdf`);
+      doc.save(`AIC-JabarOpen2026-${a.athlete_no}-${a.full_name.replace(/[^a-z0-9]+/gi, '-')}.pdf`);
     } catch (e) { JO.toast(e.message, 'bad'); }
     finally { btn.disabled = false; btn.textContent = old; }
   }
@@ -268,7 +286,7 @@
     JO.addDict({
       q_disc: ['Disiplin', 'Discipline'], uploading: ['Mengunggah…', 'Uploading…'],
       proof_title: ['Unggah bukti pembayaran', 'Upload payment proof'],
-      proof_done: ['Bukti terkirim. Panitia akan memverifikasi dan mengirim e-ticket lewat email.', 'Proof received. The committee will verify it and email the e-tickets.'],
+      proof_done: ['Bukti terkirim. Panitia akan memverifikasi dan mengirim AIC lewat email.', 'Proof received. The committee will verify it and email the AIC.'],
       pay_exact: ['Ketik nominal persis, termasuk tiga digit terakhir.', 'Type the exact amount, including the last three digits.'],
       pay_why: ['Tiga digit terakhir adalah kode unik yang mencocokkan pembayaran Anda dengan pendaftaran ini. Transfer dengan nominal berbeda akan memperlambat verifikasi.', 'The last three digits are a unique code that matches your payment to this registration. A different amount slows down verification.'],
       pay_noqris: ['Gambar QRIS sedang disiapkan panitia. Buka halaman ini lagi nanti.', 'The QRIS image is being prepared. Check this page again later.'],

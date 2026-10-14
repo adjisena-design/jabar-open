@@ -8,7 +8,7 @@
     d_title: ['Pendaftaran atlet', 'Athlete registration'],
     d_lead: ['Satu pendaftaran untuk satu disiplin. Perorangan untuk satu atlet, klub atau sekolah hingga lima atlet sekaligus, dan beregu untuk satu tim Artistik Putri.', "One registration covers one discipline. Individuals register one athlete, clubs or schools up to five at once, and a team entry registers one Women's Artistic team."],
     d_ready_t: ['Siapkan sebelum mendaftar', 'Have this ready'],
-    d_ready: ['Identitas atlet (KTP, akta kelahiran, ijazah, atau paspor), data orang tua/wali untuk atlet di bawah 18 tahun, serta BPJS atau asuransi. Ritmik: tautan folder Google Drive berisi musik tiap atlet.', "Athlete ID (national ID, birth certificate, school certificate or passport), parent/guardian details for athletes under 18, and BPJS or insurance. Rhythmic: a Google Drive folder link with each athlete's music."],
+    d_ready: ['Akte Kelahiran atlet (wajib), KTP dan Ijazah bila sudah punya, kartu BPJS Ketenagakerjaan bila ada (wajib saat bertanding), data orang tua/wali untuk atlet di bawah 18 tahun. Atlet asing: paspor. Ritmik: satu tautan Google Drive musik untuk setiap nomor. Siapkan juga pembayaran QRIS: bukti bayar harus diunggah dalam 15 menit setelah mendaftar.', "Athlete's birth certificate (required), national ID and school certificate if they have them, BPJS Ketenagakerjaan card if available (required on competition day), parent/guardian details for athletes under 18. Foreign athletes: passport. Rhythmic: one Google Drive music link per routine. Have your QRIS payment ready: the payment proof must be uploaded within 15 minutes of registering."],
     type_beregu: ['Beregu Artistik', 'Artistic team'], type_beregu_sub: ['Artistik Putri Level 1–6. Satu tim berisi 1–{n} pesenam dari satu level. {fee} per tim.', "Women's Artistic Levels 1–6. One team of 1–{n} gymnasts from one level. {fee} per team."],
     disc_no_team: ['Beregu hanya untuk Artistik Putri', "Teams are Women's Artistic only"],
     err_team_disc: ['Beregu hanya untuk Artistik Putri Level 1–6.', "Teams are only for Women's Artistic Levels 1–6."],
@@ -34,8 +34,9 @@
     checking: ['Memeriksa…', 'Checking…'],
     sum_team: ['Biaya beregu', 'Team fee'],
     sum_member_ind: ['juga perorangan', 'also individual'], sum_member_tim: ['khusus beregu', 'team only'],
-    music: ['Tautan musik (Google Drive)', 'Music link (Google Drive)'],
-    music_hint: ['Satu folder Google Drive untuk atlet ini, berisi semua file MP3 yang akan dipakai. Atur akses ke "Siapa saja yang memiliki link". Musik bisa diganti satu kali sebelum start list terbit.', 'One Google Drive folder for this athlete holding every MP3 they will use. Set access to "Anyone with the link". Music can be changed once before the start list is published.'],
+    music: ['Tautan musik per nomor (Google Drive)', 'Music link per routine (Google Drive)'],
+    music_hint: ['Satu tautan Google Drive (file MP3 atau folder) untuk setiap nomor, semua wajib diisi. Atur akses ke "Siapa saja yang memiliki link". Musik bisa diganti satu kali per atlet sebelum start list terbit.', 'One Google Drive link (MP3 file or folder) for each routine; all are required. Set access to "Anyone with the link". Music can be changed once per athlete before the start list is published.'],
+    music_pick: ['Pilih kategori dulu untuk melihat nomor yang perlu musik.', 'Choose a category first to see which routines need music.'],
     err_music: ['Isi tautan Google Drive (diawali https://drive.google.com/).', 'Enter a Google Drive link (starting with https://drive.google.com/).'],
     st1: ['Pendaftar', 'Registrant'], st2: ['Klub', 'Club'], st3: ['Atlet & kategori', 'Athletes & categories'], st4: ['Pernyataan & kirim', 'Declarations & submit'],
     next: ['Lanjut', 'Continue'], back: ['Kembali', 'Back'],
@@ -45,7 +46,7 @@
     q_disc: ['Disiplin', 'Discipline'],
     disc_closed: ['Pendaftaran ditutup', 'Registration closed'],
     q_contact: ['Penanggung jawab pendaftaran', 'Registration contact'],
-    q_contact_hint: ['Konfirmasi, tagihan, dan e-ticket dikirim ke email ini.', 'Confirmation, invoice and e-tickets are sent to this email.'],
+    q_contact_hint: ['Konfirmasi, tagihan, dan AIC dikirim ke email ini.', 'Confirmation, invoice and AIC are sent to this email.'],
     c_name: ['Nama lengkap', 'Full name'], c_email: ['Email', 'Email'], c_phone: ['Nomor WhatsApp', 'WhatsApp number'], c_role: ['Peran', 'Role'],
     role_atlet: ['Atlet', 'Athlete'], role_ortu: ['Orang tua / wali', 'Parent / guardian'], role_pelatih: ['Pelatih', 'Coach'], role_manajer: ['Manajer / official', 'Manager / official'],
     err_type: ['Pilih jenis pendaftar.', 'Choose a registrant type.'], err_disc: ['Pilih disiplin.', 'Choose a discipline.'],
@@ -71,8 +72,20 @@
     a_birth: ['Tanggal lahir', 'Date of birth'], a_birth_hint: ['Kategori ditentukan dari tahun lahir (usia pada tahun 2026).', 'Categories follow the birth year (age in 2026).'],
     a_nat: ['Kewarganegaraan', 'Nationality'], wni: ['WNI', 'Indonesian'], wna: ['WNA', 'Foreign'],
     a_addr_hint: ['Sesuai alamat pada identitas. Dipakai untuk kelayakan kategori Priangan.', 'As on the ID. Used for Priangan category eligibility.'],
-    a_doc: ['Dokumen identitas', 'Identity document'], a_doc_hint: ['KTP, Akte Kelahiran, Ijazah, atau paspor. Foto atau PDF, maks. 5 MB.', 'National ID, birth certificate, school certificate or passport. Photo or PDF, max 5 MB.'],
-    a_photo: ['Pas foto (opsional)', 'Photo (optional)'], a_photo_hint: ['Untuk kartu identitas atlet. JPG/PNG.', 'For the athlete ID card. JPG/PNG.'],
+    a_docs: ['Dokumen (unggah satu per satu; foto atau PDF, maks. 5 MB)', 'Documents (upload one by one; photo or PDF, max 5 MB)'],
+    d_akte: ['Akte Kelahiran (wajib)', 'Birth certificate (required)'],
+    d_ktp: ['KTP (bila sudah punya)', 'National ID / KTP (if they have one)'],
+    d_ijazah: ['Ijazah (bila ada)', 'School certificate / Ijazah (if any)'],
+    d_passport: ['Paspor (wajib)', 'Passport (required)'],
+    d_bpjs: ['BPJS Ketenagakerjaan (opsional saat daftar)', 'BPJS Ketenagakerjaan (optional now)'],
+    d_photo: ['Pas foto (wajib)', 'Photo (required)'],
+    photo_rules_t: ['Ketentuan pas foto', 'Photo rules'],
+    photo_rules: ['Wajah menghadap ke depan dan terlihat jelas, latar polos, pakaian rapi, setengah badan (kepala sampai dada). Bukan swafoto (selfie), bukan pose santai atau bergaya, tanpa kacamata hitam, topi, atau filter. Foto ini dipasang di Athlete Identification Card (AIC) dan tampil saat panitia memindai QR di venue.', 'Face looking straight at the camera and clearly visible, plain background, neat clothing, head-and-shoulders framing. No selfies, no casual or posed shots, no sunglasses, hats or filters. This photo goes on the Athlete Identification Card (AIC) and appears when the committee scans its QR code at the venue.'],
+    photo_ok: ['Benar', 'Correct'], photo_no1: ['Swafoto', 'Selfie'], photo_no2: ['Pose santai / miring', 'Casual / side pose'],
+    err_a_photo: ['Unggah pas foto.', 'Upload a photo.'],
+    d_bpjs_note: ['Wajib saat bertanding. Bila belum diunggah sekarang, bawa kartu BPJS Ketenagakerjaan ke meja panitia di venue; tidak ada unggah susulan.', 'Required on competition day. If not uploaded now, bring the BPJS Ketenagakerjaan card to the committee desk at the venue; it cannot be uploaded later.'],
+    up_btn: ['Unggah', 'Upload'],
+    jabar_only: ['Khusus atlet WNI beralamat di Jawa Barat dari klub di Jawa Barat. Tanpa biaya tambahan.', 'Only for Indonesian athletes with a West Java address, from a West Java club. No extra fee.'],
     uploading: ['Mengunggah…', 'Uploading…'], uploaded: ['Terunggah', 'Uploaded'], replace: ['Ganti berkas', 'Replace file'],
     g_title: ['Orang tua / wali', 'Parent / guardian'], g_hint: ['Wajib untuk atlet di bawah 18 tahun.', 'Required for athletes under 18.'],
     g_name: ['Nama orang tua / wali', 'Parent / guardian name'], g_phone: ['WhatsApp orang tua / wali', 'Parent / guardian WhatsApp'], g_email: ['Email orang tua / wali', 'Parent / guardian email'], g_rel: ['Hubungan', 'Relationship'],
@@ -83,16 +96,17 @@
     cat_none: ['Tidak ada kategori di disiplin ini yang sesuai dengan usia dan jenis kelamin atlet. Periksa tanggal lahir, atau hubungi panitia.', 'No category in this discipline matches the athlete\'s age and sex. Check the date of birth or contact the committee.'],
     why_gender_M: ['khusus putra', 'men only'], why_gender_F: ['khusus putri', 'women only'],
     why_min: ['kelahiran {y} ke atas', 'born {y} or later'], why_max: ['kelahiran {y} ke bawah', 'born {y} or earlier'],
-    pri_label: ['Ikut juga kategori Priangan (+{fee})', 'Also enter the Priangan category (+{fee})'],
-    pri_hint: ['Atlet tetap bertanding di Jabar Open yang sama. Atlet Jawa Barat yang mencentang ini diperingkat ulang untuk penghargaan Priangan.', 'The athlete competes in the same Jabar Open field. West Java athletes who tick this are re-ranked for the Priangan awards.'],
     pri_no: ['Priangan hanya untuk atlet WNI beralamat (sesuai identitas) di Jawa Barat dari klub di Jawa Barat.', 'Priangan is only for Indonesian athletes with a West Java address on their ID, from a West Java club.'],
+    pri_no_ath: ['Isi alamat atlet di Jawa Barat (provinsi pada identitas) untuk memilih Priangan.', "Set the athlete's ID address to West Java to choose Priangan."],
+    pri_no_club: ['Klub yang dipilih bukan dari Jawa Barat, jadi Priangan tidak bisa dipilih. Penanggung jawab (pelatih/manajer) boleh dari mana saja.', 'The chosen club is not from West Java, so Priangan is not available. The contact person (coach/manager) may be from anywhere.'],
+    pri_no_wna: ['Priangan hanya untuk atlet WNI.', 'Priangan is only for Indonesian athletes.'],
     pair_title: ['Nomor pasangan campuran (MP)', 'Mixed pair (MP)'],
     pair_hint: ['Opsional. Pasangan terdiri dari satu putra dan satu putri dari atlet di pendaftaran ini. Biaya {fee} per pasangan.', 'Optional. A pair is one man and one woman from the athletes in this registration. Fee {fee} per pair.'],
     pair_add: ['Tambah pasangan', 'Add pair'], pair_m: ['Atlet putra', 'Male athlete'], pair_f: ['Atlet putri', 'Female athlete'],
     pair_need: ['Tambahkan minimal satu atlet putra dan satu atlet putri untuk membuat pasangan.', 'Add at least one male and one female athlete to form a pair.'],
     err_a_name: ['Isi nama lengkap atlet.', 'Enter the athlete\'s full name.'], err_a_gender: ['Pilih jenis kelamin.', 'Choose sex.'],
     err_a_birth: ['Isi tanggal lahir.', 'Enter date of birth.'], err_a_addr: ['Pilih provinsi dan kabupaten/kota.', 'Choose province and regency/city.'],
-    err_a_country: ['Isi negara.', 'Enter country.'], err_a_doc: ['Unggah dokumen identitas.', 'Upload an identity document.'],
+    err_a_country: ['Isi negara.', 'Enter country.'], err_a_doc: ['Unggah Akte Kelahiran.', 'Upload the birth certificate.'], err_a_pass: ['Unggah paspor.', 'Upload the passport.'],
     err_a_cat: ['Pilih kategori.', 'Choose a category.'], err_g: ['Lengkapi nama, WhatsApp, dan email orang tua/wali.', 'Complete parent/guardian name, WhatsApp and email.'],
     err_pair: ['Lengkapi kategori, atlet putra, dan atlet putri untuk setiap pasangan.', 'Complete category, male and female athlete for each pair.'],
     err_pair_age: ['Pasangan {c}: {n} tidak sesuai usia kategori.', 'Pair {c}: {n} does not fit the category age.'],
@@ -123,8 +137,13 @@
     pay_deadline: ['Batas pembayaran: {d}', 'Payment deadline: {d}'],
     pay_intl: ['Atlet internasional membayar terpisah. Panitia akan menghubungi {e} dengan instruksi pembayaran.', 'International athletes pay separately. The committee will contact {e} with payment instructions.'],
     proof_title: ['Unggah bukti pembayaran', 'Upload payment proof'],
-    proof_hint: ['Tangkapan layar atau foto struk dari aplikasi. Bisa juga diunggah nanti dari halaman status.', 'A screenshot or photo of the receipt. You can also upload it later from the status page.'],
-    proof_done: ['Bukti terkirim. Panitia akan memverifikasi dan mengirim e-ticket lewat email.', 'Proof received. The committee will verify it and email the e-tickets.'],
+    proof_hint: ['Tangkapan layar atau foto struk dari aplikasi.', 'A screenshot or photo of the receipt.'],
+    timer_t: ['Unggah bukti bayar dalam {m}', 'Upload the payment proof within {m}'],
+    timer_d: ['Pendaftaran tanpa bukti bayar dihapus otomatis 15 menit setelah dikirim (pukul {h}). Setelah bukti terunggah, pendaftaran aman walau belum diverifikasi panitia.', 'Registrations without a payment proof are deleted automatically 15 minutes after submitting (at {h}). Once the proof is uploaded, the registration is safe even before the committee verifies it.'],
+    timer_over: ['Waktu 15 menit sudah habis. Bila bukti belum terunggah, pendaftaran ini dihapus; silakan daftar ulang.', 'The 15 minutes have passed. If no proof was uploaded, this registration has been deleted; please register again.'],
+    sum_15: ['Setelah dikirim, Anda punya 15 menit untuk membayar lewat QRIS dan mengunggah bukti bayar. Bila tidak, pendaftaran dihapus otomatis.', 'After submitting you have 15 minutes to pay by QRIS and upload the payment proof. Otherwise the registration is deleted automatically.'],
+    sum_bpjs: ['Tanpa BPJS Ketenagakerjaan: {n}. Bawa kartunya ke meja panitia di venue sebelum bertanding.', 'No BPJS Ketenagakerjaan uploaded: {n}. Bring the card to the committee desk at the venue before competing.'],
+    proof_done: ['Bukti terkirim. Panitia akan memverifikasi dan mengirim AIC lewat email.', 'Proof received. The committee will verify it and email the AIC.'],
     open_status: ['Buka halaman status', 'Open status page'], register_more: ['Daftarkan atlet lain', 'Register more athletes'],
     closed: ['Pendaftaran sedang ditutup.', 'Registration is currently closed.'],
     load_fail: ['Formulir tidak bisa dimuat.', 'The form could not be loaded.'], retry: ['Coba lagi', 'Try again'],
@@ -140,10 +159,19 @@
     team: { level: '', name: '', members: [] },
   };
   let seq = 0;
+  const DOC_KINDS = ['akte', 'ktp', 'ijazah', 'passport', 'bpjs', 'photo'];
+  const noDocs = () => ({ akte: null, ktp: null, ijazah: null, passport: null, bpjs: null, photo: null });
   const newAthlete = () => ({ key: 'a' + (++seq), full_name: '', gender: '', birth_date: '', nationality: 'WNI', country: '', province: '', kab_kota: '',
-    id_doc: null, photo: null, uploading: 0, guardian: { name: '', phone: '', email: '', relation: '' }, cat: null, pri: false, music: '' });
+    ...noDocs(), uploading: 0, guardian: { name: '', phone: '', email: '', relation: '' }, cat: null, music: {} });
   const newMember = () => ({ key: 'm' + (++seq), kind: S.club.mode === 'existing' ? 'individu' : 'tim', full_name: '', birth_date: '', nationality: 'WNI', country: '',
-    id_doc: null, photo: null, uploading: 0, guardian: { name: '', phone: '', email: '', relation: '' } });
+    ...noDocs(), uploading: 0, guardian: { name: '', phone: '', email: '', relation: '' } });
+  const docPaths = (o) => (o.nationality === 'WNA'
+    ? { passport_path: o.passport && o.passport.path, photo_path: o.photo && o.photo.path, photo_thumb: o.photo && o.photo.thumb }
+    : { akte_path: o.akte && o.akte.path, ktp_path: o.ktp && o.ktp.path, ijazah_path: o.ijazah && o.ijazah.path,
+        bpjs_path: o.bpjs && o.bpjs.path, photo_path: o.photo && o.photo.path, photo_thumb: o.photo && o.photo.thumb });
+  const docsOk = (o) => (o.nationality === 'WNA' ? !!o.passport : !!o.akte);
+  const docErr = (o) => (!docsOk(o) ? [o.nationality === 'WNA' ? '.up-passport' : '.up-akte', o.nationality === 'WNA' ? 'err_a_pass' : 'err_a_doc']
+    : !o.photo ? ['.up-photo', 'err_a_photo'] : null);
   const teamLevels = () => (CFG && CFG.registration.team_levels) || { WAG: ['Level 1', 'Level 2', 'Level 3', 'Level 4', 'Level 5', 'Level 6'] };
   const teamOK = (d) => Object.prototype.hasOwnProperty.call(teamLevels(), d);
   const teamFee = () => (CFG && CFG.registration.team_fee) || 650000;
@@ -160,8 +188,8 @@
 
   const app = document.getElementById('app');
   const maxAth = () => (CFG && CFG.registration.max_athletes) || 5;
-  const priFee = () => (CFG && CFG.registration.priangan_fee) || 150000;
   const disc = () => CFG.disciplines.find((d) => d.code === S.discipline);
+  const appLabel = (x) => { const d = disc().apparatus.find((y) => y.code === x); return d ? (JO.lang === 'en' ? d.en : d.id) : x; };
   const cats = () => CFG.categories.filter((c) => c.discipline === S.discipline);
   const catById = (id) => CFG.categories.find((c) => c.id === Number(id));
   const dName = (d) => (JO.lang === 'en' ? d.name_en : d.name_id);
@@ -171,8 +199,8 @@
   function saveDraft() {
     try {
       const d = { type: S.type, discipline: S.discipline, contact: S.contact, club: S.club,
-        athletes: S.athletes.map((a) => ({ ...a, id_doc: null, photo: null, uploading: 0 })), pairs: S.pairs, seq,
-        team: { ...S.team, members: S.team.members.map((m) => ({ ...m, id_doc: null, photo: null, uploading: 0, check: null })) } };
+        athletes: S.athletes.map((a) => ({ ...a, ...noDocs(), uploading: 0 })), pairs: S.pairs, seq,
+        team: { ...S.team, members: S.team.members.map((m) => ({ ...m, ...noDocs(), uploading: 0, check: null })) } };
       localStorage.setItem('jo26-draft', JSON.stringify(d));
     } catch (e) {}
   }
@@ -202,10 +230,15 @@
     if (S.club.mode === 'new') return S.club.abroad ? '' : S.club.province;
     return null; // tanpa klub
   }
-  function priEligible(a) {
+  // Priangan: hanya alamat identitas atlet dan provinsi klub yang menentukan (bukan asal penanggung jawab)
+  function priReason(a) {
+    if (a.nationality !== 'WNI') return 'pri_no_wna';
+    if (a.province !== 'Jawa Barat') return 'pri_no_ath';
     const cp = clubProvince();
-    return a.nationality === 'WNI' && a.province === 'Jawa Barat' && (cp === null || cp === 'Jawa Barat');
+    if (cp !== null && cp !== 'Jawa Barat') return 'pri_no_club';
+    return null;
   }
+  const priEligible = (a) => !priReason(a);
 
   // ---------- kerangka ----------
   function render() {
@@ -290,7 +323,7 @@
       }).join('');
       discBox.querySelectorAll('input[name=disc]').forEach((r) => r.onchange = () => {
         if (S.discipline && S.discipline !== r.value) {
-          S.athletes.forEach((a) => { a.cat = null; a.pri = false; }); S.pairs = [];
+          S.athletes.forEach((a) => { a.cat = null; }); S.pairs = [];
           S.team.level = '';
         }
         S.discipline = r.value; saveDraft();
@@ -426,12 +459,13 @@
   }
 
   // ---------- bagian bersama: unggah berkas & orang tua/wali ----------
+  const DOC_LABEL = { akte: 'd_akte', ktp: 'd_ktp', ijazah: 'd_ijazah', passport: 'd_passport', bpjs: 'd_bpjs', photo: 'd_photo' };
   function uploadSlot(slot, o, kind) {
     const f = o[kind];
     slot.classList.toggle('done', !!f);
     slot.innerHTML = `${f ? `<span class="small"><strong>${esc(t('uploaded'))}:</strong> ${esc(f.name)}</span>` : ''}
-      <label class="btn btn-ghost btn-sm" style="position:relative;overflow:hidden">${esc(f ? t('replace') : (kind === 'id_doc' ? t('a_doc') : t('a_photo')))}
-        <input type="file" accept="${kind === 'id_doc' ? 'image/*,application/pdf' : 'image/*'}" style="position:absolute;inset:0;opacity:0;cursor:pointer"></label>
+      <label class="btn btn-ghost btn-sm" style="position:relative;overflow:hidden">${esc(f ? t('replace') : t('up_btn'))}
+        <input type="file" accept="${kind === 'photo' ? 'image/*' : 'image/*,application/pdf'}" style="position:absolute;inset:0;opacity:0;cursor:pointer"></label>
       <span class="small muted" data-st></span>`;
     slot.querySelector('input').onchange = async (e) => {
       const file = e.target.files[0]; if (!file) return;
@@ -440,11 +474,27 @@
       try {
         const r = await JO.uploadFile('dokumen', file);
         o[kind] = { path: r.path, name: file.name };
+        if (kind === 'photo') { try { o.photo.thumb = await JO.photoThumb(file); } catch (x) { o.photo.thumb = null; } }
         slot.parentElement.querySelectorAll('.f-err').forEach((x) => x.remove());
         uploadSlot(slot, o, kind);
+        const note = slot.closest('.docs') && slot.closest('.docs').querySelector('[data-bpjs-note]');
+        if (kind === 'bpjs' && note) note.hidden = true;
       } catch (err) { st.textContent = err.message; st.style.color = 'var(--bad)'; }
       finally { o.uploading--; }
     };
+  }
+  // dokumen terpisah: WNI Akte (wajib), KTP & Ijazah (bila ada), BPJS TK (opsional), pas foto; WNA paspor (wajib), pas foto
+  function docsBlock(box, o) {
+    const kinds = o.nationality === 'WNA' ? ['passport', 'photo'] : ['akte', 'ktp', 'ijazah', 'bpjs', 'photo'];
+    box.innerHTML = `<span class="f">${esc(t('a_docs'))}</span><div class="doc-grid">${kinds.map((k) =>
+      `<div class="field doc-slot" data-doc="${k}"><span class="f small">${esc(t(DOC_LABEL[k]))}</span><div class="upload up-${k}"></div></div>`).join('')}</div>
+      <details class="photo-rules"><summary class="small"><b>${esc(t('photo_rules_t'))}</b></summary>
+        <div class="pr-body"><p class="small" style="margin:0 0 8px">${esc(t('photo_rules'))}</p>
+        <div class="pr-ex"><figure class="ok"><img src="assets/img/pasfoto/benar.svg" alt="" width="90" height="120"><figcaption>${esc(t('photo_ok'))}</figcaption></figure>
+          <figure class="no"><img src="assets/img/pasfoto/swafoto.svg" alt="" width="90" height="120"><figcaption>${esc(t('photo_no1'))}</figcaption></figure>
+          <figure class="no"><img src="assets/img/pasfoto/santai.svg" alt="" width="90" height="120"><figcaption>${esc(t('photo_no2'))}</figcaption></figure></div></div></details>
+      ${o.nationality === 'WNA' ? '' : `<p class="note warn small" data-bpjs-note ${o.bpjs ? 'hidden' : ''}>${esc(t('d_bpjs_note'))}</p>`}`;
+    kinds.forEach((k) => uploadSlot(box.querySelector('.up-' + k), o, k));
   }
   function guardBlock(g, o) {
     if (!o.birth_date || !JO.isMinor(o.birth_date)) { g.innerHTML = ''; return; }
@@ -535,17 +585,13 @@
             <label><input type="radio" name="${m.key}_n" value="WNI" ${m.nationality === 'WNI' ? 'checked' : ''}>${esc(t('wni'))}</label>
             <label><input type="radio" name="${m.key}_n" value="WNA" ${m.nationality === 'WNA' ? 'checked' : ''}>${esc(t('wna'))}</label></div></div>
           ${m.nationality === 'WNA' ? `<div class="field"><label class="f" for="${m.key}_country">${esc(t('country'))}</label><input id="${m.key}_country" data-k="country" type="text" value="${esc(m.country)}"></div>` : ''}
-          <div class="grid-2">
-            <div class="field"><span class="f">${esc(t('a_doc'))}</span><div class="upload up-doc"></div><div class="f-hint">${esc(t('a_doc_hint'))}</div></div>
-            <div class="field"><span class="f">${esc(t('a_photo'))}</span><div class="upload up-photo"></div><div class="f-hint">${esc(t('a_photo_hint'))}</div></div>
-          </div>
+          <div class="field docs"></div>
           <div class="guard"></div>
           <p class="mb-cat small" data-cat></p>`;
         box2.querySelectorAll(`input[name=${m.key}_n]`).forEach((r) => r.onchange = () => { m.nationality = r.value; drawTim(); saveDraft(); });
         const ct = box2.querySelector('[data-k=country]');
         if (ct) ct.oninput = (e) => { m.country = e.target.value; saveDraft(); };
-        uploadSlot(box2.querySelector('.up-doc'), m, 'id_doc');
-        uploadSlot(box2.querySelector('.up-photo'), m, 'photo');
+        docsBlock(box2.querySelector('.docs'), m);
         guardBlock(box2.querySelector('.guard'), m);
         drawCat();
       }
@@ -579,7 +625,7 @@
         }
         if (m.kind === 'tim') {
           if (m.nationality === 'WNA' && m.country.trim().length < 2) { fieldErr(q('[data-k=country]'), t('err_a_country')); bad = true; }
-          if (!m.id_doc) { fieldErr(q('.up-doc'), t('err_a_doc')); bad = true; }
+          { const de = docErr(m); if (de) { fieldErr(q(de[0]), t(de[1])); bad = true; } }
           if (m.birth_date && JO.isMinor(m.birth_date) && !guardOk(m.guardian)) { fieldErr(q('[data-g=name]'), t('err_g')); bad = true; }
           if (T.level && m.birth_date && !memberCat(m)) { fieldErr(q('[data-cat]'), t('err_mb_cat')); bad = true; }
         }
@@ -650,7 +696,6 @@
         const el = document.createElement('div');
         el.className = 'ath'; el.style.marginTop = '12px';
         const m = S.athletes.find((a) => a.key === p.m), f = S.athletes.find((a) => a.key === p.f);
-        const eligible = m && f && priEligible(m) && priEligible(f);
         el.innerHTML = `<div class="ath-body"><div class="grid-3">
           <div class="field"><label class="f">${esc(t('cat_title'))}</label><select data-k="category_id"><option value="">${esc(t('choose'))}</option>
             ${mp.map((c) => `<option value="${c.id}" ${Number(p.category_id) === c.id ? 'selected' : ''}>${esc(cName(c))}</option>`).join('')}</select></div>
@@ -658,11 +703,8 @@
             ${males.map((a) => `<option value="${a.key}" ${p.m === a.key ? 'selected' : ''}>${esc(label(a))}</option>`).join('')}</select></div>
           <div class="field"><label class="f">${esc(t('pair_f'))}</label><select data-k="f"><option value="">${esc(t('choose'))}</option>
             ${females.map((a) => `<option value="${a.key}" ${p.f === a.key ? 'selected' : ''}>${esc(label(a))}</option>`).join('')}</select></div></div>
-          <label class="check ${eligible ? '' : 'muted'}"><input type="checkbox" data-k="priangan" ${p.priangan && eligible ? 'checked' : ''} ${eligible ? '' : 'disabled'}>
-            <span>${esc(t('pri_label', { fee: fmtRp(priFee()) }))}${eligible ? '' : `<br><span class="tiny">${esc(t('pri_no'))}</span>`}</span></label>
           <button type="button" class="btn btn-bad btn-sm" data-rm>${esc(t('remove'))}</button></div>`;
         el.querySelectorAll('select').forEach((s) => s.onchange = () => { p[s.dataset.k] = s.value; saveDraft(); drawPairs(); });
-        el.querySelector('[data-k=priangan]').onchange = (e) => { p.priangan = e.target.checked; saveDraft(); };
         el.querySelector('[data-rm]').onclick = () => { S.pairs.splice(i, 1); saveDraft(); drawPairs(); };
         pl.appendChild(el);
       });
@@ -686,9 +728,12 @@
         if (!a.birth_date) { fieldErr(q('[data-k=birth_date]'), t('err_a_birth')); bad = true; }
         if (a.nationality === 'WNI' && (!a.province || !a.kab_kota.trim())) { fieldErr(q('[data-r=prov]') || q('.regbox'), t('err_a_addr')); bad = true; }
         if (a.nationality === 'WNA' && a.country.trim().length < 2) { fieldErr(q('[data-k=country]'), t('err_a_country')); bad = true; }
-        if (!a.id_doc) { fieldErr(q('.up-doc'), t('err_a_doc')); bad = true; }
+        { const de = docErr(a); if (de) { fieldErr(q(de[0]), t(de[1])); bad = true; } }
         if (!a.cat && !inPair.has(a.key)) { fieldErr(q('.cat-list'), t('err_a_cat')); bad = true; }
-        if (S.discipline === 'RG' && !validDrive(a.music)) { fieldErr(q('[data-k=music]'), t('err_music')); bad = true; }
+        if (S.discipline === 'RG' && a.cat) {
+          (catById(a.cat).apparatus || []).forEach((ap) => { if (!validDrive((a.music || {})[ap])) { fieldErr(q(`[data-mu="${ap}"]`), t('err_music')); bad = true; } });
+        }
+        if (a.cat && catById(a.cat).jabar_only && !priEligible(a)) { fieldErr(q('.cat-list'), t(priReason(a))); bad = true; }
         if (a.birth_date && JO.isMinor(a.birth_date)) {
           const g = a.guardian;
           if (g.name.trim().length < 3 || g.phone.replace(/\D/g, '').length < 9 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(g.email.trim())) { fieldErr(q('[data-g=name]'), t('err_g')); bad = true; }
@@ -724,23 +769,26 @@
           <label><input type="radio" name="${a.key}_n" value="WNI" ${a.nationality === 'WNI' ? 'checked' : ''}>${esc(t('wni'))}</label>
           <label><input type="radio" name="${a.key}_n" value="WNA" ${a.nationality === 'WNA' ? 'checked' : ''}>${esc(t('wna'))}</label></div></div>
         <div class="regbox"></div>
-        <div class="grid-2">
-          <div class="field"><span class="f">${esc(t('a_doc'))}</span><div class="upload up-doc"></div><div class="f-hint">${esc(t('a_doc_hint'))}</div></div>
-          <div class="field"><span class="f">${esc(t('a_photo'))}</span><div class="upload up-photo"></div><div class="f-hint">${esc(t('a_photo_hint'))}</div></div>
-        </div>
+        <div class="field docs"></div>
         <div class="guard"></div>
         <div class="field"><span class="f">${esc(t('cat_title'))}</span><div class="cat-list"></div></div>
-        ${S.discipline === 'RG' ? `<div class="field music"><label class="f" for="${a.key}_mu">${esc(t('music'))}</label>
-          <input id="${a.key}_mu" data-k="music" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://drive.google.com/drive/folders/…" value="${esc(a.music || '')}">
+        ${S.discipline === 'RG' ? `<div class="field music"><span class="f">${esc(t('music'))}</span><div class="mu-list"></div>
           <div class="f-hint">${esc(t('music_hint'))}</div></div>` : ''}
       </div>`;
     const q = (s) => el.querySelector(s);
     q('[data-k=full_name]').oninput = (e) => { a.full_name = e.target.value; saveDraft(); };
-    const mu = q('[data-k=music]');
-    if (mu) mu.oninput = (e) => { a.music = e.target.value; saveDraft(); };
+    if (typeof a.music !== 'object' || !a.music) a.music = {};
+    function drawMusic() {
+      const box = q('.mu-list'); if (!box) return;
+      const c = a.cat && catById(a.cat);
+      if (!c) { box.innerHTML = `<p class="small muted" style="margin:0">${esc(t('music_pick'))}</p>`; return; }
+      box.innerHTML = (c.apparatus || []).map((ap) => `<div class="mu-row"><label class="small" for="${a.key}_mu_${ap}">${esc(appLabel(ap))}</label>
+        <input id="${a.key}_mu_${ap}" data-mu="${ap}" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://drive.google.com/…" value="${esc(a.music[ap] || '')}"></div>`).join('');
+      box.querySelectorAll('[data-mu]').forEach((inp) => inp.oninput = () => { a.music[inp.dataset.mu] = inp.value; saveDraft(); });
+    }
     el.querySelectorAll(`input[name=${a.key}_g]`).forEach((r) => r.onchange = () => { a.gender = r.value; validCat(); drawCats(); redrawPairs(); saveDraft(); });
     q('[data-k=birth_date]').addEventListener('change', (e) => { a.birth_date = e.target.value; validCat(); drawAge(); drawGuard(); drawCats(); saveDraft(); });
-    el.querySelectorAll(`input[name=${a.key}_n]`).forEach((r) => r.onchange = () => { a.nationality = r.value; drawRegion(); drawCats(); redrawPairs(); saveDraft(); });
+    el.querySelectorAll(`input[name=${a.key}_n]`).forEach((r) => r.onchange = () => { a.nationality = r.value; drawRegion(); drawDocs(); drawCats(); redrawPairs(); saveDraft(); });
     const rm = q('[data-rm]');
     if (rm) rm.onclick = () => {
       if (S.athletes.length === 1) { Object.assign(a, newAthlete(), { key: a.key }); el.replaceWith(athleteCard(a, i)); saveDraft(); return; }
@@ -752,7 +800,7 @@
       const add = document.getElementById('add_ath'); if (add) add.hidden = S.athletes.length >= maxAth();
     };
     function redrawPairs() { const box = document.getElementById('stepbox'); box && box._drawPairs && box._drawPairs(); }
-    function validCat() { const c = a.cat && catById(a.cat); if (c && mismatch(c, a)) { a.cat = null; a.pri = false; } }
+    function validCat() { const c = a.cat && catById(a.cat); if (c && mismatch(c, a)) { a.cat = null; drawMusic(); } }
     function drawAge() {
       const h = q('[data-age]');
       h.textContent = a.birth_date ? t('cat_age', { a: JO.compAge(a.birth_date) }) : t('a_birth_hint');
@@ -762,7 +810,6 @@
       if (a.nationality === 'WNA') {
         rb.innerHTML = `<div class="field"><label class="f" for="${a.key}_country">${esc(t('country'))}</label><input id="${a.key}_country" data-k="country" type="text" value="${esc(a.country)}"></div>`;
         rb.querySelector('input').oninput = (e) => { a.country = e.target.value; saveDraft(); };
-        a.pri = false;
         return;
       }
       rb.innerHTML = regionFields(a.key, a) + `<div class="f-hint" style="margin-top:-8px;margin-bottom:12px">${esc(t('a_addr_hint'))}</div>`;
@@ -772,32 +819,32 @@
       kab.addEventListener(kab.tagName === 'SELECT' ? 'change' : 'input', () => { a.kab_kota = kab.value; saveDraft(); });
     }
     function drawGuard() { guardBlock(q('.guard'), a); }
-    function drawUpload(kind) { uploadSlot(q(kind === 'id_doc' ? '.up-doc' : '.up-photo'), a, kind); }
+    function drawDocs() { docsBlock(q('.docs'), a); }
     function drawCats() {
       const box = q('.cat-list');
       const list = cats().filter((c) => c.entry_type === 'individual');
       const ready = a.gender && a.birth_date;
-      const eligiblePri = priEligible(a);
-      if (!ready) { box.innerHTML = `<p class="note info small" style="margin:0">${esc(t('cat_need'))}</p>`; return; }
+      if (!ready) { box.innerHTML = `<p class="note info small" style="margin:0">${esc(t('cat_need'))}</p>`; drawMusic(); return; }
+      const priWhy = priReason(a);
+      const why = (c) => mismatch(c, a) || (c.jabar_only && priWhy ? t(priWhy) : null);
       const row = (c) => {
-        const why = mismatch(c, a);
+        const w = why(c);
         const on = Number(a.cat) === c.id;
-        const app = (c.apparatus || []).map((x) => { const d = disc().apparatus.find((y) => y.code === x); return d ? (JO.lang === 'en' ? d.en : d.id) : x; });
-        return `<label class="cat ${why ? 'off' : ''}"><input type="radio" name="${a.key}_cat" value="${c.id}" ${on ? 'checked' : ''} ${why ? 'disabled' : ''}>
-          <span><span class="t">${esc(cName(c))}</span><br><span class="s">${esc(app.join(', '))}</span>${why ? `<br><span class="why">${esc(why)}</span>` : ''}</span>
-          <span class="fee num">${fmtRp(c.fee)}</span></label>
-          ${on && c.allow_priangan ? `<div class="pri"><label class="check" style="padding:4px 0"><input type="checkbox" data-pri ${a.pri && eligiblePri ? 'checked' : ''} ${eligiblePri ? '' : 'disabled'}>
-            <span>${esc(t('pri_label', { fee: fmtRp(priFee()) }))}<br><span class="tiny muted">${esc(eligiblePri ? t('pri_hint') : t('pri_no'))}</span></span></label></div>` : ''}`;
+        const app = (c.apparatus || []).map(appLabel);
+        return `<label class="cat ${w ? 'off' : ''}"><input type="radio" name="${a.key}_cat" value="${c.id}" ${on ? 'checked' : ''} ${w ? 'disabled' : ''}>
+          <span><span class="t">${esc(cName(c))}</span><br><span class="s">${esc(app.join(', '))}</span>
+          ${c.jabar_only ? `<br><span class="s pri-t">${esc(t('jabar_only'))}</span>` : ''}${w ? `<br><span class="why">${esc(w)}</span>` : ''}</span>
+          <span class="fee num">${fmtRp(c.fee)}</span></label>`;
       };
+      // kategori Priangan yang gagal hanya karena syarat Jawa Barat tetap tampil (dengan alasannya) agar jelas
       const ok = list.filter((c) => !mismatch(c, a)), off = list.filter((c) => mismatch(c, a));
+      if (a.cat) { const c = catById(a.cat); if (c && why(c)) a.cat = null; }
       box.innerHTML = (ok.length ? ok.map(row).join('') : `<p class="note warn small" style="margin:0">${esc(t('cat_none'))}</p>`) +
         (off.length ? `<details class="cat-off"><summary class="small muted">${esc(t('cat_off', { n: off.length }))}</summary><div class="cat-list" style="margin-top:8px">${off.map(row).join('')}</div></details>` : '');
-      box.querySelectorAll(`input[name=${a.key}_cat]`).forEach((r) => r.onchange = () => { a.cat = Number(r.value); a.pri = false; drawCats(); saveDraft(); });
-      const p = box.querySelector('[data-pri]');
-      if (p) p.onchange = () => { a.pri = p.checked; saveDraft(); };
-      if (!eligiblePri) a.pri = false;
+      box.querySelectorAll(`input[name=${a.key}_cat]`).forEach((r) => r.onchange = () => { a.cat = Number(r.value); drawCats(); saveDraft(); });
+      drawMusic();
     }
-    drawAge(); drawRegion(); drawUpload('id_doc'); drawUpload('photo'); drawGuard(); drawCats();
+    drawAge(); drawRegion(); drawDocs(); drawGuard(); drawCats();
     return el;
   }
 
@@ -806,13 +853,16 @@
     const entries = [];
     S.athletes.forEach((a) => {
       if (!a.cat) return;
-      const e = { category_id: Number(a.cat), athletes: [a.key], priangan: !!(a.pri && priEligible(a)) };
-      if (S.discipline === 'RG') e.music_url = (a.music || '').trim();
+      const e = { category_id: Number(a.cat), athletes: [a.key] };
+      if (S.discipline === 'RG') {
+        e.music = {};
+        (catById(a.cat).apparatus || []).forEach((ap) => { e.music[ap] = ((a.music || {})[ap] || '').trim(); });
+      }
       entries.push(e);
     });
     S.pairs.forEach((p) => {
       const m = S.athletes.find((a) => a.key === p.m), f = S.athletes.find((a) => a.key === p.f);
-      entries.push({ category_id: Number(p.category_id), athletes: [p.m, p.f], priangan: !!(p.priangan && m && f && priEligible(m) && priEligible(f)) });
+      entries.push({ category_id: Number(p.category_id), athletes: [p.m, p.f] });
     });
     return entries;
   }
@@ -822,7 +872,7 @@
     const tim = T.members.filter((m) => m.kind === 'tim');
     const entries = team ? [] : buildEntries();
     const base = team ? teamFee() : entries.reduce((s, e) => s + catById(e.category_id).fee, 0);
-    const pri = team ? 0 : entries.filter((e) => e.priangan).length * priFee();
+    const pri = 0;
     const intl = team ? tim.some((m) => m.nationality === 'WNA') : S.athletes.some((a) => a.nationality === 'WNA');
     const minors = team ? tim.some((m) => JO.isMinor(m.birth_date)) : S.athletes.some((a) => JO.isMinor(a.birth_date));
     const cap = CFG.registration.qris_cap;
@@ -833,8 +883,8 @@
       ? `<tr><td><strong>${esc(T.name.trim())}</strong><br><span class="small muted">${esc(dName(disc()))} · ${esc(T.level)}</span></td><td class="r num">${fmtRp(teamFee())}</td></tr>
          ${T.members.map((m) => { const c = m.kind === 'tim' ? memberCat(m) : null;
            return `<tr><td>${esc(m.full_name.trim())}<br><span class="small muted">${esc(t(m.kind === 'tim' ? 'sum_member_tim' : 'sum_member_ind'))}${c ? ' · ' + esc(cName(c)) : ''}</span></td><td class="r num muted">–</td></tr>`; }).join('')}`
-      : entries.map((e) => { const c = catById(e.category_id); return `<tr><td>${esc(e.athletes.map(athName).join(' & '))}<br><span class="small muted">${esc(cName(c))}${e.priangan ? ' + Priangan' : ''}</span></td>
-            <td class="r num">${fmtRp(c.fee + (e.priangan ? priFee() : 0))}</td></tr>`; }).join('');
+      : entries.map((e) => { const c = catById(e.category_id); return `<tr><td>${esc(e.athletes.map(athName).join(' & '))}<br><span class="small muted">${esc(cName(c))}</span></td>
+            <td class="r num">${fmtRp(c.fee)}</td></tr>`; }).join('');
     box.innerHTML = `<section class="card">
         <h2>${esc(t('sum_title'))}</h2>
         <div class="tbl-wrap" style="margin-bottom:14px"><table class="tbl"><tbody>${rows}</tbody></table></div>
@@ -844,6 +894,9 @@
           ${!intl ? `<tr><td>${esc(t('sum_uc'))}</td><td class="muted">${esc(t('sum_uc_val'))}</td></tr>` : ''}
           <tr class="total"><td>${esc(t('sum_total'))}</td><td>${fmtRp(base + pri)}${intl ? '' : ' + ' + esc(t('sum_uc').toLowerCase())}</td></tr>
         </tbody></table>
+        ${!intl ? `<p class="note warn small" style="margin-top:12px">${esc(t('sum_15'))}</p>` : ''}
+        ${(() => { const list = (team ? tim : S.athletes).filter((x) => x.nationality !== 'WNA' && !x.bpjs).map((x) => x.full_name.trim()).filter(Boolean);
+            return list.length ? `<p class="note info small">${esc(t('sum_bpjs', { n: list.join(', ') }))}</p>` : ''; })()}
         ${intl ? `<p class="note info" style="margin-top:12px">${esc(t('sum_intl'))}</p>` : ''}
         ${over ? `<p class="note bad" style="margin-top:12px">${esc(t('sum_cap', { cap: fmtRp(cap) }))}</p>` : ''}
       </section>
@@ -870,7 +923,7 @@
             : { none: true },
           athletes: team ? [] : S.athletes.map((a) => ({ key: a.key, full_name: a.full_name.trim(), gender: a.gender, birth_date: a.birth_date, nationality: a.nationality,
             country: a.nationality === 'WNA' ? a.country.trim() : 'Indonesia', province: a.nationality === 'WNI' ? a.province : null, kab_kota: a.nationality === 'WNI' ? a.kab_kota.trim() : null,
-            id_doc_path: a.id_doc && a.id_doc.path, photo_path: a.photo && a.photo.path,
+            ...docPaths(a),
             guardian: JO.isMinor(a.birth_date) ? a.guardian : null })),
           entries: team ? [] : buildEntries(),
           consents: Object.fromEntries(consents.map((k) => [k, true])),
@@ -880,7 +933,7 @@
             ? { kind: 'individu', full_name: m.full_name.trim(), birth_date: m.birth_date }
             : { kind: 'tim', full_name: m.full_name.trim(), birth_date: m.birth_date, nationality: m.nationality,
                 country: m.nationality === 'WNA' ? m.country.trim() : 'Indonesia',
-                id_doc_path: m.id_doc && m.id_doc.path, photo_path: m.photo && m.photo.path,
+                ...docPaths(m),
                 guardian: JO.isMinor(m.birth_date) ? m.guardian : null, category_id: (memberCat(m) || {}).id }) };
         }
         const r = await rpc('public_register', { p: payload });
@@ -910,7 +963,7 @@
         <p class="code" style="font-size:1.5rem;font-weight:800;color:var(--ink);margin:0 0 10px">${esc(r.code)}</p>
         <p class="small">${esc(t('done_email', { e: S.contact.email }))}</p>
       </section>
-      ${r.payment_method === 'qris' ? `<section class="card">
+      ${r.payment_method === 'qris' ? `<section class="card timer" id="timer"></section><section class="card">
         <h2>${esc(t('pay_title'))}</h2>
         <div class="pay">
           <div class="qris">${qris ? `<img src="${esc(qris)}" alt="QRIS ${esc(CFG.payment.qris_merchant || 'Jabar Open 2026')}">` : `<p class="small muted" style="margin:8px">${esc(t('pay_noqris'))}</p>`}</div>
@@ -920,7 +973,6 @@
             <p class="small muted">${esc(t('pay_why'))}</p>
             <table class="breakdown" style="margin:12px 0"><tbody>
               <tr><td>${esc(t(S.type === 'beregu' ? 'sum_team' : 'sum_fees'))}</td><td>${fmtRp(r.base_amount)}</td></tr>
-              ${r.priangan_amount ? `<tr><td>${esc(t('sum_pri'))}</td><td>${fmtRp(r.priangan_amount)}</td></tr>` : ''}
               <tr><td>${esc(t('sum_uc'))}</td><td>${fmtRp(r.unique_code)}</td></tr>
             </tbody></table>
             <p class="small">${t('pay_steps')}</p>
@@ -943,8 +995,25 @@
         const u = await JO.uploadFile('bukti', file);
         await rpc('public_attach_proof', { p_code: r.code, p_token: r.token, p_path: u.path });
         up.classList.add('done'); up.innerHTML = `<span>${esc(t('proof_done'))}</span>`;
+        r.proof_done = true; const tm = app.querySelector('#timer'); if (tm) tm.remove();
       } catch (err) { st.textContent = err.message; st.style.color = 'var(--bad)'; }
     };
+    // hitung mundur 15 menit
+    const tm = app.querySelector('#timer');
+    if (tm && r.expires_at && !r.proof_done) {
+      const end = new Date(r.expires_at).getTime();
+      const hh = new Date(end).toLocaleTimeString(JO.lang === 'en' ? 'en-GB' : 'id-ID', { hour: '2-digit', minute: '2-digit' });
+      const tick = () => {
+        if (!document.body.contains(tm)) return clearInterval(iv);
+        const left = Math.max(0, Math.round((end - Date.now()) / 1000));
+        tm.classList.toggle('over', left === 0);
+        tm.innerHTML = left > 0
+          ? `<h2>${esc(t('timer_t', { m: Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0') }))}</h2><p class="small" style="margin:0">${esc(t('timer_d', { h: hh }))}</p>`
+          : `<p class="note bad" style="margin:0">${esc(t('timer_over'))}</p>`;
+        if (!left) clearInterval(iv);
+      };
+      const iv = setInterval(tick, 1000); tick();
+    }
     window.scrollTo(0, 0);
   }
 

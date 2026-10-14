@@ -24,6 +24,19 @@
   const catName = (id) => { const c = CATS && CATS.categories.find((x) => x.id === Number(id)); return c ? c.name_id : '#' + id; };
   const discApps = (code) => ((CATS && CATS.disciplines.find((d) => d.code === code)) || { apparatus: [] }).apparatus;
   const appName = (disc, code) => { const a = discApps(disc).find((x) => x.code === code); return a ? a.id : code; };
+  const DOCS = [['akte_path', 'Akte'], ['ktp_path', 'KTP'], ['ijazah_path', 'Ijazah'], ['passport_path', 'Paspor'], ['bpjs_path', 'BPJS TK'], ['photo_path', 'Pas foto']];
+  // hapus berkas di penyimpanan setelah data dihapus (owner/superadmin), lalu catat di Log
+  async function removeFiles(files, ctx) {
+    const by = {}; (files || []).forEach((f) => { (by[f.bucket] = by[f.bucket] || []).push(f.path); });
+    let n = 0;
+    for (const [b, paths] of Object.entries(by)) {
+      const { data, error } = await JO.sb.storage.from(b).remove(paths);
+      if (error) { JO.toast('Data terhapus, tetapi berkas gagal dihapus: ' + error.message, 'bad'); continue; }
+      n += (data || []).length;
+    }
+    if (n) { try { await api('console_log_files_removed', { p_count: n, p_context: ctx }); } catch (e) {} }
+    return n;
+  }
 
   // ---------------- dasar ----------------
   async function api(fn, args) {
@@ -271,7 +284,7 @@
           <li><a href="#/pendaftaran?d=${x.code}&s=menunggu_verifikasi">Menunggu verifikasi</a><strong>${x.to_verify}</strong></li>
           <li><a href="#/pendaftaran?d=${x.code}&s=menunggu_pembayaran">Belum bayar / perlu perbaikan</a><strong>${x.unpaid}</strong></li>
           <li><a href="#/pendaftaran?d=${x.code}&f=docs">Dokumen belum diperiksa</a><strong>${x.docs_pending}</strong></li>
-          <li><a href="#/pendaftaran?d=${x.code}&f=priangan">Priangan menunggu</a><strong>${x.priangan_pending}</strong></li>
+          ${x.code === 'RG' ? `<li><a href="#/pendaftaran?d=${x.code}&f=priangan">Priangan: cek syarat Jawa Barat</a><strong>${x.priangan_pending}</strong></li>` : ''}
           ${x.code === 'MAG' || x.code === 'WAG' ? `<li><a href="#/pendaftaran?d=${x.code}&f=beregu">Tim beregu (lunas / terdaftar)</a><strong>${x.teams_paid || 0} / ${x.teams || 0}</strong></li>` : ''}
           ${x.code === 'RG' ? `<li><a href="#/musik">Musik perlu diperiksa</a><strong>${x.music_pending || 0}</strong></li>` : ''}
         </ul></div>`).join('')}
@@ -307,13 +320,13 @@
     if (id) return pageSubmission(v, id);
     const hp = hashParams();
     if (hp.has('d') || hp.has('s') || hp.has('f')) { subFilter.discipline = hp.get('d') || ''; subFilter.status = hp.get('s') || ''; subFilter.flag = hp.get('f') || ''; }
-    v.innerHTML = `<h1>Pendaftaran</h1><p class="muted">Klik baris untuk memeriksa bukti bayar, dokumen identitas, dan kategori Priangan.</p>
+    v.innerHTML = `<h1>Pendaftaran</h1><p class="muted">Klik baris untuk memeriksa bukti bayar, dokumen, dan syarat Priangan (Ritmik). Pendaftaran QRIS tanpa bukti bayar dihapus otomatis 15 menit setelah dikirim.</p>
       <div class="bar">${discSelect('fd', subFilter.discipline)}
         <div class="field"><label class="f" for="fs">Status</label><select id="fs"><option value="">Semua status</option>
           ${Object.entries(ST).map(([k, l]) => `<option value="${k}" ${subFilter.status === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
         <div class="field"><label class="f" for="ff">Perlu diperiksa</label><select id="ff"><option value="">Semua</option>
           <option value="docs" ${subFilter.flag === 'docs' ? 'selected' : ''}>Dokumen belum diperiksa</option>
-          <option value="priangan" ${subFilter.flag === 'priangan' ? 'selected' : ''}>Priangan menunggu</option>
+          <option value="priangan" ${subFilter.flag === 'priangan' ? 'selected' : ''}>Priangan: cek syarat</option>
           <option value="beregu" ${subFilter.flag === 'beregu' ? 'selected' : ''}>Pendaftaran beregu</option>
           <option value="musik" ${subFilter.flag === 'musik' ? 'selected' : ''}>Musik Ritmik belum beres</option></select></div>
         <div class="field" style="flex:1;min-width:200px"><label class="f" for="fq">Cari</label><input id="fq" type="search" placeholder="Kode, nama atlet, klub, email, nominal" value="${esc(subFilter.q)}"></div>
@@ -331,7 +344,7 @@
           <td class="r num">${fmtRp(r.total_amount)}${r.payment_method === 'manual' ? '<br><span class="pill warn">WNA</span>' : ''}</td>
           <td>${pill(r.status)}</td>
           <td class="small">${r.proof_uploaded_at ? '<span class="pill info">Bukti ada</span> ' : ''}${r.mutation_matched ? '<span class="pill ok">Mutasi cocok</span> ' : ''}
-            ${r.docs_pending ? `<span class="pill">${r.docs_pending} dokumen</span> ` : ''}${r.priangan_pending ? `<span class="pill warn">${r.priangan_pending} Priangan</span> ` : ''}${r.music_pending ? `<span class="pill warn">${r.music_pending} musik</span>` : ''}</td></tr>`).join('')}
+            ${r.expires_at ? `<span class="pill warn">hapus otomatis ${esc(new Date(r.expires_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }))}</span> ` : ''}${r.docs_pending ? `<span class="pill">${r.docs_pending} dokumen</span> ` : ''}${r.priangan_pending ? `<span class="pill warn">${r.priangan_pending} cek Priangan</span> ` : ''}${r.music_pending ? `<span class="pill warn">${r.music_pending} musik</span>` : ''}</td></tr>`).join('')}
         </tbody></table></div>`;
       list.querySelectorAll('tr[data-id]').forEach((tr) => tr.onclick = () => { location.hash = '#/pendaftaran/' + tr.dataset.id; });
     };
@@ -363,7 +376,7 @@
           <section class="card"><h2>Email</h2>
             ${D.emails.length ? `<ul class="small" style="padding-left:18px;margin:0 0 10px">${D.emails.map((e) => `<li>${esc(e.kind)} ke ${esc(e.to)}: <strong>${esc(e.status)}</strong> ${e.sent_at ? dt(e.sent_at) : ''}</li>`).join('')}</ul>` : '<p class="small muted">Belum ada email.</p>'}
             <div class="actions"><button class="btn btn-ghost btn-sm" data-mail="pendaftaran">Kirim ulang tagihan</button>
-              ${s.status === 'lunas' ? '<button class="btn btn-ghost btn-sm" data-mail="lunas">Kirim ulang e-ticket</button>' : ''}
+              ${s.status === 'lunas' ? '<button class="btn btn-ghost btn-sm" data-mail="lunas">Kirim ulang AIC</button>' : ''}
               <button class="btn btn-ghost btn-sm" data-mail="tautan">Kirim tautan status</button></div></section>
           <section class="card"><h2>Riwayat</h2>${D.history.length ? `<ul class="small" style="padding-left:18px;margin:0">${D.history.map((h) => `<li>${dt(h.at)}: <strong>${esc(h.action.replace(/_/g, ' '))}</strong>${h.staff ? ' oleh ' + esc(h.staff) : ''}${h.detail && (h.detail.note || h.detail.reason) ? ` <span class="muted">(${esc(h.detail.note || h.detail.reason)})</span>` : ''}</li>`).join('')}</ul>` : '<p class="small muted">Belum ada.</p>'}</section>
         </div>
@@ -371,8 +384,7 @@
           <section class="card" style="position:sticky;top:12px"><h2>Pembayaran</h2>
             <table class="breakdown"><tbody>
               <tr><td>${s.registrant_type === 'beregu' ? 'Biaya beregu' : 'Biaya pendaftaran'}</td><td>${fmtRp(s.base_amount)}</td></tr>
-              ${s.priangan_amount ? `<tr><td>Priangan</td><td>${fmtRp(s.priangan_amount)}</td></tr>` : ''}
-              <tr><td>Kode unik</td><td>${fmtRp(s.unique_code)}</td></tr>
+                <tr><td>Kode unik</td><td>${fmtRp(s.unique_code)}</td></tr>
               <tr class="total"><td>Total</td><td>${fmtRp(s.total_amount)}</td></tr></tbody></table>
             ${s.payment_method === 'manual' ? '<p class="note warn" style="margin-top:12px">Atlet internasional: pembayaran terpisah. Hubungi pendaftar, lalu superadmin menandai lunas dengan nominal yang diterima.</p>' : ''}
             ${s.status === 'lunas' ? `<p class="note ok" style="margin-top:12px">Lunas ${fmtRp(s.paid_amount)} pada ${dt(s.paid_at)}${s.verified_by_name ? ', diverifikasi ' + esc(s.verified_by_name) : ''}.${s.verify_note ? '<br>Catatan: ' + esc(s.verify_note) : ''}</p>` : ''}
@@ -388,6 +400,8 @@
               ${open || (s.status === 'lunas' && isSuper()) ? `<button class="btn btn-bad" id="reject">${s.status === 'lunas' ? 'Batalkan status lunas' : 'Tolak bukti'}</button>` : ''}
               ${s.status !== 'dibatalkan' && (s.status !== 'lunas' || isSuper()) ? `<button class="btn btn-ghost" id="cancel">Batalkan pendaftaran</button>` : ''}
             </div>
+            ${s.expires_at ? `<p class="note warn small" style="margin-top:12px">Belum ada bukti bayar. Pendaftaran ini dihapus otomatis pukul ${esc(new Date(s.expires_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }))} bila bukti tidak diunggah.</p>` : ''}
+            ${isSuper() ? `<div class="actions" style="margin-top:10px;border-top:1px solid var(--line);padding-top:10px"><button class="btn btn-bad btn-sm" id="purge">Hapus pendaftaran permanen</button></div>` : ''}
           </section>
         </div>
       </div>`;
@@ -403,7 +417,7 @@
     if (ap) ap.onclick = async () => {
       const manual = s.payment_method === 'manual';
       const r = await dialog({ title: 'Tandai lunas', ok: 'Tandai lunas', okClass: 'btn-ok',
-        body: `<p>${D.athletes.length ? `E-ticket ${D.athletes.length} atlet akan aktif dan email` : 'Tim ditandai lunas dan email konfirmasi'} dikirim ke <strong>${esc(s.contact_email)}</strong>.</p>
+        body: `<p>${D.athletes.length ? `AIC ${D.athletes.length} atlet akan aktif dan email` : 'Tim ditandai lunas dan email konfirmasi'} dikirim ke <strong>${esc(s.contact_email)}</strong>.</p>
           ${!s.proof_path && !matched.length && !manual ? '<p class="note warn">Belum ada bukti bayar maupun mutasi yang cocok. Hanya lanjutkan bila Anda sudah memastikan dana masuk.</p>' : ''}
           ${manual ? `<label class="f" for="amt">Nominal diterima (Rp)</label><input id="amt" type="number" min="1" value="${s.total_amount}">` : ''}
           <label class="f" for="note" style="margin-top:10px">Catatan (opsional)</label><textarea id="note" placeholder="Mis. cocok dengan mutasi GoBiz 13:42"></textarea>`,
@@ -412,7 +426,7 @@
           if (manual) args.p_amount = Number(d.querySelector('#amt').value);
           await api('console_verify_payment', args); return true;
         } });
-      if (r) { JO.toast('Ditandai lunas. Email e-ticket masuk antrean.'); reload(); }
+      if (r) { JO.toast('Ditandai lunas. Email AIC masuk antrean.'); reload(); }
     };
     const rj = v.querySelector('#reject');
     if (rj) rj.onclick = async () => {
@@ -426,6 +440,14 @@
       if (note) act('console_cancel_submission', { p_id: s.id, p_reason: note }, 'Pendaftaran dibatalkan.');
     };
     v.querySelectorAll('[data-mail]').forEach((b) => b.onclick = () => act('console_resend_email', { p_id: s.id, p_kind: b.dataset.mail }, 'Email masuk antrean.'));
+    const pg = v.querySelector('#purge');
+    if (pg) pg.onclick = async () => {
+      const reason = await askReason('Hapus ' + s.code + ' permanen?', 'Alasan penghapusan (masuk Log)', { min: 3, ok: 'Hapus permanen', okClass: 'btn-bad',
+        intro: `Pendaftaran, ${D.athletes.length} atlet, entri, nilai, dan semua berkasnya (dokumen, pas foto, bukti bayar) dihapus dan tidak bisa dikembalikan. Ringkasannya tetap tercatat di Log (hanya owner dan superadmin).` });
+      if (!reason) return;
+      try { const r = await api('console_delete_submission', { p_id: s.id, p_reason: reason }); await removeFiles(r.files, s.code); JO.toast('Pendaftaran dihapus.'); location.hash = '#/pendaftaran'; }
+      catch (e) { JO.toast(e.message, 'bad'); }
+    };
 
     // atlet
     const box = v.querySelector('#aths');
@@ -433,7 +455,7 @@
       const ents = D.entries.filter((e) => e.athletes.some((x) => x.id === a.id));
       const el = document.createElement('div'); el.className = 'ath';
       el.innerHTML = `<div class="ath-head"><span class="bib">${esc(a.athlete_no || '')}</span><strong>${esc(a.full_name)}</strong><span class="spacer"></span>
-          <button class="btn btn-ghost btn-sm" data-edit>Ubah data</button></div>
+          ${isSuper() && D.athletes.length > 1 ? rowMenu('<button class="btn btn-ghost btn-sm" data-edit>Ubah data</button>', [{ label: 'Hapus atlet', attr: 'data-delath', danger: true }]) : '<button class="btn btn-ghost btn-sm" data-edit>Ubah data</button>'}</div>
         <div class="ath-body">
           <dl class="kv"><dt>Jenis kelamin</dt><dd>${a.gender === 'M' ? 'Putra' : 'Putri'}</dd>
             <dt>Tanggal lahir</dt><dd>${JO.fmtDate(a.birth_date)} <span class="muted">(usia 2026: ${a.age})</span></dd>
@@ -441,9 +463,11 @@
             ${a.minor ? `<dt>Orang tua/wali</dt><dd>${esc(a.guardian_name || '-')}${a.guardian_relation ? ` (${esc(a.guardian_relation)})` : ''}<br>
               <a href="${wa(a.guardian_phone)}" target="_blank" rel="noopener">${esc(a.guardian_phone || '')}</a><br>${esc(a.guardian_email || '')}</dd>` : ''}
           </dl>
+          <div class="ath-docs">${a.photo_thumb ? `<img class="ath-thumb" src="${esc(a.photo_thumb)}" alt="Pas foto ${esc(a.full_name)}" width="60" height="80">` : ''}
+            <div class="actions" style="margin:0">${DOCS.filter(([k]) => a[k]).map(([k, l]) => `<button class="btn btn-ghost btn-sm" data-docp="${k}">${l}</button>`).join('')}
+              ${!a.akte_path && !a.passport_path && a.id_doc_path ? '<button class="btn btn-ghost btn-sm" data-docp="id_doc_path">Dokumen identitas</button>' : ''}
+              ${a.nationality === 'WNI' && !a.bpjs_path ? '<span class="pill warn">BPJS TK belum diunggah: bawa ke venue</span>' : ''}</div></div>
           <div class="actions">
-            <button class="btn btn-ghost btn-sm" data-doc>Lihat dokumen identitas</button>
-            ${a.photo_path ? '<button class="btn btn-ghost btn-sm" data-photo>Lihat foto</button>' : ''}
             <span class="pill ${a.doc_status === 'valid' ? 'ok' : a.doc_status === 'tidak_valid' ? 'bad' : ''}">${a.doc_status === 'valid' ? 'Dokumen valid' : a.doc_status === 'tidak_valid' ? 'Dokumen tidak valid' : 'Dokumen belum diperiksa'}</span>
             ${a.doc_status !== 'valid' ? '<button class="btn btn-ok btn-sm" data-dv="1">Dokumen valid</button>' : ''}
             ${a.doc_status !== 'tidak_valid' ? '<button class="btn btn-bad btn-sm" data-dv="0">Tidak valid</button>' : ''}
@@ -457,16 +481,23 @@
             ${e.discipline === 'RG' ? musicBlock(e) : ''}
             ${e.athletes.length > 1 ? `<div class="small muted">Pasangan: ${esc(e.athletes.map((x) => x.name).join(' & '))}</div>` : ''}
             ${e.mismatch ? `<p class="note warn small" style="margin:6px 0">Tidak sesuai kategori: ${esc(e.mismatch)}</p>` : ''}
-            ${e.priangan_requested ? `<div class="small" style="margin-top:6px">Priangan (${fmtRp(e.priangan_fee)}): <strong>${esc(e.priangan_status)}</strong>${e.priangan_note ? ` <span class="muted">(${esc(e.priangan_note)})</span>` : ''}
-              ${e.priangan_status !== 'disetujui' ? ' <button class="btn btn-ok btn-sm" data-pri="1">Setujui</button>' : ''}${e.priangan_status !== 'ditolak' ? ' <button class="btn btn-bad btn-sm" data-pri="0">Tolak</button>' : ''}
-              <div class="tiny muted">Syarat: WNI, alamat KTP/akte di Jawa Barat, klub di Jawa Barat.</div></div>` : ''}
+            ${e.priangan_requested ? `<div class="small" style="margin-top:6px">Cek syarat Priangan (Jawa Barat): <strong>${esc(e.priangan_status)}</strong>${e.priangan_note ? ` <span class="muted">(${esc(e.priangan_note)})</span>` : ''}
+              ${e.priangan_status !== 'disetujui' ? ' <button class="btn btn-ok btn-sm" data-pri="1">Memenuhi</button>' : ''}${e.priangan_status !== 'ditolak' ? ' <button class="btn btn-bad btn-sm" data-pri="0">Tidak memenuhi</button>' : ''}
+              <div class="tiny muted">Syarat: WNI, alamat pada identitas di Jawa Barat, klub di Jawa Barat. Bila tidak memenuhi, pindahkan ke kategori Amatir.</div></div>` : ''}
             <div class="actions"><button class="btn btn-ghost btn-sm" data-move>Pindah kategori</button>
               ${e.status === 'aktif' ? '<button class="btn btn-ghost btn-sm" data-est="dns">Tidak tampil (DNS)</button>' : '<button class="btn btn-ghost btn-sm" data-est="aktif">Aktifkan lagi</button>'}</div>
           </div>`).join('')}
         </div>`;
       const q = (sel) => el.querySelector(sel);
-      q('[data-doc]').onclick = () => preview('dokumen', a.id_doc_path, 'Dokumen identitas ' + a.full_name);
-      if (q('[data-photo]')) q('[data-photo]').onclick = () => preview('dokumen', a.photo_path, 'Foto ' + a.full_name);
+      el.querySelectorAll('[data-docp]').forEach((b) => b.onclick = () => preview('dokumen', a[b.dataset.docp], b.textContent + ' ' + a.full_name));
+      const da = q('[data-delath]');
+      if (da) da.onclick = async () => {
+        const reason = await askReason('Hapus atlet ' + a.full_name + '?', 'Alasan penghapusan (masuk Log)', { min: 3, ok: 'Hapus atlet', okClass: 'btn-bad',
+          intro: 'Atlet, kategorinya (termasuk pasangan), nilai, dan berkasnya dihapus permanen. Tagihan dihitung ulang bila belum lunas.' });
+        if (!reason) return;
+        try { const r = await api('console_delete_athlete', { p_athlete: a.id, p_reason: reason }); await removeFiles(r.files, s.code + ' ' + a.full_name); JO.toast('Atlet dihapus.'); reload(); }
+        catch (e) { JO.toast(e.message, 'bad'); }
+      };
       el.querySelectorAll('[data-dv]').forEach((b) => b.onclick = async () => {
         const ok = b.dataset.dv === '1';
         let note = null;
@@ -478,8 +509,8 @@
         const e = ents.find((x) => x.id === ee.dataset.entry);
         ee.querySelectorAll('[data-pri]').forEach((b) => b.onclick = async () => {
           const ok = b.dataset.pri === '1'; let note = null;
-          if (!ok) { note = await askReason('Tolak Priangan', 'Alasan (mis. alamat di KTP luar Jawa Barat)'); if (!note) return; }
-          act('console_set_priangan', { p_entry: e.id, p_approve: ok, p_note: note }, ok ? 'Priangan disetujui.' : 'Priangan ditolak.');
+          if (!ok) { note = await askReason('Tidak memenuhi syarat Priangan', 'Alasan (mis. alamat di akte luar Jawa Barat)'); if (!note) return; }
+          act('console_set_priangan', { p_entry: e.id, p_approve: ok, p_note: note }, ok ? 'Syarat Priangan terpenuhi.' : 'Ditandai tidak memenuhi syarat Priangan.');
         });
         ee.querySelector('[data-move]').onclick = () => moveEntry(e, s.discipline, reload);
         ee.querySelectorAll('[data-mc]').forEach((b) => b.onclick = () => musicCheck(e, b.dataset.mc === '1', reload));
@@ -494,14 +525,18 @@
   const MUSIC_ST = { belum: ['Belum ada tautan', 'warn'], menunggu: ['Menunggu diperiksa', 'info'], ok: ['Bisa dibuka', 'ok'], tidak_bisa: ['Tidak bisa dibuka', 'bad'], tidak_perlu: ['Tidak perlu', ''] };
   const musicPill = (st) => { const m = MUSIC_ST[st] || [st, '']; return `<span class="pill ${m[1]}">${esc(m[0])}</span>`; };
   const MUSIC_ACT = { daftar: 'diisi saat daftar', isi: 'diisi', ganti: 'diganti (jatah terpakai)', perbaiki: 'diperbaiki', ok: 'ditandai bisa dibuka', tidak_bisa: 'ditandai tidak bisa dibuka' };
+  function musicLinks(e) {
+    const m = e.music || {};
+    return (e.apparatus || Object.keys(m)).map((ap) => `<div class="small"><strong>${esc(appName('RG', ap))}:</strong> ${m[ap] ? `<a class="mono-link" href="${esc(m[ap])}" target="_blank" rel="noopener">${esc(m[ap])}</a>` : '<span class="muted">belum ada</span>'}</div>`).join('');
+  }
   function musicBlock(e) {
     return `<div class="music-box"><div class="small"><strong>Musik</strong> ${musicPill(e.music_status)}${e.music_changes ? ' <span class="pill">ganti sudah dipakai</span>' : ''}</div>
-      ${e.music_url ? `<div><a class="mono-link" href="${esc(e.music_url)}" target="_blank" rel="noopener">${esc(e.music_url)}</a></div>` : ''}
+      ${musicLinks(e)}
       ${e.music_note ? `<div class="small" style="color:var(--bad)">Catatan: ${esc(e.music_note)}</div>` : ''}
       ${e.music_checked_by ? `<div class="tiny muted">Diperiksa ${esc(e.music_checked_by)}, ${dt(e.music_checked_at)}</div>` : ''}
-      ${e.music_url ? `<div class="actions">${e.music_status !== 'ok' ? '<button class="btn btn-ok btn-sm" data-mc="1">Bisa dibuka</button>' : ''}${e.music_status !== 'tidak_bisa' ? '<button class="btn btn-bad btn-sm" data-mc="0">Tidak bisa dibuka</button>' : ''}</div>` : ''}
+      ${Object.keys(e.music || {}).length ? `<div class="actions">${e.music_status !== 'ok' ? '<button class="btn btn-ok btn-sm" data-mc="1">Bisa dibuka</button>' : ''}${e.music_status !== 'tidak_bisa' ? '<button class="btn btn-bad btn-sm" data-mc="0">Tidak bisa dibuka</button>' : ''}</div>` : ''}
       ${(e.music_log || []).length ? `<details class="small" style="margin-top:6px"><summary>Riwayat musik (${e.music_log.length})</summary><ul style="padding-left:18px;margin:6px 0 0">
-        ${e.music_log.map((l) => `<li>${dt(l.at)}: ${esc(MUSIC_ACT[l.action] || l.action)}${l.staff ? ' oleh ' + esc(l.staff) : ''}${l.new_url && ['daftar', 'isi', 'ganti', 'perbaiki'].includes(l.action) ? `<br><span class="mono-link">${esc(l.new_url)}</span>` : ''}${l.note ? ` <span class="muted">(${esc(l.note)})</span>` : ''}</li>`).join('')}</ul></details>` : ''}</div>`;
+        ${e.music_log.map((l) => `<li>${dt(l.at)}: ${esc(MUSIC_ACT[l.action] || l.action)}${l.apparatus ? ' ' + esc(appName('RG', l.apparatus)) : ''}${l.staff ? ' oleh ' + esc(l.staff) : ''}${l.new_url && ['daftar', 'isi', 'ganti', 'perbaiki'].includes(l.action) ? `<br><span class="mono-link">${esc(l.new_url)}</span>` : ''}${l.note ? ` <span class="muted">(${esc(l.note)})</span>` : ''}</li>`).join('')}</ul></details>` : ''}</div>`;
   }
   async function musicCheck(e, ok, done) {
     let note = null;
@@ -542,10 +577,10 @@
         ${rows.map((r) => `<tr data-e="${r.entry_id}"><td><span class="bib">${esc(r.athlete_no || '')}</span> <strong>${esc(r.full_name)}</strong><br>
             <span class="small muted">${esc(r.club)}, <a href="#/pendaftaran/${r.submission_id}">${esc(r.code)}</a></span>${r.payment_status !== 'lunas' ? ` ${pill(r.payment_status)}` : ''}</td>
           <td class="small">${esc(r.category)}${r.startlist_published ? '<br><span class="pill">start list terbit</span>' : ''}</td>
-          <td class="small">${r.music_url ? `<a class="mono-link" href="${esc(r.music_url)}" target="_blank" rel="noopener">${esc(r.music_url)}</a>` : '<span class="muted">–</span>'}
+          <td class="small">${Object.keys(r.music || {}).length ? musicLinks(r) : '<span class="muted">–</span>'}
             ${r.music_updated_at ? `<br><span class="tiny muted">diperbarui ${dt(r.music_updated_at)}${r.music_changes ? ', ganti sudah dipakai' : ''}</span>` : ''}</td>
           <td class="small">${musicPill(r.music_status)}${r.music_note ? `<br><span style="color:var(--bad)">${esc(r.music_note)}</span>` : ''}${r.checked_by ? `<br><span class="tiny muted">${esc(r.checked_by)}, ${dt(r.music_checked_at)}</span>` : ''}</td>
-          <td class="r" style="white-space:nowrap">${r.music_url ? `${r.music_status !== 'ok' ? '<button class="btn btn-ok btn-sm" data-mc="1">Bisa dibuka</button> ' : ''}${r.music_status !== 'tidak_bisa' ? '<button class="btn btn-bad btn-sm" data-mc="0">Tidak bisa</button>' : ''}` : `<a class="btn btn-ghost btn-sm" href="${wa(r.contact_phone)}" target="_blank" rel="noopener">WA pendaftar</a>`}</td></tr>`).join('')}
+          <td class="r" style="white-space:nowrap">${Object.keys(r.music || {}).length ? `${r.music_status !== 'ok' ? '<button class="btn btn-ok btn-sm" data-mc="1">Bisa dibuka</button> ' : ''}${r.music_status !== 'tidak_bisa' ? '<button class="btn btn-bad btn-sm" data-mc="0">Tidak bisa</button>' : ''}` : `<a class="btn btn-ghost btn-sm" href="${wa(r.contact_phone)}" target="_blank" rel="noopener">WA pendaftar</a>`}</td></tr>`).join('')}
         </tbody></table></div>`;
       list.querySelectorAll('[data-mc]').forEach((b) => b.onclick = () => {
         const r = rows.find((x) => x.entry_id === b.closest('tr').dataset.e);
@@ -556,7 +591,7 @@
     let tm; v.querySelector('#mq').addEventListener('input', (e) => { clearTimeout(tm); tm = setTimeout(() => { muFilter.q = e.target.value.trim(); load(); }, 300); });
     v.querySelector('#mx').onclick = () => exportXlsx(`musik-ritmik-${new Date().toISOString().slice(0, 10)}.xlsx`, rows, [
       ['athlete_no', 'No. atlet'], ['full_name', 'Nama'], ['club', 'Klub'], ['category', 'Kategori'], ['apparatus', 'Alat', (r) => (r.apparatus || []).join(', ')],
-      ['music_url', 'Tautan musik'], ['music_status', 'Status', (r) => (MUSIC_ST[r.music_status] || [r.music_status])[0]], ['music_note', 'Catatan'],
+      ['music', 'Tautan musik', (r) => (r.apparatus || []).map((ap) => appName('RG', ap) + ': ' + ((r.music || {})[ap] || '-')).join('\n')], ['music_status', 'Status', (r) => (MUSIC_ST[r.music_status] || [r.music_status])[0]], ['music_note', 'Catatan'],
       ['music_changes', 'Ganti dipakai'], ['music_updated_at', 'Diperbarui', (r) => (r.music_updated_at ? dt(r.music_updated_at) : '')],
       ['code', 'Kode pendaftaran'], ['payment_status', 'Pembayaran', (r) => ST[r.payment_status]], ['contact_name', 'Penanggung jawab'], ['contact_phone', 'WA'], ['contact_email', 'Email']]);
     await load();
@@ -614,12 +649,22 @@
       const list = v.querySelector('#list'); loading(list);
       rows = await api('console_athletes', { p_filter: f });
       list.innerHTML = rows.length ? `<p class="small muted">${rows.length} atlet</p><div class="tbl-wrap"><table class="tbl"><thead><tr>
-        <th>No.</th><th>Nama</th><th>L/P</th><th>Lahir</th><th>Klub</th><th>Asal</th><th>Kategori</th><th>Bayar</th><th>Dokumen</th></tr></thead><tbody>
+        <th>No.</th><th>Nama</th><th>L/P</th><th>Lahir</th><th>Klub</th><th>Asal</th><th>Kategori</th><th>Bayar</th><th>Dokumen</th><th></th></tr></thead><tbody>
         ${rows.map((r) => `<tr class="click" data-sub="${r.submission_id}"><td><span class="bib">${esc(r.athlete_no)}</span></td><td>${esc(r.full_name)}</td><td>${r.gender === 'M' ? 'L' : 'P'}</td>
           <td class="small">${esc(r.birth_date)}<br><span class="muted">usia ${r.age}</span></td><td>${esc(r.club)}</td>
           <td class="small">${esc(r.nationality === 'WNA' ? r.country : r.kab_kota || '')}</td><td class="small">${esc(r.categories || '')}</td>
-          <td>${pill(r.payment_status)}</td><td class="small">${esc(r.doc_status)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">Tidak ada atlet yang cocok.</p>';
-      list.querySelectorAll('tr[data-sub]').forEach((tr) => tr.onclick = () => { location.hash = '#/pendaftaran/' + tr.dataset.sub; });
+          <td>${pill(r.payment_status)}</td><td class="small">${esc(r.doc_status)}${r.nationality === 'WNI' && !r.has_bpjs ? '<br><span class="pill warn">tanpa BPJS TK</span>' : ''}</td>
+          <td class="r">${isSuper() ? rowMenu('', [{ label: 'Buka pendaftaran', attr: `data-open="${r.submission_id}"` }, { sep: true }, { label: 'Hapus atlet', attr: `data-delath="${r.id}"`, danger: true }]) : ''}</td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">Tidak ada atlet yang cocok.</p>';
+      list.querySelectorAll('tr[data-sub]').forEach((tr) => tr.onclick = (ev) => { if (ev.target.closest('.rm')) return; location.hash = '#/pendaftaran/' + tr.dataset.sub; });
+      list.querySelectorAll('[data-open]').forEach((b) => b.onclick = () => { location.hash = '#/pendaftaran/' + b.dataset.open; });
+      list.querySelectorAll('[data-delath]').forEach((b) => b.onclick = async () => {
+        const r = rows.find((x) => x.id === b.dataset.delath);
+        const reason = await askReason('Hapus atlet ' + r.full_name + '?', 'Alasan penghapusan (masuk Log)', { min: 3, ok: 'Hapus atlet', okClass: 'btn-bad',
+          intro: `Dari pendaftaran ${esc(r.submission_code)}. Atlet, kategori, nilai, dan berkasnya dihapus permanen. Bila ini satu-satunya atlet, hapus pendaftarannya dari halaman pendaftaran.` });
+        if (!reason) return;
+        try { const x = await api('console_delete_athlete', { p_athlete: r.id, p_reason: reason }); await removeFiles(x.files, r.submission_code + ' ' + r.full_name); JO.toast('Atlet dihapus.'); load(); }
+        catch (e) { JO.toast(e.message, 'bad'); }
+      });
     };
     const ad = v.querySelector('#ad'); if (ad) ad.onchange = () => { f.discipline = ad.value; load(); };
     v.querySelector('#as').onchange = (e) => { f.status = e.target.value; load(); };
@@ -629,6 +674,7 @@
       ['discipline', 'Disiplin', (r) => DN[r.discipline]], ['categories', 'Kategori'], ['club', 'Klub'], ['club_kab_kota', 'Kab/kota klub'],
       ['nationality', 'WNI/WNA'], ['country', 'Negara'], ['province', 'Provinsi (KTP)'], ['kab_kota', 'Kab/kota (KTP)'],
       ['submission_code', 'Kode pendaftaran'], ['payment_status', 'Status bayar', (r) => ST[r.payment_status]], ['doc_status', 'Dokumen'],
+      ['has_bpjs', 'BPJS TK diunggah', (r) => (r.nationality === 'WNA' ? '-' : r.has_bpjs ? 'Ya' : 'Belum (bawa ke venue)')],
       ['guardian_name', 'Orang tua/wali'], ['guardian_phone', 'WA orang tua/wali'], ['guardian_email', 'Email orang tua/wali'],
       ['contact_name', 'Penanggung jawab'], ['contact_phone', 'WA penanggung jawab'], ['contact_email', 'Email penanggung jawab']]);
     await load();
@@ -686,7 +732,6 @@
             <div class="field"><label class="f">Penghargaan serba bisa s.d. peringkat</label><input id="mr_aa" type="number" min="1" max="10" value="${(c.medal_rule && (c.medal_rule.aa_places || c.medal_rule.places)) || 3}"><div class="f-hint">Mis. 6 = peringkat 4–6 medali mini</div></div>
             <div class="field"><label class="f">Maks. pesenam per klub per penghargaan</label><input id="mr_cap" type="number" min="0" max="10" value="${(c.medal_rule && c.medal_rule.club_cap) || ''}"><div class="f-hint">Kosongkan bila tanpa batas</div></div></div>
           <label class="check"><input type="checkbox" id="mr_app" ${c.medal_rule && c.medal_rule.apparatus_medals ? 'checked' : ''}>Medali per alat (peringkat 1–3 setiap alat)</label>
-          <label class="check"><input type="checkbox" data-b="allow_priangan" ${c.allow_priangan ? 'checked' : ''}>Membuka kategori Priangan</label>
           <label class="check"><input type="checkbox" data-b="active" ${c.active ? 'checked' : ''}>Aktif (tampil di formulir pendaftaran)</label>` : ''}
         <label class="check"><input type="checkbox" data-b="exhibition" ${c.exhibition ? 'checked' : ''}>Eksibisi (medali tidak dihitung di tabel perolehan)</label>
         <div class="field"><label class="f">Catatan internal</label><textarea data-k="note">${esc(c.note || '')}</textarea></div>
@@ -719,7 +764,7 @@
   async function pageStartlist(v) {
     await refreshCats();
     if (!slState.disc) slState.disc = myDiscs()[0];
-    v.innerHTML = `<h1>Start list</h1><p class="muted">Atur sesi, grup, dan urutan tampil untuk atlet yang sudah lunas, lalu publikasikan. Start list yang dipublikasikan tampil di situs dan e-ticket.</p>
+    v.innerHTML = `<h1>Start list</h1><p class="muted">Atur sesi, grup, dan urutan tampil untuk atlet yang sudah lunas, lalu publikasikan. Start list yang dipublikasikan tampil di situs dan AIC.</p>
       <div class="bar"><div class="field"><label class="f" for="sd">Disiplin</label><select id="sd">${myDiscs().map((d) => `<option value="${d}" ${slState.disc === d ? 'selected' : ''}>${DN[d]}</option>`).join('')}</select></div>
         <div id="catslot" style="flex:1;display:flex"></div></div>
       <section class="card" id="sess"></section><div id="sl" style="margin-top:16px"></div>`;
@@ -1357,7 +1402,13 @@
       <div class="chat-msgs" id="msgs"><div class="empty"><span class="spinner"></span></div></div>
       <form class="chat-form" id="cf"><textarea id="cm" rows="2" maxlength="4000" placeholder="Tulis pesan. Enter untuk kirim, Shift+Enter untuk baris baru." required></textarea><button class="btn btn-primary" type="submit">Kirim</button></form>`;
     const box = th.querySelector('#msgs');
-    const bubble = (m) => `<div class="msg ${m.sender === R.me ? 'mine' : ''}" data-id="${m.id}"><div class="meta"><b>${esc(m.sender_name || 'Kode terhapus')}</b>${m.role ? ` <span>${esc(ROLE[m.role] || m.role)}</span>` : ''} · <time title="${esc(dt(m.at))}">${esc(ago(m.at))}</time></div><div class="body">${multiline(m.body)}</div></div>`;
+    const bubble = (m) => `<div class="msg ${m.sender === R.me ? 'mine' : ''}" data-id="${m.id}"><div class="meta"><b>${esc(m.sender_name || 'Kode terhapus')}</b>${m.role ? ` <span>${esc(ROLE[m.role] || m.role)}</span>` : ''} · <time title="${esc(dt(m.at))}">${esc(ago(m.at))}</time>${isSuper() ? ` <button type="button" class="msg-del" data-mdel="${m.id}" title="Hapus pesan">Hapus</button>` : ''}</div><div class="body">${multiline(m.body)}</div></div>`;
+    box.addEventListener('click', async (ev) => {
+      const b = ev.target.closest('[data-mdel]'); if (!b) return;
+      if (!(await dialog({ title: 'Hapus pesan ini?', ok: 'Hapus', okClass: 'btn-bad', body: '<p>Pesan dihapus untuk semua orang. Isinya tetap tercatat di Log (hanya owner dan superadmin).</p>' }))) return;
+      try { await api('console_delete_chat_message', { p_id: Number(b.dataset.mdel) }); b.closest('.msg').remove(); JO.toast('Pesan dihapus.'); }
+      catch (e) { JO.toast(e.message, 'bad'); }
+    });
     const load = async (first) => {
       if (busy) return; busy = true;
       try {
@@ -1440,8 +1491,15 @@
         <form id="icf" style="margin-top:12px"><label class="f" for="icb">Tulis tanggapan</label><textarea id="icb" rows="3" required></textarea>
           <div class="actions"><button class="btn btn-dark btn-sm" type="submit">Kirim tanggapan</button>
           ${I.can_manage ? `${I.status !== 'diproses' ? '<button type="button" class="btn btn-ghost btn-sm" data-st="diproses">Tandai diproses</button>' : ''}
-            ${I.status !== 'selesai' ? '<button type="button" class="btn btn-ok btn-sm" data-st="selesai">Tandai selesai</button>' : '<button type="button" class="btn btn-ghost btn-sm" data-st="baru">Buka lagi</button>'}` : ''}</div></form></section>`;
+            ${I.status !== 'selesai' ? '<button type="button" class="btn btn-ok btn-sm" data-st="selesai">Tandai selesai</button>' : '<button type="button" class="btn btn-ghost btn-sm" data-st="baru">Buka lagi</button>'}` : ''}
+          ${isSuper() ? '<button type="button" class="btn btn-bad btn-sm" id="idel" style="margin-left:auto">Hapus laporan</button>' : ''}</div></form></section>`;
     const sh = v.querySelector('#shot'); if (sh) sh.onclick = () => preview('dokumen', I.shot_path, 'Tangkapan layar');
+    const idel = v.querySelector('#idel');
+    if (idel) idel.onclick = async () => {
+      if (!(await dialog({ title: 'Hapus laporan ini?', ok: 'Hapus', okClass: 'btn-bad', body: '<p>Laporan, tanggapan, dan tangkapan layarnya dihapus permanen. Tercatat di Log.</p>' }))) return;
+      try { const r = await api('console_delete_issue', { p_id: id }); await removeFiles(r.files, 'laporan ' + id); JO.toast('Laporan dihapus.'); location.hash = '#/laporan'; }
+      catch (e) { JO.toast(e.message, 'bad'); }
+    };
     v.querySelector('#icf').onsubmit = async (e) => {
       e.preventDefault();
       const t = v.querySelector('#icb').value.trim(); if (!t) return;
@@ -1513,15 +1571,15 @@
         <span class="rm"><button class="btn btn-ghost" id="jlink">Salin tautan formulir</button><button class="btn btn-primary" id="jadd">Tambah juri</button></span></div>
       <div class="bar"><div class="field"><label class="f" for="jst">Status</label><select id="jst">${[['baru', 'Baru'], ['disetujui', 'Disetujui'], ['ditolak', 'Ditolak'], ['', 'Semua']].map(([k, l]) => `<option value="${k}" ${juState.status === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
         ${ME.discipline ? '' : discSelect('jd', juState.disc)}</div>
-      ${rows.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nama</th><th>Disiplin & brevet</th><th>Hadir</th><th>Dokumen</th><th>Status</th><th></th></tr></thead><tbody>
+      ${rows.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nama</th><th>Disiplin & brevet</th><th>Dokumen</th><th>Status</th><th></th></tr></thead><tbody>
         ${rows.map((j) => `<tr><td><strong>${esc(j.full_name)}</strong><br><span class="tiny muted">${esc([j.city, j.province].filter(Boolean).join(', '))}${j.source === 'konsol' ? ' · ditambah admin' : ''} · ${esc(dt(j.created_at))}</span>
             <br><span class="small num">${esc(j.phone)}</span>${j.email ? ` · <a class="small" href="mailto:${esc(j.email)}">${esc(j.email)}</a>` : ''}${j.note ? `<br><span class="tiny">${esc(j.note)}</span>` : ''}</td>
           <td class="small">${j.disciplines.map((d) => `<div><b>${DN[d] || esc(d)}</b>: ${esc(brevetText(j.brevet && j.brevet[d]))}</div>`).join('')}</td>
-          <td class="small">${esc(daysText(j.availability))}</td>
-          <td class="small"><span class="rm">${[['ktp_path', 'KTP'], ['photo_path', 'Foto'], ['cert_path', 'Sertifikat']].map(([k, l]) => j[k] ? `<button class="btn btn-ghost btn-sm" data-doc="${esc(j[k])}" data-dl="${l} ${esc(j.full_name)}">${l}</button>` : '').join('') || '<span class="muted">–</span>'}</span></td>
+          <td class="small"><span class="rm">${[['ktp_path', 'KTP'], ['photo_path', 'Foto'], ['bpjs_path', 'BPJS TK'], ['cert_path', 'Sertifikat']].map(([k, l]) => j[k] ? `<button class="btn btn-ghost btn-sm" data-doc="${esc(j[k])}" data-dl="${l} ${esc(j.full_name)}">${l}</button>` : '').join('') || '<span class="muted">–</span>'}</span></td>
           <td><span class="pill ${JST[j.status][1]}">${JST[j.status][0]}</span>${j.staff_name ? `<br><span class="tiny muted">Kode: ${esc(j.staff_name)}${j.staff_active === false ? ' (nonaktif)' : ''}</span>` : ''}${j.reviewed_by_name ? `<br><span class="tiny muted">oleh ${esc(j.reviewed_by_name)}</span>` : ''}${j.review_note && j.status === 'ditolak' ? `<br><span class="tiny">${esc(j.review_note)}</span>` : ''}</td>
           <td class="r">${rowMenu(j.status !== 'disetujui' ? `<button class="btn btn-ok btn-sm" data-ok="${j.id}">Setujui</button>` : '',
-            [{ label: 'WhatsApp', attr: `data-wa="${j.id}"` }, j.status === 'baru' ? { label: 'Tolak', attr: `data-no="${j.id}"`, danger: true } : null])}</td></tr>`).join('')}</tbody></table></div>`
+            [{ label: 'WhatsApp', attr: `data-wa="${j.id}"` }, j.status === 'baru' ? { label: 'Tolak', attr: `data-no="${j.id}"`, danger: true } : null,
+             isSuper() ? { sep: true } : null, isSuper() ? { label: 'Hapus permanen', attr: `data-jdel="${j.id}"`, danger: true } : null])}</td></tr>`).join('')}</tbody></table></div>`
         : '<p class="empty">Tidak ada pendaftar juri di sini.</p>'}`;
     v.querySelector('#jst').onchange = (e) => { juState.status = e.target.value; pageJury(v); };
     const jd = v.querySelector('#jd'); if (jd) jd.onchange = (e) => { juState.disc = e.target.value; pageJury(v); };
@@ -1536,6 +1594,14 @@
       try { await api('console_jury_reject', { p_id: j.id, p_note: note }); JO.toast('Pendaftar ditolak.'); pageJury(v); pollUnread(); } catch (e) { JO.toast(e.message, 'bad'); }
     });
     v.querySelectorAll('[data-ok]').forEach((b) => b.onclick = () => juryApprove(v, rows.find((x) => x.id === b.dataset.ok)));
+    v.querySelectorAll('[data-jdel]').forEach((b) => b.onclick = async () => {
+      const j = rows.find((x) => x.id === b.dataset.jdel);
+      const reason = await askReason('Hapus pendaftar juri ' + j.full_name + '?', 'Alasan (masuk Log)', { required: false, ok: 'Hapus permanen', okClass: 'btn-bad',
+        intro: 'Data dan berkas pendaftar dihapus permanen.' + (j.staff_id ? ' Kode akses juri yang sudah dibuat tidak ikut terhapus; nonaktifkan di Kode akses bila perlu.' : '') });
+      if (reason === null) return;
+      try { const r = await api('console_delete_jury', { p_id: j.id, p_reason: reason }); await removeFiles(r.files, 'juri ' + j.full_name); JO.toast('Pendaftar juri dihapus.'); pageJury(v); pollUnread(); }
+      catch (e) { JO.toast(e.message, 'bad'); }
+    });
   }
   async function juryApprove(v, j) {
     const discs = j.disciplines.filter((d) => myDiscs().includes(d));
@@ -1566,11 +1632,11 @@
           <div class="field"><label class="f" for="jp">Nomor WhatsApp</label><input id="jp" inputmode="tel" placeholder="08xx-xxxx-xxxx"></div>
           <div class="field"><label class="f" for="je">Email (opsional)</label><input id="je" type="email"></div>
           <div class="field"><label class="f" for="jc">Kota asal</label><input id="jc"></div></div>
-        <div class="field"><span class="f">Disiplin dan brevet</span>${myDiscs().map((d) => `<div class="brv-row"><label class="check"><input type="checkbox" data-jd="${d}">${DN[d]}</label>
+        <div class="field"><span class="f">Disiplin (satu) dan brevet</span>${myDiscs().filter((d) => d !== 'AER').map((d) => `<div class="brv-row"><label class="check"><input type="radio" name="jdisc" data-jd="${d}">${DN[d]}</label>
           <select data-bl="${d}" disabled><option value="">Tingkat brevet…</option>${BREVET.map((b) => `<option>${b}</option>`).join('')}</select><input data-bo="${d}" placeholder="Sebutkan brevet" hidden></div>`).join('')}</div>
-        <div class="field"><span class="f">Ketersediaan (Desember 2026)</span><div class="row">${JDAYS.map((d) => `<label class="check" style="padding:2px 10px 2px 0"><input type="checkbox" data-day="${d}" checked>${Number(d.slice(8))}</label>`).join('')}</div></div>
-        <div class="grid-3"><div class="field"><label class="f" for="fk">KTP (opsional)</label><input id="fk" type="file" accept="image/*,application/pdf"></div>
+        <div class="grid-2"><div class="field"><label class="f" for="fk">KTP (opsional)</label><input id="fk" type="file" accept="image/*,application/pdf"></div>
           <div class="field"><label class="f" for="ff">Pas foto (opsional)</label><input id="ff" type="file" accept="image/*"></div>
+          <div class="field"><label class="f" for="fb">BPJS Ketenagakerjaan (opsional di sini)</label><input id="fb" type="file" accept="image/*,application/pdf"></div>
           <div class="field"><label class="f" for="fc">Sertifikat brevet (opsional)</label><input id="fc" type="file" accept="image/*,application/pdf"></div></div>
         <div class="field"><label class="f" for="jnote">Catatan</label><input id="jnote"></div>`,
       onOk: async (d) => {
@@ -1578,8 +1644,8 @@
         const brevet = {}; discs.forEach((k) => { brevet[k] = { level: d.querySelector(`[data-bl="${k}"]`).value }; if (brevet[k].level === 'Lainnya') brevet[k].other = d.querySelector(`[data-bo="${k}"]`).value; });
         const up = async (sel) => { const f = d.querySelector(sel).files[0]; return f ? (await JO.uploadFile('dokumen', f)).path : null; };
         const p = { full_name: d.querySelector('#jn').value, phone: d.querySelector('#jp').value, email: d.querySelector('#je').value, city: d.querySelector('#jc').value,
-          disciplines: discs, brevet, availability: [...d.querySelectorAll('[data-day]:checked')].map((x) => x.dataset.day), note: d.querySelector('#jnote').value,
-          ktp_path: await up('#fk'), photo_path: await up('#ff'), cert_path: await up('#fc') };
+          disciplines: discs, brevet, note: d.querySelector('#jnote').value,
+          ktp_path: await up('#fk'), photo_path: await up('#ff'), bpjs_path: await up('#fb'), cert_path: await up('#fc') };
         return api('console_jury_add', { p });
       },
       });
@@ -1588,7 +1654,9 @@
   // brevet: aktifkan pilihan saat disiplin dicentang (dipakai di dialog Tambah juri)
   document.addEventListener('change', (e) => {
     const t = e.target;
-    if (t.matches && t.matches('[data-jd]')) { const s = t.closest('.brv-row').querySelector('select'); s.disabled = !t.checked; if (!t.checked) s.value = ''; }
+    if (t.matches && t.matches('[data-jd]')) {
+      t.closest('.field').querySelectorAll('.brv-row').forEach((row) => { const on = row.contains(t) && t.checked; const s2 = row.querySelector('select'); s2.disabled = !on; if (!on) s2.value = ''; });
+    }
     if (t.matches && t.matches('.brv-row select')) { const o = t.closest('.brv-row').querySelector('input[data-bo]'); o.hidden = t.value !== 'Lainnya'; }
   });
 
@@ -1689,6 +1757,23 @@
   async function pageSettings(v) {
     const D = await api('console_settings');
     const S = D.settings;
+    setTimeout(() => {
+      const ob2 = v.querySelector('#orph'); if (!ob2) return;
+      ob2.onclick = async () => {
+        const box = v.querySelector('#orphres'); loading(box);
+        try {
+          const files = await api('console_orphan_files');
+          if (!files.length) { box.innerHTML = '<p class="note ok small">Tidak ada berkas tak terpakai.</p>'; return; }
+          const kb = Math.round(files.reduce((a, f) => a + (f.size || 0), 0) / 1024);
+          box.innerHTML = `<p class="small">${files.length} berkas (${kb} KB) tidak dipakai data mana pun.</p><button type="button" class="btn btn-bad btn-sm" id="orphdel">Hapus ${files.length} berkas</button>`;
+          box.querySelector('#orphdel').onclick = async () => {
+            if (!(await dialog({ title: 'Hapus ' + files.length + ' berkas?', ok: 'Hapus permanen', okClass: 'btn-bad', body: '<p>Berkas dihapus dari penyimpanan dan tidak bisa dikembalikan.</p>' }))) return;
+            const n = await removeFiles(files, 'berkas tak terpakai');
+            box.innerHTML = `<p class="note ok small">${n} berkas dihapus.</p>`;
+          };
+        } catch (e) { box.innerHTML = `<p class="note bad small">${esc(e.message)}</p>`; }
+      };
+    }, 0);
     const ob = await api('console_outbox');
     const sig = S.signatories || [];
     const val = (k) => (S[k] == null ? '' : S[k]);
@@ -1706,11 +1791,13 @@
           <label class="check"><input type="checkbox" data-sb="registration_open" ${S.registration_open ? 'checked' : ''}>Pendaftaran dibuka</label>
           <div class="grid-2"><div class="field"><label class="f">Batas pendaftaran (WIB)</label><input id="rd" type="datetime-local" value="${dlLocal}"></div>
           <div class="field"><label class="f">Teks batas pembayaran</label><input data-s="payment_deadline_label" value="${esc(val('payment_deadline_label'))}"></div>
-          <div class="field"><label class="f">Biaya Priangan per entri (Rp)</label><input data-sn="priangan_fee" type="number" value="${val('priangan_fee')}"></div>
           <div class="field"><label class="f">Maks. atlet per pendaftaran</label><input data-sn="max_athletes" type="number" value="${val('max_athletes')}"></div>
           <div class="field"><label class="f">Batas nominal QRIS (Rp)</label><input data-sn="qris_cap" type="number" value="${val('qris_cap')}"></div>
           <div class="field"><label class="f">Email kontak publik</label><input data-s="contact_email" value="${esc(val('contact_email'))}"></div></div>
-          <label class="check"><input type="checkbox" data-sb="email_guardians" ${S.email_guardians ? 'checked' : ''}>Kirim email e-ticket juga ke orang tua/wali</label></section>
+          <label class="check"><input type="checkbox" data-sb="email_guardians" ${S.email_guardians ? 'checked' : ''}>Kirim email AIC juga ke orang tua/wali</label></section>
+        <section class="card"><h2>Berkas tak terpakai</h2>
+          <p class="small muted">Dokumen, pas foto, dan bukti bayar yang tidak lagi dipakai data mana pun (mis. dari pendaftaran yang kedaluwarsa 15 menit atau data uji). Penghapusan permanen dan tercatat di Log.</p>
+          <div class="actions"><button type="button" class="btn btn-ghost btn-sm" id="orph">Periksa berkas tak terpakai</button></div><div id="orphres"></div></section>
         <section class="card"><h2>Penanda tangan sertifikat</h2>
           <p class="small muted">Gambar tanda tangan tampil di atas nama pada semua sertifikat. Pakai PNG berlatar transparan atau putih polos; latar putih dibuat transparan otomatis.</p>
           ${[0, 1].map((i) => `<div class="sig-row"><div class="sig-prev" data-sigprev="${i}"></div><div style="flex:1;min-width:0"><div class="grid-2"><div class="field"><label class="f">Nama ${i + 1}</label><input data-sig="${i}" data-f="name" value="${esc(sig[i] ? sig[i].name : '')}"></div>
