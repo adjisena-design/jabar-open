@@ -3119,6 +3119,41 @@ begin
   return jsonb_build_object('staff', jo.staff_json(x), 'code', v_code);
 end $$;
 
+-- Hapus kode akses: hanya kode nonaktif tanpa jejak kerja (nilai, verifikasi, dsb.).
+-- Kode yang pernah bekerja cukup dinonaktifkan agar namanya tetap muncul di riwayat.
+create or replace function public.console_staff_delete(p_id uuid) returns jsonb
+language plpgsql volatile security definer set search_path = '' as $$
+declare st jo.staff; x jo.staff; v_work text;
+begin
+  st := jo.require_staff(array['owner','superadmin']);
+  select * into x from jo.staff where id = p_id for update;
+  if x.id is null then raise exception 'Kode tidak ditemukan.'; end if;
+  if x.role = 'owner' then raise exception 'Kode owner tidak bisa dihapus.'; end if;
+  if x.id = st.id then raise exception 'Anda tidak bisa menghapus kode Anda sendiri.'; end if;
+  if x.role = 'superadmin' and st.role <> 'owner' then raise exception 'Hanya owner yang bisa menghapus kode superadmin.'; end if;
+  if x.active then raise exception 'Nonaktifkan kode ini dulu, lalu hapus.'; end if;
+  v_work := case
+    when exists (select 1 from jo.scores where staff_id = x.id)
+      or exists (select 1 from jo.score_log where judge_id = x.id or changed_by = x.id) then 'nilai'
+    when exists (select 1 from jo.submissions where verified_by = x.id) then 'verifikasi pembayaran'
+    when exists (select 1 from jo.athletes where doc_verified_by = x.id) then 'verifikasi dokumen'
+    when exists (select 1 from jo.mutations where imported_by = x.id) then 'impor mutasi'
+    when exists (select 1 from jo.music_log where staff_id = x.id)
+      or exists (select 1 from jo.entries where music_checked_by = x.id) then 'pemeriksaan musik'
+  end;
+  if v_work is not null then
+    raise exception '% sudah tercatat melakukan %. Kode ini cukup dibiarkan nonaktif agar namanya tetap muncul di riwayat.', x.name, v_work
+      using hint = 'ERR_STAFF_HAS_WORK';
+  end if;
+  update jo.audit set detail = coalesce(detail, '{}'::jsonb) || jsonb_build_object('staff_name', x.name), staff_id = null
+   where staff_id = x.id;
+  update jo.staff set created_by = null where created_by = x.id;
+  delete from jo.staff_sessions where staff_id = x.id;
+  delete from jo.staff where id = x.id;
+  perform jo.log(st.id, 'kode_dihapus', 'staff', x.id::text, jsonb_build_object('name', x.name, 'role', x.role, 'discipline', x.discipline));
+  return public.console_staff_list();
+end $$;
+
 -- ---------------------------------------------------------------------
 -- Pengaturan, klub, log, email
 -- ---------------------------------------------------------------------
@@ -3215,7 +3250,7 @@ declare st jo.staff;
 begin
   st := jo.require_staff(array['owner','superadmin']);
   return (select coalesce(jsonb_agg(jsonb_build_object('id', l.id, 'at', l.at, 'action', l.action,
-      'staff', (select name from jo.staff where id = l.staff_id), 'target_type', l.target_type,
+      'staff', coalesce((select name from jo.staff where id = l.staff_id), l.detail->>'staff_name'), 'target_type', l.target_type,
       'target_id', l.target_id, 'detail', l.detail) order by l.id desc), '[]'::jsonb)
     from (select * from jo.audit
            where (nullif(p_filter->>'action','') is null or action = p_filter->>'action')

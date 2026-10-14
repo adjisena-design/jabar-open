@@ -1074,7 +1074,9 @@
         <td class="r">${s.role === 'owner' || (s.role === 'superadmin' && ME.role !== 'owner') ? '' : `
           <button class="btn btn-ghost btn-sm" data-edit="${s.id}">Ubah</button>
           <button class="btn btn-ghost btn-sm" data-rc="${s.id}">Kode baru</button>
-          <button class="btn ${s.active ? 'btn-bad' : 'btn-ok'} btn-sm" data-act="${s.id}">${s.active ? 'Nonaktifkan' : 'Aktifkan'}</button>`}</td></tr>`).join('')}</tbody></table></div>`;
+          <button class="btn ${s.active ? 'btn-bad' : 'btn-ok'} btn-sm" data-act="${s.id}">${s.active ? 'Nonaktifkan' : 'Aktifkan'}</button>
+          ${s.active || s.id === ME.id ? '' : `<button class="btn btn-ghost btn-sm" data-del="${s.id}" style="color:var(--bad)">Hapus</button>`}`}</td></tr>`).join('')}</tbody></table></div>
+      <p class="tiny muted" style="margin-top:10px">Hapus hanya muncul untuk kode nonaktif. Kode yang pernah memverifikasi atau memberi nilai tidak bisa dihapus, agar namanya tetap tercatat di riwayat; cukup biarkan nonaktif.</p>`;
     const form = (s) => `<div class="field"><label class="f">Nama pemegang kode</label><input id="sn" value="${esc(s ? s.name : '')}" placeholder="Mis. Vicy Ayu"></div>
       ${s ? '' : `<div class="field"><label class="f">Peran</label><select id="sr">
         <option value="admin">Admin / verifikator (verifikasi bayar, dokumen, start list, hasil)</option>
@@ -1104,6 +1106,13 @@
       const s = rows.find((x) => x.id === b.dataset.rc);
       if (!(await dialog({ title: 'Buat kode baru untuk ' + s.name + '?', ok: 'Buat kode baru', body: '<p>Kode lama langsung tidak berlaku dan sesi yang sedang masuk akan keluar.</p>' }))) return;
       try { const r = await api('console_staff_new_code', { p_id: s.id }); showCode(s.name, r.code); } catch (e) { JO.toast(e.message, 'bad'); }
+    });
+    v.querySelectorAll('[data-del]').forEach((b) => b.onclick = async () => {
+      const s = rows.find((x) => x.id === b.dataset.del);
+      const r = await dialog({ title: 'Hapus kode ' + s.name + '?', ok: 'Hapus permanen', okClass: 'btn-bad',
+        body: `<p>Kode <strong>${esc(s.name)}</strong> (${ROLE[s.role]}${s.discipline ? ' ' + DN[s.discipline] : ''}) dihapus dari daftar dan tidak bisa dikembalikan. Penghapusan ini tercatat di Log.</p>`,
+        onOk: async () => { await api('console_staff_delete', { p_id: s.id }); return true; } });
+      if (r) { JO.toast('Kode dihapus.'); pageAccess(v); }
     });
     v.querySelectorAll('[data-act]').forEach((b) => b.onclick = async () => {
       const s = rows.find((x) => x.id === b.dataset.act);
