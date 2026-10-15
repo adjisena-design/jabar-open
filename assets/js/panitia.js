@@ -17,6 +17,39 @@
   let pageTimer = null;                        // polling halaman aktif (chat), dihentikan saat pindah halaman
   const setPageTimer = (fn, ms) => { clearInterval(pageTimer); pageTimer = setInterval(fn, ms); };
   const myDiscs = () => (ME && ME.discipline ? [ME.discipline] : DISCS);
+  // Tabel di ponsel tampil sebagai kartu: setiap sel diberi label dari judul kolomnya,
+  // isinya dibungkus agar label dan nilai bisa berdampingan. Node dipindahkan (bukan
+  // disalin) sehingga pendengar klik tetap menempel.
+  function labelTables(scope) {
+    (scope || document).querySelectorAll('table.tbl').forEach((tb) => {
+      const heads = [];
+      const hr = tb.tHead && tb.tHead.rows[tb.tHead.rows.length - 1];
+      if (hr) [...hr.cells].forEach((th) => { for (let k = 0; k < (th.colSpan || 1); k++) heads.push(th.textContent.trim()); });
+      tb.classList.toggle('tbl-nohead', !hr);
+      [...tb.tBodies].forEach((tbd) => [...tbd.rows].forEach((tr) => {
+        let col = 0;
+        [...tr.cells].forEach((td) => {
+          if (td.tagName === 'TD') {
+            const lab = td.colSpan > 1 ? '' : (heads[col] || '');
+            if (td.dataset.label !== lab) td.dataset.label = lab;
+            const only = td.childNodes.length === 1 && td.firstChild.nodeType === 1 && td.firstChild.classList.contains('tdv');
+            if (!only && td.childNodes.length) {
+              const w = document.createElement('div'); w.className = 'tdv';
+              while (td.firstChild) w.appendChild(td.firstChild);
+              td.appendChild(w);
+            }
+          }
+          col += td.colSpan || 1;
+        });
+      }));
+    });
+  }
+  let labelQueued = false;
+  new MutationObserver(() => {
+    if (labelQueued) return; labelQueued = true;
+    requestAnimationFrame(() => { labelQueued = false; labelTables(document); });
+  }).observe(document.body, { childList: true, subtree: true });
+
   const num3 = (v) => (v == null || v === '' ? '–' : Number(v).toFixed(3));
   const dt = (d) => JO.fmtDateTime(d);
   const pill = (s) => JO.statusPill(s);
@@ -1949,7 +1982,7 @@
       <div>
         <section class="card"><h2>QRIS pembayaran</h2>
           <p class="small muted">Unggah gambar QRIS dari GoPay Merchant / GoBiz (PNG atau JPG). Gambar tampil di halaman tagihan dan status.</p>
-          <div class="pay" style="grid-template-columns:180px 1fr"><div class="qris">${S.qris_image_url ? `<img src="${esc(S.qris_image_url)}" alt="QRIS">` : '<p class="small muted" style="margin:8px">Belum ada</p>'}</div>
+          <div class="pay pay-set"><div class="qris">${S.qris_image_url ? `<img src="${esc(S.qris_image_url)}" alt="QRIS">` : '<p class="small muted" style="margin:8px">Belum ada</p>'}</div>
           <div><input type="file" id="qf" accept="image/png,image/jpeg,image/webp"><div class="field" style="margin-top:12px"><label class="f">Nama merchant</label><input data-s="qris_merchant" value="${esc(val('qris_merchant'))}"></div>
           <div class="field"><label class="f">Catatan pembayaran</label><textarea data-s="payment_note">${esc(val('payment_note'))}</textarea></div></div></div></section>
         <section class="card"><h2>Pendaftaran</h2>
