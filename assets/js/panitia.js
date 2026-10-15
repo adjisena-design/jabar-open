@@ -1863,7 +1863,7 @@
   // =====================================================================
   async function pageAccess(v) {
     const rows = await api('console_staff_list');
-    v.innerHTML = `<div class="row" style="justify-content:space-between;align-items:flex-end"><div><h1>Kode akses</h1><p class="muted">Satu kode untuk satu orang. Kode hanya ditampilkan sekali; bila hilang, buat kode baru (kode lama otomatis tidak berlaku).</p></div>
+    v.innerHTML = `<div class="row page-act" style="justify-content:space-between;align-items:center;gap:12px 20px"><div><h1>Kode akses</h1><p class="muted">Satu kode untuk satu orang. Kode hanya ditampilkan sekali; bila hilang, buat kode baru (kode lama otomatis tidak berlaku).</p></div>
       <button class="btn btn-primary" id="new">+ Buat kode baru</button></div><div style="height:14px"></div>
       <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nama</th><th>Peran</th><th>Disiplin</th><th>Batasan juri</th><th>Kode</th><th>Terakhir masuk</th><th></th></tr></thead><tbody>
       ${rows.map((s) => `<tr><td>${esc(s.name)}${s.active ? '' : ' <span class="pill bad">nonaktif</span>'}${s.note || s.phone ? `<br><span class="tiny muted">${esc([s.phone, s.note].filter(Boolean).join(' · '))}</span>` : ''}</td>
