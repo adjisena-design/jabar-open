@@ -1,0 +1,287 @@
+#!/usr/bin/env python3
+"""Draf awal FAQ Jabar Open 2026 (15 Okt 2026).
+
+Menulis supabase/src/58_faq_seed.sql. Semua butir masuk sebagai 'draf' dan
+tidak menimpa butir yang sudah ada (on conflict do nothing), jadi aman dijalankan ulang
+setelah panitia mengubah isinya di konsol.
+
+Format jawaban: baris kosong = paragraf baru, baris "- " = daftar,
+**tebal**, [teks](tautan). Tautan relatif (mis. daftar.html) atau https://, mailto:.
+"""
+import os
+
+CATS = [
+    ('umum', 'Umum', 'General'),
+    ('pendaftaran', 'Pendaftaran & Kategori', 'Registration & categories'),
+    ('pembayaran', 'Pembayaran', 'Payment'),
+    ('dokumen', 'Dokumen Atlet', 'Athlete documents'),
+    ('musik', 'Musik Ritmik', 'Rhythmic music'),
+    ('hari-h', 'Hari Pertandingan & AIC', 'Competition days & AIC'),
+    ('juri', 'Juri', 'Judges'),
+]
+
+# (kategori, slug, q_id, a_id, q_en, a_en)
+ITEMS = [
+    # ---------------- UMUM ----------------
+    ('umum', 'tentang', 'Apa itu Jabar Open 2026, kapan dan di mana diadakan?',
+     """Kejuaraan gimnastik terbuka yang diselenggarakan Gimnastik Indonesia (GI) Jawa Barat di bawah KONI Jawa Barat, **12–20 Desember 2026** di **Gymnasium Arcamanik**, Jl. Pacuan Kuda No. 15b, Kota Bandung.
+
+- Artistik Putra dan Artistik Putri: 12–15 Desember
+- Ritmik: 16–18 Desember
+- Aerobik: 19–20 Desember""",
+     'What is Jabar Open 2026, and when and where is it held?',
+     """An open gymnastics championship organised by Gimnastik Indonesia (GI) West Java under KONI West Java, **12–20 December 2026** at **Gymnasium Arcamanik**, Jl. Pacuan Kuda No. 15b, Bandung.
+
+- Men's and Women's Artistic: 12–15 December
+- Rhythmic: 16–18 December
+- Aerobic: 19–20 December"""),
+
+    ('umum', 'siapa-boleh-ikut', 'Siapa yang boleh ikut?',
+     """Sekolah, klub, pengkab/pengkot, dan perorangan, termasuk atlet dari luar negeri. Atlet tidak harus bergabung dengan klub; pilih "Perorangan" saat mendaftar.""",
+     'Who can take part?',
+     """Schools, clubs, regency/city associations and individuals, including athletes from abroad. Athletes do not need a club; choose "Individual" when registering."""),
+
+    ('umum', 'peraturan', 'Peraturan apa yang dipakai? Apakah ada protes nilai?',
+     """Penilaian memakai CoP FIG 2025–2028, TR 2025, dan ALP tanpa bonus. Tidak ada protes nilai: dengan mendaftar, peserta menerima keputusan juri dan panitia.""",
+     'Which rules apply? Can scores be protested?',
+     """Judging follows the FIG CoP 2025–2028, TR 2025 and ALP without bonus. There are no score protests: by registering, participants accept the decisions of the judges and the committee."""),
+
+    ('umum', 'jadwal-tampil', 'Kapan jadwal tampil atlet saya diumumkan?',
+     """Jadwal per hari di beranda masih sementara. Sesi dan urutan tampil diumumkan di [Start list](startlist.html) setelah pendaftaran ditutup, dan dibagikan lebih dulu di Instagram [@gimnastikjabar](https://www.instagram.com/gimnastikjabar/). Setelah terbit, jadwal tampil juga muncul di halaman status dan di AIC atlet.""",
+     "When is my athlete's competition slot announced?",
+     """The day-by-day schedule on the home page is provisional. Sessions and start order are announced on the [Start list](startlist.html) after registration closes, and shared first on Instagram [@gimnastikjabar](https://www.instagram.com/gimnastikjabar/). Once published, the slot also appears on the status page and on the athlete's AIC."""),
+
+    ('umum', 'hasil-sertifikat', 'Di mana melihat hasil dan mengunduh sertifikat?',
+     """Hasil tampil di halaman [Hasil](hasil.html) setelah panitia mempublikasikannya. Sertifikat atlet diunduh dari halaman status pendaftaran. Keaslian sertifikat bisa dicek lewat kode QR-nya di halaman [Verifikasi](verifikasi.html).""",
+     'Where can I see results and download certificates?',
+     """Results appear on the [Results](hasil.html) page once the committee publishes them. Athlete certificates are downloaded from the registration status page. A certificate can be checked for authenticity through its QR code on the [Verify](verifikasi.html) page."""),
+
+    # ---------------- PENDAFTARAN ----------------
+    ('pendaftaran', 'cara-daftar', 'Bagaimana cara mendaftar?',
+     """Semua pendaftaran dilakukan daring di halaman [Daftar](daftar.html):
+
+- Isi formulir (penanggung jawab, klub, data dan dokumen atlet, kategori).
+- Bayar lewat QRIS dengan nominal persis yang tertera.
+- Unggah bukti bayar **paling lambat 15 menit** setelah mendaftar.
+- Setelah panitia memverifikasi pembayaran (lunas), tautan unduh Athlete Identification Card (AIC) dikirim ke email penanggung jawab.""",
+     'How do I register?',
+     """All registration is online on the [Register](daftar.html) page:
+
+- Fill in the form (contact person, club, athlete details and documents, categories).
+- Pay by QRIS for the exact amount shown.
+- Upload the payment proof **within 15 minutes** of registering.
+- Once the committee confirms the payment, the Athlete Identification Card (AIC) download link is emailed to the contact person."""),
+
+    ('pendaftaran', 'batas-pendaftaran', 'Kapan batas akhir pendaftaran?',
+     """Pendaftaran dan pembayaran ditutup **12 November 2026 pukul 23.59 WIB**.""",
+     'When does registration close?',
+     """Registration and payment close on **12 November 2026 at 23:59 WIB (UTC+7)**."""),
+
+    ('pendaftaran', 'biaya', 'Berapa biaya pendaftaran?',
+     """- Artistik Putra / Putri: Rp750.000 per atlet
+- Beregu Artistik Putri (Level 1–6): Rp650.000 per tim, di luar biaya perorangan
+- Ritmik (Profesional, Amatir, Priangan): Rp750.000 per atlet
+- Aerobik perorangan (IM / IW): Rp300.000
+- Aerobik pasangan campuran (MP): Rp400.000 per pasangan
+
+Total yang dibayar ditambah kode unik tiga digit untuk mencocokkan pembayaran.""",
+     'How much is the entry fee?',
+     """- Men's / Women's Artistic: Rp750,000 per athlete
+- Women's Artistic team (Levels 1–6): Rp650,000 per team, on top of individual fees
+- Rhythmic (Professional, Amateur, Priangan): Rp750,000 per athlete
+- Aerobic individual (IM / IW): Rp300,000
+- Aerobic mixed pair (MP): Rp400,000 per pair
+
+A three-digit unique code is added to the total to match your payment."""),
+
+    ('pendaftaran', 'jumlah-atlet', 'Berapa atlet yang bisa didaftarkan sekaligus?',
+     """Satu pendaftaran untuk satu disiplin. Perorangan untuk satu atlet; klub, sekolah, atau pengkab hingga **lima atlet** per pendaftaran. Untuk lebih dari lima atlet, buat pendaftaran berikutnya.
+
+Kuota per klub per kategori: maksimal 10 pesenam untuk Artistik dan 4 atlet untuk Aerobik. Satu transaksi QRIS maksimal Rp10.000.000; bila total melebihinya, bagi atlet ke dalam dua pendaftaran.""",
+     'How many athletes can be registered at once?',
+     """One registration covers one discipline. Individual registrations are for one athlete; clubs, schools and associations can enter up to **five athletes** per registration. For more than five, submit another registration.
+
+Quota per club per category: up to 10 gymnasts for Artistic and 4 athletes for Aerobic. One QRIS transaction is capped at Rp10,000,000; if the total is higher, split the athletes into two registrations."""),
+
+    ('pendaftaran', 'kategori-usia', 'Bagaimana menentukan kategori usia atlet?',
+     """Kategori ditentukan oleh **tahun lahir** (usia 2026 = 2026 dikurangi tahun lahir). Setelah jenis kelamin dan tanggal lahir diisi, formulir hanya menampilkan kategori yang sesuai.
+
+- Ritmik: KU 5–6 (lahir 2020–2021), KU 7–8 (2018–2019), KU 9–10 (2016–2017), KU 11–12 (2014–2015), Junior (2011–2013)
+- Aerobik: Junior (2009–2011), Youth (2012–2014), National Development (2015–2017), Pre National Development (2018–2020)
+- Artistik Putra dan Putri: kelompok usia per level tampil di formulir.""",
+     "How is an athlete's age category decided?",
+     """Categories follow the **year of birth** (age in 2026 = 2026 minus birth year). Once gender and date of birth are filled in, the form shows only the categories that fit.
+
+- Rhythmic: AG 5–6 (born 2020–2021), AG 7–8 (2018–2019), AG 9–10 (2016–2017), AG 11–12 (2014–2015), Junior (2011–2013)
+- Aerobic: Junior (2009–2011), Youth (2012–2014), National Development (2015–2017), Pre National Development (2018–2020)
+- Men's and Women's Artistic: the age groups for each level are shown in the form."""),
+
+    ('pendaftaran', 'ritmik-level', 'Apa beda Ritmik Profesional, Amatir, dan Priangan?',
+     """Ketiganya adalah level Ritmik yang terpisah dengan kelompok umur yang sama. Priangan berada di bawah Amatir dan hanya untuk atlet Jawa Barat. Satu atlet hanya boleh ikut **satu level**.""",
+     "What is the difference between Rhythmic Professional, Amateur and Priangan?",
+     """They are separate Rhythmic levels with the same age groups. Priangan sits below Amateur and is only for West Java athletes. Each athlete may enter **one level only**."""),
+
+    ('pendaftaran', 'priangan', 'Siapa yang boleh ikut kategori Ritmik Priangan?',
+     """Atlet **WNI** yang alamat pada identitasnya di **Jawa Barat** dan didaftarkan lewat **klub dari Jawa Barat**. Asal pelatih atau penanggung jawab yang mengisi formulir tidak berpengaruh. Biayanya sama, Rp750.000, tanpa biaya tambahan. Priangan punya tabel medali sendiri.""",
+     'Who can enter the Rhythmic Priangan level?',
+     """**Indonesian** athletes whose ID address is in **West Java**, entered through a **West Java club**. Where the coach or contact person filling in the form comes from does not matter. The fee is the same Rp750,000, with no extra charge. Priangan has its own medal table."""),
+
+    ('pendaftaran', 'beregu', 'Bagaimana aturan Beregu Artistik Putri?',
+     """Beregu hanya untuk Artistik Putri Level 1–6, biaya Rp650.000 per tim di luar biaya perorangan.
+
+- Satu tim untuk satu level, 1–6 pesenam; kelompok usia boleh campur.
+- Satu klub boleh mengirim beberapa tim di level yang sama dengan nama berbeda.
+- Anggota bisa "juga perorangan" (sudah terdaftar perorangan lewat klub yang sama) atau "khusus beregu" (dinilai untuk tim, tidak diperingkat perorangan).
+- Nilai tim = jumlah 4 nilai serba bisa terbaik. Setiap anggota tim juara 1–3 mendapat sertifikat Juara Beregu.""",
+     "How does the Women's Artistic team event work?",
+     """The team event is for Women's Artistic Levels 1–6 only, Rp650,000 per team on top of individual fees.
+
+- One team per level, 1–6 gymnasts; age groups can be mixed.
+- A club may send several teams at the same level under different names.
+- Members are either "also individual" (already registered individually through the same club) or "team only" (scored for the team, not ranked individually).
+- Team score = sum of the best 4 all-around scores. Every member of a 1st–3rd place team receives a Team Champion certificate."""),
+
+    ('pendaftaran', 'klub-belum-ada', 'Klub saya tidak ada di daftar. Bagaimana?',
+     """Ketik nama klub di kolom pencarian. Bila tidak ditemukan, pilih "Klub saya belum ada di daftar", lalu isi nama klub, provinsi, dan kabupaten/kota. Panitia akan merapikan datanya.""",
+     "My club is not in the list. What should I do?",
+     """Type the club name in the search box. If it is not found, choose "My club is not listed" and fill in the club name, province and regency/city. The committee will tidy up the record."""),
+
+    ('pendaftaran', 'salah-data', 'Saya salah mengisi data atlet atau kategori. Bagaimana memperbaikinya?',
+     """Jangan mendaftar ulang. Kirim email ke [jabaropen2026@gmail.com](mailto:jabaropen2026@gmail.com) dengan menyertakan kode pendaftaran (JO26-…) dan data yang perlu diperbaiki. Panitia memperbaikinya dari sistem.""",
+     'I entered wrong athlete details or the wrong category. How do I fix it?',
+     """Do not register again. Email [jabaropen2026@gmail.com](mailto:jabaropen2026@gmail.com) with the registration code (JO26-…) and what needs correcting. The committee will fix it in the system."""),
+
+    ('pendaftaran', 'tautan-status', 'Tautan halaman status hilang. Bagaimana membukanya lagi?',
+     """Buka [Cek status](status.html), masukkan kode pendaftaran dan email penanggung jawab. Tautan baru dikirim ke email tersebut; periksa juga folder spam.""",
+     'I lost the status page link. How do I open it again?',
+     """Go to [Check status](status.html) and enter the registration code and the contact email. A new link is sent to that email; check the spam folder too."""),
+
+    ('pendaftaran', 'atlet-asing', 'Bagaimana pendaftaran untuk atlet warga negara asing?',
+     """Atlet WNA mendaftar lewat formulir yang sama dengan mengunggah paspor dan pas foto. Pembayarannya dilakukan terpisah: panitia menghubungi penanggung jawab lewat email untuk instruksi pembayaran. Kategori Ritmik Priangan hanya untuk WNI.""",
+     'How do foreign athletes register?',
+     """Foreign athletes use the same form and upload a passport and a passport photo. Payment is handled separately: the committee emails the contact person with payment instructions. The Rhythmic Priangan level is for Indonesian citizens only."""),
+
+    # ---------------- PEMBAYARAN ----------------
+    ('pembayaran', 'cara-bayar', 'Bagaimana cara membayar?',
+     """Pindai kode QRIS Jabar Open 2026 di halaman pembayaran atau halaman status dengan aplikasi bank atau dompet digital apa pun, lalu ketik **nominal persis**, termasuk tiga digit terakhir. Tiga digit itu adalah kode unik yang mencocokkan pembayaran dengan pendaftaran Anda; nominal berbeda akan memperlambat verifikasi.""",
+     'How do I pay?',
+     """Scan the Jabar Open 2026 QRIS code on the payment or status page with any bank or e-wallet app, then type the **exact amount**, including the last three digits. Those digits are a unique code that matches the payment to your registration; a different amount slows down verification."""),
+
+    ('pembayaran', 'batas-15-menit', 'Mengapa bukti bayar harus diunggah dalam 15 menit?',
+     """Pendaftaran dengan QRIS yang belum mengunggah bukti bayar dalam 15 menit **dihapus otomatis**, dan Anda perlu mendaftar ulang. Hitung mundurnya tampil di halaman pembayaran dan halaman status. Siapkan pembayaran sebelum mengirim formulir.""",
+     'Why must the payment proof be uploaded within 15 minutes?',
+     """QRIS registrations without a payment proof after 15 minutes are **deleted automatically**, and you will need to register again. The countdown is shown on the payment and status pages. Have your payment ready before submitting the form."""),
+
+    ('pembayaran', 'verifikasi-bayar', 'Saya sudah mengunggah bukti bayar. Apa selanjutnya?',
+     """Status berubah menjadi "Menunggu verifikasi". Setelah panitia mencocokkan pembayaran, status menjadi "Lunas" dan email berisi tautan unduh AIC dikirim ke penanggung jawab. Bila bukti perlu diperbaiki, Anda menerima email berisi catatan panitia dan bisa mengunggah bukti lain di halaman status.""",
+     'I have uploaded the payment proof. What happens next?',
+     """The status changes to "Awaiting verification". Once the committee matches the payment, the status becomes "Paid" and an email with the AIC download links is sent to the contact person. If the proof needs attention, you receive an email with the committee's note and can upload another proof on the status page."""),
+
+    # ---------------- DOKUMEN ----------------
+    ('dokumen', 'dokumen-wajib', 'Dokumen apa saja yang perlu disiapkan?',
+     """Unggah satu per satu, foto atau PDF, maksimal 5 MB per berkas:
+
+- Akte Kelahiran (wajib)
+- KTP dan Ijazah, bila sudah punya
+- Pas foto (wajib)
+- Kartu BPJS Ketenagakerjaan (opsional saat daftar, wajib saat bertanding)
+- Atlet WNA: paspor (wajib)
+
+Untuk atlet di bawah 18 tahun, siapkan juga data orang tua/wali.""",
+     'Which documents do I need?',
+     """Upload them one by one, as a photo or PDF, up to 5 MB each:
+
+- Birth certificate (required)
+- National ID card (KTP) and school certificate, if the athlete has them
+- Passport photo (required)
+- BPJS Ketenagakerjaan card (optional at registration, required to compete)
+- Foreign athletes: passport (required)
+
+For athletes under 18, also have the parent/guardian details ready."""),
+
+    ('dokumen', 'pas-foto', 'Seperti apa pas foto yang diterima?',
+     """Wajah menghadap ke depan dan terlihat jelas, latar polos, pakaian rapi, setengah badan (kepala sampai dada). **Bukan** swafoto (selfie), bukan pose santai atau bergaya, tanpa kacamata hitam, topi, atau filter. Foto ini dipasang di AIC dan tampil saat panitia memindai QR di venue.""",
+     'What kind of passport photo is accepted?',
+     """Face forward and clearly visible, plain background, neat clothing, head to chest. **No** selfies, no casual or posed shots, no sunglasses, hats or filters. The photo is printed on the AIC and shown when the committee scans the QR code at the venue."""),
+
+    ('dokumen', 'bpjs', 'Atlet belum punya atau belum mengunggah BPJS Ketenagakerjaan. Bagaimana?',
+     """Pendaftaran tetap bisa dikirim. BPJS Ketenagakerjaan wajib saat bertanding: **bawa kartunya ke meja panitia di venue** sebelum atlet tampil. Tidak ada unggah susulan lewat situs. Atlet tanpa BPJS ditandai di email konfirmasi, halaman status, dan AIC.""",
+     "The athlete has no BPJS Ketenagakerjaan card yet, or didn't upload it. What now?",
+     """The registration can still be submitted. BPJS Ketenagakerjaan is required to compete: **bring the card to the committee desk at the venue** before the athlete competes. There is no later upload on the website. Athletes without BPJS are flagged on the confirmation email, the status page and the AIC."""),
+
+    ('dokumen', 'data-pribadi', 'Bagaimana data dan dokumen atlet digunakan?',
+     """Data dan dokumen hanya dipakai untuk keperluan kejuaraan (verifikasi usia, start list, hasil, sertifikat), sesuai UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi. Nama, klub, dan hasil atlet dipublikasikan; tanggal lahir dan dokumen tidak. Dokumen identitas dihapus setelah kejuaraan selesai.""",
+     'How are athlete data and documents used?',
+     """Data and documents are used only for the championship (age checks, start lists, results, certificates), in line with Indonesia's Personal Data Protection Law No. 27 of 2022. Athlete names, clubs and results are published; dates of birth and documents are not. Identity documents are deleted after the championship."""),
+
+    ('dokumen', 'medis-asuransi', 'Apakah panitia menanggung biaya cedera?',
+     """Panitia menyiapkan tenaga medis dan pertolongan pertama. Biaya perawatan lanjutan menjadi tanggung jawab peserta atau delegasi, karena itu peserta wajib memiliki BPJS atau asuransi.""",
+     'Does the committee cover injury costs?',
+     """The committee provides medical staff and first aid. Further treatment is the responsibility of the participant or delegation, which is why participants must have BPJS or insurance."""),
+
+    # ---------------- MUSIK ----------------
+    ('musik', 'musik-format', 'Bagaimana mengirim musik Ritmik?',
+     """Saat mendaftar, isi **satu tautan Google Drive** (file MP3 atau folder) untuk setiap nomor sesuai kategori atlet, misalnya Tanpa Alat, Simpai, Bola. Semua nomor wajib diisi. Atur akses berbagi ke "Siapa saja yang memiliki link" agar panitia bisa membukanya.""",
+     'How do I submit Rhythmic music?',
+     """At registration, enter **one Google Drive link** (an MP3 file or a folder) for each routine in the athlete's category, for example Freehand, Hoop, Ball. Every routine is required. Set sharing to "Anyone with the link" so the committee can open it."""),
+
+    ('musik', 'ganti-musik', 'Bisakah musik diganti?',
+     """Bisa, **satu kali per atlet** (satu atau beberapa nomor sekaligus), sampai start list kategorinya terbit. Buka halaman [Musik](musik.html) dan masuk dengan kode pendaftaran dan email penanggung jawab.
+
+Bila panitia menandai tautan "tidak bisa dibuka", perbaiki aksesnya dan kirim lagi di halaman yang sama. Perbaikan ini tidak memakai kesempatan ganti.""",
+     'Can the music be changed?',
+     """Yes, **once per athlete** (one or several routines at once), until the category's start list is published. Open the [Music](musik.html) page and sign in with the registration code and contact email.
+
+If the committee marks a link as "cannot be opened", fix the sharing and resend it on the same page. A fix does not use up the change."""),
+
+    # ---------------- HARI-H & AIC ----------------
+    ('hari-h', 'apa-itu-aic', 'Apa itu Athlete Identification Card (AIC)?',
+     """Kartu identitas digital untuk setiap atlet, berisi nomor atlet, pas foto, kategori, jadwal tampil, dan kode QR. AIC **ditunjukkan dari ponsel di venue, tidak perlu dicetak**. Panitia memindai QR-nya untuk mencocokkan data dan pas foto atlet.""",
+     'What is the Athlete Identification Card (AIC)?',
+     """A digital ID card for each athlete with the athlete number, passport photo, categories, competition slot and a QR code. The AIC is **shown on a phone at the venue; no printing needed**. The committee scans its QR code to match the athlete's details and photo."""),
+
+    ('hari-h', 'aic-kapan', 'Kapan AIC bisa diunduh?',
+     """Hanya setelah pendaftaran **lunas**. Saat itu email berisi tautan "Unduh AIC" per atlet dikirim ke penanggung jawab, dan tombol unduh di halaman status terbuka. Sebelum lunas, tombolnya terkunci dengan keterangan apa yang masih ditunggu (unggah bukti bayar, verifikasi panitia, atau perbaikan bukti).""",
+     'When can the AIC be downloaded?',
+     """Only once the registration is **paid**. At that point an email with a "Download AIC" link for each athlete is sent to the contact person, and the download button on the status page unlocks. Until then the button is locked with a note on what is still pending (payment proof upload, committee verification, or a proof fix)."""),
+
+    ('hari-h', 'registrasi-ulang', 'Apakah ada registrasi ulang di venue?',
+     """Tidak ada registrasi ulang. Datang sesuai jadwal yang diumumkan di Instagram dan situs Jabar Open 2026, lalu tunjukkan AIC dari ponsel. Atlet yang belum mengunggah BPJS Ketenagakerjaan membawa kartunya ke meja panitia sebelum bertanding.""",
+     'Is there an on-site check-in?',
+     """There is no on-site check-in. Come at the time announced on Instagram and the Jabar Open 2026 website and show the AIC on a phone. Athletes who did not upload BPJS Ketenagakerjaan bring the card to the committee desk before competing."""),
+
+    # ---------------- JURI ----------------
+    ('juri', 'daftar-juri', 'Bagaimana mendaftar sebagai juri?',
+     """Juri berbrevet mendaftar di halaman [Pendaftaran juri](juri.html) untuk **satu disiplin**: Artistik Putra, Artistik Putri, atau Ritmik. Siapkan KTP atau identitas lain, pas foto, kartu BPJS Ketenagakerjaan (wajib), dan sertifikat brevet bila ada; berkas JPG, PNG, atau PDF, maksimal 5 MB. Panitia memeriksa setiap pendaftaran dan menghubungi juri terpilih lewat WhatsApp.""",
+     'How do I apply as a judge?',
+     """Licensed judges apply on the [Judge application](juri.html) page for **one discipline**: Men's Artistic, Women's Artistic or Rhythmic. Have an ID card, a passport photo, a BPJS Ketenagakerjaan card (required) and the judging licence if available; files in JPG, PNG or PDF, up to 5 MB. The committee reviews every application and contacts selected judges by WhatsApp."""),
+]
+
+
+def q(s):
+    assert '$f$' not in s
+    return '$f$' + s + '$f$'
+
+
+def main():
+    here = os.path.dirname(os.path.abspath(__file__))
+    out = os.path.join(here, '..', 'src', '58_faq_seed.sql')
+    slugs = [i[1] for i in ITEMS]
+    assert len(slugs) == len(set(slugs)), 'slug ganda'
+    L = ['-- =====================================================================',
+         '--  FAQ: kategori awal dan draf butir (dibuat oleh tools/faq_draft.py).',
+         '--  Semua butir masuk sebagai draf; tidak menimpa butir yang sudah ada.',
+         '-- =====================================================================']
+    for n, (k, nid, nen) in enumerate(CATS, 1):
+        L.append(f"insert into jo.faq_categories (key, name_id, name_en, sort) values ({q(k)}, {q(nid)}, {q(nen)}, {n*10}) on conflict (key) do nothing;")
+    sorts = {}
+    for cat, slug, qid, aid, qen, aen in ITEMS:
+        sorts[cat] = sorts.get(cat, 0) + 10
+        L.append(f"insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ("
+                 f"{q(cat)}, {q(slug)}, {q(qid)}, {q(aid.strip())}, {q(qen)}, {q(aen.strip())}, {sorts[cat]}, 'draf', 'Draf awal') on conflict (slug) do nothing;")
+    open(out, 'w').write('\n'.join(L) + '\n')
+    print(f'{out}: {len(CATS)} kategori, {len(ITEMS)} butir')
+
+
+if __name__ == '__main__':
+    main()

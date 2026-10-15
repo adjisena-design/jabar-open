@@ -469,6 +469,33 @@ alter table jo.athletes add column if not exists bpjs_path text;
 alter table jo.athletes add column if not exists photo_thumb text;   -- pas foto kecil (data URL JPEG) untuk kartu atlet
 alter table jo.jury_applications add column if not exists bpjs_path text;
 
+-- ---------------------------------------------------------------------
+-- FAQ (15 Okt 2026): dikelola panitia di konsol; publik hanya melihat status 'terbit'.
+--   Tidak ada hapus permanen: butir lama diarsipkan, kategori dinonaktifkan.
+-- ---------------------------------------------------------------------
+create table if not exists jo.faq_categories (
+  key      text primary key check (key ~ '^[a-z0-9-]{2,40}$'),
+  name_id  text not null,
+  name_en  text,
+  sort     integer not null default 0,
+  active   boolean not null default true
+);
+create table if not exists jo.faq_items (
+  id         uuid primary key default gen_random_uuid(),
+  category   text not null references jo.faq_categories(key),
+  slug       text not null unique check (slug ~ '^[a-z0-9-]{2,60}$'),
+  q_id       text not null,
+  a_id       text not null,
+  q_en       text,
+  a_en       text,
+  sort       integer not null default 0,
+  status     text not null default 'draf' check (status in ('draf','terbit','arsip')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  updated_by text
+);
+create index if not exists faq_items_cat on jo.faq_items (category, sort);
+
 -- Semua tabel di skema jo: RLS aktif tanpa policy.
 -- Akses hanya lewat fungsi (RPC) yang memeriksa hak.
 do $$ declare t record; begin

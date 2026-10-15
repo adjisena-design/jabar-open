@@ -3,7 +3,8 @@
   'use strict';
   const EN = {
     n_about: 'About', n_sched: 'Schedule', n_fee: 'Fees', n_startlist: 'Start list', n_results: 'Results', n_merch: 'Merch',
-    n_contact: 'Contact', n_status: 'Check status', n_register: 'Register', n_verify: 'Verify a certificate', n_jury: 'Judge application',
+    n_contact: 'Contact', n_faq: 'FAQ',
+    fq_eyebrow: 'Frequently asked', fq_title: 'Common questions, <em>answered here.</em>', fq_lead: 'Search by keyword or pick a category.', fq_all: 'Open the FAQ page', n_status: 'Check status', n_register: 'Register', n_verify: 'Verify a certificate', n_jury: 'Judge application',
     h_kick1: 'Open gymnastics championship', h_kick2: '12–20 December 2026 · Bandung',
     h_t1: 'One arena.', h_t2: 'Four disciplines.', h_t3: 'Hundreds of dreams.',
     cta_reg: 'Register now', cta_fee: 'Schedule & fees', h_days: 'days to 12 December',
@@ -80,7 +81,9 @@
     document.querySelectorAll('.lang-sw button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lang === l)));
     document.documentElement.lang = l;
     try { localStorage.setItem('jo26-lang', l); } catch (e) {}
+    if (faq) faq.setLang(l);
   }
+  let faq = null;
   document.querySelectorAll('.lang-sw button').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang)));
   let saved = 'id'; try { saved = localStorage.getItem('jo26-lang') || 'id'; } catch (e) {}
 
@@ -102,7 +105,8 @@
 
   // ---------- lipatan: buka-tutup halus ----------
   // <details> bawaan langsung melompat. Di sini tingginya dianimasikan, isinya memudar masuk.
-  document.querySelectorAll('details').forEach((d) => {
+  function animateDetails(d) {
+    if (d.dataset.anim) return; d.dataset.anim = '1';
     const sum = d.querySelector(':scope > summary');
     const body = d.querySelector(':scope > :not(summary)');
     if (!sum || !body || reduce || typeof d.animate !== 'function') return;
@@ -138,7 +142,21 @@
         run(d.offsetHeight, sum.offsetHeight + edge(), false);
       }
     });
-  });
+  }
+  document.querySelectorAll('details').forEach(animateDetails);
+
+  // ---------- FAQ: tampil hanya bila ada pertanyaan terbit ----------
+  const faqSec = document.getElementById('faq');
+  if (faqSec && window.JOFaq) {
+    faq = window.JOFaq.mount(document.getElementById('faq-box'), {
+      lang: saved === 'en' ? 'en' : 'id', mode: 'landing',
+      onReady: (has) => {
+        faqSec.hidden = !has;
+        document.querySelectorAll('[data-faq-nav]').forEach((x) => { x.hidden = !has; });
+      },
+      onRender: (box) => box.querySelectorAll('details').forEach(animateDetails),
+    });
+  }
 
   // ---------- navigasi ----------
   const nav = document.getElementById('nav');
@@ -159,7 +177,7 @@
   if ('IntersectionObserver' in window) {
     const map = {};
     links.querySelectorAll('a[href^="#"]').forEach((a) => { map[a.getAttribute('href').slice(1)] = a; });
-    const order = ['tentang', 'info', 'jadwal', 'kenangan', 'biaya', 'merch', 'kontak'];
+    const order = ['tentang', 'info', 'jadwal', 'kenangan', 'biaya', 'merch', 'faq', 'kontak'];
     const seen = new Set();
     const secObs = new IntersectionObserver((entries) => {
       entries.forEach((en) => { if (en.isIntersecting) seen.add(en.target.id); else seen.delete(en.target.id); });

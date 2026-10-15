@@ -1,0 +1,54 @@
+/* Jabar Open 2026 — FAQ (beranda #faq dan faq.html). Memakai token warna halaman induk. */
+.faq-tools{display:grid;gap:14px;margin-bottom:8px}
+.faq-search{position:relative;display:block}
+.faq-search svg{position:absolute;left:16px;top:50%;width:19px;height:19px;margin-top:-9.5px;fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;pointer-events:none}
+.faq-search input{width:100%;font:inherit;font-size:16px;color:var(--ink);background:#fff;border:1.5px solid var(--line-2);border-radius:999px;padding:13px 18px 13px 46px;outline:none;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none;appearance:none}
+.faq-search input::placeholder{color:var(--muted);opacity:.85}
+.faq-search input:focus{border-color:var(--blue);box-shadow:0 0 0 4px var(--blue-lt)}
+.faq-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.faq-tabs{display:flex;flex-wrap:wrap;gap:8px}
+.faq-tab{font:inherit;font-size:14px;font-weight:650;color:var(--ink-2);background:#fff;border:1.5px solid var(--line-2);border-radius:999px;padding:7px 14px;cursor:pointer;line-height:1.3;transition:background .2s,color .2s,border-color .2s}
+.faq-tab:hover{border-color:var(--blue);color:var(--blue)}
+.faq-tab[aria-pressed="true"]{background:var(--blue);border-color:var(--blue);color:#fff}
+.faq-tab:focus-visible,.faq-copy:focus-visible,.faq-item > summary:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.faq-count{margin:0;min-height:1em;font-size:13.5px;font-weight:600;color:var(--muted)}
+.faq-count:empty{display:none}
+
+.faq-group + .faq-group{margin-top:22px}
+.faq-cat{margin:0 0 4px;font-size:13px;font-weight:700;letter-spacing:.02em;color:var(--blue)}
+.faq-item{border-bottom:1px solid var(--line-2);scroll-margin-top:96px;transition:background .6s}
+.faq-group .faq-item:first-of-type{border-top:1px solid var(--line-2)}
+.faq-item > summary{list-style:none;display:flex;align-items:flex-start;gap:14px;padding:16px 2px;cursor:pointer;color:var(--ink);font-weight:650;font-size:16.5px;line-height:1.4}
+.faq-item > summary::-webkit-details-marker{display:none}
+.faq-item > summary:hover{color:var(--blue)}
+.faq-q{flex:1;min-width:0}
+.faq-tog{position:relative;display:inline-block;flex:none;width:22px;height:22px;margin-top:1px;border-radius:50%;border:1.5px solid var(--blue);color:var(--blue);font-style:normal}
+.faq-tog::before,.faq-tog::after{content:'';position:absolute;left:50%;top:50%;width:9px;height:1.5px;margin:-.75px 0 0 -4.5px;background:currentColor;transition:transform .25s ease}
+.faq-tog::after{transform:rotate(90deg)}
+.faq-item[open]:not(.closing) > summary .faq-tog::after{transform:rotate(0)}
+.faq-a{padding:0 38px 18px 2px;color:var(--ink-2);font-size:15.5px;line-height:1.65}
+.faq-a p{margin:0 0 10px}
+.faq-a ul{margin:0 0 10px;padding-left:20px}
+.faq-a li{margin:3px 0}
+.faq-a a{color:var(--blue);text-underline-offset:2px}
+.faq-a strong{color:var(--ink)}
+.faq-link{margin:4px 0 0 !important}
+.faq-copy{font:inherit;font-size:13px;font-weight:650;color:var(--muted);background:none;border:0;padding:4px 0;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.faq-copy:hover{color:var(--blue)}
+.faq-copy.done{color:var(--blue);text-decoration:none}
+.faq-hl{background:var(--gold-lt)}
+.faq-none{margin:10px 0 0;padding:16px 18px;border-radius:14px;background:var(--blue-lt);color:var(--blue-d);font-size:15px}
+@media (max-width:600px){
+  .faq-item > summary{font-size:16px;padding:15px 0}
+  .faq-a{padding-right:0}
+  .faq-tab{font-size:13.5px;padding:7px 12px}
+}
+@media (prefers-reduced-motion:reduce){.faq-item,.faq-tog::before,.faq-tog::after,.faq-tab{transition:none}}
+.faq-box{max-width:940px}
+.faq-card{padding-top:20px}
+.faq-help h2{margin-bottom:12px}
+.faq-contacts{display:grid;grid-template-columns:1fr 1fr;gap:16px 28px}
+.faq-wa{list-style:none;margin:0;padding:0;display:grid;gap:0}
+.faq-wa li{display:grid;grid-template-columns:130px 1fr auto;gap:10px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line)}
+@media (max-width:600px){.faq-contacts{grid-template-columns:1fr}.faq-wa li{grid-template-columns:1fr auto}.faq-wa li .small{grid-column:1 / -1}}
+.faq-preview{border:1px solid var(--line);border-radius:12px;padding:0 14px;background:#fff}.faq-preview .faq-item:last-child{border-bottom:0}

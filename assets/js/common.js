@@ -43,7 +43,7 @@
 
   addDict({
     nav_home: ['Beranda', 'Home'], nav_register: ['Daftar', 'Register'], nav_status: ['Cek status', 'Check status'],
-    nav_startlist: ['Start list', 'Start list'], nav_results: ['Hasil', 'Results'],
+    nav_startlist: ['Start list', 'Start list'], nav_results: ['Hasil', 'Results'], nav_faq: ['FAQ', 'FAQ'],
     menu: ['Menu', 'Menu'],
     footer_org: ['Diselenggarakan oleh Gimnastik Indonesia (GI) Jawa Barat', 'Organised by Gimnastik Indonesia (GI) West Java'],
     footer_contact: ['Pertanyaan pendaftaran', 'Registration questions'],
@@ -188,6 +188,7 @@
       <button class="menu-btn" type="button" aria-expanded="false" aria-controls="topnav" data-i18n="menu">Menu</button>
       <nav class="topnav" id="topnav">
         ${links.map(([href, key]) => `<a href="${base}${href}" data-i18n="${key}" ${active === href ? 'aria-current="page"' : ''}></a>`).join('')}
+        <a href="${base}faq.html" data-i18n="nav_faq" data-faq-nav ${active === 'faq.html' ? 'aria-current="page"' : 'hidden'}></a>
         <span class="lang" role="group" aria-label="Bahasa / Language"><button type="button" data-lang="id">ID</button><button type="button" data-lang="en">EN</button></span>
       </nav></div>`;
     document.body.prepend(h);
@@ -196,6 +197,8 @@
       e.currentTarget.setAttribute('aria-expanded', String(open));
     });
     h.querySelectorAll('.lang button').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang)));
+    // tautan FAQ hanya tampil bila sudah ada pertanyaan terbit
+    if (active !== 'faq.html' && window.JOFaq) window.JOFaq.count().then((n) => { if (n > 0) h.querySelectorAll('[data-faq-nav]').forEach((a) => { a.hidden = false; }); }).catch(() => {});
   }
   function footer() {
     const base = relRoot();

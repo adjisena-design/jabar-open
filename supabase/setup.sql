@@ -469,6 +469,33 @@ alter table jo.athletes add column if not exists bpjs_path text;
 alter table jo.athletes add column if not exists photo_thumb text;   -- pas foto kecil (data URL JPEG) untuk kartu atlet
 alter table jo.jury_applications add column if not exists bpjs_path text;
 
+-- ---------------------------------------------------------------------
+-- FAQ (15 Okt 2026): dikelola panitia di konsol; publik hanya melihat status 'terbit'.
+--   Tidak ada hapus permanen: butir lama diarsipkan, kategori dinonaktifkan.
+-- ---------------------------------------------------------------------
+create table if not exists jo.faq_categories (
+  key      text primary key check (key ~ '^[a-z0-9-]{2,40}$'),
+  name_id  text not null,
+  name_en  text,
+  sort     integer not null default 0,
+  active   boolean not null default true
+);
+create table if not exists jo.faq_items (
+  id         uuid primary key default gen_random_uuid(),
+  category   text not null references jo.faq_categories(key),
+  slug       text not null unique check (slug ~ '^[a-z0-9-]{2,60}$'),
+  q_id       text not null,
+  a_id       text not null,
+  q_en       text,
+  a_en       text,
+  sort       integer not null default 0,
+  status     text not null default 'draf' check (status in ('draf','terbit','arsip')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  updated_by text
+);
+create index if not exists faq_items_cat on jo.faq_items (category, sort);
+
 -- Semua tabel di skema jo: RLS aktif tanpa policy.
 -- Akses hanya lewat fungsi (RPC) yang memeriksa hak.
 do $$ declare t record; begin
@@ -4230,6 +4257,288 @@ begin
   perform jo.log(st.id, 'berkas_dihapus', 'storage', coalesce(p_context, '-'), jsonb_build_object('count', p_count));
   return jsonb_build_object('ok', true);
 end $$;
+-- =====================================================================
+--  FAQ (15 Okt 2026)
+--  Publik: public_faq() hanya butir 'terbit' di kategori aktif.
+--  Konsol: owner, superadmin, admin menulis, mengurutkan, menerbitkan,
+--          menyembunyikan (draf) dan mengarsipkan. Tidak ada hapus permanen.
+-- =====================================================================
+
+create or replace function jo.faq_slug(p_text text, p_except uuid default null) returns text
+language plpgsql stable set search_path = '' as $$
+declare base text; s text; n integer := 1;
+begin
+  base := left(trim(both '-' from regexp_replace(lower(coalesce(p_text,'')), '[^a-z0-9]+', '-', 'g')), 52);
+  base := trim(both '-' from base);
+  if length(base) < 2 then base := 'faq'; end if;
+  s := base;
+  while exists (select 1 from jo.faq_items where slug = s and (p_except is null or id <> p_except)) loop
+    n := n + 1; s := base || '-' || n;
+  end loop;
+  return s;
+end $$;
+
+create or replace function jo.faq_cat_json(p_all boolean) returns jsonb
+language sql stable set search_path = '' as $$
+  select coalesce(jsonb_agg(jsonb_build_object('key', c.key, 'name_id', c.name_id, 'name_en', c.name_en,
+           'sort', c.sort, 'active', c.active) order by c.sort, c.name_id), '[]'::jsonb)
+    from jo.faq_categories c where p_all or c.active
+$$;
+
+create or replace function public.public_faq() returns jsonb
+language sql stable security definer set search_path = '' as $$
+  select jsonb_build_object(
+    'categories', coalesce((select jsonb_agg(jsonb_build_object('key', c.key, 'name_id', c.name_id, 'name_en', c.name_en) order by c.sort, c.name_id)
+        from jo.faq_categories c where c.active
+         and exists (select 1 from jo.faq_items i where i.category = c.key and i.status = 'terbit')), '[]'::jsonb),
+    'items', coalesce((select jsonb_agg(jsonb_build_object('slug', i.slug, 'category', i.category,
+          'q_id', i.q_id, 'a_id', i.a_id, 'q_en', i.q_en, 'a_en', i.a_en) order by c.sort, i.sort, i.created_at)
+        from jo.faq_items i join jo.faq_categories c on c.key = i.category
+       where i.status = 'terbit' and c.active), '[]'::jsonb))
+$$;
+
+create or replace function public.public_faq_count() returns integer
+language sql stable security definer set search_path = '' as $$
+  select count(*)::integer from jo.faq_items i join jo.faq_categories c on c.key = i.category
+   where i.status = 'terbit' and c.active
+$$;
+
+create or replace function public.console_faq() returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  perform jo.require_staff(array['owner','superadmin','admin']);
+  return jsonb_build_object(
+    'categories', jo.faq_cat_json(true),
+    'items', coalesce((select jsonb_agg(jsonb_build_object('id', i.id, 'slug', i.slug, 'category', i.category,
+          'q_id', i.q_id, 'a_id', i.a_id, 'q_en', i.q_en, 'a_en', i.a_en, 'sort', i.sort, 'status', i.status,
+          'updated_at', i.updated_at, 'updated_by', i.updated_by) order by c.sort, i.sort, i.created_at)
+        from jo.faq_items i join jo.faq_categories c on c.key = i.category), '[]'::jsonb));
+end $$;
+
+create or replace function public.console_faq_save(p jsonb) returns jsonb
+language plpgsql volatile security definer set search_path = '' as $$
+declare st jo.staff; x jo.faq_items; v_id uuid; v_cat text; v_slug text; v_status text; v_sort integer;
+  v_q text; v_a text; v_qe text; v_ae text;
+begin
+  st := jo.require_staff(array['owner','superadmin','admin']);
+  v_id := nullif(p->>'id','')::uuid;
+  if v_id is not null then
+    select * into x from jo.faq_items where id = v_id;
+    if x.id is null then raise exception 'Pertanyaan tidak ditemukan.' using hint = 'ERR_NOT_FOUND'; end if;
+  end if;
+  v_cat := coalesce(nullif(p->>'category',''), x.category);
+  if not exists (select 1 from jo.faq_categories where key = v_cat) then raise exception 'Pilih kategori.'; end if;
+  v_q := trim(coalesce(p->>'q_id','')); v_a := trim(coalesce(p->>'a_id',''));
+  v_qe := nullif(trim(coalesce(p->>'q_en','')),''); v_ae := nullif(trim(coalesce(p->>'a_en','')),'');
+  if length(v_q) < 5 then raise exception 'Isi pertanyaan (bahasa Indonesia).'; end if;
+  if length(v_a) < 2 then raise exception 'Isi jawaban (bahasa Indonesia).'; end if;
+  if length(v_q) > 300 or length(coalesce(v_qe,'')) > 300 then raise exception 'Pertanyaan maksimal 300 karakter.'; end if;
+  if length(v_a) > 4000 or length(coalesce(v_ae,'')) > 4000 then raise exception 'Jawaban maksimal 4000 karakter.'; end if;
+  if (v_qe is null) <> (v_ae is null) then raise exception 'Versi Inggris perlu pertanyaan dan jawaban sekaligus, atau kosongkan keduanya.'; end if;
+  v_status := coalesce(nullif(p->>'status',''), x.status, 'draf');
+  if v_status not in ('draf','terbit','arsip') then raise exception 'Status tidak dikenal.'; end if;
+  v_slug := nullif(lower(trim(coalesce(p->>'slug',''))),'');
+  if v_slug is null then v_slug := coalesce(x.slug, jo.faq_slug(v_q, v_id));
+  elsif v_slug !~ '^[a-z0-9-]{2,60}$' then raise exception 'Tautan hanya huruf kecil, angka, dan tanda hubung (2–60 karakter).';
+  elsif exists (select 1 from jo.faq_items where slug = v_slug and (v_id is null or id <> v_id)) then
+    raise exception 'Tautan "%" sudah dipakai pertanyaan lain.', v_slug;
+  end if;
+  if v_id is null or x.category <> v_cat then
+    select coalesce(max(sort), 0) + 10 into v_sort from jo.faq_items where category = v_cat;
+  else v_sort := x.sort; end if;
+  if v_id is null then
+    insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by)
+    values (v_cat, v_slug, v_q, v_a, v_qe, v_ae, v_sort, v_status, st.name) returning id into v_id;
+    perform jo.log(st.id, 'faq_dibuat', 'faq', v_id::text, jsonb_build_object('slug', v_slug, 'status', v_status));
+  else
+    update jo.faq_items set category = v_cat, slug = v_slug, q_id = v_q, a_id = v_a, q_en = v_qe, a_en = v_ae,
+      sort = v_sort, status = v_status, updated_at = now(), updated_by = st.name where id = v_id;
+    perform jo.log(st.id, 'faq_diubah', 'faq', v_id::text, jsonb_build_object('slug', v_slug, 'status', v_status, 'was_status', x.status));
+  end if;
+  return public.console_faq();
+end $$;
+
+create or replace function public.console_faq_set_status(p_id uuid, p_status text) returns jsonb
+language plpgsql volatile security definer set search_path = '' as $$
+declare st jo.staff; x jo.faq_items;
+begin
+  st := jo.require_staff(array['owner','superadmin','admin']);
+  if p_status not in ('draf','terbit','arsip') then raise exception 'Status tidak dikenal.'; end if;
+  select * into x from jo.faq_items where id = p_id;
+  if x.id is null then raise exception 'Pertanyaan tidak ditemukan.' using hint = 'ERR_NOT_FOUND'; end if;
+  update jo.faq_items set status = p_status, updated_at = now(), updated_by = st.name where id = p_id;
+  perform jo.log(st.id, 'faq_status', 'faq', p_id::text, jsonb_build_object('slug', x.slug, 'from', x.status, 'to', p_status));
+  return public.console_faq();
+end $$;
+
+-- geser satu langkah ke atas (-1) atau ke bawah (+1) di dalam kategorinya
+create or replace function public.console_faq_move(p_id uuid, p_dir integer) returns jsonb
+language plpgsql volatile security definer set search_path = '' as $$
+declare st jo.staff; x jo.faq_items; ids uuid[]; i integer; j integer; tmp uuid;
+begin
+  st := jo.require_staff(array['owner','superadmin','admin']);
+  select * into x from jo.faq_items where id = p_id;
+  if x.id is null then raise exception 'Pertanyaan tidak ditemukan.' using hint = 'ERR_NOT_FOUND'; end if;
+  select array_agg(id order by sort, created_at) into ids from jo.faq_items where category = x.category;
+  i := array_position(ids, p_id); j := i + sign(p_dir)::integer;
+  if j >= 1 and j <= array_length(ids, 1) then
+    tmp := ids[i]; ids[i] := ids[j]; ids[j] := tmp;
+  end if;
+  update jo.faq_items f set sort = o.n * 10 from unnest(ids) with ordinality as o(id, n) where f.id = o.id;
+  return public.console_faq();
+end $$;
+
+create or replace function public.console_faq_category_save(p jsonb) returns jsonb
+language plpgsql volatile security definer set search_path = '' as $$
+declare st jo.staff; v_key text; v_name text; v_sort integer;
+begin
+  st := jo.require_staff(array['owner','superadmin','admin']);
+  v_name := trim(coalesce(p->>'name_id',''));
+  if length(v_name) < 2 then raise exception 'Isi nama kategori.'; end if;
+  v_key := nullif(p->>'key','');
+  if v_key is not null and exists (select 1 from jo.faq_categories where key = v_key) then
+    update jo.faq_categories set name_id = v_name, name_en = nullif(trim(coalesce(p->>'name_en','')),''),
+      active = coalesce((p->>'active')::boolean, active) where key = v_key;
+    perform jo.log(st.id, 'faq_kategori_diubah', 'faq_category', v_key, p);
+  else
+    v_key := left(trim(both '-' from regexp_replace(lower(v_name), '[^a-z0-9]+', '-', 'g')), 36);
+    if length(v_key) < 2 then v_key := 'kategori'; end if;
+    while exists (select 1 from jo.faq_categories where key = v_key) loop v_key := v_key || '-2'; end loop;
+    select coalesce(max(sort), 0) + 10 into v_sort from jo.faq_categories;
+    insert into jo.faq_categories (key, name_id, name_en, sort, active)
+    values (v_key, v_name, nullif(trim(coalesce(p->>'name_en','')),''), v_sort, coalesce((p->>'active')::boolean, true));
+    perform jo.log(st.id, 'faq_kategori_dibuat', 'faq_category', v_key, p);
+  end if;
+  return public.console_faq();
+end $$;
+
+create or replace function public.console_faq_category_move(p_key text, p_dir integer) returns jsonb
+language plpgsql volatile security definer set search_path = '' as $$
+declare st jo.staff; ks text[]; i integer; j integer; tmp text;
+begin
+  st := jo.require_staff(array['owner','superadmin','admin']);
+  select array_agg(key order by sort, name_id) into ks from jo.faq_categories;
+  i := array_position(ks, p_key);
+  if i is null then raise exception 'Kategori tidak ditemukan.' using hint = 'ERR_NOT_FOUND'; end if;
+  j := i + sign(p_dir)::integer;
+  if j >= 1 and j <= array_length(ks, 1) then tmp := ks[i]; ks[i] := ks[j]; ks[j] := tmp; end if;
+  update jo.faq_categories c set sort = o.n * 10 from unnest(ks) with ordinality as o(key, n) where c.key = o.key;
+  return public.console_faq();
+end $$;
+-- =====================================================================
+--  FAQ: kategori awal dan draf butir (dibuat oleh tools/faq_draft.py).
+--  Semua butir masuk sebagai draf; tidak menimpa butir yang sudah ada.
+-- =====================================================================
+insert into jo.faq_categories (key, name_id, name_en, sort) values ($f$umum$f$, $f$Umum$f$, $f$General$f$, 10) on conflict (key) do nothing;
+insert into jo.faq_categories (key, name_id, name_en, sort) values ($f$pendaftaran$f$, $f$Pendaftaran & Kategori$f$, $f$Registration & categories$f$, 20) on conflict (key) do nothing;
+insert into jo.faq_categories (key, name_id, name_en, sort) values ($f$pembayaran$f$, $f$Pembayaran$f$, $f$Payment$f$, 30) on conflict (key) do nothing;
+insert into jo.faq_categories (key, name_id, name_en, sort) values ($f$dokumen$f$, $f$Dokumen Atlet$f$, $f$Athlete documents$f$, 40) on conflict (key) do nothing;
+insert into jo.faq_categories (key, name_id, name_en, sort) values ($f$musik$f$, $f$Musik Ritmik$f$, $f$Rhythmic music$f$, 50) on conflict (key) do nothing;
+insert into jo.faq_categories (key, name_id, name_en, sort) values ($f$hari-h$f$, $f$Hari Pertandingan & AIC$f$, $f$Competition days & AIC$f$, 60) on conflict (key) do nothing;
+insert into jo.faq_categories (key, name_id, name_en, sort) values ($f$juri$f$, $f$Juri$f$, $f$Judges$f$, 70) on conflict (key) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$umum$f$, $f$tentang$f$, $f$Apa itu Jabar Open 2026, kapan dan di mana diadakan?$f$, $f$Kejuaraan gimnastik terbuka yang diselenggarakan Gimnastik Indonesia (GI) Jawa Barat di bawah KONI Jawa Barat, **12–20 Desember 2026** di **Gymnasium Arcamanik**, Jl. Pacuan Kuda No. 15b, Kota Bandung.
+
+- Artistik Putra dan Artistik Putri: 12–15 Desember
+- Ritmik: 16–18 Desember
+- Aerobik: 19–20 Desember$f$, $f$What is Jabar Open 2026, and when and where is it held?$f$, $f$An open gymnastics championship organised by Gimnastik Indonesia (GI) West Java under KONI West Java, **12–20 December 2026** at **Gymnasium Arcamanik**, Jl. Pacuan Kuda No. 15b, Bandung.
+
+- Men's and Women's Artistic: 12–15 December
+- Rhythmic: 16–18 December
+- Aerobic: 19–20 December$f$, 10, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$umum$f$, $f$siapa-boleh-ikut$f$, $f$Siapa yang boleh ikut?$f$, $f$Sekolah, klub, pengkab/pengkot, dan perorangan, termasuk atlet dari luar negeri. Atlet tidak harus bergabung dengan klub; pilih "Perorangan" saat mendaftar.$f$, $f$Who can take part?$f$, $f$Schools, clubs, regency/city associations and individuals, including athletes from abroad. Athletes do not need a club; choose "Individual" when registering.$f$, 20, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$umum$f$, $f$peraturan$f$, $f$Peraturan apa yang dipakai? Apakah ada protes nilai?$f$, $f$Penilaian memakai CoP FIG 2025–2028, TR 2025, dan ALP tanpa bonus. Tidak ada protes nilai: dengan mendaftar, peserta menerima keputusan juri dan panitia.$f$, $f$Which rules apply? Can scores be protested?$f$, $f$Judging follows the FIG CoP 2025–2028, TR 2025 and ALP without bonus. There are no score protests: by registering, participants accept the decisions of the judges and the committee.$f$, 30, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$umum$f$, $f$jadwal-tampil$f$, $f$Kapan jadwal tampil atlet saya diumumkan?$f$, $f$Jadwal per hari di beranda masih sementara. Sesi dan urutan tampil diumumkan di [Start list](startlist.html) setelah pendaftaran ditutup, dan dibagikan lebih dulu di Instagram [@gimnastikjabar](https://www.instagram.com/gimnastikjabar/). Setelah terbit, jadwal tampil juga muncul di halaman status dan di AIC atlet.$f$, $f$When is my athlete's competition slot announced?$f$, $f$The day-by-day schedule on the home page is provisional. Sessions and start order are announced on the [Start list](startlist.html) after registration closes, and shared first on Instagram [@gimnastikjabar](https://www.instagram.com/gimnastikjabar/). Once published, the slot also appears on the status page and on the athlete's AIC.$f$, 40, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$umum$f$, $f$hasil-sertifikat$f$, $f$Di mana melihat hasil dan mengunduh sertifikat?$f$, $f$Hasil tampil di halaman [Hasil](hasil.html) setelah panitia mempublikasikannya. Sertifikat atlet diunduh dari halaman status pendaftaran. Keaslian sertifikat bisa dicek lewat kode QR-nya di halaman [Verifikasi](verifikasi.html).$f$, $f$Where can I see results and download certificates?$f$, $f$Results appear on the [Results](hasil.html) page once the committee publishes them. Athlete certificates are downloaded from the registration status page. A certificate can be checked for authenticity through its QR code on the [Verify](verifikasi.html) page.$f$, 50, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$cara-daftar$f$, $f$Bagaimana cara mendaftar?$f$, $f$Semua pendaftaran dilakukan daring di halaman [Daftar](daftar.html):
+
+- Isi formulir (penanggung jawab, klub, data dan dokumen atlet, kategori).
+- Bayar lewat QRIS dengan nominal persis yang tertera.
+- Unggah bukti bayar **paling lambat 15 menit** setelah mendaftar.
+- Setelah panitia memverifikasi pembayaran (lunas), tautan unduh Athlete Identification Card (AIC) dikirim ke email penanggung jawab.$f$, $f$How do I register?$f$, $f$All registration is online on the [Register](daftar.html) page:
+
+- Fill in the form (contact person, club, athlete details and documents, categories).
+- Pay by QRIS for the exact amount shown.
+- Upload the payment proof **within 15 minutes** of registering.
+- Once the committee confirms the payment, the Athlete Identification Card (AIC) download link is emailed to the contact person.$f$, 10, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$batas-pendaftaran$f$, $f$Kapan batas akhir pendaftaran?$f$, $f$Pendaftaran dan pembayaran ditutup **12 November 2026 pukul 23.59 WIB**.$f$, $f$When does registration close?$f$, $f$Registration and payment close on **12 November 2026 at 23:59 WIB (UTC+7)**.$f$, 20, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$biaya$f$, $f$Berapa biaya pendaftaran?$f$, $f$- Artistik Putra / Putri: Rp750.000 per atlet
+- Beregu Artistik Putri (Level 1–6): Rp650.000 per tim, di luar biaya perorangan
+- Ritmik (Profesional, Amatir, Priangan): Rp750.000 per atlet
+- Aerobik perorangan (IM / IW): Rp300.000
+- Aerobik pasangan campuran (MP): Rp400.000 per pasangan
+
+Total yang dibayar ditambah kode unik tiga digit untuk mencocokkan pembayaran.$f$, $f$How much is the entry fee?$f$, $f$- Men's / Women's Artistic: Rp750,000 per athlete
+- Women's Artistic team (Levels 1–6): Rp650,000 per team, on top of individual fees
+- Rhythmic (Professional, Amateur, Priangan): Rp750,000 per athlete
+- Aerobic individual (IM / IW): Rp300,000
+- Aerobic mixed pair (MP): Rp400,000 per pair
+
+A three-digit unique code is added to the total to match your payment.$f$, 30, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$jumlah-atlet$f$, $f$Berapa atlet yang bisa didaftarkan sekaligus?$f$, $f$Satu pendaftaran untuk satu disiplin. Perorangan untuk satu atlet; klub, sekolah, atau pengkab hingga **lima atlet** per pendaftaran. Untuk lebih dari lima atlet, buat pendaftaran berikutnya.
+
+Kuota per klub per kategori: maksimal 10 pesenam untuk Artistik dan 4 atlet untuk Aerobik. Satu transaksi QRIS maksimal Rp10.000.000; bila total melebihinya, bagi atlet ke dalam dua pendaftaran.$f$, $f$How many athletes can be registered at once?$f$, $f$One registration covers one discipline. Individual registrations are for one athlete; clubs, schools and associations can enter up to **five athletes** per registration. For more than five, submit another registration.
+
+Quota per club per category: up to 10 gymnasts for Artistic and 4 athletes for Aerobic. One QRIS transaction is capped at Rp10,000,000; if the total is higher, split the athletes into two registrations.$f$, 40, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$kategori-usia$f$, $f$Bagaimana menentukan kategori usia atlet?$f$, $f$Kategori ditentukan oleh **tahun lahir** (usia 2026 = 2026 dikurangi tahun lahir). Setelah jenis kelamin dan tanggal lahir diisi, formulir hanya menampilkan kategori yang sesuai.
+
+- Ritmik: KU 5–6 (lahir 2020–2021), KU 7–8 (2018–2019), KU 9–10 (2016–2017), KU 11–12 (2014–2015), Junior (2011–2013)
+- Aerobik: Junior (2009–2011), Youth (2012–2014), National Development (2015–2017), Pre National Development (2018–2020)
+- Artistik Putra dan Putri: kelompok usia per level tampil di formulir.$f$, $f$How is an athlete's age category decided?$f$, $f$Categories follow the **year of birth** (age in 2026 = 2026 minus birth year). Once gender and date of birth are filled in, the form shows only the categories that fit.
+
+- Rhythmic: AG 5–6 (born 2020–2021), AG 7–8 (2018–2019), AG 9–10 (2016–2017), AG 11–12 (2014–2015), Junior (2011–2013)
+- Aerobic: Junior (2009–2011), Youth (2012–2014), National Development (2015–2017), Pre National Development (2018–2020)
+- Men's and Women's Artistic: the age groups for each level are shown in the form.$f$, 50, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$ritmik-level$f$, $f$Apa beda Ritmik Profesional, Amatir, dan Priangan?$f$, $f$Ketiganya adalah level Ritmik yang terpisah dengan kelompok umur yang sama. Priangan berada di bawah Amatir dan hanya untuk atlet Jawa Barat. Satu atlet hanya boleh ikut **satu level**.$f$, $f$What is the difference between Rhythmic Professional, Amateur and Priangan?$f$, $f$They are separate Rhythmic levels with the same age groups. Priangan sits below Amateur and is only for West Java athletes. Each athlete may enter **one level only**.$f$, 60, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$priangan$f$, $f$Siapa yang boleh ikut kategori Ritmik Priangan?$f$, $f$Atlet **WNI** yang alamat pada identitasnya di **Jawa Barat** dan didaftarkan lewat **klub dari Jawa Barat**. Asal pelatih atau penanggung jawab yang mengisi formulir tidak berpengaruh. Biayanya sama, Rp750.000, tanpa biaya tambahan. Priangan punya tabel medali sendiri.$f$, $f$Who can enter the Rhythmic Priangan level?$f$, $f$**Indonesian** athletes whose ID address is in **West Java**, entered through a **West Java club**. Where the coach or contact person filling in the form comes from does not matter. The fee is the same Rp750,000, with no extra charge. Priangan has its own medal table.$f$, 70, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$beregu$f$, $f$Bagaimana aturan Beregu Artistik Putri?$f$, $f$Beregu hanya untuk Artistik Putri Level 1–6, biaya Rp650.000 per tim di luar biaya perorangan.
+
+- Satu tim untuk satu level, 1–6 pesenam; kelompok usia boleh campur.
+- Satu klub boleh mengirim beberapa tim di level yang sama dengan nama berbeda.
+- Anggota bisa "juga perorangan" (sudah terdaftar perorangan lewat klub yang sama) atau "khusus beregu" (dinilai untuk tim, tidak diperingkat perorangan).
+- Nilai tim = jumlah 4 nilai serba bisa terbaik. Setiap anggota tim juara 1–3 mendapat sertifikat Juara Beregu.$f$, $f$How does the Women's Artistic team event work?$f$, $f$The team event is for Women's Artistic Levels 1–6 only, Rp650,000 per team on top of individual fees.
+
+- One team per level, 1–6 gymnasts; age groups can be mixed.
+- A club may send several teams at the same level under different names.
+- Members are either "also individual" (already registered individually through the same club) or "team only" (scored for the team, not ranked individually).
+- Team score = sum of the best 4 all-around scores. Every member of a 1st–3rd place team receives a Team Champion certificate.$f$, 80, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$klub-belum-ada$f$, $f$Klub saya tidak ada di daftar. Bagaimana?$f$, $f$Ketik nama klub di kolom pencarian. Bila tidak ditemukan, pilih "Klub saya belum ada di daftar", lalu isi nama klub, provinsi, dan kabupaten/kota. Panitia akan merapikan datanya.$f$, $f$My club is not in the list. What should I do?$f$, $f$Type the club name in the search box. If it is not found, choose "My club is not listed" and fill in the club name, province and regency/city. The committee will tidy up the record.$f$, 90, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$salah-data$f$, $f$Saya salah mengisi data atlet atau kategori. Bagaimana memperbaikinya?$f$, $f$Jangan mendaftar ulang. Kirim email ke [jabaropen2026@gmail.com](mailto:jabaropen2026@gmail.com) dengan menyertakan kode pendaftaran (JO26-…) dan data yang perlu diperbaiki. Panitia memperbaikinya dari sistem.$f$, $f$I entered wrong athlete details or the wrong category. How do I fix it?$f$, $f$Do not register again. Email [jabaropen2026@gmail.com](mailto:jabaropen2026@gmail.com) with the registration code (JO26-…) and what needs correcting. The committee will fix it in the system.$f$, 100, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$tautan-status$f$, $f$Tautan halaman status hilang. Bagaimana membukanya lagi?$f$, $f$Buka [Cek status](status.html), masukkan kode pendaftaran dan email penanggung jawab. Tautan baru dikirim ke email tersebut; periksa juga folder spam.$f$, $f$I lost the status page link. How do I open it again?$f$, $f$Go to [Check status](status.html) and enter the registration code and the contact email. A new link is sent to that email; check the spam folder too.$f$, 110, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$atlet-asing$f$, $f$Bagaimana pendaftaran untuk atlet warga negara asing?$f$, $f$Atlet WNA mendaftar lewat formulir yang sama dengan mengunggah paspor dan pas foto. Pembayarannya dilakukan terpisah: panitia menghubungi penanggung jawab lewat email untuk instruksi pembayaran. Kategori Ritmik Priangan hanya untuk WNI.$f$, $f$How do foreign athletes register?$f$, $f$Foreign athletes use the same form and upload a passport and a passport photo. Payment is handled separately: the committee emails the contact person with payment instructions. The Rhythmic Priangan level is for Indonesian citizens only.$f$, 120, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pembayaran$f$, $f$cara-bayar$f$, $f$Bagaimana cara membayar?$f$, $f$Pindai kode QRIS Jabar Open 2026 di halaman pembayaran atau halaman status dengan aplikasi bank atau dompet digital apa pun, lalu ketik **nominal persis**, termasuk tiga digit terakhir. Tiga digit itu adalah kode unik yang mencocokkan pembayaran dengan pendaftaran Anda; nominal berbeda akan memperlambat verifikasi.$f$, $f$How do I pay?$f$, $f$Scan the Jabar Open 2026 QRIS code on the payment or status page with any bank or e-wallet app, then type the **exact amount**, including the last three digits. Those digits are a unique code that matches the payment to your registration; a different amount slows down verification.$f$, 10, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pembayaran$f$, $f$batas-15-menit$f$, $f$Mengapa bukti bayar harus diunggah dalam 15 menit?$f$, $f$Pendaftaran dengan QRIS yang belum mengunggah bukti bayar dalam 15 menit **dihapus otomatis**, dan Anda perlu mendaftar ulang. Hitung mundurnya tampil di halaman pembayaran dan halaman status. Siapkan pembayaran sebelum mengirim formulir.$f$, $f$Why must the payment proof be uploaded within 15 minutes?$f$, $f$QRIS registrations without a payment proof after 15 minutes are **deleted automatically**, and you will need to register again. The countdown is shown on the payment and status pages. Have your payment ready before submitting the form.$f$, 20, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pembayaran$f$, $f$verifikasi-bayar$f$, $f$Saya sudah mengunggah bukti bayar. Apa selanjutnya?$f$, $f$Status berubah menjadi "Menunggu verifikasi". Setelah panitia mencocokkan pembayaran, status menjadi "Lunas" dan email berisi tautan unduh AIC dikirim ke penanggung jawab. Bila bukti perlu diperbaiki, Anda menerima email berisi catatan panitia dan bisa mengunggah bukti lain di halaman status.$f$, $f$I have uploaded the payment proof. What happens next?$f$, $f$The status changes to "Awaiting verification". Once the committee matches the payment, the status becomes "Paid" and an email with the AIC download links is sent to the contact person. If the proof needs attention, you receive an email with the committee's note and can upload another proof on the status page.$f$, 30, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$dokumen$f$, $f$dokumen-wajib$f$, $f$Dokumen apa saja yang perlu disiapkan?$f$, $f$Unggah satu per satu, foto atau PDF, maksimal 5 MB per berkas:
+
+- Akte Kelahiran (wajib)
+- KTP dan Ijazah, bila sudah punya
+- Pas foto (wajib)
+- Kartu BPJS Ketenagakerjaan (opsional saat daftar, wajib saat bertanding)
+- Atlet WNA: paspor (wajib)
+
+Untuk atlet di bawah 18 tahun, siapkan juga data orang tua/wali.$f$, $f$Which documents do I need?$f$, $f$Upload them one by one, as a photo or PDF, up to 5 MB each:
+
+- Birth certificate (required)
+- National ID card (KTP) and school certificate, if the athlete has them
+- Passport photo (required)
+- BPJS Ketenagakerjaan card (optional at registration, required to compete)
+- Foreign athletes: passport (required)
+
+For athletes under 18, also have the parent/guardian details ready.$f$, 10, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$dokumen$f$, $f$pas-foto$f$, $f$Seperti apa pas foto yang diterima?$f$, $f$Wajah menghadap ke depan dan terlihat jelas, latar polos, pakaian rapi, setengah badan (kepala sampai dada). **Bukan** swafoto (selfie), bukan pose santai atau bergaya, tanpa kacamata hitam, topi, atau filter. Foto ini dipasang di AIC dan tampil saat panitia memindai QR di venue.$f$, $f$What kind of passport photo is accepted?$f$, $f$Face forward and clearly visible, plain background, neat clothing, head to chest. **No** selfies, no casual or posed shots, no sunglasses, hats or filters. The photo is printed on the AIC and shown when the committee scans the QR code at the venue.$f$, 20, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$dokumen$f$, $f$bpjs$f$, $f$Atlet belum punya atau belum mengunggah BPJS Ketenagakerjaan. Bagaimana?$f$, $f$Pendaftaran tetap bisa dikirim. BPJS Ketenagakerjaan wajib saat bertanding: **bawa kartunya ke meja panitia di venue** sebelum atlet tampil. Tidak ada unggah susulan lewat situs. Atlet tanpa BPJS ditandai di email konfirmasi, halaman status, dan AIC.$f$, $f$The athlete has no BPJS Ketenagakerjaan card yet, or didn't upload it. What now?$f$, $f$The registration can still be submitted. BPJS Ketenagakerjaan is required to compete: **bring the card to the committee desk at the venue** before the athlete competes. There is no later upload on the website. Athletes without BPJS are flagged on the confirmation email, the status page and the AIC.$f$, 30, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$dokumen$f$, $f$data-pribadi$f$, $f$Bagaimana data dan dokumen atlet digunakan?$f$, $f$Data dan dokumen hanya dipakai untuk keperluan kejuaraan (verifikasi usia, start list, hasil, sertifikat), sesuai UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi. Nama, klub, dan hasil atlet dipublikasikan; tanggal lahir dan dokumen tidak. Dokumen identitas dihapus setelah kejuaraan selesai.$f$, $f$How are athlete data and documents used?$f$, $f$Data and documents are used only for the championship (age checks, start lists, results, certificates), in line with Indonesia's Personal Data Protection Law No. 27 of 2022. Athlete names, clubs and results are published; dates of birth and documents are not. Identity documents are deleted after the championship.$f$, 40, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$dokumen$f$, $f$medis-asuransi$f$, $f$Apakah panitia menanggung biaya cedera?$f$, $f$Panitia menyiapkan tenaga medis dan pertolongan pertama. Biaya perawatan lanjutan menjadi tanggung jawab peserta atau delegasi, karena itu peserta wajib memiliki BPJS atau asuransi.$f$, $f$Does the committee cover injury costs?$f$, $f$The committee provides medical staff and first aid. Further treatment is the responsibility of the participant or delegation, which is why participants must have BPJS or insurance.$f$, 50, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$musik$f$, $f$musik-format$f$, $f$Bagaimana mengirim musik Ritmik?$f$, $f$Saat mendaftar, isi **satu tautan Google Drive** (file MP3 atau folder) untuk setiap nomor sesuai kategori atlet, misalnya Tanpa Alat, Simpai, Bola. Semua nomor wajib diisi. Atur akses berbagi ke "Siapa saja yang memiliki link" agar panitia bisa membukanya.$f$, $f$How do I submit Rhythmic music?$f$, $f$At registration, enter **one Google Drive link** (an MP3 file or a folder) for each routine in the athlete's category, for example Freehand, Hoop, Ball. Every routine is required. Set sharing to "Anyone with the link" so the committee can open it.$f$, 10, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$musik$f$, $f$ganti-musik$f$, $f$Bisakah musik diganti?$f$, $f$Bisa, **satu kali per atlet** (satu atau beberapa nomor sekaligus), sampai start list kategorinya terbit. Buka halaman [Musik](musik.html) dan masuk dengan kode pendaftaran dan email penanggung jawab.
+
+Bila panitia menandai tautan "tidak bisa dibuka", perbaiki aksesnya dan kirim lagi di halaman yang sama. Perbaikan ini tidak memakai kesempatan ganti.$f$, $f$Can the music be changed?$f$, $f$Yes, **once per athlete** (one or several routines at once), until the category's start list is published. Open the [Music](musik.html) page and sign in with the registration code and contact email.
+
+If the committee marks a link as "cannot be opened", fix the sharing and resend it on the same page. A fix does not use up the change.$f$, 20, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$hari-h$f$, $f$apa-itu-aic$f$, $f$Apa itu Athlete Identification Card (AIC)?$f$, $f$Kartu identitas digital untuk setiap atlet, berisi nomor atlet, pas foto, kategori, jadwal tampil, dan kode QR. AIC **ditunjukkan dari ponsel di venue, tidak perlu dicetak**. Panitia memindai QR-nya untuk mencocokkan data dan pas foto atlet.$f$, $f$What is the Athlete Identification Card (AIC)?$f$, $f$A digital ID card for each athlete with the athlete number, passport photo, categories, competition slot and a QR code. The AIC is **shown on a phone at the venue; no printing needed**. The committee scans its QR code to match the athlete's details and photo.$f$, 10, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$hari-h$f$, $f$aic-kapan$f$, $f$Kapan AIC bisa diunduh?$f$, $f$Hanya setelah pendaftaran **lunas**. Saat itu email berisi tautan "Unduh AIC" per atlet dikirim ke penanggung jawab, dan tombol unduh di halaman status terbuka. Sebelum lunas, tombolnya terkunci dengan keterangan apa yang masih ditunggu (unggah bukti bayar, verifikasi panitia, atau perbaikan bukti).$f$, $f$When can the AIC be downloaded?$f$, $f$Only once the registration is **paid**. At that point an email with a "Download AIC" link for each athlete is sent to the contact person, and the download button on the status page unlocks. Until then the button is locked with a note on what is still pending (payment proof upload, committee verification, or a proof fix).$f$, 20, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$hari-h$f$, $f$registrasi-ulang$f$, $f$Apakah ada registrasi ulang di venue?$f$, $f$Tidak ada registrasi ulang. Datang sesuai jadwal yang diumumkan di Instagram dan situs Jabar Open 2026, lalu tunjukkan AIC dari ponsel. Atlet yang belum mengunggah BPJS Ketenagakerjaan membawa kartunya ke meja panitia sebelum bertanding.$f$, $f$Is there an on-site check-in?$f$, $f$There is no on-site check-in. Come at the time announced on Instagram and the Jabar Open 2026 website and show the AIC on a phone. Athletes who did not upload BPJS Ketenagakerjaan bring the card to the committee desk before competing.$f$, 30, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$juri$f$, $f$daftar-juri$f$, $f$Bagaimana mendaftar sebagai juri?$f$, $f$Juri berbrevet mendaftar di halaman [Pendaftaran juri](juri.html) untuk **satu disiplin**: Artistik Putra, Artistik Putri, atau Ritmik. Siapkan KTP atau identitas lain, pas foto, kartu BPJS Ketenagakerjaan (wajib), dan sertifikat brevet bila ada; berkas JPG, PNG, atau PDF, maksimal 5 MB. Panitia memeriksa setiap pendaftaran dan menghubungi juri terpilih lewat WhatsApp.$f$, $f$How do I apply as a judge?$f$, $f$Licensed judges apply on the [Judge application](juri.html) page for **one discipline**: Men's Artistic, Women's Artistic or Rhythmic. Have an ID card, a passport photo, a BPJS Ketenagakerjaan card (required) and the judging licence if available; files in JPG, PNG or PDF, up to 5 MB. The committee reviews every application and contacts selected judges by WhatsApp.$f$, 10, 'draf', 'Draf awal') on conflict (slug) do nothing;
 -- =====================================================================
 --  Data awal: disiplin, kategori (Undangan 06/10/2026), pengaturan
 --  'on conflict do nothing' -> perubahan dari konsol tidak tertimpa

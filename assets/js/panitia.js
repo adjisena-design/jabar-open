@@ -167,6 +167,7 @@
     bug: '<path d="M12 3l9 16H3z"/><path d="M12 9v4M12 16v.5"/>',
     phone: '<path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2z"/>',
     whistle: '<circle cx="8" cy="14" r="5"/><path d="M12 11l9-4v5l-8 1"/><path d="M8 4v3M4.5 5.5l1.5 2"/>',
+    help: '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.8M12 17v.5"/>',
     check: '<path d="M4 12l5 5L20 6"/>', clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', alert: '<path d="M12 3l10 18H2z"/><path d="M12 10v4M12 17.5v.5"/>',
   };
   const icon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${IC[k] || ''}</svg>`;
@@ -201,6 +202,7 @@
     ['chat', 'Chat panitia', () => true, pageChat, 'chat', 'Komunikasi'],
     ['laporan', 'Laporan masalah', () => true, pageIssues, 'bug', 'Komunikasi'],
     ['kontak', 'Kontak', () => true, pageContacts, 'phone', 'Komunikasi'],
+    ['faq', 'FAQ situs', () => isAdmin(), pageFaq, 'help', 'Komunikasi'],
     ['pendaftaran', 'Pendaftaran', () => isAdmin(), pageSubmissions, 'inbox', 'Peserta'],
     ['atlet', 'Data atlet', () => isAdmin(), pageAthletes, 'users', 'Peserta'],
     ['musik', 'Musik Ritmik', () => isAdmin() && (!ME.discipline || ME.discipline === 'RG'), pageMusic, 'music', 'Peserta'],
@@ -1339,6 +1341,169 @@
     v.querySelector('#kq').oninput = (e) => draw(e.target.value);
     v.querySelector('#kadd').onclick = () => edit(null);
     draw('');
+  }
+
+  // =====================================================================
+  //  FAQ SITUS — owner, superadmin, admin. Tidak ada hapus permanen: arsipkan.
+  // =====================================================================
+  const FAQ_ST = { terbit: ['Terbit', 'ok'], draf: ['Draf', 'warn'], arsip: ['Arsip', ''] };
+  async function pageFaq(v) {
+    let D = await api('console_faq');
+    const F = { q: '', st: 'aktif', cat: '' };
+    const siteFaq = (JO.config.siteUrl || '../').replace(/\/?$/, '/') + 'faq.html';
+    const catName = (k) => (D.categories.find((c) => c.key === k) || {}).name_id || k;
+    const shell = () => {
+      const n = (st) => D.items.filter((i) => i.status === st).length;
+      const noEn = D.items.filter((i) => i.status !== 'arsip' && !i.q_en).length;
+      v.innerHTML = `<h1>FAQ situs</h1>
+        <p class="muted">Pertanyaan berstatus <em>Terbit</em> tampil di beranda dan halaman <a href="${esc(siteFaq)}" target="_blank" rel="noopener">FAQ</a>; <em>Draf</em> hanya terlihat di sini. Butir yang tidak dipakai lagi diarsipkan (bisa dipulihkan), tidak dihapus. Bagian FAQ di situs baru muncul setelah ada minimal satu pertanyaan terbit. Pengunjung yang sudah membuka situs melihat menu FAQ setelah membuka tab baru.</p>
+        <div class="kpis">
+          <div class="kpi ok"><div><small>Terbit</small><b>${n('terbit')}</b></div><i>${icon('check')}</i></div>
+          <div class="kpi warn"><div><small>Draf</small><b>${n('draf')}</b></div><i>${icon('pen')}</i></div>
+          <div class="kpi"><div><small>Arsip</small><b>${n('arsip')}</b></div><i>${icon('log')}</i></div>
+          <div class="kpi ${noEn ? 'bad' : ''}"><div><small>Belum ada versi Inggris</small><b>${noEn}</b></div><i>${icon('alert')}</i></div>
+        </div>
+        <div class="bar" style="margin-top:16px">
+          <div class="field" style="flex:1;min-width:180px"><label class="f" for="fq">Cari</label><input id="fq" type="search" value="${esc(F.q)}"></div>
+          <div class="field"><label class="f" for="fs">Status</label><select id="fs">
+            ${[['aktif', 'Terbit + draf'], ['terbit', 'Terbit'], ['draf', 'Draf'], ['arsip', 'Arsip'], ['semua', 'Semua']].map(([k, l]) => `<option value="${k}" ${F.st === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+          <div class="field"><label class="f" for="fc">Kategori</label><select id="fc"><option value="">Semua kategori</option>
+            ${D.categories.map((c) => `<option value="${esc(c.key)}" ${F.cat === c.key ? 'selected' : ''}>${esc(c.name_id)}${c.active ? '' : ' (nonaktif)'}</option>`).join('')}</select></div>
+          <button class="btn btn-ghost" id="fcat" type="button">Kelola kategori</button>
+          <button class="btn btn-dark" id="fadd" type="button">Tambah pertanyaan</button>
+        </div>
+        <div id="fl"></div>`;
+      v.querySelector('#fq').oninput = (e) => { F.q = e.target.value; list(); };
+      v.querySelector('#fs').onchange = (e) => { F.st = e.target.value; list(); };
+      v.querySelector('#fc').onchange = (e) => { F.cat = e.target.value; list(); };
+      v.querySelector('#fadd').onclick = () => edit(null);
+      v.querySelector('#fcat').onclick = () => cats();
+      list();
+    };
+    const list = () => {
+      const s = F.q.trim().toLowerCase();
+      const rows = D.items.filter((i) => (F.st === 'semua' || (F.st === 'aktif' ? i.status !== 'arsip' : i.status === F.st))
+        && (!F.cat || i.category === F.cat)
+        && (!s || [i.q_id, i.a_id, i.q_en, i.a_en, i.slug].join(' ').toLowerCase().includes(s)));
+      const groups = D.categories.filter((c) => rows.some((i) => i.category === c.key));
+      v.querySelector('#fl').innerHTML = rows.length ? groups.map((c) => {
+        const its = rows.filter((i) => i.category === c.key);
+        return `<section class="card" style="margin-top:16px"><h2 style="font-size:1.05rem">${esc(c.name_id)}${c.active ? '' : ' <span class="pill">nonaktif, tidak tampil di situs</span>'}</h2>
+          <div class="tbl-wrap"><table class="tbl"><tbody>${its.map((i, n) => `<tr>
+            <td style="width:64px;white-space:nowrap">${s ? '' : `<button class="btn btn-ghost btn-sm" data-up="${i.id}" ${n === 0 ? 'disabled' : ''} aria-label="Naikkan">&uarr;</button><button class="btn btn-ghost btn-sm" data-dn="${i.id}" ${n === its.length - 1 ? 'disabled' : ''} aria-label="Turunkan">&darr;</button>`}</td>
+            <td><strong>${esc(i.q_id)}</strong>${i.q_en ? '' : ' <span class="pill bad">EN belum ada</span>'}
+              <br><span class="tiny muted">faq.html#${esc(i.slug)} · diubah ${esc(i.updated_by || '-')}, ${dt(i.updated_at)}</span></td>
+            <td style="width:84px"><span class="pill ${FAQ_ST[i.status][1]}">${FAQ_ST[i.status][0]}</span></td>
+            <td class="r" style="width:110px">${rowMenu(`<button class="btn btn-ghost btn-sm" data-fe="${i.id}">Ubah</button>`, [
+              i.status !== 'terbit' && i.status !== 'arsip' ? { label: 'Terbitkan', attr: `data-fs="${i.id}" data-to="terbit"` } : null,
+              i.status === 'terbit' ? { label: 'Jadikan draf (sembunyikan)', attr: `data-fs="${i.id}" data-to="draf"` } : null,
+              i.status === 'arsip' ? { label: 'Pulihkan sebagai draf', attr: `data-fs="${i.id}" data-to="draf"` } : null,
+              { label: 'Salin tautan', attr: `data-fl="${i.id}"` },
+              i.status !== 'arsip' ? { sep: true } : null,
+              i.status !== 'arsip' ? { label: 'Arsipkan', attr: `data-fs="${i.id}" data-to="arsip"`, danger: true } : null,
+            ])}</td></tr>`).join('')}</tbody></table></div></section>`;
+      }).join('') : '<p class="empty">Tidak ada pertanyaan yang cocok.</p>';
+      const by = (id) => D.items.find((i) => i.id === id);
+      v.querySelectorAll('[data-fe]').forEach((b) => b.onclick = () => edit(by(b.dataset.fe)));
+      v.querySelectorAll('[data-up],[data-dn]').forEach((b) => b.onclick = async () => {
+        b.disabled = true;
+        try { D = await api('console_faq_move', { p_id: b.dataset.up || b.dataset.dn, p_dir: b.dataset.up ? -1 : 1 }); list(); } catch (e) { JO.toast(e.message, 'bad'); b.disabled = false; }
+      });
+      v.querySelectorAll('[data-fs]').forEach((b) => b.onclick = async () => {
+        const it = by(b.dataset.fs); const to = b.dataset.to;
+        if (to === 'arsip') {
+          const ok = await dialog({ title: 'Arsipkan pertanyaan?', ok: 'Arsipkan', okClass: 'btn-bad',
+            body: `<p><strong>${esc(it.q_id)}</strong></p><p class="small">Pertanyaan hilang dari situs dan pindah ke status Arsip. Bisa dipulihkan kapan saja dari filter Status: Arsip.</p>`, onOk: () => true });
+          if (!ok) return;
+        }
+        try { D = await api('console_faq_set_status', { p_id: it.id, p_status: to }); JO.toast(to === 'terbit' ? 'Diterbitkan.' : to === 'arsip' ? 'Diarsipkan.' : 'Disimpan sebagai draf.'); shell(); }
+        catch (e) { JO.toast(e.message, 'bad'); }
+      });
+      v.querySelectorAll('[data-fl]').forEach((b) => b.onclick = async () => {
+        const url = siteFaq + '#' + by(b.dataset.fl).slug;
+        try { await navigator.clipboard.writeText(url); JO.toast('Tautan disalin: ' + url); } catch (e) { JO.toast(url); }
+      });
+    };
+    const edit = async (it) => {
+      const cat0 = it ? it.category : (F.cat || (D.categories.find((c) => c.active) || {}).key);
+      const pr = dialog({ title: it ? 'Ubah pertanyaan' : 'Tambah pertanyaan', wide: true, ok: 'Simpan',
+        body: `<div class="grid-2">
+            <div class="field"><label class="f" for="ec">Kategori</label><select id="ec">${D.categories.map((c) => `<option value="${esc(c.key)}" ${cat0 === c.key ? 'selected' : ''}>${esc(c.name_id)}${c.active ? '' : ' (nonaktif)'}</option>`).join('')}</select></div>
+            <div class="field"><label class="f" for="es">Status</label><select id="es">${['draf', 'terbit', 'arsip'].map((k) => `<option value="${k}" ${(it ? it.status : 'draf') === k ? 'selected' : ''}>${FAQ_ST[k][0]}</option>`).join('')}</select></div></div>
+          <p class="note info small" style="margin:4px 0 14px">Format jawaban: baris kosong untuk paragraf baru; awali baris dengan "- " untuk daftar; <code>**tebal**</code>; tautan <code>[teks](daftar.html)</code> atau <code>[teks](https://…)</code>.</p>
+          <div class="grid-2">
+            <div><h3 style="font-size:.95rem;margin:0 0 8px">Bahasa Indonesia (wajib)</h3>
+              <div class="field"><label class="f" for="eqi">Pertanyaan</label><input id="eqi" maxlength="300" value="${esc(it ? it.q_id : '')}"></div>
+              <div class="field"><label class="f" for="eai">Jawaban</label><textarea id="eai" rows="9" maxlength="4000">${esc(it ? it.a_id : '')}</textarea></div></div>
+            <div><h3 style="font-size:.95rem;margin:0 0 8px">English (boleh menyusul)</h3>
+              <div class="field"><label class="f" for="eqe">Question</label><input id="eqe" maxlength="300" value="${esc(it ? it.q_en || '' : '')}"></div>
+              <div class="field"><label class="f" for="eae">Answer</label><textarea id="eae" rows="9" maxlength="4000">${esc(it ? it.a_en || '' : '')}</textarea></div></div></div>
+          <p class="small muted" style="margin:-4px 0 12px">Bila versi Inggris kosong, pengunjung berbahasa Inggris melihat teks Indonesia.</p>
+          <div class="field"><label class="f" for="esl">Tautan pertanyaan</label>
+            <div class="row" style="gap:6px;align-items:center;flex-wrap:nowrap"><span class="small muted" style="white-space:nowrap">faq.html#</span><input id="esl" value="${esc(it ? it.slug : '')}" placeholder="dibuat otomatis dari pertanyaan" pattern="[a-z0-9-]{2,60}"></div>
+            <p class="small muted" style="margin:4px 0 0">Huruf kecil, angka, tanda hubung. Mengubahnya membuat tautan lama yang sudah dibagikan tidak lagi membuka pertanyaan ini.</p></div>
+          <h3 style="font-size:.95rem;margin:14px 0 6px">Pratinjau</h3>
+          <div class="faq-preview" id="epv"></div>`,
+        onOk: async (d) => {
+          const val = (id) => d.querySelector(id).value;
+          D = await api('console_faq_save', { p: { id: it ? it.id : null, category: val('#ec'), status: val('#es'),
+            q_id: val('#eqi'), a_id: val('#eai'), q_en: val('#eqe'), a_en: val('#eae'), slug: val('#esl').trim() } });
+          return true;
+        } });
+      // pratinjau langsung
+      const d = document.querySelector('dialog[open]');
+      const onIn = () => paint(d);
+      if (d) { paint(d); d.addEventListener('input', onIn); }
+      const r = await pr;
+      if (d) d.removeEventListener('input', onIn);
+      if (r) { JO.toast('Pertanyaan disimpan.'); shell(); }
+    };
+    function paint(d) {
+      const pv = d.querySelector('#epv'); if (!pv) return;
+      const qi = d.querySelector('#eqi').value, ai = d.querySelector('#eai').value, qe = d.querySelector('#eqe').value, ae = d.querySelector('#eae').value;
+      const one = (q, a, tag) => `<details class="faq-item" open><summary><span class="faq-q"><span class="pill" style="margin-right:6px">${tag}</span>${esc(q || '…')}</span></summary><div class="faq-a">${window.JOFaq.render(a || '…')}</div></details>`;
+      pv.innerHTML = one(qi, ai, 'ID') + (qe || ae ? one(qe, ae, 'EN') : '');
+    }
+    const cats = async () => {
+      const pr = dialog({ title: 'Kategori FAQ', wide: true, ok: 'Selesai', cancel: '',
+        body: `<p class="small muted">Urutan di sini menjadi urutan tab di situs. Kategori nonaktif beserta pertanyaannya tidak tampil di situs. Kategori tanpa pertanyaan terbit otomatis tidak tampil.</p>
+          <div id="cl"></div>
+          <h3 style="font-size:.95rem;margin:16px 0 6px">Tambah kategori</h3>
+          <div class="grid-2"><div class="field"><label class="f" for="cni">Nama (Indonesia)</label><input id="cni"></div>
+          <div class="field"><label class="f" for="cne">Nama (English)</label><input id="cne"></div></div>
+          <button type="button" class="btn btn-ghost btn-sm" id="cadd">Tambah</button>`,
+        onOk: () => true });
+      const d = document.querySelector('dialog[open]');
+      const onClick = (e) => catClicks(e, d);
+      if (d) { drawCats(d); d.addEventListener('click', onClick); }
+      await pr;
+      if (d) d.removeEventListener('click', onClick);
+      shell();
+    };
+    function drawCats(d) {
+      const box = d.querySelector('#cl'); if (!box) return;
+      box.innerHTML = `<div class="tbl-wrap"><table class="tbl"><tbody>${D.categories.map((c, n) => `<tr>
+        <td style="width:64px;white-space:nowrap"><button type="button" class="btn btn-ghost btn-sm" data-cu="${esc(c.key)}" ${n === 0 ? 'disabled' : ''} aria-label="Naikkan">&uarr;</button><button type="button" class="btn btn-ghost btn-sm" data-cd="${esc(c.key)}" ${n === D.categories.length - 1 ? 'disabled' : ''} aria-label="Turunkan">&darr;</button></td>
+        <td><input data-cid="${esc(c.key)}" value="${esc(c.name_id)}" aria-label="Nama Indonesia"></td>
+        <td><input data-cen="${esc(c.key)}" value="${esc(c.name_en || '')}" aria-label="Nama Inggris" placeholder="English"></td>
+        <td><label class="check" style="margin:0"><input type="checkbox" data-cac="${esc(c.key)}" ${c.active ? 'checked' : ''}>Aktif</label></td>
+        <td class="r"><button type="button" class="btn btn-ghost btn-sm" data-cs="${esc(c.key)}">Simpan</button></td></tr>`).join('')}</tbody></table></div>`;
+    }
+    async function catClicks(e, d) {
+      const b = e.target.closest('button'); if (!b) return;
+      try {
+        if (b.dataset.cu || b.dataset.cd) { D = await api('console_faq_category_move', { p_key: b.dataset.cu || b.dataset.cd, p_dir: b.dataset.cu ? -1 : 1 }); drawCats(d); }
+        else if (b.dataset.cs) {
+          const k = b.dataset.cs;
+          D = await api('console_faq_category_save', { p: { key: k, name_id: d.querySelector(`[data-cid="${k}"]`).value, name_en: d.querySelector(`[data-cen="${k}"]`).value, active: d.querySelector(`[data-cac="${k}"]`).checked } });
+          drawCats(d); JO.toast('Kategori disimpan.');
+        } else if (b.id === 'cadd') {
+          D = await api('console_faq_category_save', { p: { name_id: d.querySelector('#cni').value, name_en: d.querySelector('#cne').value } });
+          d.querySelector('#cni').value = ''; d.querySelector('#cne').value = ''; drawCats(d); JO.toast('Kategori ditambahkan.');
+        }
+      } catch (err) { JO.toast(err.message, 'bad'); }
+    }
+    shell();
   }
 
   // =====================================================================
