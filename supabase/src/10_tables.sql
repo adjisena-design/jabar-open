@@ -379,7 +379,7 @@ create table if not exists jo.team_levels (
 -- v5 (14 Okt 2026): peran TD, nomor WA panitia, chat, laporan masalah, pendaftaran juri
 -- ---------------------------------------------------------------------
 alter table jo.staff drop constraint if exists staff_role_check;
-alter table jo.staff add constraint staff_role_check check (role in ('owner','superadmin','admin','td','juri'));
+alter table jo.staff add constraint staff_role_check check (role in ('owner','superadmin','admin','td','juri','pemantau'));
 alter table jo.staff add column if not exists phone text;
 alter table jo.clubs add column if not exists note text;
 
@@ -468,6 +468,9 @@ alter table jo.athletes add column if not exists passport_path text;
 alter table jo.athletes add column if not exists bpjs_path text;
 alter table jo.athletes add column if not exists photo_thumb text;   -- pas foto kecil (data URL JPEG) untuk kartu atlet
 alter table jo.jury_applications add column if not exists bpjs_path text;
+
+-- 15 Okt 2026: jam tugas juri (di luar jam = hanya lihat). [{"date":"2026-12-13","from":"07:00","to":"12:00"}]; null = tanpa batas
+alter table jo.staff add column if not exists access_windows jsonb;
 
 -- ---------------------------------------------------------------------
 -- FAQ (15 Okt 2026): dikelola panitia di konsol; publik hanya melihat status 'terbit'.

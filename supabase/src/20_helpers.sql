@@ -98,9 +98,57 @@ end $$;
 create or replace function jo.check_discipline(st jo.staff, p_disc text) returns void
 language plpgsql stable set search_path = '' as $$
 begin
-  if st.role in ('admin','td','juri') and st.discipline is not null and st.discipline <> p_disc then
+  if st.role in ('admin','td','juri','pemantau') and st.discipline is not null and st.discipline <> p_disc then
     raise exception 'Kode akses Anda hanya untuk disiplin %.', st.discipline using hint = 'ERR_FORBIDDEN', errcode = '42501';
   end if;
+end $$;
+
+-- Jam tugas juri (WIB). Di luar jam: konsol tetap bisa dibuka, tetapi hanya baca.
+create or replace function jo.staff_window(st jo.staff) returns jsonb
+language sql stable set search_path = '' as $$
+  with w as (
+    select (e->>'date')::date d, (e->>'from')::time f, (e->>'to')::time t
+      from jsonb_array_elements(case when jsonb_typeof(st.access_windows) = 'array' then st.access_windows else '[]'::jsonb end) e
+  ), n as (select (now() at time zone 'Asia/Jakarta') v)
+  select case when st.role <> 'juri' or not exists (select 1 from w)
+    then jsonb_build_object('limited', false, 'open', true)
+    else jsonb_build_object('limited', true,
+      'open', exists (select 1 from w, n where n.v >= w.d + w.f and n.v < w.d + w.t),
+      'current', (select jsonb_build_object('date', w.d, 'from', to_char(w.f, 'HH24:MI'), 'to', to_char(w.t, 'HH24:MI'))
+                    from w, n where n.v >= w.d + w.f and n.v < w.d + w.t order by w.d + w.f limit 1),
+      'next', (select jsonb_build_object('date', w.d, 'from', to_char(w.f, 'HH24:MI'), 'to', to_char(w.t, 'HH24:MI'))
+                 from w, n where w.d + w.f > n.v order by w.d + w.f limit 1))
+  end
+$$;
+
+create or replace function jo.require_window(st jo.staff) returns void
+language plpgsql stable set search_path = '' as $$
+declare w jsonb := jo.staff_window(st);
+begin
+  if not (w->>'open')::boolean then
+    raise exception '%', 'Di luar jam tugas Anda: konsol hanya bisa dilihat, nilai tidak bisa diisi.'
+      || coalesce(' Jam tugas berikutnya: ' || to_char((w->'next'->>'date')::date, 'DD-MM-YYYY') || ' pukul '
+         || (w->'next'->>'from') || '–' || (w->'next'->>'to') || ' WIB.', ' Tidak ada jam tugas lagi; hubungi admin.')
+      using hint = 'ERR_WINDOW';
+  end if;
+end $$;
+
+-- Validasi daftar jam tugas dari konsol: [{date, from, to}], urut, tanpa duplikat
+create or replace function jo.norm_windows(p jsonb) returns jsonb
+language plpgsql immutable set search_path = '' as $$
+declare r jsonb := '[]'::jsonb; e jsonb; d date; f time; t time;
+begin
+  if p is null or jsonb_typeof(p) <> 'array' or jsonb_array_length(p) = 0 then return null; end if;
+  if jsonb_array_length(p) > 40 then raise exception 'Jam tugas maksimal 40 baris.'; end if;
+  for e in select * from jsonb_array_elements(p) loop
+    begin
+      d := (e->>'date')::date; f := (e->>'from')::time; t := (e->>'to')::time;
+    exception when others then raise exception 'Isi tanggal dan jam tugas dengan lengkap.'; end;
+    if d is null or f is null or t is null then raise exception 'Isi tanggal dan jam tugas dengan lengkap.'; end if;
+    if t <= f then raise exception 'Jam selesai harus setelah jam mulai (%).', to_char(d, 'DD-MM-YYYY'); end if;
+    r := r || jsonb_build_object('date', to_char(d, 'YYYY-MM-DD'), 'from', to_char(f, 'HH24:MI'), 'to', to_char(t, 'HH24:MI'));
+  end loop;
+  return (select jsonb_agg(x order by x->>'date', x->>'from') from jsonb_array_elements(r) x);
 end $$;
 
 create or replace function jo.staff_json(st jo.staff) returns jsonb
@@ -108,7 +156,8 @@ language sql stable set search_path = '' as $$
   select jsonb_build_object(
     'id', st.id, 'name', st.name, 'role', st.role, 'discipline', st.discipline,
     'apparatus', st.apparatus, 'components', st.components, 'code_hint', st.code_hint,
-    'active', st.active, 'note', st.note, 'created_at', st.created_at, 'last_login_at', st.last_login_at, 'phone', st.phone)
+    'active', st.active, 'note', st.note, 'created_at', st.created_at, 'last_login_at', st.last_login_at, 'phone', st.phone,
+    'access_windows', st.access_windows, 'window', jo.staff_window(st))
 $$;
 
 create or replace function jo.log(p_staff uuid, p_action text, p_type text, p_id text, p_detail jsonb default '{}'::jsonb)

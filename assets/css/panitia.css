@@ -232,3 +232,8 @@ body[data-page="panitia"] #view > .empty:only-child{border:0;background:none;tex
 body[data-page="panitia"] input[type=file]{font:inherit;font-size:.84rem;color:var(--muted);max-width:100%}
 body[data-page="panitia"] input[type=file]::file-selector-button{font:inherit;font-size:.84rem;font-weight:600;color:var(--ink);background:#fff;border:1px solid var(--line-2);border-radius:9px;padding:0 14px;height:36px;margin-right:10px;cursor:pointer}
 body[data-page="panitia"] input[type=file]::file-selector-button:hover{border-color:var(--blue);color:var(--blue)}
+/* jam tugas juri */
+.win-rows{display:grid;gap:8px;margin-bottom:8px}
+.win-row{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) auto minmax(0,1fr) auto;gap:8px;align-items:center}
+@media (max-width:560px){.win-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}.win-row [data-wd]{grid-column:1 / -1}.win-row > span{display:none}}
+body[data-page="panitia"] .score-in:disabled{background:var(--paper);color:var(--muted);cursor:not-allowed}

@@ -7,13 +7,15 @@
   const root = document.getElementById('root');
   const DN = { MAG: 'Artistik Putra', WAG: 'Artistik Putri', RG: 'Ritmik', AER: 'Aerobik' };
   const DISCS = ['MAG', 'WAG', 'RG', 'AER'];
-  const ROLE = { owner: 'Owner', superadmin: 'Superadmin', admin: 'Admin', td: 'TD', juri: 'Juri' };
+  const ROLE = { owner: 'Owner', superadmin: 'Superadmin', admin: 'Admin', td: 'TD', juri: 'Juri', pemantau: 'Pemantau' };
   const ST = { menunggu_pembayaran: 'Menunggu pembayaran', menunggu_verifikasi: 'Menunggu verifikasi', lunas: 'Lunas', perlu_perbaikan: 'Perlu perbaikan', dibatalkan: 'Dibatalkan' };
   let ME = null, CATS = null;
   const isSuper = () => ME && (ME.role === 'owner' || ME.role === 'superadmin');
   const isAdmin = () => ME && ['owner', 'superadmin', 'admin'].includes(ME.role);
-  const isTD = () => ME && ME.role === 'td';
-  const canSee = () => isAdmin() || isTD();   // halaman pertandingan: admin ke atas, TD hanya baca
+  const isTD = () => ME && (ME.role === 'td' || ME.role === 'pemantau');   // hanya baca di halaman pertandingan
+  const isViewer = () => ME && ME.role === 'pemantau';                        // pemantau: halaman pertandingan saja
+  const canSee = () => isAdmin() || isTD();   // halaman pertandingan: admin ke atas, TD & pemantau hanya baca
+  const roMode = () => (ME && ME.role === 'pemantau' ? 'Mode pemantau' : 'Mode TD');
   let pageTimer = null;                        // polling halaman aktif (chat), dihentikan saat pindah halaman
   const setPageTimer = (fn, ms) => { clearInterval(pageTimer); pageTimer = setInterval(fn, ms); };
   const myDiscs = () => (ME && ME.discipline ? [ME.discipline] : DISCS);
@@ -24,7 +26,7 @@
     (scope || document).querySelectorAll('table.tbl').forEach((tb) => {
       const heads = [];
       const hr = tb.tHead && tb.tHead.rows[tb.tHead.rows.length - 1];
-      if (hr) [...hr.cells].forEach((th) => { for (let k = 0; k < (th.colSpan || 1); k++) heads.push(th.textContent.trim()); });
+      if (hr) [...hr.cells].forEach((th) => { const sub = th.querySelector('.tiny'); const c = th.cloneNode(true); c.querySelectorAll('br').forEach((x) => x.replaceWith(' ')); const lab = (sub ? sub.textContent : c.textContent).replace(/\s+/g, ' ').trim(); for (let k = 0; k < (th.colSpan || 1); k++) heads.push(lab); });
       tb.classList.toggle('tbl-nohead', !hr);
       [...tb.tBodies].forEach((tbd) => [...tbd.rows].forEach((tr) => {
         let col = 0;
@@ -230,11 +232,48 @@
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.querySelectorAll('.rm.open').forEach((m) => m.classList.remove('open')); });
   window.addEventListener('scroll', () => document.querySelectorAll('.rm.open').forEach((m) => m.classList.remove('open')), true);
 
+  // ---------- jam tugas juri (WIB) ----------
+  const BLN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  const winDay = (d) => { const [y, m, dd] = String(d).split('-').map(Number); return `${dd} ${BLN[m - 1]} ${y}`; };
+  const winLabel = (w) => (w ? `${winDay(w.date)}, ${String(w.from).replace(':', '.')}–${String(w.to).replace(':', '.')}` : '');
+  const winRow = (w) => `<div class="win-row"><input type="date" data-wd value="${esc(w.date || '')}" min="2026-12-01" max="2026-12-31" aria-label="Tanggal">
+      <input type="time" data-wf value="${esc(w.from || '07:00')}" step="900" aria-label="Mulai"><span class="muted">–</span><input type="time" data-wt value="${esc(w.to || '17:00')}" step="900" aria-label="Selesai">
+      <button type="button" class="btn btn-ghost btn-sm" data-wdel aria-label="Hapus baris">Hapus</button></div>`;
+  const winEditor = (list) => `<div class="field win-ed"><span class="f">Jam tugas (WIB)</span>
+      <div class="f-hint" style="margin:0 0 8px">Tambahkan hari dan rentang jam bertugas. Di luar jam ini juri tetap bisa masuk dan melihat, tetapi tidak bisa mengisi nilai. Kosongkan bila juri boleh mengisi nilai kapan saja.</div>
+      <div class="win-rows">${(list || []).map(winRow).join('')}</div>
+      <button type="button" class="btn btn-ghost btn-sm" data-wadd>+ Tambah hari</button></div>`;
+  const readWindows = (scope) => [...scope.querySelectorAll('.win-row')].map((r) => ({ date: r.querySelector('[data-wd]').value, from: r.querySelector('[data-wf]').value, to: r.querySelector('[data-wt]').value }))
+    .filter((w) => w.date || w.from !== '07:00' || w.to !== '17:00');
+  document.addEventListener('click', (e) => {
+    const add = e.target.closest('[data-wadd]');
+    if (add) {
+      const box = add.closest('.win-ed').querySelector('.win-rows');
+      const last = [...box.querySelectorAll('.win-row')].pop();
+      let date = '2026-12-12', from = '07:00', to = '17:00';
+      if (last) {
+        const d = last.querySelector('[data-wd]').value;
+        if (d) { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + 1); date = x.toISOString().slice(0, 10); }
+        from = last.querySelector('[data-wf]').value || from; to = last.querySelector('[data-wt]').value || to;
+      }
+      box.insertAdjacentHTML('beforeend', winRow({ date, from, to }));
+    }
+    const del = e.target.closest('[data-wdel]');
+    if (del) del.closest('.win-row').remove();
+  });
+  const winSummary = (s) => {
+    if (s.role !== 'juri') return '';
+    const ws = s.access_windows || [];
+    if (!ws.length) return '<br>Jam tugas: kapan saja';
+    const st = s.window || {};
+    return `<br>Jam tugas: ${ws.map((w) => esc(winLabel(w))).join('; ')}<br><span class="pill ${st.open ? 'ok' : ''}">${st.open ? 'sedang bertugas' : 'di luar jam: hanya lihat'}</span>`;
+  };
+
   const PAGES = [
     ['ringkasan', 'Ringkasan', () => isAdmin(), pageDashboard, 'home', 'Utama'],
-    ['chat', 'Chat panitia', () => true, pageChat, 'chat', 'Komunikasi'],
-    ['laporan', 'Laporan masalah', () => true, pageIssues, 'bug', 'Komunikasi'],
-    ['kontak', 'Kontak', () => true, pageContacts, 'phone', 'Komunikasi'],
+    ['chat', 'Chat panitia', () => !isViewer(), pageChat, 'chat', 'Komunikasi'],
+    ['laporan', 'Laporan masalah', () => !isViewer(), pageIssues, 'bug', 'Komunikasi'],
+    ['kontak', 'Kontak', () => !isViewer(), pageContacts, 'phone', 'Komunikasi'],
     ['faq', 'FAQ situs', () => isAdmin(), pageFaq, 'help', 'Komunikasi'],
     ['pendaftaran', 'Pendaftaran', () => isAdmin(), pageSubmissions, 'inbox', 'Peserta'],
     ['atlet', 'Data atlet', () => isAdmin(), pageAthletes, 'users', 'Peserta'],
@@ -724,7 +763,7 @@
     const draw = () => {
       const d = CATS.disciplines.find((x) => x.code === disc);
       const list = CATS.categories.filter((c) => c.discipline === disc);
-      v.innerHTML = `<h1>Kategori</h1><p class="muted">Dari Undangan Jabar Open 2026. Angka tahun lahir dihitung dari "usia pada tahun kompetisi" (2026).${isTD() ? ' Mode TD: hanya baca.' : ''}</p>
+      v.innerHTML = `<h1>Kategori</h1><p class="muted">Dari Undangan Jabar Open 2026. Angka tahun lahir dihitung dari "usia pada tahun kompetisi" (2026).${isTD() ? ' ' + roMode() + ': hanya baca.' : ''}</p>
         <div class="tabs">${myDiscs().map((k) => `<button data-d="${k}" aria-selected="${k === disc}">${DN[k]}</button>`).join('')}</div>
         ${d ? `<div class="row" style="margin-bottom:12px"><span>Pendaftaran ${DN[disc]}: <strong>${d.registration_open ? 'dibuka' : 'ditutup'}</strong></span>
           ${isSuper() ? `<button class="btn btn-ghost btn-sm" id="dtoggle">${d.registration_open ? 'Tutup pendaftaran disiplin ini' : 'Buka pendaftaran'}</button>` : ''}
@@ -879,7 +918,7 @@
     const juri = ME.role === 'juri', ro = isTD();
     if (ro) scState.mode = 'final';
     v.innerHTML = `<h1>Penilaian</h1>
-      <p class="muted">${juri ? `Masuk sebagai ${esc(ME.name)}${ME.components ? ', komponen ' + ME.components.join('/') : ''}${ME.apparatus ? ', alat ' + ME.apparatus.join('/') : ''}. Nilai tersimpan otomatis saat Anda pindah kolom.` : ro ? 'Mode TD: memantau nilai yang masuk dari juri dan pencatat. Hanya baca; muat ulang untuk melihat nilai terbaru.' : 'Nilai juri masuk langsung ke sini. Pencatat bisa mengisi nilai akhir per alat dari lembar juri. Setiap perubahan setelah dikunci tercatat di log koreksi.'}</p>
+      <p class="muted">${juri ? `Masuk sebagai ${esc(ME.name)}${ME.components ? ', komponen ' + ME.components.join('/') : ''}${ME.apparatus ? ', alat ' + ME.apparatus.join('/') : ''}. Nilai tersimpan otomatis saat Anda pindah kolom.` : ro ? roMode() + ': memantau nilai yang masuk dari juri dan pencatat. Hanya baca; muat ulang untuk melihat nilai terbaru.' : 'Nilai juri masuk langsung ke sini. Pencatat bisa mengisi nilai akhir per alat dari lembar juri. Setiap perubahan setelah dikunci tercatat di log koreksi.'}</p>
       <div class="bar">${myDiscs().length > 1 ? `<div class="field"><label class="f" for="nd">Disiplin</label><select id="nd">${myDiscs().map((d) => `<option value="${d}" ${scState.disc === d ? 'selected' : ''}>${DN[d]}</option>`).join('')}</select></div>` : ''}
         <div id="catslot" style="flex:1;display:flex"></div></div><div id="sheet"></div>`;
     const drawCat = () => {
@@ -897,9 +936,14 @@
       const app = scState.app;
       const comps = D.components;
       const showComps = juri || scState.mode === 'comp';
+      const W = D.window || { open: true };
+      const offHours = juri && W.limited && !W.open;
       box.innerHTML = `<section class="card">
         <div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(D.category.name_id)}</h2>
-          <span>${D.locked ? '<span class="pill warn">Nilai dikunci</span>' : '<span class="pill ok">Terbuka untuk input</span>'}${D.category.results_published ? ' <span class="pill dark">Hasil dipublikasikan</span>' : ''}</span></div>
+          <span>${D.locked ? '<span class="pill warn">Nilai dikunci</span>' : offHours ? '<span class="pill warn">Di luar jam tugas</span>' : '<span class="pill ok">Terbuka untuk input</span>'}${D.category.results_published ? ' <span class="pill dark">Hasil dipublikasikan</span>' : ''}</span></div>
+        ${juri && W.limited ? `<p class="note ${offHours ? 'warn' : 'ok'}" style="margin:10px 0 0">${offHours
+          ? `Di luar jam tugas Anda: nilai hanya bisa dilihat, tidak bisa diisi.${W.next ? ` Jam tugas berikutnya ${esc(winLabel(W.next))} WIB.` : ' Tidak ada jam tugas lagi; hubungi admin bila perlu.'}`
+          : `Jam tugas Anda sekarang: ${esc(winLabel(W.current))} WIB.`}</p>` : ''}
         <div class="tabs" style="margin-top:12px">${D.apparatus.map((a) => `<button data-app="${a.code}" aria-selected="${a.code === app}">${esc(a.id)}</button>`).join('')}</div>
         ${!juri && !ro ? `<div class="row" style="margin-bottom:10px"><div class="seg"><label><input type="radio" name="md" value="final" ${scState.mode === 'final' ? 'checked' : ''}>Isi nilai akhir</label><label><input type="radio" name="md" value="comp" ${scState.mode === 'comp' ? 'checked' : ''}>Isi per komponen</label></div>
           <span class="small muted">Nilai akhir menggantikan hitungan komponen untuk alat ini.</span></div>` : ''}
@@ -930,6 +974,7 @@
       const lk = box.querySelector('#lock');
       if (lk) lk.onclick = async () => { try { await api('console_lock_scores', { p_category: D.category.id, p_lock: !D.category.scores_locked }); load(); } catch (e) { JO.toast(e.message, 'bad'); } };
       const inputs = [...box.querySelectorAll('.score-in')];
+      if (offHours) inputs.forEach((x) => { x.disabled = true; });
       inputs.forEach((inp, idx) => {
         inp.dataset.orig = inp.value;
         inp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); if (inputs[idx + 1]) inputs[idx + 1].focus(); else inp.blur(); } });
@@ -963,7 +1008,7 @@
     await refreshCats();
     if (!reState.disc) reState.disc = myDiscs()[0];
     const hp = hashParams(); if (hp.get('c')) { reState.cat = hp.get('c'); const c = CATS.categories.find((x) => x.id === Number(reState.cat)); if (c) reState.disc = c.discipline; }
-    v.innerHTML = `<h1>Hasil & medali</h1><p class="muted">${isTD() ? 'Mode TD: hanya baca. ' : ''}Publikasikan hasil per kategori setelah UPP. Publikasi mengunci nilai; sertifikat dan tabel medali di situs ikut diperbarui.</p>
+    v.innerHTML = `<h1>Hasil & medali</h1><p class="muted">${isTD() ? roMode() + ': hanya baca. ' : ''}Publikasikan hasil per kategori setelah UPP. Publikasi mengunci nilai; sertifikat dan tabel medali di situs ikut diperbarui.</p>
       <div class="tabs"><button data-t="cat" aria-selected="true">Hasil kategori</button>${teamDiscs().length ? '<button data-t="team" aria-selected="false">Beregu</button>' : ''}<button data-t="medal" aria-selected="false">Tabel medali</button></div><div id="rbox"></div>`;
     const rbox = v.querySelector('#rbox');
     v.querySelectorAll('[data-t]').forEach((b) => b.onclick = () => { v.querySelectorAll('[data-t]').forEach((x) => x.setAttribute('aria-selected', String(x === b))); b.dataset.t === 'cat' ? catView() : b.dataset.t === 'team' ? teamView(rbox) : medalView(); });
@@ -1554,7 +1599,7 @@
   const waText = (p, text) => { const u = wa(p); return u === '#' ? '#' : u + (text ? '?text=' + encodeURIComponent(text) : ''); };
 
   async function pollUnread() {
-    if (!ME) return;
+    if (!ME || isViewer()) return;
     let u;
     try { u = await api('console_unread'); } catch (e) { return; }
     const set = (k, n) => { const b = root.querySelector(`[data-badge="${k}"]`); if (b) { b.hidden = !n; b.textContent = n > 99 ? '99+' : String(n || ''); } };
@@ -1809,12 +1854,13 @@
         <div class="field"><label class="f" for="ad">Disiplin</label><select id="ad">${discs.map((d) => `<option value="${d}">${DN[d]} (brevet: ${esc(brevetText(j.brevet && j.brevet[d]))})</option>`).join('')}</select></div>
         <div class="field"><span class="f">Batasi komponen</span><div class="row">${['D', 'E', 'A', 'PEN'].map((c) => `<label class="check" style="padding:2px 10px 2px 0"><input type="checkbox" data-comp="${c}">${c}</label>`).join('')}</div><div class="f-hint">Kosongkan untuk semua komponen. Bisa diubah nanti di Kode akses.</div></div>
         <div class="field"><label class="f" for="aa">Batasi alat (pisahkan dengan koma)</label><input id="aa" placeholder="Mis. VT, UB"><div class="f-hint">Kosongkan untuk semua alat.</div></div>
+        ${winEditor([])}
         <div class="field"><label class="f" for="an">Catatan internal</label><input id="an" placeholder="Mis. Juri E panel 1"></div>
         <div class="field"><label class="f" for="am">Pesan untuk juri (ikut di email persetujuan, opsional)</label><textarea id="am" rows="2" placeholder="Mis. Rapat juri 11 Desember pukul 15.00 di Arcamanik."></textarea><div class="f-hint">Email tidak memuat kode akses. Kode hanya dikirim lewat WhatsApp.</div></div>`,
       onOk: async (d) => api('console_jury_approve', { p_id: j.id, p: { discipline: d.querySelector('#ad').value,
         components: [...d.querySelectorAll('[data-comp]:checked')].map((x) => x.dataset.comp),
         apparatus: d.querySelector('#aa').value.split(',').map((x) => x.trim().toUpperCase()).filter(Boolean),
-        note: d.querySelector('#an').value, message: d.querySelector('#am').value } }) });
+        note: d.querySelector('#an').value, message: d.querySelector('#am').value, access_windows: readWindows(d) } }) });
     if (!r) return;
     const msg = `Halo ${r.name}, Anda disetujui sebagai juri Jabar Open 2026.\nKode akses konsol penilaian: ${r.code}\nMasuk di ${JO.siteUrl()}panitia/\nKode ini pribadi, jangan dibagikan.`;
     dialog({ title: 'Kode akses untuk ' + r.name, ok: null, cancel: 'Selesai',
@@ -1868,7 +1914,7 @@
       <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nama</th><th>Peran</th><th>Disiplin</th><th>Batasan juri</th><th>Kode</th><th>Terakhir masuk</th><th></th></tr></thead><tbody>
       ${rows.map((s) => `<tr><td>${esc(s.name)}${s.active ? '' : ' <span class="pill bad">nonaktif</span>'}${s.note || s.phone ? `<br><span class="tiny muted">${esc([s.phone, s.note].filter(Boolean).join(' · '))}</span>` : ''}</td>
         <td>${ROLE[s.role]}</td><td>${s.discipline ? DN[s.discipline] : 'Semua'}</td>
-        <td class="small">${s.role === 'juri' ? `${s.apparatus ? 'Alat: ' + s.apparatus.join(', ') : 'Semua alat'}<br>${s.components ? 'Komponen: ' + s.components.join(', ') : 'Semua komponen'}` : ''}</td>
+        <td class="small">${s.role === 'juri' ? `${s.apparatus ? 'Alat: ' + s.apparatus.join(', ') : 'Semua alat'}<br>${s.components ? 'Komponen: ' + s.components.join(', ') : 'Semua komponen'}${winSummary(s)}` : ''}</td>
         <td class="code small">…${esc(s.code_hint || '')}</td><td class="small">${s.last_login_at ? dt(s.last_login_at) : 'Belum pernah'}</td>
         <td class="r">${s.role === 'owner' || (s.role === 'superadmin' && ME.role !== 'owner') ? '' : rowMenu(
           s.active ? `<button class="btn btn-ghost btn-sm" data-rc="${s.id}">Kode baru</button>` : `<button class="btn btn-ok btn-sm" data-act="${s.id}">Aktifkan</button>`,
@@ -1882,22 +1928,26 @@
       ${s ? '' : `<div class="field"><label class="f">Peran</label><select id="sr">
         <option value="admin">Admin / verifikator (verifikasi bayar, dokumen, start list, hasil)</option>
         <option value="td">TD / Technical Director (pantau kategori, start list, nilai, hasil; hanya baca)</option>
-        <option value="juri">Juri (input nilai saja)</option>
+        <option value="juri">Juri (input nilai saja; bisa dibatasi jam tugas)</option>
+        <option value="pemantau">Pemantau (hanya lihat: kategori, start list, nilai, hasil)</option>
         ${ME.role === 'owner' ? '<option value="superadmin">Superadmin (semua, termasuk ledger)</option>' : ''}</select></div>`}
       <div class="field"><label class="f">Disiplin</label><select id="sd"><option value="">Semua disiplin</option>${DISCS.map((d) => `<option value="${d}" ${s && s.discipline === d ? 'selected' : ''}>${DN[d]}</option>`).join('')}</select></div>
-      <div id="jopt"><div class="field"><span class="f">Batasi komponen (juri)</span><div class="row">${['D', 'E', 'A', 'PEN'].map((c) => `<label class="check" style="padding:2px 10px 2px 0"><input type="checkbox" data-comp="${c}" ${s && s.components && s.components.includes(c) ? 'checked' : ''}>${c}</label>`).join('')}</div><div class="f-hint">Kosongkan untuk semua komponen.</div></div>
-        <div class="field"><label class="f">Batasi alat (juri, pisahkan dengan koma)</label><input id="sa" placeholder="Mis. VT, UB" value="${esc(s && s.apparatus ? s.apparatus.join(', ') : '')}"><div class="f-hint">Kode alat: MAG FX PH SR VT PB HB; WAG VT UB BB FX; Ritmik FH ROPE HOOP BALL CLUBS RIBBON; Aerobik RTN. Kosongkan untuk semua alat.</div></div></div>
+      <div id="jopt" ${!s || s.role !== 'juri' ? 'hidden' : ''}><div class="field"><span class="f">Batasi komponen (juri)</span><div class="row">${['D', 'E', 'A', 'PEN'].map((c) => `<label class="check" style="padding:2px 10px 2px 0"><input type="checkbox" data-comp="${c}" ${s && s.components && s.components.includes(c) ? 'checked' : ''}>${c}</label>`).join('')}</div><div class="f-hint">Kosongkan untuk semua komponen.</div></div>
+        <div class="field"><label class="f">Batasi alat (juri, pisahkan dengan koma)</label><input id="sa" placeholder="Mis. VT, UB" value="${esc(s && s.apparatus ? s.apparatus.join(', ') : '')}"><div class="f-hint">Kode alat: MAG FX PH SR VT PB HB; WAG VT UB BB FX; Ritmik FH ROPE HOOP BALL CLUBS RIBBON; Aerobik RTN. Kosongkan untuk semua alat.</div></div>${winEditor(s ? s.access_windows : [])}</div>
       <div class="field"><label class="f">Nomor WhatsApp</label><input id="sph" inputmode="tel" value="${esc(s ? s.phone || '' : '')}" placeholder="08xx-xxxx-xxxx"><div class="f-hint">Tampil di halaman Kontak untuk sesama panitia dan juri.</div></div>
       <div class="field"><label class="f">Catatan</label><input id="snote" value="${esc(s ? s.note || '' : '')}" placeholder="Mis. Juri E panel 1"></div>`;
     const collect = (d) => ({ name: d.querySelector('#sn').value, role: d.querySelector('#sr') ? d.querySelector('#sr').value : undefined, discipline: d.querySelector('#sd').value,
-      components: [...d.querySelectorAll('[data-comp]:checked')].map((x) => x.dataset.comp), apparatus: d.querySelector('#sa').value.split(',').map((x) => x.trim().toUpperCase()).filter(Boolean), note: d.querySelector('#snote').value, phone: d.querySelector('#sph').value });
+      components: [...d.querySelectorAll('[data-comp]:checked')].map((x) => x.dataset.comp), apparatus: d.querySelector('#sa').value.split(',').map((x) => x.trim().toUpperCase()).filter(Boolean), note: d.querySelector('#snote').value, phone: d.querySelector('#sph').value,
+      access_windows: readWindows(d) });
+    const wireRole = () => { const d = document.getElementById('dlg'); const sr = d && d.querySelector('#sr'); if (sr) sr.onchange = () => { d.querySelector('#jopt').hidden = sr.value !== 'juri'; }; };
     const showCode = (name, code) => dialog({ title: 'Kode akses untuk ' + name, ok: null, cancel: 'Selesai',
       body: `<div class="codebox">${esc(code)}</div><p class="small" style="margin-top:12px">Salin dan kirim secara pribadi. Kode ini tidak bisa ditampilkan lagi.</p>
         <div class="actions"><button type="button" class="btn btn-dark btn-sm" id="cp">Salin kode</button>
         <a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(`Kode akses konsol panitia Jabar Open 2026 untuk ${name}: ${code}\nMasuk di ${JO.siteUrl()}panitia/\nJangan bagikan kode ini.`)}">Kirim lewat WhatsApp</a></div>` })
       .then(() => pageAccess(v)) && setTimeout(() => { const cp = document.getElementById('cp'); if (cp) cp.onclick = () => navigator.clipboard.writeText(code).then(() => JO.toast('Kode disalin.')); }, 50);
     v.querySelector('#new').onclick = async () => {
-      const r = await dialog({ title: 'Buat kode baru', ok: 'Buat kode', body: form(null), onOk: async (d) => api('console_staff_create', { p: collect(d) }) });
+      const pr = dialog({ title: 'Buat kode baru', ok: 'Buat kode', body: form(null), onOk: async (d) => api('console_staff_create', { p: collect(d) }) });
+      wireRole(); const r = await pr;
       if (r) showCode(r.staff.name, r.code);
     };
     v.querySelectorAll('[data-edit]').forEach((b) => b.onclick = async () => {

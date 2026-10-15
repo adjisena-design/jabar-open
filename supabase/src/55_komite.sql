@@ -73,7 +73,7 @@ create or replace function public.console_chat_rooms() returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff;
 begin
-  st := jo.require_staff(null);
+  st := jo.require_staff(array['owner','superadmin','admin','td','juri']);
   return jsonb_build_object(
     'me', st.id,
     'rooms', (select coalesce(jsonb_agg(jsonb_build_object(
@@ -102,7 +102,7 @@ create or replace function public.console_chat_messages(p_room text, p_after big
 language plpgsql volatile security definer set search_path = '' as $$
 declare st jo.staff; v_max bigint; res jsonb;
 begin
-  st := jo.require_staff(null);
+  st := jo.require_staff(array['owner','superadmin','admin','td','juri']);
   if not jo.chat_can(st, p_room) then raise exception 'Anda tidak termasuk dalam percakapan ini.' using hint = 'ERR_FORBIDDEN'; end if;
   select coalesce(jsonb_agg(jsonb_build_object('id', x.id, 'sender', x.sender, 'sender_name', x.sender_name,
            'role', (select role from jo.staff where id = x.sender), 'body', x.body, 'at', x.created_at) order by x.id), '[]'::jsonb),
@@ -121,7 +121,7 @@ create or replace function public.console_chat_send(p_room text, p_body text) re
 language plpgsql volatile security definer set search_path = '' as $$
 declare st jo.staff; v_body text := trim(coalesce(p_body, '')); m jo.chat_messages;
 begin
-  st := jo.require_staff(null);
+  st := jo.require_staff(array['owner','superadmin','admin','td','juri']);
   if v_body = '' then raise exception 'Pesan kosong.'; end if;
   if length(v_body) > 4000 then raise exception 'Pesan terlalu panjang (maks. 4000 karakter).'; end if;
   if p_room like 'dm:%' then
@@ -167,7 +167,7 @@ create or replace function public.console_issues(p_filter jsonb default '{}'::js
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff; f jsonb := coalesce(p_filter, '{}'::jsonb);
 begin
-  st := jo.require_staff(null);
+  st := jo.require_staff(array['owner','superadmin','admin','td','juri']);
   return (select coalesce(jsonb_agg(jo.issue_json(st, i) order by (i.status = 'selesai'), i.updated_at desc), '[]'::jsonb)
     from jo.issues i
     where jo.issue_visible(st, i)
@@ -179,7 +179,7 @@ create or replace function public.console_issue(p_id bigint) returns jsonb
 language plpgsql volatile security definer set search_path = '' as $$
 declare st jo.staff; i jo.issues;
 begin
-  st := jo.require_staff(null);
+  st := jo.require_staff(array['owner','superadmin','admin','td','juri']);
   select * into i from jo.issues where id = p_id;
   if i.id is null or not jo.issue_visible(st, i) then raise exception 'Laporan tidak ditemukan.'; end if;
   insert into jo.issue_reads (staff_id, issue_id, seen_at) values (st.id, i.id, now())
@@ -193,7 +193,7 @@ create or replace function public.console_issue_create(p jsonb) returns jsonb
 language plpgsql volatile security definer set search_path = '' as $$
 declare st jo.staff; i jo.issues; v_disc text := nullif(p->>'discipline','');
 begin
-  st := jo.require_staff(null);
+  st := jo.require_staff(array['owner','superadmin','admin','td','juri']);
   if length(trim(coalesce(p->>'title',''))) < 4 then raise exception 'Tulis judul masalah (min. 4 karakter).'; end if;
   if v_disc is not null and not exists (select 1 from jo.disciplines where code = v_disc) then raise exception 'Disiplin tidak dikenal.'; end if;
   if v_disc is null and st.discipline is not null then v_disc := st.discipline; end if;
@@ -215,7 +215,7 @@ create or replace function public.console_issue_comment(p_id bigint, p_body text
 language plpgsql volatile security definer set search_path = '' as $$
 declare st jo.staff; i jo.issues;
 begin
-  st := jo.require_staff(null);
+  st := jo.require_staff(array['owner','superadmin','admin','td','juri']);
   select * into i from jo.issues where id = p_id for update;
   if i.id is null or not jo.issue_visible(st, i) then raise exception 'Laporan tidak ditemukan.'; end if;
   if length(trim(coalesce(p_body,''))) < 1 then raise exception 'Tulis tanggapan.'; end if;
@@ -246,7 +246,7 @@ create or replace function public.console_unread() returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff;
 begin
-  st := jo.require_staff(null);
+  st := jo.require_staff(array['owner','superadmin','admin','td','juri']);
   return jsonb_build_object(
     'chat', (select count(*) from jo.chat_messages m
               where m.sender is distinct from st.id and jo.chat_can(st, m.room)
@@ -266,7 +266,7 @@ create or replace function public.console_contacts() returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff; v_reg boolean;
 begin
-  st := jo.require_staff(null);
+  st := jo.require_staff(array['owner','superadmin','admin','td','juri']);
   v_reg := st.role in ('owner','superadmin','admin','td');
   return jsonb_build_object(
     'me', st.id,
@@ -437,7 +437,8 @@ begin
   if v_disc is not null and not (v_disc = any(j.disciplines)) then raise exception 'Pendaftar tidak mendaftar untuk disiplin ini.'; end if;
   r := jo.staff_create(st, jsonb_build_object('name', j.full_name, 'role', 'juri', 'discipline', v_disc,
          'apparatus', coalesce(p->'apparatus', '[]'::jsonb), 'components', coalesce(p->'components', '[]'::jsonb),
-         'phone', j.phone, 'note', coalesce(nullif(trim(coalesce(p->>'note','')),''), 'Juri dari pendaftaran')));
+         'phone', j.phone, 'note', coalesce(nullif(trim(coalesce(p->>'note','')),''), 'Juri dari pendaftaran'),
+         'access_windows', p->'access_windows'));
   update jo.jury_applications set status = 'disetujui', staff_id = (r->'staff'->>'id')::uuid, reviewed_by = st.id, reviewed_at = now(),
     review_note = nullif(trim(coalesce(p->>'message','')),'') where id = j.id;
   perform jo.log(st.id, 'juri_disetujui', 'jury', j.id::text, jsonb_build_object('name', j.full_name, 'discipline', v_disc));

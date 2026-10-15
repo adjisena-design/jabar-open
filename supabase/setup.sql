@@ -379,7 +379,7 @@ create table if not exists jo.team_levels (
 -- v5 (14 Okt 2026): peran TD, nomor WA panitia, chat, laporan masalah, pendaftaran juri
 -- ---------------------------------------------------------------------
 alter table jo.staff drop constraint if exists staff_role_check;
-alter table jo.staff add constraint staff_role_check check (role in ('owner','superadmin','admin','td','juri'));
+alter table jo.staff add constraint staff_role_check check (role in ('owner','superadmin','admin','td','juri','pemantau'));
 alter table jo.staff add column if not exists phone text;
 alter table jo.clubs add column if not exists note text;
 
@@ -468,6 +468,9 @@ alter table jo.athletes add column if not exists passport_path text;
 alter table jo.athletes add column if not exists bpjs_path text;
 alter table jo.athletes add column if not exists photo_thumb text;   -- pas foto kecil (data URL JPEG) untuk kartu atlet
 alter table jo.jury_applications add column if not exists bpjs_path text;
+
+-- 15 Okt 2026: jam tugas juri (di luar jam = hanya lihat). [{"date":"2026-12-13","from":"07:00","to":"12:00"}]; null = tanpa batas
+alter table jo.staff add column if not exists access_windows jsonb;
 
 -- ---------------------------------------------------------------------
 -- FAQ (15 Okt 2026): dikelola panitia di konsol; publik hanya melihat status 'terbit'.
@@ -603,9 +606,57 @@ end $$;
 create or replace function jo.check_discipline(st jo.staff, p_disc text) returns void
 language plpgsql stable set search_path = '' as $$
 begin
-  if st.role in ('admin','td','juri') and st.discipline is not null and st.discipline <> p_disc then
+  if st.role in ('admin','td','juri','pemantau') and st.discipline is not null and st.discipline <> p_disc then
     raise exception 'Kode akses Anda hanya untuk disiplin %.', st.discipline using hint = 'ERR_FORBIDDEN', errcode = '42501';
   end if;
+end $$;
+
+-- Jam tugas juri (WIB). Di luar jam: konsol tetap bisa dibuka, tetapi hanya baca.
+create or replace function jo.staff_window(st jo.staff) returns jsonb
+language sql stable set search_path = '' as $$
+  with w as (
+    select (e->>'date')::date d, (e->>'from')::time f, (e->>'to')::time t
+      from jsonb_array_elements(case when jsonb_typeof(st.access_windows) = 'array' then st.access_windows else '[]'::jsonb end) e
+  ), n as (select (now() at time zone 'Asia/Jakarta') v)
+  select case when st.role <> 'juri' or not exists (select 1 from w)
+    then jsonb_build_object('limited', false, 'open', true)
+    else jsonb_build_object('limited', true,
+      'open', exists (select 1 from w, n where n.v >= w.d + w.f and n.v < w.d + w.t),
+      'current', (select jsonb_build_object('date', w.d, 'from', to_char(w.f, 'HH24:MI'), 'to', to_char(w.t, 'HH24:MI'))
+                    from w, n where n.v >= w.d + w.f and n.v < w.d + w.t order by w.d + w.f limit 1),
+      'next', (select jsonb_build_object('date', w.d, 'from', to_char(w.f, 'HH24:MI'), 'to', to_char(w.t, 'HH24:MI'))
+                 from w, n where w.d + w.f > n.v order by w.d + w.f limit 1))
+  end
+$$;
+
+create or replace function jo.require_window(st jo.staff) returns void
+language plpgsql stable set search_path = '' as $$
+declare w jsonb := jo.staff_window(st);
+begin
+  if not (w->>'open')::boolean then
+    raise exception '%', 'Di luar jam tugas Anda: konsol hanya bisa dilihat, nilai tidak bisa diisi.'
+      || coalesce(' Jam tugas berikutnya: ' || to_char((w->'next'->>'date')::date, 'DD-MM-YYYY') || ' pukul '
+         || (w->'next'->>'from') || '–' || (w->'next'->>'to') || ' WIB.', ' Tidak ada jam tugas lagi; hubungi admin.')
+      using hint = 'ERR_WINDOW';
+  end if;
+end $$;
+
+-- Validasi daftar jam tugas dari konsol: [{date, from, to}], urut, tanpa duplikat
+create or replace function jo.norm_windows(p jsonb) returns jsonb
+language plpgsql immutable set search_path = '' as $$
+declare r jsonb := '[]'::jsonb; e jsonb; d date; f time; t time;
+begin
+  if p is null or jsonb_typeof(p) <> 'array' or jsonb_array_length(p) = 0 then return null; end if;
+  if jsonb_array_length(p) > 40 then raise exception 'Jam tugas maksimal 40 baris.'; end if;
+  for e in select * from jsonb_array_elements(p) loop
+    begin
+      d := (e->>'date')::date; f := (e->>'from')::time; t := (e->>'to')::time;
+    exception when others then raise exception 'Isi tanggal dan jam tugas dengan lengkap.'; end;
+    if d is null or f is null or t is null then raise exception 'Isi tanggal dan jam tugas dengan lengkap.'; end if;
+    if t <= f then raise exception 'Jam selesai harus setelah jam mulai (%).', to_char(d, 'DD-MM-YYYY'); end if;
+    r := r || jsonb_build_object('date', to_char(d, 'YYYY-MM-DD'), 'from', to_char(f, 'HH24:MI'), 'to', to_char(t, 'HH24:MI'));
+  end loop;
+  return (select jsonb_agg(x order by x->>'date', x->>'from') from jsonb_array_elements(r) x);
 end $$;
 
 create or replace function jo.staff_json(st jo.staff) returns jsonb
@@ -613,7 +664,8 @@ language sql stable set search_path = '' as $$
   select jsonb_build_object(
     'id', st.id, 'name', st.name, 'role', st.role, 'discipline', st.discipline,
     'apparatus', st.apparatus, 'components', st.components, 'code_hint', st.code_hint,
-    'active', st.active, 'note', st.note, 'created_at', st.created_at, 'last_login_at', st.last_login_at, 'phone', st.phone)
+    'active', st.active, 'note', st.note, 'created_at', st.created_at, 'last_login_at', st.last_login_at, 'phone', st.phone,
+    'access_windows', st.access_windows, 'window', jo.staff_window(st))
 $$;
 
 create or replace function jo.log(p_staff uuid, p_action text, p_type text, p_id text, p_detail jsonb default '{}'::jsonb)
@@ -2812,7 +2864,7 @@ create or replace function public.console_categories(p_discipline text default n
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff; d text;
 begin
-  st := jo.require_staff(array['owner','superadmin','admin','juri','td']);
+  st := jo.require_staff(array['owner','superadmin','admin','juri','td','pemantau']);
   d := coalesce(st.discipline, nullif(p_discipline,''));
   return jsonb_build_object(
     'disciplines', (select coalesce(jsonb_agg(to_jsonb(x) order by x.sort), '[]'::jsonb) from jo.disciplines x where d is null or x.code = d),
@@ -2888,7 +2940,7 @@ create or replace function public.console_sessions(p_discipline text) returns js
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff;
 begin
-  st := jo.require_staff(array['owner','superadmin','admin','juri','td']);
+  st := jo.require_staff(array['owner','superadmin','admin','juri','td','pemantau']);
   perform jo.check_discipline(st, p_discipline);
   return (select coalesce(jsonb_agg(to_jsonb(x) order by x.sort, x.day, x.start_time), '[]'::jsonb)
             from jo.sessions x where x.discipline = p_discipline);
@@ -2931,7 +2983,7 @@ create or replace function public.console_startlist(p_category integer) returns 
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff; c jo.categories;
 begin
-  st := jo.require_staff(array['owner','superadmin','admin','juri','td']);
+  st := jo.require_staff(array['owner','superadmin','admin','juri','td','pemantau']);
   select * into c from jo.categories where id = p_category;
   if c.id is null then raise exception 'Kategori tidak ditemukan.'; end if;
   perform jo.check_discipline(st, c.discipline);
@@ -3008,7 +3060,7 @@ create or replace function public.console_score_sheet(p_category integer) return
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff; c jo.categories; d jo.disciplines; is_juri boolean; apps jsonb; comps jsonb; res jsonb;
 begin
-  st := jo.require_staff(array['owner','superadmin','admin','juri','td']);
+  st := jo.require_staff(array['owner','superadmin','admin','juri','td','pemantau']);
   select * into c from jo.categories where id = p_category;
   if c.id is null then raise exception 'Kategori tidak ditemukan.'; end if;
   perform jo.check_discipline(st, c.discipline);
@@ -3030,6 +3082,7 @@ begin
 
   return jsonb_build_object(
     'category', to_jsonb(c),
+    'window', jo.staff_window(st),
     'apparatus', apps,
     'components', comps,
     'role', st.role,
@@ -3069,6 +3122,7 @@ begin
   if v_comp not in ('D','E','A','PEN','FINAL') then raise exception 'Komponen nilai tidak dikenal.'; end if;
   v_locked := c.scores_locked or c.results_published;
   if st.role = 'juri' then
+    perform jo.require_window(st);
     if v_comp = 'FINAL' then raise exception 'Nilai akhir hanya bisa diisi admin.'; end if;
     if st.apparatus is not null and not (v_app = any(st.apparatus)) then raise exception 'Kode akses Anda tidak untuk alat ini.'; end if;
     if st.components is not null and not (v_comp = any(st.components)) then raise exception 'Kode akses Anda tidak untuk komponen ini.'; end if;
@@ -3105,6 +3159,7 @@ begin
   select * into c from jo.categories where id = e.category_id;
   perform jo.check_discipline(st, c.discipline);
   v_staff := coalesce(p_staff, st.id);
+  if st.role = 'juri' then perform jo.require_window(st); end if;
   if st.role = 'juri' and (v_staff <> st.id or c.scores_locked or c.results_published) then
     raise exception 'Juri hanya bisa menghapus nilainya sendiri sebelum dikunci.';
   end if;
@@ -3138,7 +3193,7 @@ create or replace function public.console_results(p_category integer) returns js
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff; c jo.categories;
 begin
-  st := jo.require_staff(array['owner','superadmin','admin','td']);
+  st := jo.require_staff(array['owner','superadmin','admin','td','pemantau']);
   select * into c from jo.categories where id = p_category;
   if c.id is null then raise exception 'Kategori tidak ditemukan.'; end if;
   perform jo.check_discipline(st, c.discipline);
@@ -3175,7 +3230,7 @@ create or replace function public.console_medal_table(p_priangan boolean, p_publ
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff;
 begin
-  st := jo.require_staff(array['owner','superadmin','admin','td']);
+  st := jo.require_staff(array['owner','superadmin','admin','td','pemantau']);
   return jo.medal_table(coalesce(p_priangan,false), coalesce(p_published_only,true));
 end $$;
 
@@ -3256,7 +3311,7 @@ create or replace function public.console_teams(p_discipline text) returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff;
 begin
-  st := jo.require_staff(array['owner','superadmin','admin','td']);
+  st := jo.require_staff(array['owner','superadmin','admin','td','pemantau']);
   perform jo.check_discipline(st, p_discipline);
   return (select coalesce(jsonb_agg(jsonb_build_object(
       'level', lv.level, 'signatories', jo.setting('signatories'),
@@ -3394,7 +3449,7 @@ declare st jo.staff;
 begin
   st := jo.require_staff(array['owner','superadmin']);
   return (select coalesce(jsonb_agg(jo.staff_json(x) order by
-      array_position(array['owner','superadmin','admin','td','juri'], x.role), x.discipline nulls first, x.name), '[]'::jsonb)
+      array_position(array['owner','superadmin','admin','td','juri','pemantau'], x.role), x.discipline nulls first, x.name), '[]'::jsonb)
     from jo.staff x);
 end $$;
 
@@ -3403,21 +3458,22 @@ create or replace function jo.staff_create(st jo.staff, p jsonb) returns jsonb
 language plpgsql volatile set search_path = '' as $$
 declare v_code text; v_role text := p->>'role'; x jo.staff;
 begin
-  if v_role not in ('superadmin','admin','td','juri') then raise exception 'Peran tidak dikenal.'; end if;
+  if v_role not in ('superadmin','admin','td','juri','pemantau') then raise exception 'Peran tidak dikenal.'; end if;
   if v_role = 'superadmin' and st.role <> 'owner' then raise exception 'Hanya owner yang bisa membuat kode superadmin.'; end if;
   if length(trim(coalesce(p->>'name',''))) < 2 then raise exception 'Isi nama pemegang kode.'; end if;
   if nullif(p->>'discipline','') is not null and not exists (select 1 from jo.disciplines where code = p->>'discipline') then
     raise exception 'Disiplin tidak dikenal.';
   end if;
   v_code := jo.new_staff_code();
-  insert into jo.staff (name, role, discipline, apparatus, components, code_hash, code_hint, note, created_by, phone)
+  insert into jo.staff (name, role, discipline, apparatus, components, code_hash, code_hint, note, created_by, phone, access_windows)
   values (trim(p->>'name'), v_role, nullif(p->>'discipline',''),
     case when jsonb_typeof(p->'apparatus') = 'array' and jsonb_array_length(p->'apparatus') > 0
          then (select array_agg(upper(a)) from jsonb_array_elements_text(p->'apparatus') a) end,
     case when jsonb_typeof(p->'components') = 'array' and jsonb_array_length(p->'components') > 0
          then (select array_agg(upper(a)) from jsonb_array_elements_text(p->'components') a) end,
     jo.sha256(jo.norm_code(v_code)), right(v_code, 4), nullif(trim(coalesce(p->>'note','')),''), st.id,
-    nullif(regexp_replace(coalesce(p->>'phone',''), '[^0-9+]', '', 'g'), ''))
+    nullif(regexp_replace(coalesce(p->>'phone',''), '[^0-9+]', '', 'g'), ''),
+    case when v_role = 'juri' then jo.norm_windows(p->'access_windows') end)
   returning * into x;
   perform jo.log(st.id, 'kode_dibuat', 'staff', x.id::text, jsonb_build_object('name', x.name, 'role', x.role, 'discipline', x.discipline));
   return jsonb_build_object('staff', jo.staff_json(x), 'code', v_code);
@@ -3454,7 +3510,8 @@ begin
              then (select array_agg(upper(a)) from jsonb_array_elements_text(p->'components') a) end
       else components end,
     note = case when p ? 'note' then nullif(trim(p->>'note'),'') else note end,
-    phone = case when p ? 'phone' then nullif(regexp_replace(coalesce(p->>'phone',''), '[^0-9+]', '', 'g'), '') else phone end
+    phone = case when p ? 'phone' then nullif(regexp_replace(coalesce(p->>'phone',''), '[^0-9+]', '', 'g'), '') else phone end,
+    access_windows = case when x.role <> 'juri' then null when p ? 'access_windows' then jo.norm_windows(p->'access_windows') else access_windows end
   where id = x.id;
   if coalesce((p->>'active')::boolean, true) = false then
     delete from jo.staff_sessions where staff_id = x.id;
@@ -3745,7 +3802,7 @@ create or replace function public.console_chat_rooms() returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff;
 begin
-  st := jo.require_staff(null);
+  st := jo.require_staff(array['owner','superadmin','admin','td','juri']);
   return jsonb_build_object(
     'me', st.id,
     'rooms', (select coalesce(jsonb_agg(jsonb_build_object(
@@ -3774,7 +3831,7 @@ create or replace function public.console_chat_messages(p_room text, p_after big
 language plpgsql volatile security definer set search_path = '' as $$
 declare st jo.staff; v_max bigint; res jsonb;
 begin
-  st := jo.require_staff(null);
+  st := jo.require_staff(array['owner','superadmin','admin','td','juri']);
   if not jo.chat_can(st, p_room) then raise exception 'Anda tidak termasuk dalam percakapan ini.' using hint = 'ERR_FORBIDDEN'; end if;
   select coalesce(jsonb_agg(jsonb_build_object('id', x.id, 'sender', x.sender, 'sender_name', x.sender_name,
            'role', (select role from jo.staff where id = x.sender), 'body', x.body, 'at', x.created_at) order by x.id), '[]'::jsonb),
@@ -3793,7 +3850,7 @@ create or replace function public.console_chat_send(p_room text, p_body text) re
 language plpgsql volatile security definer set search_path = '' as $$
 declare st jo.staff; v_body text := trim(coalesce(p_body, '')); m jo.chat_messages;
 begin
-  st := jo.require_staff(null);
+  st := jo.require_staff(array['owner','superadmin','admin','td','juri']);
   if v_body = '' then raise exception 'Pesan kosong.'; end if;
   if length(v_body) > 4000 then raise exception 'Pesan terlalu panjang (maks. 4000 karakter).'; end if;
   if p_room like 'dm:%' then
@@ -3839,7 +3896,7 @@ create or replace function public.console_issues(p_filter jsonb default '{}'::js
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff; f jsonb := coalesce(p_filter, '{}'::jsonb);
 begin
-  st := jo.require_staff(null);
+  st := jo.require_staff(array['owner','superadmin','admin','td','juri']);
   return (select coalesce(jsonb_agg(jo.issue_json(st, i) order by (i.status = 'selesai'), i.updated_at desc), '[]'::jsonb)
     from jo.issues i
     where jo.issue_visible(st, i)
@@ -3851,7 +3908,7 @@ create or replace function public.console_issue(p_id bigint) returns jsonb
 language plpgsql volatile security definer set search_path = '' as $$
 declare st jo.staff; i jo.issues;
 begin
-  st := jo.require_staff(null);
+  st := jo.require_staff(array['owner','superadmin','admin','td','juri']);
   select * into i from jo.issues where id = p_id;
   if i.id is null or not jo.issue_visible(st, i) then raise exception 'Laporan tidak ditemukan.'; end if;
   insert into jo.issue_reads (staff_id, issue_id, seen_at) values (st.id, i.id, now())
@@ -3865,7 +3922,7 @@ create or replace function public.console_issue_create(p jsonb) returns jsonb
 language plpgsql volatile security definer set search_path = '' as $$
 declare st jo.staff; i jo.issues; v_disc text := nullif(p->>'discipline','');
 begin
-  st := jo.require_staff(null);
+  st := jo.require_staff(array['owner','superadmin','admin','td','juri']);
   if length(trim(coalesce(p->>'title',''))) < 4 then raise exception 'Tulis judul masalah (min. 4 karakter).'; end if;
   if v_disc is not null and not exists (select 1 from jo.disciplines where code = v_disc) then raise exception 'Disiplin tidak dikenal.'; end if;
   if v_disc is null and st.discipline is not null then v_disc := st.discipline; end if;
@@ -3887,7 +3944,7 @@ create or replace function public.console_issue_comment(p_id bigint, p_body text
 language plpgsql volatile security definer set search_path = '' as $$
 declare st jo.staff; i jo.issues;
 begin
-  st := jo.require_staff(null);
+  st := jo.require_staff(array['owner','superadmin','admin','td','juri']);
   select * into i from jo.issues where id = p_id for update;
   if i.id is null or not jo.issue_visible(st, i) then raise exception 'Laporan tidak ditemukan.'; end if;
   if length(trim(coalesce(p_body,''))) < 1 then raise exception 'Tulis tanggapan.'; end if;
@@ -3918,7 +3975,7 @@ create or replace function public.console_unread() returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff;
 begin
-  st := jo.require_staff(null);
+  st := jo.require_staff(array['owner','superadmin','admin','td','juri']);
   return jsonb_build_object(
     'chat', (select count(*) from jo.chat_messages m
               where m.sender is distinct from st.id and jo.chat_can(st, m.room)
@@ -3938,7 +3995,7 @@ create or replace function public.console_contacts() returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff; v_reg boolean;
 begin
-  st := jo.require_staff(null);
+  st := jo.require_staff(array['owner','superadmin','admin','td','juri']);
   v_reg := st.role in ('owner','superadmin','admin','td');
   return jsonb_build_object(
     'me', st.id,
@@ -4109,7 +4166,8 @@ begin
   if v_disc is not null and not (v_disc = any(j.disciplines)) then raise exception 'Pendaftar tidak mendaftar untuk disiplin ini.'; end if;
   r := jo.staff_create(st, jsonb_build_object('name', j.full_name, 'role', 'juri', 'discipline', v_disc,
          'apparatus', coalesce(p->'apparatus', '[]'::jsonb), 'components', coalesce(p->'components', '[]'::jsonb),
-         'phone', j.phone, 'note', coalesce(nullif(trim(coalesce(p->>'note','')),''), 'Juri dari pendaftaran')));
+         'phone', j.phone, 'note', coalesce(nullif(trim(coalesce(p->>'note','')),''), 'Juri dari pendaftaran'),
+         'access_windows', p->'access_windows'));
   update jo.jury_applications set status = 'disetujui', staff_id = (r->'staff'->>'id')::uuid, reviewed_by = st.id, reviewed_at = now(),
     review_note = nullif(trim(coalesce(p->>'message','')),'') where id = j.id;
   perform jo.log(st.id, 'juri_disetujui', 'jury', j.id::text, jsonb_build_object('name', j.full_name, 'discipline', v_disc));

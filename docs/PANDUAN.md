@@ -1,6 +1,6 @@
 # Jabar Open 2026 — Panduan Sistem Pendaftaran & Konsol Panitia
 
-*Versi 6, 15 Oktober 2026 (FAQ situs dikelola dari konsol; AIC hanya terbuka saat lunas dengan tautan unduh langsung di email). Versi 5, 14 Oktober 2026 (revisi PDF panitia: Priangan menjadi kategori Ritmik tersendiri, musik per nomor, dokumen atlet terpisah + BPJS TK, pas foto wajib dan Athlete Identification Card (AIC), juri satu disiplin + BPJS TK, batas 15 menit bukti bayar, hapus data oleh owner/superadmin). Versi 4: chat panitia, laporan masalah, halaman kontak WhatsApp, pendaftaran juri, peran TD, daftar 53 klub di formulir, hapus klub). Versi 3: aturan penghargaan dari lampiran Medali & Piala Artistik, beregu hanya WAG L1–6, tanda tangan sertifikat, ekspor Nominative Form & kebutuhan medali, tampilan konsol baru). Disusun untuk Daffa Adjisena (owner sistem).*
+*Versi 7, 15 Oktober 2026 (jam tugas juri, peran Pemantau, konsol ramah ponsel). Versi 6 (FAQ situs dikelola dari konsol; AIC hanya terbuka saat lunas dengan tautan unduh langsung di email). Versi 5, 14 Oktober 2026 (revisi PDF panitia: Priangan menjadi kategori Ritmik tersendiri, musik per nomor, dokumen atlet terpisah + BPJS TK, pas foto wajib dan Athlete Identification Card (AIC), juri satu disiplin + BPJS TK, batas 15 menit bukti bayar, hapus data oleh owner/superadmin). Versi 4: chat panitia, laporan masalah, halaman kontak WhatsApp, pendaftaran juri, peran TD, daftar 53 klub di formulir, hapus klub). Versi 3: aturan penghargaan dari lampiran Medali & Piala Artistik, beregu hanya WAG L1–6, tanda tangan sertifikat, ekspor Nominative Form & kebutuhan medali, tampilan konsol baru). Disusun untuk Daffa Adjisena (owner sistem).*
 
 ## 1. Gambaran sistem
 
@@ -18,6 +18,7 @@ Dua situs, satu backend.
 | Superadmin | Semua data, ledger & impor GoBiz, log, kode admin/juri, tandai lunas tanpa bukti, atlet WNA | Andi Juliandi |
 | Admin (verifikator) | Verifikasi bayar, dokumen, Priangan; ubah data atlet; pindah kategori; start list; penilaian; publikasi hasil. Bisa dibatasi satu disiplin | Fegie (MAG), Vicy (WAG), Yuanita (RG), Mustika (AER) |
 | TD (Technical Director) | Hanya baca: Kategori, Start list, Penilaian (nilai juri yang masuk), Hasil & medali. Chat, laporan masalah, semua kontak termasuk pendaftar. Tidak bisa mengubah, menyetujui, atau memublikasikan. Bisa dibatasi satu disiplin | TD per disiplin |
+| Pemantau | Hanya lihat halaman pertandingan: Kategori, Start list, Penilaian, Hasil & medali (termasuk beregu dan tabel medali). Tanpa chat, laporan masalah, kontak, atau data pendaftar. Bisa dibatasi satu disiplin | Pengamat KONI, tamu |
 | Juri | Input nilai saja, bisa dibatasi disiplin, alat, dan komponen (D/E/A/PEN). Juga chat, laporan masalah, dan kontak panitia & juri (bukan kontak pendaftar) | Panel juri |
 
 Kode akses bisa ditambah kapan saja dari **Konsol → Kode akses**. Kode hanya tampil sekali; bila hilang, buat kode baru (kode lama langsung mati).
@@ -163,3 +164,9 @@ Setelah demo dan sebelum peluncuran: jalankan `supabase/reset-data-uji.sql` di S
 - **FAQ situs**: halaman `faq.html` dan bagian FAQ di beranda (sebelum Kontak), dengan pencarian, tab kategori, ID/EN (bila versi Inggris kosong, tampil teks Indonesia), dan tautan per pertanyaan (`faq.html#<tautan>`, tombol *Salin tautan*) untuk membalas pertanyaan lewat WhatsApp. Menu FAQ dan bagian beranda baru muncul setelah ada minimal satu pertanyaan *Terbit*.
 - **Konsol → FAQ situs** (owner, superadmin, admin): *Tambah pertanyaan*, *Ubah* (dengan pratinjau langsung), panah urutan, dan menu "…": *Terbitkan*, *Jadikan draf*, *Arsipkan* / *Pulihkan*, *Salin tautan*. Tidak ada hapus permanen. *Kelola kategori*: ganti nama ID/EN, urutan tab, aktif/nonaktif, tambah kategori. Semua perubahan tercatat di Log. Format jawaban: baris kosong = paragraf, baris diawali "- " = daftar, `**tebal**`, `[teks](tautan)`.
 - **Draf awal**: 31 pertanyaan dalam 7 kategori (Umum, Pendaftaran & Kategori, Pembayaran, Dokumen Atlet, Musik Ritmik, Hari Pertandingan & AIC, Juri), semuanya berstatus Draf sampai ditinjau dan diterbitkan. Belum ditulis karena aturannya belum ditetapkan: refund/pembatalan, musik lantai Artistik Putri Level 1–3, tiket penonton dan akses pendamping, lama verifikasi pembayaran.
+
+## 10. Revisi 15 Oktober 2026 (versi 7)
+
+- **Jam tugas juri**: di Kode akses (Buat kode baru / Ubah, peran Juri) dan saat menyetujui pendaftar juri, isi *Jam tugas (WIB)*: tambah hari, lalu jam mulai dan selesai untuk tiap hari. Di luar jam itu juri tetap bisa masuk dan melihat lembar nilai, tetapi kolom nilai terkunci dan sistem menolak penyimpanan nilai, dengan keterangan jam tugas berikutnya. Kosongkan bila juri boleh mengisi kapan saja. Daftar Kode akses menampilkan jam tugas dan status *sedang bertugas* / *di luar jam*. Chat, laporan masalah, dan kontak tetap bisa dipakai juri di luar jam.
+- **Peran Pemantau**: kode hanya-baca untuk halaman pertandingan (lihat tabel peran). Dibuat dari Kode akses → Peran *Pemantau*.
+- **Konsol di ponsel**: tabel tampil sebagai kartu berlabel; tombol aksi di bawah kartu; filter dan tombol selebar layar. Di desktop tinggi tombol dan kolom isian sejajar.
