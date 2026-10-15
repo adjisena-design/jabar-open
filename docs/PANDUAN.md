@@ -16,7 +16,7 @@ Dua situs, satu backend.
 |---|---|---|
 | Owner | Semua, termasuk pengaturan sistem, kode superadmin, secret email | Daffa Adjisena |
 | Superadmin | Semua data, ledger & impor GoBiz, log, kode admin/juri, tandai lunas tanpa bukti, atlet WNA | Andi Juliandi |
-| Admin (verifikator) | Verifikasi bayar, dokumen, Priangan; ubah data atlet; pindah kategori; start list; penilaian; publikasi hasil. Bisa dibatasi satu disiplin | Fegie (MAG), Vicy (WAG), Yuanita (RG), Mustika (AER) |
+| Admin (verifikator) | Verifikasi bayar, dokumen, Priangan; ubah data atlet; pindah kategori; start list; penilaian; publikasi hasil. Bisa dibatasi satu disiplin | Fegie (MAG), Vici (WAG), Yuanita (RG), Mustika (AER) |
 | TD (Technical Director) | Hanya baca: Kategori, Start list, Penilaian (nilai juri yang masuk), Hasil & medali. Chat, laporan masalah, semua kontak termasuk pendaftar. Tidak bisa mengubah, menyetujui, atau memublikasikan. Bisa dibatasi satu disiplin | TD per disiplin |
 | Pemantau | Hanya lihat halaman pertandingan: Kategori, Start list, Penilaian, Hasil & medali (termasuk beregu dan tabel medali). Tanpa chat, laporan masalah, kontak, atau data pendaftar. Bisa dibatasi satu disiplin | Pengamat KONI, tamu |
 | Juri | Input nilai saja, bisa dibatasi disiplin, alat, dan komponen (D/E/A/PEN). Juga chat, laporan masalah, dan kontak panitia & juri (bukan kontak pendaftar) | Panel juri |

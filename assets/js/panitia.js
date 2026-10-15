@@ -1941,7 +1941,7 @@
            s.active || s.id === ME.id ? null : { sep: true },
            s.active || s.id === ME.id ? null : { label: 'Hapus permanen', attr: `data-del="${s.id}"`, danger: true }])}</td></tr>`).join('')}</tbody></table></div>
       <p class="tiny muted" style="margin-top:10px">Hapus hanya muncul untuk kode nonaktif. Kode yang pernah memverifikasi atau memberi nilai tidak bisa dihapus, agar namanya tetap tercatat di riwayat; cukup biarkan nonaktif.</p>`;
-    const form = (s) => `<div class="field"><label class="f">Nama pemegang kode</label><input id="sn" value="${esc(s ? s.name : '')}" placeholder="Mis. Vicy Ayu"></div>
+    const form = (s) => `<div class="field"><label class="f">Nama pemegang kode</label><input id="sn" value="${esc(s ? s.name : '')}" placeholder="Mis. Vici Ayu"></div>
       ${s ? '' : `<div class="field"><label class="f">Peran</label><select id="sr">
         <option value="admin">Admin / verifikator (verifikasi bayar, dokumen, start list, hasil)</option>
         <option value="td">TD / Technical Director (pantau kategori, start list, nilai, hasil; hanya baca)</option>

@@ -108,7 +108,7 @@ disc = [
  ('WAG','Artistik Putri',"Women's Artistic",'2026-12-12','2026-12-15',
   [('VT','Meja Lompat','Vault'),('UB','Palang Bertingkat','Uneven Bars'),('BB','Balok Keseimbangan','Balance Beam'),('FX','Lantai','Floor')],
   [('D','Nilai D (kesulitan)','D score (difficulty)'),('E','Nilai E (eksekusi)','E score (execution)'),('PEN','Pengurangan netral','Neutral deductions')],
-  'Vicy Ayu','0856-2383-455',2),
+  'Vici Ayu','0856-2383-455',2),
  ('RG','Ritmik','Rhythmic','2026-12-16','2026-12-18',
   [('FH','Tanpa Alat (Floor)','Freehand'),('ROPE','Tali','Rope'),('HOOP','Simpai','Hoop'),('BALL','Bola','Ball'),('CLUBS','Gada','Clubs'),('RIBBON','Pita','Ribbon')],
   [('D','Nilai D (kesulitan)','D score (difficulty)'),('A','Nilai A (artistik)','A score (artistry)'),('E','Nilai E (eksekusi)','E score (execution)'),('PEN','Penalti','Penalties')],

@@ -15,7 +15,7 @@
     f_send: ['Kirim email', 'Send an email'],
     cp_mag: ['Artistik Putra', "Men's Artistic"], cp_wag: ['Artistik Putri', "Women's Artistic"], cp_rg: ['Ritmik', 'Rhythmic'], cp_aer: ['Aerobik', 'Aerobic'],
   });
-  const WA = [['cp_mag', 'Fegie Rizkia Mulyana', '0811-2348-753'], ['cp_wag', 'Vicy Ayu', '0856-2383-455'],
+  const WA = [['cp_mag', 'Fegie Rizkia Mulyana', '0811-2348-753'], ['cp_wag', 'Vici Ayu', '0856-2383-455'],
     ['cp_rg', 'Yuanita Vidya M', '0815-6361-1403'], ['cp_aer', 'Mustika Fitri', '0816-605-281']];
   const waUrl = (n) => 'https://wa.me/62' + n.replace(/\D/g, '').replace(/^0/, '');
 
