@@ -1,9 +1,49 @@
 /* Konsol panitia */
 body[data-page="panitia"]{background:var(--paper)}
-.login{min-height:100vh;display:grid;place-items:center;padding:24px 16px;background:radial-gradient(60% 50% at 85% 10%,rgba(228,200,125,.22),transparent 70%),linear-gradient(160deg,#16305a 0%,var(--ink) 70%)}
-.login .card{width:100%;max-width:420px;padding:32px;border-radius:24px;border:0;box-shadow:0 30px 60px -30px rgba(0,0,0,.5)}
-.login .logo{height:54px;width:auto;margin-bottom:18px}
+/* ---------- masuk konsol: hero biru (15 Okt) ---------- */
+.login{min-height:100vh;min-height:100dvh;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(380px,.8fr);background:#0f2140;color:#fff}
+.lg-hero{position:relative;overflow:hidden;padding:clamp(28px,4vw,56px);display:flex;flex-direction:column;
+  background:radial-gradient(55% 45% at 78% 18%,rgba(74,106,151,.55),transparent 70%),radial-gradient(40% 35% at 12% 88%,rgba(228,200,125,.16),transparent 70%),linear-gradient(160deg,#2c4c7b 0%,#1f3a62 45%,#13284a 100%)}
+.lg-brand{position:relative;z-index:3;display:flex;align-items:center;gap:18px}
+.lg-brand img{height:clamp(48px,5vw,64px);width:auto}
+.lg-brand img.gi{height:clamp(28px,3vw,38px)}
+.lg-div{width:1px;align-self:stretch;margin:4px 0;background:rgba(255,255,255,.28)}
+.lg-text{position:relative;z-index:3;margin-top:clamp(24px,5vh,56px);max-width:520px}
+.lg-eyebrow{display:flex;align-items:center;gap:12px;margin:0 0 14px;font-size:14px;font-weight:700;color:var(--gold-lt,#fbf4e1)}
+.lg-eyebrow::before{content:'';width:30px;height:3px;border-radius:2px;background:linear-gradient(90deg,#fff 0 55%,#e4c87d 55% 100%)}
+.lg-title{margin:0;color:#fff;font-size:clamp(44px,5.6vw,92px);line-height:.95;letter-spacing:-.05em;font-weight:800}
+.lg-title em{display:block;font-style:normal;font-weight:250;color:#bcd0ee;letter-spacing:-.045em}
+.lg-sub{margin:18px 0 0;color:rgba(255,255,255,.72);font-size:15px}
+.lg-stage{position:absolute;inset:auto 0 0 0;height:58%;z-index:1;pointer-events:none}
+.lg-athletes{position:absolute;right:-24%;bottom:-16%;width:max(100%,640px);max-width:none;filter:contrast(1.05);
+  -webkit-mask-image:linear-gradient(180deg,#000 70%,rgba(0,0,0,.85) 100%);mask-image:linear-gradient(180deg,#000 70%,rgba(0,0,0,.85) 100%)}
+.lg-strip{position:absolute;left:-4%;bottom:2%;width:118%;max-width:none;z-index:2}
+.lg-star{position:absolute;z-index:2;pointer-events:none}
+.lg-star.s1{width:64px;right:9%;top:9%;animation:lgspin 22s linear infinite}
+.lg-star.s2{width:26px;right:31%;top:30%;opacity:.55;animation:lgspin 30s linear infinite reverse}
+.lg-star.s3{width:38px;left:46%;top:16%;opacity:.9;animation:lgspin 26s linear infinite}
+@keyframes lgspin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.lg-star{animation:none}}
+.lg-panel{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:32px 24px;background:linear-gradient(180deg,#13284a,#0f2140)}
+.login .card{width:100%;max-width:400px;padding:32px;border-radius:22px;border:0;color:var(--ink-2);box-shadow:0 30px 60px -30px rgba(0,0,0,.6)}
+.lg-badge{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border-radius:999px;background:var(--blue-lt);color:var(--blue-d);font-size:.76rem;font-weight:700}
+.lg-badge::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--blue)}
+.lg-public{color:rgba(255,255,255,.7);font-size:.84rem;text-decoration:underline;text-underline-offset:3px}
+.lg-public:hover{color:#fff}
 .login input.codein{font-size:1.4rem;letter-spacing:.12em;text-transform:uppercase;text-align:center;font-family:ui-monospace,Menlo,monospace}
+@media (max-width:900px){
+  .login{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  .lg-hero{min-height:0;padding:22px 20px 26px}
+  .lg-text{margin-top:22px}
+  .lg-title{font-size:clamp(40px,11vw,60px)}
+  .lg-sub{font-size:13.5px;max-width:30ch}
+  .lg-stage{height:100%;opacity:.4}
+  .lg-athletes{right:-38%;bottom:-30%;width:120%}
+  .lg-strip{display:none}
+  .lg-star.s1{width:44px;top:16px;right:18px}.lg-star.s3{display:none}
+  .lg-panel{padding:22px 16px 28px;justify-content:flex-start}
+  .login .card{padding:24px 20px}
+}
 /* ---------- kerangka (gaya ringkas, sidebar terang berikon) ---------- */
 body[data-page="panitia"]{font-size:14px;line-height:1.5;background:#f5f7fb}
 .shell{display:grid;grid-template-columns:248px 1fr;min-height:100vh}
@@ -237,3 +277,4 @@ body[data-page="panitia"] input[type=file]::file-selector-button:hover{border-co
 .win-row{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) auto minmax(0,1fr) auto;gap:8px;align-items:center}
 @media (max-width:560px){.win-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}.win-row [data-wd]{grid-column:1 / -1}.win-row > span{display:none}}
 body[data-page="panitia"] .score-in:disabled{background:var(--paper);color:var(--muted);cursor:not-allowed}
+.lg-star,.lg-athletes,.lg-strip{height:auto}

@@ -255,18 +255,22 @@
     const doc = docIn || new jsPDF({ unit: 'mm', format: 'a5', orientation: 'portrait' });
     if (docIn) doc.addPage('a5', 'portrait');
     const W = 148;
-    const logo = await imgData(relRoot() + 'assets/img/logo-jabar-open.png');
+    // logo putih langsung di atas pita navy (tanpa kotak putih): Jabar Open | GI Jawa Barat
+    const logo = await imgData(relRoot() + 'assets/img/brand/jabar-open-white.png');
+    const gi = await imgData(relRoot() + 'assets/img/brand/gi-jabar-white.png');
     doc.setFillColor(19, 40, 74); doc.rect(0, 0, W, 46, 'F');
     doc.setFillColor(228, 200, 125); doc.rect(0, 46, W, 2.2, 'F');
-    doc.setFillColor(255, 255, 255); doc.roundedRect(10, 9, 44, 30, 2, 2, 'F');
-    const lw = 38, lh = lw * logo.h / logo.w; doc.addImage(logo.data, 'PNG', 13, 9 + (30 - lh) / 2, lw, lh, 'jo-logo', 'FAST');
-    doc.setTextColor(168, 191, 224); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
-    doc.text('Athlete Identification Card (AIC)', 62, 16);
-    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(17);
-    doc.text('Jabar Open 2026', 62, 25);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
-    doc.text(DISC_NAME[t_.discipline] || t_.discipline, 62, 32);
-    doc.text(DISC_DATES[t_.discipline] || '', 62, 37.5);
+    const lh = 25, lw = lh * logo.w / logo.h; doc.addImage(logo.data, 'PNG', 11, 10.5, lw, lh, 'jo-logo-w', 'FAST');
+    const dx = 11 + lw + 5; doc.setDrawColor(90, 115, 160); doc.setLineWidth(0.35); doc.line(dx, 12, dx, 34);
+    const gw = 31, gh = gw * gi.h / gi.w; doc.addImage(gi.data, 'PNG', dx + 5, 23 - gh / 2, gw, gh, 'gi-logo-w', 'FAST');
+    const tx = W - 10;
+    doc.setTextColor(168, 191, 224); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.6);
+    doc.text('Athlete Identification Card (AIC)', tx, 15, { align: 'right' });
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
+    doc.text('Jabar Open 2026', tx, 22.5, { align: 'right' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.8);
+    doc.text(DISC_NAME[t_.discipline] || t_.discipline, tx, 29, { align: 'right' });
+    doc.text(DISC_DATES[t_.discipline] || '', tx, 34, { align: 'right' });
 
     // pas foto (3:4) di kanan
     const px = W - 12 - 33, py = 55, pw = 33, ph = 44;

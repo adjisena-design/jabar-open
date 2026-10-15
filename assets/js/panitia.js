@@ -152,16 +152,33 @@
 
   // ---------------- masuk ----------------
   function showLogin(msg) {
-    root.innerHTML = `<div class="login"><div class="card">
-      <img class="logo" src="../assets/img/brand/jabar-open.webp" alt="Jabar Open 2026" width="360" height="246">
-      <h1 style="font-size:1.5rem">Konsol panitia</h1>
+    root.innerHTML = `<div class="login">
+      <section class="lg-hero" aria-hidden="false">
+        <img class="lg-star s1" src="../assets/img/deco/star-red.webp" alt="" width="420" height="420">
+        <img class="lg-star s2" src="../assets/img/deco/star-white.webp" alt="" width="420" height="420">
+        <img class="lg-star s3" src="../assets/img/deco/star-gold.webp" alt="" width="420" height="420">
+        <div class="lg-brand"><img src="../assets/img/brand/jabar-open-white.webp" alt="Jabar Open 2026" width="600" height="409"><span class="lg-div"></span><img class="gi" src="../assets/img/brand/gi-jabar-white.webp" alt="Gimnastik Indonesia Jawa Barat" width="700" height="335"></div>
+        <div class="lg-text">
+          <p class="lg-eyebrow">Khusus panitia &amp; juri</p>
+          <h1 class="lg-title">Konsol <em>Panitia</em></h1>
+          <p class="lg-sub">Jabar Open 2026 · Gymnasium Arcamanik · 12–20 Desember 2026</p>
+        </div>
+        <div class="lg-stage">
+          <img class="lg-athletes" src="../assets/img/hero/athletes.webp" srcset="../assets/img/hero/athletes-800.webp 800w, ../assets/img/hero/athletes.webp 1570w" sizes="(max-width:900px) 110vw, 50vw" alt="" width="1570" height="1290">
+          <img class="lg-strip" src="../assets/img/hero/strip.webp" srcset="../assets/img/hero/strip-1280.webp 1280w, ../assets/img/hero/strip.webp 2560w" sizes="(max-width:900px) 160vw, 60vw" alt="" width="2560" height="455">
+        </div>
+      </section>
+      <section class="lg-panel"><div class="card">
+      <span class="lg-badge">Konsol, bukan halaman publik</span>
+      <h2 style="font-size:1.45rem;margin:14px 0 6px">Masuk</h2>
       <p class="muted">Masukkan kode akses pribadi dari koordinator. Satu kode untuk satu orang; setiap tindakan tercatat atas nama pemegang kode.</p>
       ${msg ? `<p class="note warn">${esc(msg)}</p>` : ''}
       <form id="lf" novalidate><label class="f" for="code">Kode akses</label>
         <input id="code" class="codein" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="JO-XXXX-XXXX" required>
         <button class="btn btn-primary" style="width:100%;margin-top:12px" type="submit">Masuk</button></form>
       <div id="lmsg" style="margin-top:12px"></div>
-      <p class="tiny muted" style="margin-top:18px">Kode hilang atau bocor? Minta superadmin menonaktifkan dan membuat kode baru.</p></div></div>`;
+      <p class="tiny muted" style="margin-top:18px">Kode hilang atau bocor? Minta superadmin menonaktifkan dan membuat kode baru.</p></div>
+      <a class="lg-public" href="../index.html">Ke situs publik Jabar Open 2026</a></section></div>`;
     const f = root.querySelector('#lf');
     f.querySelector('#code').focus();
     f.onsubmit = async (e) => {
