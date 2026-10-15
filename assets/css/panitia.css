@@ -14,10 +14,10 @@ body[data-page="panitia"]{background:var(--paper)}
 .lg-title{margin:0;color:#fff;font-size:clamp(44px,5.6vw,92px);line-height:.95;letter-spacing:-.05em;font-weight:800}
 .lg-title em{display:block;font-style:normal;font-weight:250;color:#bcd0ee;letter-spacing:-.045em}
 .lg-sub{margin:18px 0 0;color:rgba(255,255,255,.72);font-size:15px}
-.lg-stage{position:absolute;inset:auto 0 0 0;height:58%;z-index:1;pointer-events:none}
-.lg-athletes{position:absolute;right:-24%;bottom:0;transform:translateY(16%);width:max(100%,640px);max-width:none;filter:contrast(1.05);
+.lg-stage{position:relative;flex:1 1 auto;min-height:300px;container-type:size;margin:clamp(14px,3vh,28px) calc(-1 * clamp(28px,4vw,56px)) calc(-1 * clamp(28px,4vw,56px));z-index:1;pointer-events:none}
+.lg-athletes{position:absolute;right:0;bottom:0;height:calc(100% / .84) !important;width:auto;transform:translate(16%,16%);max-width:none;filter:contrast(1.05);
   -webkit-mask-image:linear-gradient(180deg,#000 70%,rgba(0,0,0,.85) 100%);mask-image:linear-gradient(180deg,#000 70%,rgba(0,0,0,.85) 100%)}
-.lg-strip{position:absolute;left:-4%;bottom:2%;width:118%;max-width:none;z-index:2}
+.lg-strip{position:absolute;left:0;bottom:2%;height:auto !important;width:max(104cqw, calc(44cqh * 5.626));max-width:none;z-index:2}
 .lg-star{position:absolute;z-index:2;pointer-events:none}
 .lg-star.s1{width:64px;right:9%;top:9%;animation:lgspin 22s linear infinite}
 .lg-star.s2{width:26px;right:31%;top:30%;opacity:.55;animation:lgspin 30s linear infinite reverse}
@@ -37,8 +37,8 @@ body[data-page="panitia"]{background:var(--paper)}
   .lg-text{margin-top:22px}
   .lg-title{font-size:clamp(40px,11vw,60px)}
   .lg-sub{font-size:13.5px;max-width:30ch}
-  .lg-stage{height:100%;opacity:.4}
-  .lg-athletes{right:-38%;bottom:0;width:120%}
+  .lg-stage{position:absolute;inset:0;margin:0;min-height:0;opacity:.4}
+  .lg-athletes{right:-62%;bottom:0;height:auto !important;width:125%;transform:translateY(16%)}
   .lg-strip{display:none}
   .lg-star.s1{width:44px;top:16px;right:18px}.lg-star.s3{display:none}
   .lg-panel{padding:22px 16px 28px;justify-content:flex-start}
@@ -279,3 +279,5 @@ body[data-page="panitia"] input[type=file]::file-selector-button:hover{border-co
 body[data-page="panitia"] .score-in:disabled{background:var(--paper);color:var(--muted);cursor:not-allowed}
 .lg-star,.lg-athletes,.lg-strip{height:auto}
 .lg-sub,.lg-title{text-shadow:0 2px 18px rgba(15,33,64,.55)}
+.lg-sub span{display:block}
+.lg-sub .lg-date{margin-top:4px;color:#fff;font-weight:600}

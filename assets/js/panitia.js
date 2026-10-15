@@ -161,7 +161,7 @@
         <div class="lg-text">
           <p class="lg-eyebrow">Khusus panitia &amp; juri</p>
           <h1 class="lg-title">Konsol <em>Panitia</em></h1>
-          <p class="lg-sub">Jabar Open 2026 · Gymnasium Arcamanik · 12–20 Desember 2026</p>
+          <p class="lg-sub"><span>Jabar Open 2026 · Gymnasium Arcamanik</span><span class="lg-date">12–20 Desember 2026</span></p>
         </div>
         <div class="lg-stage">
           <img class="lg-athletes" src="../assets/img/hero/athletes.webp" srcset="../assets/img/hero/athletes-800.webp 800w, ../assets/img/hero/athletes.webp 1570w" sizes="(max-width:900px) 110vw, 50vw" alt="" width="1570" height="1290">
