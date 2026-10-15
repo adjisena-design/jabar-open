@@ -205,3 +205,9 @@ end $$;
 -- v8 (15/10/2026): batas atlet per pendaftaran naik dari 5 ke 10; beregu lama dicatat sebagai biaya beregu
 update jo.settings set value = '10'::jsonb, updated_at = now() where key = 'max_athletes' and value = '5'::jsonb;
 update jo.submissions set team_amount = base_amount where registrant_type = 'beregu' and team_amount = 0;
+
+-- v8b (15/10/2026): domain resmi gimnastikjabaropen2026.com; semua pertanyaan ke email Jabar Open (email PM tidak lagi ditampilkan)
+update jo.settings set value = '"https://gimnastikjabaropen2026.com/"'::jsonb, updated_at = now()
+ where key = 'site_url' and value = '"https://adjisena-design.github.io/jabar-open/"'::jsonb;
+update jo.settings set value = '""'::jsonb, updated_at = now()
+ where key = 'pm_email' and value = '"adjisena.daffa@gmail.com"'::jsonb;

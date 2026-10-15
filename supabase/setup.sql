@@ -1007,7 +1007,7 @@ $$;
 
 create or replace function jo.site_url() returns text
 language sql stable set search_path = '' as $$
-  select rtrim(coalesce(jo.setting_text('site_url'), 'https://adjisena-design.github.io/jabar-open/'), '/') || '/'
+  select rtrim(coalesce(jo.setting_text('site_url'), 'https://gimnastikjabaropen2026.com/'), '/') || '/'
 $$;
 
 create or replace function jo.status_link(p_code text, p_token text) returns text
@@ -4747,7 +4747,7 @@ on conflict (code) do nothing;
 insert into jo.settings (key, value) values
   ('event_name', '"Jabar Open 2026"'::jsonb),
   ('event_year', '2026'::jsonb),
-  ('site_url', '"https://adjisena-design.github.io/jabar-open/"'::jsonb),
+  ('site_url', '"https://gimnastikjabaropen2026.com/"'::jsonb),
   ('registration_open', 'true'::jsonb),
   ('registration_deadline', '"2026-11-12T23:59:59+07:00"'::jsonb),
   ('payment_deadline_label', '"12 November 2026"'::jsonb),
@@ -4758,7 +4758,7 @@ insert into jo.settings (key, value) values
   ('qris_merchant', '"Jabar Open 2026"'::jsonb),
   ('payment_note', '"Scan QRIS dengan aplikasi bank atau dompet digital apa pun, lalu ketik nominal persis seperti tertera (termasuk tiga digit kode unik)."'::jsonb),
   ('contact_email', '"jabaropen2026@gmail.com"'::jsonb),
-  ('pm_email', '"adjisena.daffa@gmail.com"'::jsonb),
+  ('pm_email', '""'::jsonb),
   ('team_fee', '650000'::jsonb),
   ('team_max', '6'::jsonb),
   ('team_counting', '4'::jsonb),
@@ -4975,6 +4975,12 @@ end $$;
 -- v8 (15/10/2026): batas atlet per pendaftaran naik dari 5 ke 10; beregu lama dicatat sebagai biaya beregu
 update jo.settings set value = '10'::jsonb, updated_at = now() where key = 'max_athletes' and value = '5'::jsonb;
 update jo.submissions set team_amount = base_amount where registrant_type = 'beregu' and team_amount = 0;
+
+-- v8b (15/10/2026): domain resmi gimnastikjabaropen2026.com; semua pertanyaan ke email Jabar Open (email PM tidak lagi ditampilkan)
+update jo.settings set value = '"https://gimnastikjabaropen2026.com/"'::jsonb, updated_at = now()
+ where key = 'site_url' and value = '"https://adjisena-design.github.io/jabar-open/"'::jsonb;
+update jo.settings set value = '""'::jsonb, updated_at = now()
+ where key = 'pm_email' and value = '"adjisena.daffa@gmail.com"'::jsonb;
 -- =====================================================================
 --  Penyimpanan berkas (Supabase Storage)
 --   dokumen : identitas & foto atlet (privat)

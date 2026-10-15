@@ -9,7 +9,6 @@
     f_help_t: ['Belum menemukan jawabannya?', 'Still need an answer?'],
     f_mail_t: ['Pendaftaran dan pembayaran', 'Registration and payment'],
     f_mail_d: ['Sertakan kode pendaftaran (JO26-…) agar cepat ditangani.', 'Include your registration code (JO26-…) for a faster reply.'],
-    f_pm: ['Permintaan khusus, atau email belum dibalas? Project Manager:', 'Special request, or no reply yet? Project Manager:'],
     f_ig: ['Pengumuman dan start list dibagikan di Instagram lebih dulu.', 'Announcements and start lists appear on Instagram first.'],
     f_wa: ['Narahubung per disiplin (WhatsApp)', 'Discipline contacts (WhatsApp)'],
     f_send: ['Kirim email', 'Send an email'],
@@ -24,8 +23,7 @@
       <div class="faq-contacts">
         <div><p class="small muted" style="margin:0 0 2px">${esc(t('f_mail_t'))}</p>
           <p style="margin:0"><a href="mailto:jabaropen2026@gmail.com"><strong>jabaropen2026@gmail.com</strong></a></p>
-          <p class="small" style="margin:4px 0 0">${esc(t('f_mail_d'))}</p>
-          <p class="small muted" style="margin:6px 0 0">${esc(t('f_pm'))} <a href="mailto:adjisena.daffa@gmail.com">adjisena.daffa@gmail.com</a></p></div>
+          <p class="small" style="margin:4px 0 0">${esc(t('f_mail_d'))}</p></div>
         <div><p class="small muted" style="margin:0 0 2px">Instagram</p>
           <p style="margin:0"><a href="https://www.instagram.com/gimnastikjabar/" target="_blank" rel="noopener"><strong>@gimnastikjabar</strong></a></p>
           <p class="small" style="margin:4px 0 0">${esc(t('f_ig'))}</p></div>

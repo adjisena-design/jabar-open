@@ -58,7 +58,6 @@
     mc_alt: 'Jabar Open 2026 merchandise preview: t-shirt and water bottles',
     k_eyebrow: 'Get in touch', k_title: 'Questions? <em>We are here to help.</em>',
     k_mail_t: 'Registration and payment', k_mail_d: 'Include your registration code (JO26-…) for a faster reply.', k_mail_cta: 'Send an email',
-    k_pm: 'Special request, or no reply yet? Project Manager: <a href="mailto:adjisena.daffa@gmail.com">adjisena.daffa@gmail.com</a>',
     ig_lead: 'Announcements and start lists appear here first.', ig_cta: 'Follow on Instagram',
     k_wa: 'Discipline contacts', k_jury: 'A licensed judge who would like to officiate at Jabar Open 2026?', k_jury_cta: 'Apply as a judge',
     cp1: "Men's Artistic", cp2: "Women's Artistic", cp3: 'Rhythmic', cp4: 'Aerobic',

@@ -6,7 +6,7 @@
 
 Dua situs, satu backend.
 
-- **Situs publik** (`https://adjisena-design.github.io/jabar-open/`): beranda, pendaftaran, pendaftaran juri (`juri.html`), cek status & e-ticket, ganti musik Ritmik (`musik.html`), start list, hasil & medali, verifikasi QR.
+- **Situs publik** (`https://gimnastikjabaropen2026.com/`; alamat lama `adjisena-design.github.io/jabar-open/` dialihkan otomatis): beranda, pendaftaran, pendaftaran juri (`juri.html`), cek status & e-ticket, ganti musik Ritmik (`musik.html`), start list, hasil & medali, verifikasi QR.
 - **Konsol panitia** (`…/jabar-open/panitia/`): masuk dengan kode akses pribadi.
 - **Backend** Supabase proyek `jabar-open-2026` (region Tokyo): database, penyimpanan berkas privat, sesi anonim. Semua akses data lewat fungsi database yang memeriksa hak; tabel tidak bisa dibaca langsung.
 - **Email**: Google Apps Script di akun Gmail panitia mengambil antrean email setiap menit.
@@ -33,7 +33,7 @@ Kode akses bisa ditambah kapan saja dari **Konsol → Kode akses**. Kode hanya t
    1. Buka `script.google.com` dengan akun Gmail pengirim (`jabaropen2026@gmail.com`).
    2. Proyek baru → tempel isi `email/Code.gs`.
    3. Project Settings → Script properties: `SUPABASE_URL`, `SUPABASE_KEY` (anon key), `SECRET` (secret_email dari setup), `REPLY_TO` = `jabaropen2026@gmail.com`.
-   4. Kontak di situs dan footer email: `jabaropen2026@gmail.com` untuk pendaftaran; `adjisena.daffa@gmail.com` sebagai Project Manager untuk permintaan khusus atau bila email utama lama dibalas (Pengaturan: `contact_email`, `pm_email`).
+   4. Kontak di situs dan footer email: semua pertanyaan ke `jabaropen2026@gmail.com` (pengaturan `contact_email`). Email Project Manager tidak lagi ditampilkan (`pm_email` dikosongkan).
    5. Jalankan `ujiKoneksi`, izinkan akses. Lalu jalankan `pasangJadwal`.
    6. Cek **Konsol → Pengaturan → Pengirim email**: status "Terakhir terhubung" muncul.
 6. **Periksa tabel kategori** (Konsol → Kategori) terhadap asumsi di bagian 6.

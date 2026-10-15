@@ -136,7 +136,7 @@ out.append(",\n".join(rows) + "\non conflict (code) do nothing;\n")
 settings = {
  'event_name': 'Jabar Open 2026',
  'event_year': 2026,
- 'site_url': 'https://adjisena-design.github.io/jabar-open/',
+ 'site_url': 'https://gimnastikjabaropen2026.com/',
  'registration_open': True,
  'registration_deadline': '2026-11-12T23:59:59+07:00',
  'payment_deadline_label': '12 November 2026',
@@ -147,7 +147,7 @@ settings = {
  'qris_merchant': 'Jabar Open 2026',
  'payment_note': 'Scan QRIS dengan aplikasi bank atau dompet digital apa pun, lalu ketik nominal persis seperti tertera (termasuk tiga digit kode unik).',
  'contact_email': 'jabaropen2026@gmail.com',
- 'pm_email': 'adjisena.daffa@gmail.com',
+ 'pm_email': '',
  'team_fee': 650000,
  'team_max': 6,
  'team_counting': 4,

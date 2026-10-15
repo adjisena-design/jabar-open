@@ -21,7 +21,7 @@ $$;
 
 create or replace function jo.site_url() returns text
 language sql stable set search_path = '' as $$
-  select rtrim(coalesce(jo.setting_text('site_url'), 'https://adjisena-design.github.io/jabar-open/'), '/') || '/'
+  select rtrim(coalesce(jo.setting_text('site_url'), 'https://gimnastikjabaropen2026.com/'), '/') || '/'
 $$;
 
 create or replace function jo.status_link(p_code text, p_token text) returns text

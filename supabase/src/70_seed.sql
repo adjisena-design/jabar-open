@@ -66,7 +66,7 @@ on conflict (code) do nothing;
 insert into jo.settings (key, value) values
   ('event_name', '"Jabar Open 2026"'::jsonb),
   ('event_year', '2026'::jsonb),
-  ('site_url', '"https://adjisena-design.github.io/jabar-open/"'::jsonb),
+  ('site_url', '"https://gimnastikjabaropen2026.com/"'::jsonb),
   ('registration_open', 'true'::jsonb),
   ('registration_deadline', '"2026-11-12T23:59:59+07:00"'::jsonb),
   ('payment_deadline_label', '"12 November 2026"'::jsonb),
@@ -77,7 +77,7 @@ insert into jo.settings (key, value) values
   ('qris_merchant', '"Jabar Open 2026"'::jsonb),
   ('payment_note', '"Scan QRIS dengan aplikasi bank atau dompet digital apa pun, lalu ketik nominal persis seperti tertera (termasuk tiga digit kode unik)."'::jsonb),
   ('contact_email', '"jabaropen2026@gmail.com"'::jsonb),
-  ('pm_email', '"adjisena.daffa@gmail.com"'::jsonb),
+  ('pm_email', '""'::jsonb),
   ('team_fee', '650000'::jsonb),
   ('team_max', '6'::jsonb),
   ('team_counting', '4'::jsonb),
