@@ -142,7 +142,7 @@ settings = {
  'payment_deadline_label': '12 November 2026',
  'priangan_fee': 150000,
  'qris_cap': 10000000,
- 'max_athletes': 5,
+ 'max_athletes': 10,
  'qris_image_url': None,
  'qris_merchant': 'Jabar Open 2026',
  'payment_note': 'Scan QRIS dengan aplikasi bank atau dompet digital apa pun, lalu ketik nominal persis seperti tertera (termasuk tiga digit kode unik).',

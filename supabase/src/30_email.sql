@@ -106,7 +106,7 @@ $$;
 -- Ringkasan tim beregu untuk email
 create or replace function jo.email_team(p_sub uuid, p_lang text) returns text
 language sql stable set search_path = '' as $$
-  select '<p style="margin:10px 0 2px"><b>' || jo.h(t.name) || '</b> &middot; '
+  select string_agg('<p style="margin:10px 0 2px"><b>' || jo.tr(p_lang, 'Beregu: ', 'Team: ') || jo.h(t.name) || '</b> &middot; '
     || jo.h(case when p_lang = 'en' then d.name_en else d.name_id end) || ' ' || jo.h(t.level) || '</p>'
     || '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:4px 0">'
     || coalesce((select string_agg(
@@ -118,7 +118,7 @@ language sql stable set search_path = '' as $$
        from jo.team_members m join jo.athletes a on a.id = m.athlete_id
        join jo.entries e on e.id = m.entry_id join jo.categories c on c.id = e.category_id
        where m.team_id = t.id), '')
-    || '</table>'
+    || '</table>', '' order by t.level, t.name)
   from jo.teams t join jo.disciplines d on d.code = t.discipline
   where t.submission_id = p_sub
 $$;
@@ -142,9 +142,10 @@ begin
     || jo.h(case when l = 'en' then d.name_en else d.name_id end)
     || jo.tr(l, ' sudah kami terima. Kode pendaftaran Anda:', ' registration has been received. Your registration code:')
     || '</p><p style="font-size:22px;font-weight:bold;letter-spacing:1px;margin:6px 0 14px">' || jo.h(s.code) || '</p>'
-    || case when s.registrant_type = 'beregu' then coalesce(jo.email_team(s.id, l), '') else jo.email_roster(s.id, l) end
+    || jo.email_roster(s.id, l) || coalesce(jo.email_team(s.id, l), '')
     || '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:14px 0;font-size:14px">'
-    || '<tr><td style="padding:3px 0">' || case when s.registrant_type = 'beregu' then jo.tr(l,'Biaya beregu (per tim)','Team fee (per team)') else jo.tr(l,'Biaya pendaftaran','Entry fees') end || '</td><td align="right">' || jo.fmt_rp(s.base_amount) || '</td></tr>'
+    || case when s.base_amount - s.team_amount > 0 then '<tr><td style="padding:3px 0">' || jo.tr(l,'Biaya pendaftaran','Entry fees') || '</td><td align="right">' || jo.fmt_rp(s.base_amount - s.team_amount) || '</td></tr>' else '' end
+    || case when s.team_amount > 0 then '<tr><td style="padding:3px 0">' || jo.tr(l,'Biaya beregu','Team fees') || '</td><td align="right">' || jo.fmt_rp(s.team_amount) || '</td></tr>' else '' end
     || case when s.priangan_amount > 0 then '<tr><td style="padding:3px 0">' || jo.tr(l,'Kategori Priangan','Priangan category') || '</td><td align="right">' || jo.fmt_rp(s.priangan_amount) || '</td></tr>' else '' end
     || case when s.unique_code > 0 then '<tr><td style="padding:3px 0">' || jo.tr(l,'Kode unik','Unique code') || '</td><td align="right">' || jo.fmt_rp(s.unique_code) || '</td></tr>' else '' end
     || '<tr><td style="padding:10px 0 0;font-weight:bold;font-size:16px">' || jo.tr(l,'Total yang harus dibayar','Total to pay') || '</td>'
@@ -192,7 +193,7 @@ begin
   body := '<p>' || jo.tr(l,'Halo ','Hello ') || jo.h(s.contact_name) || ',</p>'
     || '<p>' || jo.tr(l,'Pembayaran untuk pendaftaran ','Payment for registration ') || '<b>' || jo.h(s.code) || '</b> '
     || jo.tr(l,'sudah kami verifikasi. Status: <b style="color:#1b8a4b">LUNAS</b>.','has been verified. Status: <b style="color:#1b8a4b">PAID</b>.') || '</p>'
-    || case when s.registrant_type = 'beregu' then coalesce(jo.email_team(s.id, l), '') else jo.email_roster(s.id, l) end
+    || jo.email_roster(s.id, l) || coalesce(jo.email_team(s.id, l), '')
     || '<p>' || jo.tr(l,'Athlete Identification Card (AIC) Jabar Open 2026 sudah bisa diunduh. Tekan tautan di bawah; AIC terunduh otomatis sebagai PDF. AIC wajib ditunjukkan secara digital (dari ponsel, tanpa dicetak) di venue. Tidak ada registrasi ulang: cukup datang sesuai jadwal yang diumumkan di Instagram dan situs Jabar Open 2026.',
                       'The Athlete Identification Cards (AIC) Jabar Open 2026 are ready. Tap a link below and the AIC downloads as a PDF. Show it digitally (on a phone, no printing) at the venue. There is no on-site check-in: just come at the schedule announced on Instagram and the Jabar Open 2026 website.') || '</p>'
     || jo.email_aic_links(s.id, l)

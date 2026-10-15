@@ -499,6 +499,13 @@ create table if not exists jo.faq_items (
 );
 create index if not exists faq_items_cat on jo.faq_items (category, sort);
 
+-- v8 (15/10/2026): semua pendaftaran lewat klub (maks. 10 atlet), beregu menjadi bagian
+-- pendaftaran klub. Bagian biaya beregu disimpan terpisah untuk buku besar.
+alter table jo.submissions add column if not exists team_amount integer not null default 0;
+-- satu pendaftaran klub boleh berisi lebih dari satu tim (level berbeda atau nama berbeda)
+alter table jo.teams drop constraint if exists teams_submission_id_key;
+create index if not exists teams_submission_idx on jo.teams(submission_id);
+
 -- Semua tabel di skema jo: RLS aktif tanpa policy.
 -- Akses hanya lewat fungsi (RPC) yang memeriksa hak.
 do $$ declare t record; begin

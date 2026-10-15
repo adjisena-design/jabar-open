@@ -40,7 +40,7 @@
     s_reload: ['Muat ulang', 'Reload'],
     s_team: ['Beregu', 'Team'],
     s_team_ind: ['juga perorangan', 'also individual'], s_team_tim: ['khusus beregu', 'team only'],
-    s_team_ind_note: ['Anggota "juga perorangan" memakai AIC dari pendaftaran perorangannya. AIC anggota "khusus beregu" ada di bagian Atlet di bawah.', 'Members entered "also individual" use the AIC from their individual registration. AICs for "team only" members are under Athletes below.'],
+    s_team_ind_note: ['Anggota "juga perorangan" memakai AIC dari kategori perorangannya (di bagian Atlet bila didaftarkan di pendaftaran ini, atau dari pendaftaran klub sebelumnya). AIC anggota "khusus beregu" ada di bagian Atlet di bawah.', 'Members entered "also individual" use the AIC from their individual entry (under Athletes if entered in this registration, or from the club\'s earlier registration). AICs for "team only" members are under Athletes below.'],
     s_team_rank: ['Peringkat beregu {r}', 'Team rank {r}'],
     s_team_total: ['Nilai tim {v}', 'Team score {v}'],
     s_team_counted: ['dihitung', 'counted'],
@@ -114,7 +114,7 @@
       ${d.status === 'dibatalkan' ? `<p class="note bad" style="margin-top:16px">${esc(t('s_cancelled'))}</p>` : ''}
       ${payOpen ? payCard(d) : ''}
       ${d.status === 'lunas' ? `<section class="card"><h2>${esc(t('s_pay'))}</h2><p class="note ok" style="margin:0">${esc(t('s_paid', { d: JO.fmtDateTime(d.paid_at) }))}</p></section>` : ''}
-      ${d.team ? teamCard(d) : ''}
+      ${(d.teams || []).map((T, i) => teamCard(d, T, i)).join('')}
       <section class="card"><h2>${esc(t('s_athletes'))}</h2>
         ${d.status === 'lunas' && d.athletes.filter((a) => a.ticket_code).length > 1 ? `<p style="margin:0 0 12px"><button class="btn btn-dark btn-sm" id="aic_all">${esc(t('s_ticket_all'))}</button></p>` : ''}
         <div id="aths" class="stack"></div></section>`;
@@ -211,7 +211,8 @@
           <p style="margin:10px 0 6px;font-weight:700">${esc(t('pay_exact'))}</p>
           <p class="small muted">${esc(t('pay_why'))}</p>
           <table class="breakdown" style="margin:12px 0"><tbody>
-            <tr><td>${esc(t(d.registrant_type === 'beregu' ? 'sum_team' : 'sum_fees'))}</td><td>${fmtRp(d.base_amount)}</td></tr>
+            ${d.base_amount - (d.team_amount || 0) ? `<tr><td>${esc(t('sum_fees'))}</td><td>${fmtRp(d.base_amount - (d.team_amount || 0))}</td></tr>` : ''}
+            ${d.team_amount ? `<tr><td>${esc(t('sum_team'))}</td><td>${fmtRp(d.team_amount)}</td></tr>` : ''}
             <tr><td>${esc(t('sum_uc'))}</td><td>${fmtRp(d.unique_code)}</td></tr>
           </tbody></table>
           ${p.note ? `<p class="small">${esc(p.note)}</p>` : ''}
@@ -236,8 +237,8 @@
       ${e.music_changes > 0 ? `<br><span class="muted">${esc(t('s_music_used'))}</span>` : ''}
       ${D.status !== 'dibatalkan' ? `<br><a href="${link}">${esc(t('s_music_change'))}</a>` : ''}</div>`;
   }
-  function teamCard(d) {
-    const T = d.team; const R = T.result;
+  function teamCard(d, T, ti) {
+    const R = T.result;
     const discName = JO.lang === 'en' ? d.discipline_name_en : d.discipline_name_id;
     const byId = {}; (R ? R.members : []).forEach((m) => { byId[m.athlete_id] = m; });
     return `<section class="card"><h2>${esc(t('s_team'))}: ${esc(T.name)}</h2>
@@ -251,13 +252,13 @@
             <br><span class="small muted">${esc(JO.lang === 'en' ? m.category_name_en : m.category_name_id)}</span>
             <span class="pill ${m.team_only ? 'gold' : 'info'}">${esc(t(m.team_only ? 's_team_tim' : 's_team_ind'))}</span></td>
             <td class="r num">${r && r.total != null ? Number(r.total).toFixed(3) + (r.counted ? `<br><span class="small muted">${esc(t('s_team_counted'))}</span>` : '') : ''}
-            ${R && R.trophy && m.cert_code ? `<br><button class="btn btn-ghost btn-sm" style="margin-top:6px" data-tcert="${m.athlete_id}">${esc(t('s_team_cert'))}</button>` : ''}</td></tr>`; }).join('')}
+            ${R && R.trophy && m.cert_code ? `<br><button class="btn btn-ghost btn-sm" style="margin-top:6px" data-tcert="${m.athlete_id}" data-team="${ti}">${esc(t('s_team_cert'))}</button>` : ''}</td></tr>`; }).join('')}
       </tbody></table></div>
       ${T.members.some((m) => !m.team_only) ? `<p class="small muted" style="margin:10px 0 0">${esc(t('s_team_ind_note'))}</p>` : ''}
     </section>`;
   }
   async function downloadTeamCert(btn) {
-    const T = D.team; const m = T.members.find((x) => x.athlete_id === btn.dataset.tcert);
+    const T = (D.teams || [])[Number(btn.dataset.team) || 0]; const m = T.members.find((x) => x.athlete_id === btn.dataset.tcert);
     const old = btn.textContent; btn.disabled = true; btn.textContent = t('s_making');
     try {
       const doc = await JO.certificatePdf({
@@ -274,13 +275,20 @@
     const a = D.athletes.find((x) => x.id === btn.dataset.ticket);
     return downloadTickets(btn, [a]);
   }
+  const ROLE_AIC = { pemilik: 'pemilik klub', admin: 'admin klub', pelatih: 'pelatih', manajer: 'manajer/official' };
+  function regBy() {
+    if (!D.contact) return '';
+    const r = ROLE_AIC[D.contact.role];
+    return D.contact.name + (r ? ` (${r})` : '');
+  }
   function ticketData(a) {
     const ents = D.entries.filter((e) => (e.athlete_ids || []).includes(a.id));
     return {
-        discipline: D.discipline, athlete_no: a.athlete_no, name: a.full_name, club: D.club ? D.club.name : 'Perorangan',
-        categories: ents.map((e) => e.category_name_id + (e.team_only && D.team ? ` (khusus beregu, tim ${D.team.name})` : '')),
+        discipline: D.discipline, athlete_no: a.athlete_no, name: a.full_name, club: D.club ? D.club.name : '',
+        categories: ents.map((e) => { const tm = e.team_only && (D.teams || []).find((T) => T.members.some((m) => m.athlete_id === a.id));
+          return e.category_name_id + (tm ? ` (khusus beregu, tim ${tm.name})` : ''); }),
         bpjs_missing: a.nationality === 'WNI' && !a.has_bpjs,
-        photo: a.photo_thumb, registered_by: D.contact ? D.contact.name : '',
+        photo: a.photo_thumb, registered_by: regBy(),
         start: ents.map((e) => startText(e.start)).filter(Boolean).join(' / '),
         ticket_code: a.ticket_code, submission_code: D.code,
       };
@@ -317,11 +325,11 @@
     const old = btn.textContent; btn.disabled = true; btn.textContent = t('s_making');
     try {
       const doc = await JO.certificatePdf(app ? {
-        name: a.full_name, club: D.club ? D.club.name : 'Perorangan', discipline: D.discipline,
+        name: a.full_name, club: D.club ? D.club.name : '', discipline: D.discipline,
         apparatus: (D.apparatus_names && D.apparatus_names[app] ? D.apparatus_names[app].id : app), medal: e.result.app_medals[app],
         category: e.category_name_id, cert_code: cert.cert_code + '-' + app, signatories: D.signatories,
       } : {
-        name: a.full_name, club: D.club ? D.club.name : 'Perorangan', discipline: D.discipline,
+        name: a.full_name, club: D.club ? D.club.name : '', discipline: D.discipline,
         category: e.category_name_id, rank: e.result.award_rank, medal: e.result.medal, mini: e.result.mini,
         priangan_rank: e.result.priangan_rank, priangan_medal: e.result.priangan_medal,
         cert_code: cert.cert_code, signatories: D.signatories,

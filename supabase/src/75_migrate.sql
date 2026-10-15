@@ -201,3 +201,7 @@ begin
     insert into jo.settings (key, value) values ('migrasi_v6_hapus_uji', to_jsonb(now()));
   end if;
 end $$;
+
+-- v8 (15/10/2026): batas atlet per pendaftaran naik dari 5 ke 10; beregu lama dicatat sebagai biaya beregu
+update jo.settings set value = '10'::jsonb, updated_at = now() where key = 'max_athletes' and value = '5'::jsonb;
+update jo.submissions set team_amount = base_amount where registrant_type = 'beregu' and team_amount = 0;

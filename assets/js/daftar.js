@@ -6,57 +6,62 @@
 
   JO.addDict({
     d_title: ['Pendaftaran atlet', 'Athlete registration'],
-    d_lead: ['Satu pendaftaran untuk satu disiplin. Perorangan untuk satu atlet, klub atau sekolah hingga lima atlet sekaligus, dan beregu untuk satu tim Artistik Putri.', "One registration covers one discipline. Individuals register one athlete, clubs or schools up to five at once, and a team entry registers one Women's Artistic team."],
+    d_lead: ['Semua atlet didaftarkan lewat klub (klub, sekolah, atau pengkab/pengkot) oleh pemilik, admin, atau pelatih klub. Satu pendaftaran untuk satu disiplin, maksimal 10 atlet. Tim beregu Artistik Putri ditambahkan di pendaftaran yang sama.', "Every athlete is registered through a club (club, school or regency/city association) by the club's owner, admin or coach. One registration covers one discipline, up to 10 athletes. Women's Artistic teams are added in the same registration."],
     d_ready_t: ['Siapkan sebelum mendaftar', 'Have this ready'],
     d_ready: ['Akte Kelahiran atlet (wajib), KTP dan Ijazah bila sudah punya, kartu BPJS Ketenagakerjaan bila ada (wajib saat bertanding), data orang tua/wali untuk atlet di bawah 18 tahun. Atlet asing: paspor. Ritmik: satu tautan Google Drive musik untuk setiap nomor. Siapkan juga pembayaran QRIS: bukti bayar harus diunggah dalam 15 menit setelah mendaftar.', "Athlete's birth certificate (required), national ID and school certificate if they have them, BPJS Ketenagakerjaan card if available (required on competition day), parent/guardian details for athletes under 18. Foreign athletes: passport. Rhythmic: one Google Drive music link per routine. Have your QRIS payment ready: the payment proof must be uploaded within 15 minutes of registering."],
-    type_beregu: ['Beregu Artistik', 'Artistic team'], type_beregu_sub: ['Artistik Putri Level 1–6. Satu tim berisi 1–{n} pesenam dari satu level. {fee} per tim.', "Women's Artistic Levels 1–6. One team of 1–{n} gymnasts from one level. {fee} per team."],
-    disc_no_team: ['Beregu hanya untuk Artistik Putri', "Teams are Women's Artistic only"],
-    err_team_disc: ['Beregu hanya untuk Artistik Putri Level 1–6.', "Teams are only for Women's Artistic Levels 1–6."],
-    st3_team: ['Tim & pesenam', 'Team & gymnasts'],
+    st_team: ['Beregu', 'Team'],
+    tm_intro: ['Opsional. Tambahkan tim beregu Artistik Putri bila klub ikut nomor beregu. Satu tim berisi 1–{n} pesenam dari satu level, {fee} per tim. Tidak ikut beregu? Langsung tekan Lanjut.', "Optional. Add a Women's Artistic team if the club enters the team event. One team has 1–{n} gymnasts from one level, {fee} per team. Not entering a team? Just press Continue."],
+    add_team: ['Tambah tim beregu', 'Add a team'], rm_team: ['Hapus tim', 'Remove team'], tm_n: ['Tim {n}', 'Team {n}'],
     tm_title: ['Tim', 'Team'], tm_level: ['Level', 'Level'], tm_name: ['Nama tim', 'Team name'], tm_name_ph: ['mis. {c} A', 'e.g. {c} A'],
     tm_hint: ['Satu tim untuk satu level; kelompok usia boleh campur. Satu klub boleh mengirim beberapa tim di level yang sama dengan nama berbeda.', 'One team per level; age groups can be mixed. A club may enter several teams in the same level under different names.'],
     tm_rule: ['Nilai tim adalah jumlah {k} nilai serba bisa terbaik dari anggotanya. Biaya {fee} per tim, di luar biaya perorangan.', 'The team score is the sum of the best {k} all-around scores among its members. {fee} per team, on top of individual fees.'],
     mb: ['Pesenam {n}', 'Gymnast {n}'], add_mb: ['Tambah pesenam', 'Add gymnast'],
-    mb_kind: ['Ikut sebagai', 'Entered as'], kind_individu: ['Juga perorangan', 'Also individual'], kind_tim: ['Khusus beregu', 'Team only'],
-    mb_individu_hint: ['Sudah terdaftar sebagai atlet perorangan di level ini lewat klub yang sama. Tulis nama dan tanggal lahir persis seperti di pendaftaran perorangannya.', 'Already registered as an individual in this level through the same club. Enter the name and date of birth exactly as in that registration.'],
-    mb_tim_hint: ['Tidak ikut peringkat perorangan. Nilainya dihitung untuk tim, dan biayanya sudah termasuk biaya beregu.', 'Not ranked individually. Their scores count for the team, and the team fee covers them.'],
-    mb_new_club: ['Klub baru belum punya atlet perorangan, jadi semua anggota didaftarkan sebagai "Khusus beregu".', 'A new club has no individual entries yet, so every member is entered as "Team only".'],
+    mb_kind: ['Pesenam ini', 'This gymnast is'], kind_form: ['Atlet di pendaftaran ini', 'An athlete in this registration'], kind_individu: ['Terdaftar sebelumnya', 'Registered earlier'], kind_tim: ['Khusus beregu', 'Team only'],
+    mb_form_hint: ['Juga ikut perorangan. Pilih atlet yang di langkah Atlet memilih kategori di level tim ini.', "Also competes individually. Choose an athlete who picked a category in this team's level in the Athletes step."],
+    mb_form_pick: ['Pilih atlet', 'Choose athlete'], mb_form_none: ['Belum ada atlet di pendaftaran ini dengan kategori {l}.', 'No athlete in this registration has a {l} category yet.'],
+    mb_individu_hint: ['Juga ikut perorangan, dan sudah didaftarkan klub ini di level yang sama lewat pendaftaran sebelumnya. Tulis nama dan tanggal lahir persis seperti di pendaftaran itu.', 'Also competes individually, and was entered by this club in the same level in an earlier registration. Enter the name and date of birth exactly as in that registration.'],
+    mb_tim_hint: ['Tidak ikut peringkat perorangan. Nilainya dihitung untuk tim, biayanya sudah termasuk biaya beregu, dan ia dihitung dalam batas {max} atlet.', 'Not ranked individually. Their scores count for the team, the team fee covers them, and they count toward the {max}-athlete limit.'],
+    mb_new_club: ['Klub baru belum punya pendaftaran sebelumnya, jadi pilihan "Terdaftar sebelumnya" tidak tersedia.', 'A new club has no earlier registrations, so "Registered earlier" is not available.'],
+    err_mb_form: ['Pilih atlet.', 'Choose an athlete.'],
+    err_mb_inform: ['Atlet ini sudah ada di langkah Atlet. Pilih "Atlet di pendaftaran ini".', 'This athlete is already in the Athletes step. Choose "An athlete in this registration".'],
     mb_cat: ['Kelompok usia: {c}', 'Age group: {c}'],
     mb_cat_none: ['Tidak ada kelompok usia di level ini yang sesuai dengan tanggal lahir.', 'No age group in this level matches the date of birth.'],
     mb_found: ['Ditemukan di pendaftaran perorangan klub ini.', "Found in this club's individual registrations."],
     err_tm_level: ['Pilih level.', 'Choose a level.'], err_tm_name: ['Isi nama tim.', 'Enter a team name.'],
     err_mb_kind: ['Pilih "Juga perorangan" atau "Khusus beregu".', 'Choose "Also individual" or "Team only".'],
-    err_mb_notfound: ['Belum ditemukan sebagai atlet perorangan klub ini di level tersebut. Periksa ejaan nama dan tanggal lahir, daftarkan perorangan dulu, atau pilih "Khusus beregu".', 'Not found as an individual entry of this club in this level. Check the spelling and date of birth, register the individual entry first, or choose "Team only".'],
+    err_mb_notfound: ['Belum ditemukan di pendaftaran sebelumnya klub ini pada level tersebut. Periksa ejaan nama dan tanggal lahir, tambahkan dia sebagai atlet di pendaftaran ini, atau pilih "Khusus beregu".', "Not found in this club's earlier registrations at this level. Check the spelling and date of birth, add them as an athlete in this registration, or choose \"Team only\"."],
     err_mb_inteam: ['Atlet ini sudah masuk tim lain.', 'This athlete is already in another team.'],
-    err_mb_isind: ['Atlet ini sudah terdaftar perorangan di level ini. Pilih "Juga perorangan".', 'This athlete already has an individual entry in this level. Choose "Also individual".'],
+    err_mb_isind: ['Atlet ini sudah punya kategori perorangan di level ini. Pilih "Terdaftar sebelumnya".', 'This athlete already has an individual category in this level. Choose "Registered earlier".'],
     err_mb_dup: ['Pesenam ini tercantum dua kali.', 'This gymnast is listed twice.'],
     err_mb_cat: ['Tidak ada kelompok usia yang sesuai di level ini.', 'No matching age group in this level.'],
     checking: ['Memeriksa…', 'Checking…'],
     sum_team: ['Biaya beregu', 'Team fee'],
-    sum_member_ind: ['juga perorangan', 'also individual'], sum_member_tim: ['khusus beregu', 'team only'],
+    sum_member_ind: ['juga perorangan', 'also individual'], sum_member_tim: ['khusus beregu', 'team only'], sum_member_prev: ['juga perorangan, pendaftaran sebelumnya', 'also individual, earlier registration'],
     music: ['Tautan musik per nomor (Google Drive)', 'Music link per routine (Google Drive)'],
     music_hint: ['Satu tautan Google Drive (file MP3 atau folder) untuk setiap nomor, semua wajib diisi. Atur akses ke "Siapa saja yang memiliki link". Musik bisa diganti satu kali per atlet sebelum start list terbit.', 'One Google Drive link (MP3 file or folder) for each routine; all are required. Set access to "Anyone with the link". Music can be changed once per athlete before the start list is published.'],
     music_pick: ['Pilih kategori dulu untuk melihat nomor yang perlu musik.', 'Choose a category first to see which routines need music.'],
     err_music: ['Isi tautan Google Drive (diawali https://drive.google.com/).', 'Enter a Google Drive link (starting with https://drive.google.com/).'],
     st1: ['Pendaftar', 'Registrant'], st2: ['Klub', 'Club'], st3: ['Atlet & kategori', 'Athletes & categories'], st4: ['Pernyataan & kirim', 'Declarations & submit'],
+    ath_count: ['{n} dari {max} atlet di pendaftaran ini (termasuk anggota khusus beregu).', '{n} of {max} athletes in this registration (including team-only members).'],
+    ath_full: ['Batas {max} atlet per pendaftaran tercapai. Daftarkan atlet lainnya sebagai pendaftaran terpisah.', 'The limit of {max} athletes per registration is reached. Register the others in a separate registration.'],
+    ath_empty: ['Belum ada atlet perorangan. Tambahkan atlet, atau tekan Lanjut untuk mendaftarkan tim beregu saja.', 'No individual athletes yet. Add an athlete, or press Continue to register a team only.'],
+    err_none: ['Tambahkan minimal satu atlet atau satu tim beregu.', 'Add at least one athlete or one team.'],
+    err_max: ['Satu pendaftaran maksimal {max} atlet, termasuk anggota khusus beregu. Kurangi atlet atau kirim sebagai pendaftaran terpisah.', 'One registration has at most {max} athletes, including team-only members. Remove some or send them in a separate registration.'],
+    form_old: ['Formulir sedang diperbarui panitia. Coba lagi beberapa menit lagi.', 'The committee is updating the form. Please try again in a few minutes.'],
     next: ['Lanjut', 'Continue'], back: ['Kembali', 'Back'],
-    q_type: ['Siapa yang mendaftar?', 'Who is registering?'],
-    type_individu: ['Perorangan', 'Individual'], type_individu_sub: ['Satu atlet: diri sendiri atau anak Anda', 'One athlete: yourself or your child'],
-    type_klub: ['Klub / sekolah / pengkab', 'Club / school / regency'], type_klub_sub: ['Hingga {n} atlet dalam satu pendaftaran', 'Up to {n} athletes in one registration'],
     q_disc: ['Disiplin', 'Discipline'],
     disc_closed: ['Pendaftaran ditutup', 'Registration closed'],
-    q_contact: ['Penanggung jawab pendaftaran', 'Registration contact'],
-    q_contact_hint: ['Konfirmasi, tagihan, dan AIC dikirim ke email ini.', 'Confirmation, invoice and AIC are sent to this email.'],
-    c_name: ['Nama lengkap', 'Full name'], c_email: ['Email', 'Email'], c_phone: ['Nomor WhatsApp', 'WhatsApp number'], c_role: ['Peran', 'Role'],
-    role_atlet: ['Atlet', 'Athlete'], role_ortu: ['Orang tua / wali', 'Parent / guardian'], role_pelatih: ['Pelatih', 'Coach'], role_manajer: ['Manajer / official', 'Manager / official'],
-    err_type: ['Pilih jenis pendaftar.', 'Choose a registrant type.'], err_disc: ['Pilih disiplin.', 'Choose a discipline.'],
+    q_contact: ['Penanggung jawab dari klub', 'Club contact'],
+    q_contact_hint: ['Pendaftaran hanya lewat klub: diisi pemilik, admin, pelatih, atau official klub. Konfirmasi, tagihan, dan AIC dikirim ke email ini.', "Registration is through clubs only: filled in by the club's owner, admin, coach or official. Confirmation, invoice and AIC are sent to this email."],
+    c_name: ['Nama lengkap', 'Full name'], c_email: ['Email', 'Email'], c_phone: ['Nomor WhatsApp', 'WhatsApp number'], c_role: ['Peran di klub', 'Role in the club'],
+    role_pemilik: ['Pemilik klub', 'Club owner'], role_admin: ['Admin klub', 'Club admin'], role_pelatih: ['Pelatih', 'Coach'], role_manajer: ['Manajer / official', 'Manager / official'], role_lainnya: ['Lainnya', 'Other'],
+    err_role: ['Pilih peran Anda di klub.', 'Choose your role in the club.'], err_disc: ['Pilih disiplin.', 'Choose a discipline.'],
     err_name: ['Isi nama lengkap.', 'Enter a full name.'], err_email: ['Isi email yang valid.', 'Enter a valid email.'], err_phone: ['Isi nomor WhatsApp yang valid.', 'Enter a valid WhatsApp number.'],
     q_club: ['Klub, sekolah, atau pengkab', 'Club, school or regency'],
-    q_club_hint: ['Ketik untuk mencari. Klub dipakai untuk tabel medali dan batas peserta per klub.', 'Type to search. The club is used for the medal table and per-club entry limits.'],
+    q_club_hint: ['Semua atlet didaftarkan lewat klub. Ketik untuk mencari; bila belum ada, tambahkan klub baru. Klub dipakai untuk tabel medali dan batas peserta per klub.', 'Every athlete is registered through a club. Type to search; if it is not listed, add it as a new club. The club is used for the medal table and per-club entry limits.'],
     club_search: ['Cari nama klub atau kota', 'Search club or city'],
     club_count: ['{n} klub di daftar. Pilih dari daftar, atau ketik untuk menyaring.', '{n} clubs listed. Pick from the list, or type to filter.'],
     club_found: ['{n} klub cocok.', '{n} matching clubs.'],
-    club_none: ['Tanpa klub (perorangan)', 'No club (independent)'],
     club_new: ['Klub saya belum ada di daftar', 'My club is not listed'],
     club_selected: ['Terpilih', 'Selected'], club_change: ['Ganti', 'Change'],
     club_name: ['Nama klub / sekolah', 'Club / school name'], club_kind: ['Jenis', 'Type'],
@@ -117,7 +122,7 @@
     cons_insurance: ['Saya memahami bahwa panitia hanya memberikan pertolongan pertama. Biaya perawatan lanjutan menjadi tanggung jawab peserta atau delegasi, dan peserta wajib memiliki BPJS atau asuransi sesuai Undangan.', 'I understand the committee only provides first aid. Further treatment costs are the participant\'s or delegation\'s responsibility, and participants must hold BPJS or insurance as stated in the Invitation.'],
     cons_data: ['Saya menyetujui panitia mengolah data pribadi dan dokumen identitas hanya untuk keperluan kejuaraan (verifikasi usia, start list, hasil, sertifikat), sesuai UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi. Nama, klub, dan hasil atlet dipublikasikan; tanggal lahir dan dokumen tidak. Dokumen identitas dihapus setelah kejuaraan selesai.', 'I agree the committee may process personal data and identity documents only for this championship (age checks, start lists, results, certificates), under Indonesian Law No. 27 of 2022 on Personal Data Protection. Athlete name, club and results are published; birth dates and documents are not. Identity documents are deleted after the championship.'],
     cons_rules: ['Saya telah membaca ketentuan Jabar Open 2026 (kategori, biaya, jadwal) dan menerima keputusan juri dan panitia.', 'I have read the Jabar Open 2026 rules (categories, fees, schedule) and accept the decisions of the judges and committee.'],
-    cons_guardian: ['Saya orang tua/wali dari atlet di bawah 18 tahun dalam pendaftaran ini, atau telah mendapat persetujuan mereka, dan menyetujui keikutsertaan serta pengolahan data anak tersebut.', 'I am the parent/guardian of the under-18 athletes in this registration, or have their consent, and agree to their participation and the processing of their data.'],
+    cons_guardian: ['Klub telah mendapat persetujuan orang tua/wali dari setiap atlet di bawah 18 tahun dalam pendaftaran ini untuk keikutsertaan dan pengolahan data anak tersebut.', 'The club has the consent of the parent/guardian of every under-18 athlete in this registration for their participation and the processing of their data.'],
     err_cons: ['Centang semua pernyataan untuk melanjutkan.', 'Tick all declarations to continue.'],
     sum_title: ['Ringkasan biaya', 'Fee summary'],
     sum_fees: ['Biaya pendaftaran', 'Entry fees'], sum_pri: ['Kategori Priangan', 'Priangan category'],
@@ -144,7 +149,7 @@
     sum_15: ['Setelah dikirim, Anda punya 15 menit untuk membayar lewat QRIS dan mengunggah bukti bayar. Bila tidak, pendaftaran dihapus otomatis.', 'After submitting you have 15 minutes to pay by QRIS and upload the payment proof. Otherwise the registration is deleted automatically.'],
     sum_bpjs: ['Tanpa BPJS Ketenagakerjaan: {n}. Bawa kartunya ke meja panitia di venue sebelum bertanding.', 'No BPJS Ketenagakerjaan uploaded: {n}. Bring the card to the committee desk at the venue before competing.'],
     proof_done: ['Bukti terkirim. Panitia akan memverifikasi dan mengirim AIC lewat email.', 'Proof received. The committee will verify it and email the AIC.'],
-    open_status: ['Buka halaman status', 'Open status page'], register_more: ['Daftarkan atlet lain', 'Register more athletes'],
+    open_status: ['Buka halaman status', 'Open status page'], register_more: ['Daftarkan atlet lain dari klub ini', 'Register more athletes from this club'],
     closed: ['Pendaftaran sedang ditutup.', 'Registration is currently closed.'],
     load_fail: ['Formulir tidak bisa dimuat.', 'The form could not be loaded.'], retry: ['Coba lagi', 'Try again'],
     draft_restored: ['Isian sebelumnya dipulihkan. Berkas perlu diunggah ulang.', 'Your previous answers were restored. Files need to be uploaded again.'],
@@ -152,19 +157,20 @@
 
   let CFG = null;
   const S = {
-    step: 1, type: null, discipline: null,
+    step: 1, type: 'klub', discipline: null,
     contact: { name: '', email: '', phone: '', role: '' },
     club: { mode: null, id: null, label: '', name: '', kind: 'klub', province: '', kab_kota: '', country: 'Indonesia', abroad: false },
     athletes: [], pairs: [], consents: {}, result: null,
-    team: { level: '', name: '', members: [] },
+    teams: [],
   };
   let seq = 0;
   const DOC_KINDS = ['akte', 'ktp', 'ijazah', 'passport', 'bpjs', 'photo'];
   const noDocs = () => ({ akte: null, ktp: null, ijazah: null, passport: null, bpjs: null, photo: null });
   const newAthlete = () => ({ key: 'a' + (++seq), full_name: '', gender: '', birth_date: '', nationality: 'WNI', country: '', province: '', kab_kota: '',
     ...noDocs(), uploading: 0, guardian: { name: '', phone: '', email: '', relation: '' }, cat: null, music: {} });
-  const newMember = () => ({ key: 'm' + (++seq), kind: S.club.mode === 'existing' ? 'individu' : 'tim', full_name: '', birth_date: '', nationality: 'WNI', country: '',
+  const newMember = (T) => ({ key: 'm' + (++seq), kind: formChoices(T, null).length ? 'form' : 'tim', ref: '', full_name: '', birth_date: '', nationality: 'WNI', country: '',
     ...noDocs(), uploading: 0, guardian: { name: '', phone: '', email: '', relation: '' } });
+  const newTeam = () => ({ key: 't' + (++seq), level: '', name: '', members: [] });
   const docPaths = (o) => (o.nationality === 'WNA'
     ? { passport_path: o.passport && o.passport.path, photo_path: o.photo && o.photo.path, photo_thumb: o.photo && o.photo.thumb }
     : { akte_path: o.akte && o.akte.path, ktp_path: o.ktp && o.ktp.path, ijazah_path: o.ijazah && o.ijazah.path,
@@ -180,14 +186,25 @@
   const validDrive = (u) => /^https:\/\/(drive|docs)\.google\.com\/\S+$/i.test((u || '').trim());
   const normName = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
   const levels = () => [...new Set(cats().filter((c) => c.entry_type === 'individual').map((c) => c.level))].filter((l) => (teamLevels()[S.discipline] || []).includes(l));
-  const memberCat = (m) => {
-    if (!S.team.level || !m.birth_date) return null;
+  const memberCat = (T, m) => {
+    if (!T.level || !m.birth_date) return null;
     const g = S.discipline === 'MAG' ? 'M' : 'F';
-    return cats().find((c) => c.level === S.team.level && c.entry_type === 'individual' && !mismatch(c, { gender: g, birth_date: m.birth_date })) || null;
+    return cats().find((c) => c.level === T.level && c.entry_type === 'individual' && !mismatch(c, { gender: g, birth_date: m.birth_date })) || null;
   };
+  // atlet di pendaftaran ini yang kategorinya ada di level tim dan belum dipakai anggota tim lain
+  function formChoices(T, self) {
+    if (!T || !T.level) return [];
+    const used = new Set();
+    S.teams.forEach((x) => x.members.forEach((m) => { if (m !== self && m.kind === 'form' && m.ref) used.add(m.ref); }));
+    return S.athletes.filter((a) => a.cat && catById(a.cat) && catById(a.cat).level === T.level && !used.has(a.key));
+  }
+  const teamOnlyCount = () => S.teams.reduce((n, T) => n + T.members.filter((m) => m.kind === 'tim').length, 0);
+  const people = () => S.athletes.length + teamOnlyCount();
+  const hasTeamStep = () => !!S.discipline && teamOK(S.discipline);
+  const stepKeys = () => ['st1', 'st2', 'st3'].concat(hasTeamStep() ? ['st_team'] : []).concat(['st4']);
 
   const app = document.getElementById('app');
-  const maxAth = () => (CFG && CFG.registration.max_athletes) || 5;
+  const maxAth = () => (CFG && CFG.registration.max_athletes) || 10;
   const disc = () => CFG.disciplines.find((d) => d.code === S.discipline);
   const appLabel = (x) => { const d = disc().apparatus.find((y) => y.code === x); return d ? (JO.lang === 'en' ? d.en : d.id) : x; };
   const cats = () => CFG.categories.filter((c) => c.discipline === S.discipline);
@@ -198,20 +215,21 @@
   // ---------- draf (tanpa berkas) ----------
   function saveDraft() {
     try {
-      const d = { type: S.type, discipline: S.discipline, contact: S.contact, club: S.club,
+      const d = { v: 8, discipline: S.discipline, contact: S.contact, club: S.club,
         athletes: S.athletes.map((a) => ({ ...a, ...noDocs(), uploading: 0 })), pairs: S.pairs, seq,
-        team: { ...S.team, members: S.team.members.map((m) => ({ ...m, ...noDocs(), uploading: 0, check: null })) } };
+        teams: S.teams.map((T) => ({ ...T, members: T.members.map((m) => ({ ...m, ...noDocs(), uploading: 0, check: null })) })) };
       localStorage.setItem('jo26-draft', JSON.stringify(d));
     } catch (e) {}
   }
   function loadDraft() {
     try {
       const d = JSON.parse(localStorage.getItem('jo26-draft') || 'null');
-      if (!d || !d.discipline) return false;
-      Object.assign(S, { type: d.type, discipline: d.discipline, contact: d.contact, club: d.club, athletes: d.athletes || [], pairs: d.pairs || [] });
-      if (d.team && Array.isArray(d.team.members)) S.team = d.team;
+      if (!d || !d.discipline || d.v !== 8) { if (d) clearDraft(); return false; }
+      Object.assign(S, { discipline: d.discipline, contact: d.contact, club: d.club, athletes: d.athletes || [], pairs: d.pairs || [] });
+      if (Array.isArray(d.teams)) S.teams = d.teams;
+      if (S.club.mode === 'none') S.club.mode = null;
       seq = d.seq || 10;
-      return S.athletes.length > 0 || S.team.members.length > 0;
+      return S.athletes.length > 0 || S.teams.length > 0;
     } catch (e) { return false; }
   }
   function clearDraft() { try { localStorage.removeItem('jo26-draft'); } catch (e) {} }
@@ -228,7 +246,7 @@
   function clubProvince() {
     if (S.club.mode === 'existing') { const k = CFG.clubs.find((x) => x.id === S.club.id); return k ? k.province : ''; }
     if (S.club.mode === 'new') return S.club.abroad ? '' : S.club.province;
-    return null; // tanpa klub
+    return null;
   }
   // Priangan: hanya alamat identitas atlet dan provinsi klub yang menentukan (bukan asal penanggung jawab)
   function priReason(a) {
@@ -242,12 +260,13 @@
 
   // ---------- kerangka ----------
   function render() {
-    const steps = ['st1', 'st2', S.type === 'beregu' ? 'st3_team' : 'st3', 'st4'];
+    const steps = stepKeys();
+    if (S.step > steps.length) S.step = steps.length;
     app.innerHTML = `<ol class="steps" aria-label="Langkah">${steps.map((k, i) =>
       `<li class="${i + 1 < S.step ? 'done' : i + 1 === S.step ? 'now' : ''}" ${i + 1 === S.step ? 'aria-current="step"' : ''}><span>${esc(t(k))}</span></li>`).join('')}</ol>
       <div id="stepbox"></div>`;
     const box = document.getElementById('stepbox');
-    [renderStep1, renderStep2, S.type === 'beregu' ? renderStep3Team : renderStep3, renderStep4][S.step - 1](box);
+    ({ st1: renderStep1, st2: renderStep2, st3: renderStep3, st_team: renderStepTeams, st4: renderStep4 })[steps[S.step - 1]](box);
     window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
   }
   function actions(box, { back, nextLabel, onNext }) {
@@ -280,17 +299,6 @@
     const ds = CFG.disciplines;
     box.innerHTML = `
       <section class="card">
-        <h2>${esc(t('q_type'))}</h2>
-        <div class="choices three" role="radiogroup" id="types">
-          <label class="choice"><input type="radio" name="type" value="individu" ${S.type === 'individu' ? 'checked' : ''}>
-            <span><span class="c-title">${esc(t('type_individu'))}</span><br><span class="c-sub">${esc(t('type_individu_sub'))}</span></span></label>
-          <label class="choice"><input type="radio" name="type" value="klub" ${S.type === 'klub' ? 'checked' : ''}>
-            <span><span class="c-title">${esc(t('type_klub'))}</span><br><span class="c-sub">${esc(t('type_klub_sub', { n: maxAth() }))}</span></span></label>
-          <label class="choice"><input type="radio" name="type" value="beregu" ${S.type === 'beregu' ? 'checked' : ''}>
-            <span><span class="c-title">${esc(t('type_beregu'))}</span><br><span class="c-sub">${esc(t('type_beregu_sub', { n: teamMax(), fee: fmtRp(teamFee()) }))}</span></span></label>
-        </div>
-      </section>
-      <section class="card">
         <h2>${esc(t('q_disc'))}</h2>
         <div class="choices two" role="radiogroup" id="discs"></div>
       </section>
@@ -301,21 +309,18 @@
           <div class="field"><label class="f" for="c_name">${esc(t('c_name'))}</label><input id="c_name" type="text" autocomplete="name" value="${esc(S.contact.name)}"></div>
           <div class="field"><label class="f" for="c_role">${esc(t('c_role'))}</label>
             <select id="c_role"><option value="">${esc(t('choose'))}</option>
-            ${['atlet', 'ortu', 'pelatih', 'manajer'].map((r) => `<option value="${r}" ${S.contact.role === r ? 'selected' : ''}>${esc(t('role_' + r))}</option>`).join('')}</select></div>
+            ${['pemilik', 'admin', 'pelatih', 'manajer', 'lainnya'].map((r) => `<option value="${r}" ${S.contact.role === r ? 'selected' : ''}>${esc(t('role_' + r))}</option>`).join('')}</select></div>
           <div class="field"><label class="f" for="c_email">${esc(t('c_email'))}</label><input id="c_email" type="email" autocomplete="email" inputmode="email" value="${esc(S.contact.email)}"></div>
           <div class="field"><label class="f" for="c_phone">${esc(t('c_phone'))}</label><input id="c_phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="08…" value="${esc(S.contact.phone)}"></div>
         </div>
       </section>`;
     const discBox = box.querySelector('#discs');
     function drawDiscs() {
-      const team = S.type === 'beregu';
-      if (team && S.discipline && !teamOK(S.discipline)) S.discipline = null;
       discBox.innerHTML = ds.map((d) => {
         const fees = [...new Set(CFG.categories.filter((c) => c.discipline === d.code).map((c) => c.fee))].sort((a, b) => a - b);
         const closed = !d.registration_open;
-        const noTeam = team && !teamOK(d.code);
-        const off = closed || noTeam;
-        const sub = closed ? t('disc_closed') : noTeam ? t('disc_no_team') : team ? fmtRp(teamFee()) + (JO.lang === 'en' ? ' per team' : ' per tim') : fees.map(fmtRp).join(' / ');
+        const off = closed;
+        const sub = closed ? t('disc_closed') : fees.map(fmtRp).join(' / ') + (teamOK(d.code) ? (JO.lang === 'en' ? ' · team ' : ' · beregu ') + fmtRp(teamFee()) : '');
         return `<label class="choice ${off ? 'disabled' : ''}"><input type="radio" name="disc" value="${d.code}" ${S.discipline === d.code && !off ? 'checked' : ''} ${off ? 'disabled' : ''}>
           <span><span class="c-title">${esc(dName(d))}</span><br>
           <span class="c-sub">${esc(JO.fmtDate(d.date_start, { day: 'numeric' }))}–${esc(JO.fmtDate(d.date_end))}</span><br>
@@ -324,17 +329,14 @@
       discBox.querySelectorAll('input[name=disc]').forEach((r) => r.onchange = () => {
         if (S.discipline && S.discipline !== r.value) {
           S.athletes.forEach((a) => { a.cat = null; }); S.pairs = [];
-          S.team.level = '';
+          S.teams = [];
         }
         S.discipline = r.value; saveDraft();
+        const ol = app.querySelector('.steps');
+        if (ol) ol.innerHTML = stepKeys().map((k, i) => `<li class="${i === 0 ? 'now' : ''}" ${i === 0 ? 'aria-current="step"' : ''}><span>${esc(t(k))}</span></li>`).join('');
       });
     }
     drawDiscs();
-    box.querySelectorAll('input[name=type]').forEach((r) => r.onchange = () => {
-      S.type = r.value; drawDiscs(); saveDraft();
-      const st3 = app.querySelector('.steps li:nth-child(3) span');
-      if (st3) st3.textContent = t(S.type === 'beregu' ? 'st3_team' : 'st3');
-    });
     for (const k of ['name', 'email', 'phone', 'role']) {
       const el = box.querySelector('#c_' + k);
       el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => { S.contact[k] = el.value; saveDraft(); });
@@ -342,16 +344,13 @@
     actions(box, { back: false, onNext: () => {
       clearErrs(box);
       let bad = false;
-      if (!S.type) { fieldErr(box.querySelector('#types'), t('err_type')); bad = true; }
       if (!S.discipline) { fieldErr(box.querySelector('#discs'), t('err_disc')); bad = true; }
-      else if (S.type === 'beregu' && !teamOK(S.discipline)) { fieldErr(box.querySelector('#discs'), t('err_team_disc')); bad = true; }
       if (S.contact.name.trim().length < 3) { fieldErr(box.querySelector('#c_name'), t('err_name')); bad = true; }
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(S.contact.email.trim())) { fieldErr(box.querySelector('#c_email'), t('err_email')); bad = true; }
       if (S.contact.phone.replace(/\D/g, '').length < 9) { fieldErr(box.querySelector('#c_phone'), t('err_phone')); bad = true; }
+      if (!['pemilik', 'admin', 'pelatih', 'manajer', 'lainnya'].includes(S.contact.role)) { fieldErr(box.querySelector('#c_role'), t('err_role')); bad = true; }
       if (bad) return focusFirstErr(box);
-      if (S.type === 'individu' && S.athletes.length > 1) S.athletes = S.athletes.slice(0, 1);
-      if (S.type === 'individu') S.pairs = [];
-      if (S.type !== 'individu' && S.club.mode === 'none') S.club.mode = null;
+      if (S.club.mode === 'none') S.club.mode = null;
       S.step = 2; saveDraft(); render();
     } });
   }
@@ -394,7 +393,6 @@
         <div id="club_res" class="club-list" role="listbox" aria-label="${esc(t('q_club'))}"></div>
         <div class="row" style="margin-top:12px">
           <button type="button" class="btn btn-ghost" id="club_new">${esc(t('club_new'))}</button>
-          ${S.type === 'individu' ? `<button type="button" class="btn btn-ghost" id="club_none">${esc(t('club_none'))}</button>` : ''}
         </div>`;
       const q = pick.querySelector('#club_q'); const res = pick.querySelector('#club_res');
       const draw = () => {
@@ -408,8 +406,6 @@
       };
       q.oninput = draw; draw();
       pick.querySelector('#club_new').onclick = () => { c.mode = 'new'; c.name = q.value.trim() || c.name; saveDraft(); drawNew(); };
-      const none = pick.querySelector('#club_none');
-      if (none) none.onclick = () => { c.mode = 'none'; saveDraft(); S.step = 3; render(); };
     }
     function drawNew() {
       pick.innerHTML = `<div class="field"><label class="f" for="cn_name">${esc(t('club_name'))}</label><input id="cn_name" type="text" value="${esc(c.name)}"></div>
@@ -446,7 +442,6 @@
     actions(box, { back: true, onNext: () => {
       clearErrs(box);
       if (c.mode === 'existing' && c.id) { S.step = 3; saveDraft(); return render(); }
-      if (c.mode === 'none' && S.type === 'individu') { S.step = 3; saveDraft(); return render(); }
       if (c.mode === 'new') {
         const okName = c.name.trim().length >= 3;
         const okReg = c.abroad ? c.country.trim().length >= 2 : (c.province && c.kab_kota.trim());
@@ -506,176 +501,255 @@
         <div class="field"><label class="f" for="${o.key}_ge">${esc(t('g_email'))}</label><input id="${o.key}_ge" data-g="email" type="email" inputmode="email" value="${esc(o.guardian.email)}"></div>
       </div>`;
     g.querySelectorAll('[data-g]').forEach((inp) => inp.oninput = () => { o.guardian[inp.dataset.g] = inp.value; saveDraft(); });
-    if (S.contact.role === 'ortu' && !o.guardian.name) {
-      o.guardian.name = S.contact.name; o.guardian.email = S.contact.email; o.guardian.phone = S.contact.phone;
-      g.querySelector('[data-g=name]').value = o.guardian.name; g.querySelector('[data-g=email]').value = o.guardian.email; g.querySelector('[data-g=phone]').value = o.guardian.phone;
-    }
   }
   const guardOk = (g) => g.name.trim().length >= 3 && g.phone.replace(/\D/g, '').length >= 9 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(g.email.trim());
 
-  // ---------- langkah 3 (beregu): tim & pesenam ----------
-  function renderStep3Team(box) {
-    const T = S.team;
+  // ---------- langkah beregu (opsional, Artistik Putri): satu atau beberapa tim ----------
+  function renderStepTeams(box) {
     const newClub = S.club.mode !== 'existing';
-    if (newClub) T.members.forEach((m) => { m.kind = 'tim'; });
-    if (T.level && !levels().includes(T.level)) T.level = '';
-    if (!T.members.length) T.members.push(newMember());
     const clubLabel = S.club.mode === 'existing' ? ((CFG.clubs.find((x) => x.id === S.club.id) || {}).name || '') : S.club.name;
+    S.teams.forEach((T) => {
+      if (T.level && !levels().includes(T.level)) T.level = '';
+      T.members.forEach((m) => { if (newClub && m.kind === 'individu') m.kind = 'tim'; });
+    });
     box.innerHTML = `<section class="card">
-        <h2>${esc(t('tm_title'))} · ${esc(dName(disc()))}</h2>
-        <p class="muted small">${esc(t('tm_hint'))}</p>
-        <div class="grid-2">
-          <div class="field"><label class="f" for="tm_level">${esc(t('tm_level'))}</label>
-            <select id="tm_level"><option value="">${esc(t('choose'))}</option>${levels().map((l) => `<option ${l === T.level ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>
-          <div class="field"><label class="f" for="tm_name">${esc(t('tm_name'))}</label>
-            <input id="tm_name" type="text" maxlength="60" autocomplete="off" placeholder="${esc(t('tm_name_ph', { c: clubLabel.trim() || 'Klub' }))}" value="${esc(T.name)}"></div>
-        </div>
+        <h2>${esc(t('st_team'))} · ${esc(dName(disc()))}</h2>
+        <p class="muted small" style="margin-bottom:6px">${esc(t('tm_intro', { n: teamMax(), fee: fmtRp(teamFee()) }))}</p>
         <p class="note info small" style="margin:0">${esc(t('tm_rule', { k: teamCount(), fee: fmtRp(teamFee()) }))}</p>
       </section>
+      <p class="note small" id="ath_count" aria-live="polite"></p>
       ${newClub ? `<p class="note warn small">${esc(t('mb_new_club'))}</p>` : ''}
-      <div id="mbs"></div>
-      <button type="button" class="btn btn-ghost" id="add_mb">${esc(t('add_mb'))}</button>`;
-    const list = box.querySelector('#mbs');
-    const add = box.querySelector('#add_mb');
-    const syncAdd = () => { add.hidden = T.members.length >= teamMax(); };
-    const renumber = () => list.querySelectorAll('.ath').forEach((el, i) => { el.querySelector('.n').textContent = i + 1; el.querySelector('.ath-title').textContent = t('mb', { n: i + 1 }); });
-    const redrawCats = () => list.querySelectorAll('.ath').forEach((el) => el._drawCat && el._drawCat());
-    box.querySelector('#tm_level').onchange = (e) => { T.level = e.target.value; T.members.forEach((m) => { m.check = null; }); redrawCats(); saveDraft(); };
-    box.querySelector('#tm_name').oninput = (e) => { T.name = e.target.value; saveDraft(); };
-    T.members.forEach((m, i) => list.appendChild(memberCard(m, i)));
-    syncAdd();
-    add.onclick = () => {
-      if (T.members.length >= teamMax()) return;
-      const m = newMember(); T.members.push(m); saveDraft();
-      list.appendChild(memberCard(m, T.members.length - 1)); syncAdd();
-      list.lastElementChild.querySelector('input[type=text]').focus();
+      <div id="teams"></div>
+      <button type="button" class="btn btn-ghost" id="add_team">${esc(t('add_team'))}</button>`;
+    const wrap = box.querySelector('#teams');
+    function syncCount() {
+      const n = people(), max = maxAth();
+      const c = box.querySelector('#ath_count');
+      c.textContent = n >= max ? t('ath_full', { max }) : t('ath_count', { n, max });
+      c.className = 'note small ' + (n > max ? 'bad' : n >= max ? 'warn' : 'info');
+      wrap.querySelectorAll('[data-k-tim]').forEach((inp) => {
+        const m = memberByKey(inp.dataset.kTim);
+        inp.disabled = m.kind !== 'tim' && people() >= maxAth();
+        inp.closest('label').classList.toggle('is-off', inp.disabled);
+      });
+    }
+    function memberByKey(k) { for (const T of S.teams) { const m = T.members.find((x) => x.key === k); if (m) return m; } return null; }
+    function drawAll() {
+      wrap.innerHTML = '';
+      S.teams.forEach((T, ti) => wrap.appendChild(teamCard(T, ti)));
+      syncCount();
+    }
+    box.querySelector('#add_team').onclick = () => {
+      const T = newTeam(); S.teams.push(T); saveDraft();
+      wrap.appendChild(teamCard(T, S.teams.length - 1)); syncCount();
+      wrap.lastElementChild.querySelector('select').focus();
     };
 
-    function memberCard(m, i) {
-      const el = document.createElement('div');
-      el.className = 'ath mb'; el.dataset.key = m.key;
-      el.innerHTML = `<div class="ath-head"><span class="n">${i + 1}</span><strong class="ath-title">${esc(t('mb', { n: i + 1 }))}</strong>
-          <span class="spacer"></span><button type="button" class="btn btn-bad btn-sm" data-rm>${esc(t('remove'))}</button></div>
-        <div class="ath-body">
-          <div class="field"><span class="f">${esc(t('mb_kind'))}</span><div class="seg seg-kind" role="radiogroup">
-            <label class="${newClub ? 'is-off' : ''}"><input type="radio" name="${m.key}_k" value="individu" ${m.kind === 'individu' ? 'checked' : ''} ${newClub ? 'disabled' : ''}>${esc(t('kind_individu'))}</label>
-            <label><input type="radio" name="${m.key}_k" value="tim" ${m.kind === 'tim' ? 'checked' : ''}>${esc(t('kind_tim'))}</label></div>
-            <div class="f-hint" data-kh></div></div>
-          <div class="grid-2">
-            <div class="field"><label class="f" for="${m.key}_name">${esc(t('a_name'))}</label><input id="${m.key}_name" data-k="full_name" type="text" autocomplete="off" value="${esc(m.full_name)}"></div>
-            <div class="field"><label class="f" for="${m.key}_birth">${esc(t('a_birth'))}</label><input id="${m.key}_birth" data-k="birth_date" type="date" min="1950-01-01" max="${new Date().toISOString().slice(0, 10)}" value="${esc(m.birth_date)}"></div>
-          </div>
-          <div class="mb-check small" data-chk aria-live="polite"></div>
-          <div class="mb-tim"></div>
-        </div>`;
-      const q = (s) => el.querySelector(s);
-      const clearCheck = () => { m.check = null; q('[data-chk]').innerHTML = ''; clearErrs(el); };
-      q('[data-k=full_name]').oninput = (e) => { m.full_name = e.target.value; clearCheck(); saveDraft(); };
-      q('[data-k=birth_date]').addEventListener('change', (e) => { m.birth_date = e.target.value; clearCheck(); drawTim(); saveDraft(); });
-      el.querySelectorAll(`input[name=${m.key}_k]`).forEach((r) => r.onchange = () => { m.kind = r.value; clearCheck(); drawTim(); saveDraft(); });
-      q('[data-rm]').onclick = () => {
-        if (T.members.length === 1) { Object.assign(m, newMember(), { key: m.key }); el.replaceWith(memberCard(m, i)); saveDraft(); return; }
-        T.members = T.members.filter((x) => x !== m); el.remove(); saveDraft(); renumber(); syncAdd();
+    function teamCard(T, ti) {
+      const el = document.createElement('section');
+      el.className = 'card team-card'; el.dataset.team = T.key;
+      el.innerHTML = `<div class="ath-head" style="margin:-4px 0 12px"><strong class="ath-title">${esc(t('tm_n', { n: ti + 1 }))}</strong>
+          <span class="spacer"></span><button type="button" class="btn btn-bad btn-sm" data-rmt>${esc(t('rm_team'))}</button></div>
+        <p class="muted small">${esc(t('tm_hint'))}</p>
+        <div class="grid-2">
+          <div class="field"><label class="f" for="${T.key}_level">${esc(t('tm_level'))}</label>
+            <select id="${T.key}_level" data-tk="level"><option value="">${esc(t('choose'))}</option>${levels().map((l) => `<option ${l === T.level ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>
+          <div class="field"><label class="f" for="${T.key}_name">${esc(t('tm_name'))}</label>
+            <input id="${T.key}_name" data-tk="name" type="text" maxlength="60" autocomplete="off" placeholder="${esc(t('tm_name_ph', { c: clubLabel.trim() || 'Klub' }))}" value="${esc(T.name)}"></div>
+        </div>
+        <div class="mbs"></div>
+        <button type="button" class="btn btn-ghost btn-sm" data-addm>${esc(t('add_mb'))}</button>`;
+      const list = el.querySelector('.mbs');
+      const addm = el.querySelector('[data-addm]');
+      const syncAdd = () => { addm.hidden = T.members.length >= teamMax(); };
+      const renumber = () => list.querySelectorAll('.ath').forEach((x, i) => { x.querySelector('.n').textContent = i + 1; x.querySelector('.ath-title').textContent = t('mb', { n: i + 1 }); });
+      el.querySelector('[data-tk=level]').onchange = (e) => {
+        T.level = e.target.value;
+        T.members.forEach((m) => {
+          m.check = null; if (m.kind === 'form') m.ref = '';
+          // anggota yang belum diisi: utamakan atlet dari pendaftaran ini bila ada di level ini
+          if (m.kind === 'tim' && !m.full_name.trim() && !m.akte && !m.passport && !m.photo) m.kind = formChoices(T, m).length ? 'form' : 'tim';
+        });
+        list.innerHTML = ''; T.members.forEach((m, i) => list.appendChild(memberCard(T, m, i)));
+        saveDraft(); syncCount();
       };
-      function drawTim() {
-        q('[data-kh]').textContent = m.kind === 'individu' ? t('mb_individu_hint') : m.kind === 'tim' ? t('mb_tim_hint') : '';
-        const box2 = q('.mb-tim');
-        if (m.kind !== 'tim') { box2.innerHTML = ''; return; }
-        box2.innerHTML = `<div class="field"><span class="f">${esc(t('a_nat'))}</span><div class="seg" role="radiogroup">
-            <label><input type="radio" name="${m.key}_n" value="WNI" ${m.nationality === 'WNI' ? 'checked' : ''}>${esc(t('wni'))}</label>
-            <label><input type="radio" name="${m.key}_n" value="WNA" ${m.nationality === 'WNA' ? 'checked' : ''}>${esc(t('wna'))}</label></div></div>
-          ${m.nationality === 'WNA' ? `<div class="field"><label class="f" for="${m.key}_country">${esc(t('country'))}</label><input id="${m.key}_country" data-k="country" type="text" value="${esc(m.country)}"></div>` : ''}
-          <div class="field docs"></div>
-          <div class="guard"></div>
-          <p class="mb-cat small" data-cat></p>`;
-        box2.querySelectorAll(`input[name=${m.key}_n]`).forEach((r) => r.onchange = () => { m.nationality = r.value; drawTim(); saveDraft(); });
-        const ct = box2.querySelector('[data-k=country]');
-        if (ct) ct.oninput = (e) => { m.country = e.target.value; saveDraft(); };
-        docsBlock(box2.querySelector('.docs'), m);
-        guardBlock(box2.querySelector('.guard'), m);
-        drawCat();
+      el.querySelector('[data-tk=name]').oninput = (e) => { T.name = e.target.value; saveDraft(); };
+      el.querySelector('[data-rmt]').onclick = () => { S.teams = S.teams.filter((x) => x !== T); saveDraft(); drawAll(); };
+      if (!T.members.length) T.members.push(newMember(T));
+      T.members.forEach((m, i) => list.appendChild(memberCard(T, m, i)));
+      syncAdd();
+      addm.onclick = () => {
+        if (T.members.length >= teamMax()) return;
+        const m = newMember(T);
+        if (m.kind === 'tim' && people() >= maxAth()) m.kind = newClub ? 'form' : 'individu';
+        T.members.push(m); saveDraft();
+        list.appendChild(memberCard(T, m, T.members.length - 1)); syncAdd(); syncCount();
+      };
+
+      function memberCard(T, m, i) {
+        const mel = document.createElement('div');
+        mel.className = 'ath mb'; mel.dataset.key = m.key;
+        mel.innerHTML = `<div class="ath-head"><span class="n">${i + 1}</span><strong class="ath-title">${esc(t('mb', { n: i + 1 }))}</strong>
+            <span class="spacer"></span><button type="button" class="btn btn-bad btn-sm" data-rm>${esc(t('remove'))}</button></div>
+          <div class="ath-body">
+            <div class="field"><span class="f">${esc(t('mb_kind'))}</span><div class="seg seg-kind" role="radiogroup">
+              <label><input type="radio" name="${m.key}_k" value="form" ${m.kind === 'form' ? 'checked' : ''}>${esc(t('kind_form'))}</label>
+              <label class="${newClub ? 'is-off' : ''}"><input type="radio" name="${m.key}_k" value="individu" ${m.kind === 'individu' ? 'checked' : ''} ${newClub ? 'disabled' : ''}>${esc(t('kind_individu'))}</label>
+              <label><input type="radio" name="${m.key}_k" value="tim" data-k-tim="${m.key}" ${m.kind === 'tim' ? 'checked' : ''}>${esc(t('kind_tim'))}</label></div>
+              <div class="f-hint" data-kh></div></div>
+            <div class="mb-body"></div>
+          </div>`;
+        const q = (sel) => mel.querySelector(sel);
+        mel.querySelectorAll(`input[name=${m.key}_k]`).forEach((r) => r.onchange = () => { m.kind = r.value; m.check = null; clearErrs(mel); drawBody(); saveDraft(); syncCount(); });
+        q('[data-rm]').onclick = () => {
+          if (T.members.length === 1) { Object.assign(m, newMember(T), { key: m.key }); mel.replaceWith(memberCard(T, m, i)); saveDraft(); syncCount(); return; }
+          T.members = T.members.filter((x) => x !== m); mel.remove(); saveDraft(); renumber(); syncAdd(); syncCount();
+        };
+        function drawBody() {
+          q('[data-kh]').textContent = m.kind === 'form' ? t('mb_form_hint') : m.kind === 'individu' ? t('mb_individu_hint') : t('mb_tim_hint', { max: maxAth() });
+          const b = q('.mb-body');
+          if (m.kind === 'form') {
+            const ch = formChoices(T, m);
+            if (m.ref && !ch.some((a) => a.key === m.ref)) m.ref = '';
+            b.innerHTML = !T.level ? '' : ch.length
+              ? `<div class="field"><label class="f" for="${m.key}_ref">${esc(t('mb_form_pick'))}</label><select id="${m.key}_ref" data-k="ref"><option value="">${esc(t('choose'))}</option>
+                  ${ch.map((a) => `<option value="${a.key}" ${m.ref === a.key ? 'selected' : ''}>${esc(a.full_name.trim() || t('ath', { n: S.athletes.indexOf(a) + 1 }))} · ${esc(cName(catById(a.cat)))}</option>`).join('')}</select></div>`
+              : `<p class="note warn small" style="margin:0" data-k="ref">${esc(t('mb_form_none', { l: T.level }))}</p>`;
+            const sel = b.querySelector('select');
+            if (sel) sel.onchange = () => { m.ref = sel.value; saveDraft(); };
+            return;
+          }
+          b.innerHTML = `<div class="grid-2">
+              <div class="field"><label class="f" for="${m.key}_name">${esc(t('a_name'))}</label><input id="${m.key}_name" data-k="full_name" type="text" autocomplete="off" value="${esc(m.full_name)}"></div>
+              <div class="field"><label class="f" for="${m.key}_birth">${esc(t('a_birth'))}</label><input id="${m.key}_birth" data-k="birth_date" type="date" min="1950-01-01" max="${new Date().toISOString().slice(0, 10)}" value="${esc(m.birth_date)}"></div>
+            </div>
+            <div class="mb-check small" data-chk aria-live="polite"></div>
+            <div class="mb-tim"></div>`;
+          const clearCheck = () => { m.check = null; const c = b.querySelector('[data-chk]'); if (c) c.innerHTML = ''; clearErrs(b); };
+          b.querySelector('[data-k=full_name]').oninput = (e) => { m.full_name = e.target.value; clearCheck(); saveDraft(); };
+          b.querySelector('[data-k=birth_date]').addEventListener('change', (e) => { m.birth_date = e.target.value; clearCheck(); drawTim(); saveDraft(); });
+          drawTim();
+        }
+        function drawTim() {
+          const box2 = q('.mb-tim');
+          if (!box2) return;
+          if (m.kind !== 'tim') { box2.innerHTML = ''; return; }
+          box2.innerHTML = `<div class="field"><span class="f">${esc(t('a_nat'))}</span><div class="seg" role="radiogroup">
+              <label><input type="radio" name="${m.key}_n" value="WNI" ${m.nationality === 'WNI' ? 'checked' : ''}>${esc(t('wni'))}</label>
+              <label><input type="radio" name="${m.key}_n" value="WNA" ${m.nationality === 'WNA' ? 'checked' : ''}>${esc(t('wna'))}</label></div></div>
+            ${m.nationality === 'WNA' ? `<div class="field"><label class="f" for="${m.key}_country">${esc(t('country'))}</label><input id="${m.key}_country" data-k="country" type="text" value="${esc(m.country)}"></div>` : ''}
+            <div class="field docs"></div>
+            <div class="guard"></div>
+            <p class="mb-cat small" data-cat></p>`;
+          box2.querySelectorAll(`input[name=${m.key}_n]`).forEach((r) => r.onchange = () => { m.nationality = r.value; drawTim(); saveDraft(); });
+          const ct = box2.querySelector('[data-k=country]');
+          if (ct) ct.oninput = (e) => { m.country = e.target.value; saveDraft(); };
+          docsBlock(box2.querySelector('.docs'), m);
+          guardBlock(box2.querySelector('.guard'), m);
+          const p = box2.querySelector('[data-cat]');
+          if (T.level && m.birth_date) { const c = memberCat(T, m); p.innerHTML = c ? esc(t('mb_cat', { c: cName(c) })) : `<span class="bad-t">${esc(t('mb_cat_none'))}</span>`; }
+        }
+        drawBody();
+        return mel;
       }
-      function drawCat() {
-        const p = q('[data-cat]'); if (!p) return;
-        if (!T.level || !m.birth_date) { p.innerHTML = ''; return; }
-        const c = memberCat(m);
-        p.innerHTML = c ? esc(t('mb_cat', { c: cName(c) })) : `<span class="bad-t">${esc(t('mb_cat_none'))}</span>`;
-      }
-      el._drawCat = drawCat;
-      drawTim();
       return el;
     }
+    drawAll();
 
     actions(box, { back: true, onNext: async () => {
       clearErrs(box);
-      list.querySelectorAll('[data-chk]').forEach((x) => { x.innerHTML = ''; });
+      wrap.querySelectorAll('[data-chk]').forEach((x) => { x.innerHTML = ''; });
       let bad = false;
-      if (T.members.some((m) => m.uploading)) { JO.toast(t('err_uploading'), 'bad'); return; }
-      if (!T.level) { fieldErr(box.querySelector('#tm_level'), t('err_tm_level')); bad = true; }
-      if (T.name.trim().length < 2) { fieldErr(box.querySelector('#tm_name'), t('err_tm_name')); bad = true; }
+      if (S.teams.some((T) => T.members.some((m) => m.uploading))) { JO.toast(t('err_uploading'), 'bad'); return; }
+      if (people() > maxAth()) { JO.toast(t('err_max', { max: maxAth() }), 'bad'); return; }
+      if (!S.athletes.length && !S.teams.length) { JO.toast(t('err_none'), 'bad'); return; }
       const seen = new Map();
-      T.members.forEach((m) => {
-        const el = list.querySelector(`[data-key="${m.key}"]`); const q = (s) => el.querySelector(s);
-        if (m.full_name.trim().length < 3) { fieldErr(q('[data-k=full_name]'), t('err_a_name')); bad = true; }
-        if (!m.birth_date) { fieldErr(q('[data-k=birth_date]'), t('err_a_birth')); bad = true; }
-        if (!m.kind) { fieldErr(q('.seg-kind'), t('err_mb_kind')); bad = true; }
-        const id = normName(m.full_name) + '|' + m.birth_date;
-        if (m.full_name.trim() && m.birth_date) {
-          if (seen.has(id)) { fieldErr(q('[data-k=full_name]'), t('err_mb_dup')); bad = true; } else seen.set(id, m);
-        }
-        if (m.kind === 'tim') {
-          if (m.nationality === 'WNA' && m.country.trim().length < 2) { fieldErr(q('[data-k=country]'), t('err_a_country')); bad = true; }
-          { const de = docErr(m); if (de) { fieldErr(q(de[0]), t(de[1])); bad = true; } }
-          if (m.birth_date && JO.isMinor(m.birth_date) && !guardOk(m.guardian)) { fieldErr(q('[data-g=name]'), t('err_g')); bad = true; }
-          if (T.level && m.birth_date && !memberCat(m)) { fieldErr(q('[data-cat]'), t('err_mb_cat')); bad = true; }
-        }
+      const names = new Set();
+      S.teams.forEach((T) => {
+        const tel = wrap.querySelector(`[data-team="${T.key}"]`);
+        if (!T.level) { fieldErr(tel.querySelector('[data-tk=level]'), t('err_tm_level')); bad = true; }
+        if (T.name.trim().length < 2) { fieldErr(tel.querySelector('[data-tk=name]'), t('err_tm_name')); bad = true; }
+        const nk = T.level + '|' + T.name.trim().toLowerCase();
+        if (T.name.trim() && names.has(nk)) { fieldErr(tel.querySelector('[data-tk=name]'), t('err_tm_name')); bad = true; } else names.add(nk);
+        T.members.forEach((m) => {
+          const el = tel.querySelector(`[data-key="${m.key}"]`); const q = (x) => el.querySelector(x);
+          if (m.kind === 'form') {
+            if (!m.ref) { const r = q('[data-k=ref]') || q('.seg-kind'); fieldErr(r, t('err_mb_form')); bad = true; }
+            return;
+          }
+          if (m.full_name.trim().length < 3) { fieldErr(q('[data-k=full_name]'), t('err_a_name')); bad = true; }
+          if (!m.birth_date) { fieldErr(q('[data-k=birth_date]'), t('err_a_birth')); bad = true; }
+          const id = normName(m.full_name) + '|' + m.birth_date;
+          if (m.full_name.trim() && m.birth_date) {
+            const dupForm = S.athletes.some((a) => normName(a.full_name) + '|' + a.birth_date === id);
+            if (seen.has(id) || (m.kind === 'tim' && dupForm)) { fieldErr(q('[data-k=full_name]'), t(dupForm ? 'err_mb_inform' : 'err_mb_dup')); bad = true; } else seen.set(id, m);
+          }
+          if (m.kind === 'tim') {
+            if (m.nationality === 'WNA' && m.country.trim().length < 2) { fieldErr(q('[data-k=country]'), t('err_a_country')); bad = true; }
+            { const de = docErr(m); if (de) { fieldErr(q(de[0]), t(de[1])); bad = true; } }
+            if (m.birth_date && JO.isMinor(m.birth_date) && !guardOk(m.guardian)) { fieldErr(q('[data-g=name]'), t('err_g')); bad = true; }
+            if (T.level && m.birth_date && !memberCat(T, m)) { fieldErr(q('[data-cat]'), t('err_mb_cat')); bad = true; }
+          }
+        });
       });
       if (bad) { JO.toast(t('err_fix'), 'bad'); return focusFirstErr(box); }
-      // periksa ke server: anggota "Juga perorangan" harus sudah terdaftar, "Khusus beregu" belum
-      if (S.club.mode === 'existing') {
+      // periksa ke server: "Terdaftar sebelumnya" harus sudah ada, "Khusus beregu" belum punya kategori perorangan
+      if (S.club.mode === 'existing' && S.teams.some((T) => T.members.some((m) => m.kind !== 'form'))) {
         const btn = box.querySelector('.step-actions [data-act=next]');
         btn.disabled = true; const label = btn.textContent; btn.textContent = t('checking');
-        let res;
         try {
           await JO.ensureSession();
-          res = await rpc('public_team_check', { p: { club_id: S.club.id, discipline: S.discipline, level: T.level,
-            members: T.members.map((m) => ({ full_name: m.full_name.trim(), birth_date: m.birth_date })) } });
+          for (const T of S.teams) {
+            const ms = T.members.filter((m) => m.kind !== 'form');
+            if (!ms.length) continue;
+            const res = await rpc('public_team_check', { p: { club_id: S.club.id, discipline: S.discipline, level: T.level,
+              members: ms.map((m) => ({ full_name: m.full_name.trim(), birth_date: m.birth_date })) } });
+            const tel = wrap.querySelector(`[data-team="${T.key}"]`);
+            ms.forEach((m, i) => {
+              const r = (res || []).find((x) => x.i === i + 1) || {};
+              const el = tel.querySelector(`[data-key="${m.key}"]`); const nameEl = el.querySelector('[data-k=full_name]');
+              if (m.kind === 'individu' && !r.found) { fieldErr(nameEl, t('err_mb_notfound')); bad = true; }
+              else if (m.kind === 'individu' && r.in_team) { fieldErr(nameEl, t('err_mb_inteam')); bad = true; }
+              else if (m.kind === 'tim' && r.found) { fieldErr(nameEl, t('err_mb_isind')); bad = true; }
+              else if (m.kind === 'individu') el.querySelector('[data-chk]').innerHTML = `<span class="ok-t">${esc(t('mb_found'))}</span>`;
+            });
+          }
         } catch (err) { JO.toast(err.message, 'bad'); return; }
         finally { btn.disabled = false; btn.textContent = label; }
-        T.members.forEach((m, i) => {
-          const r = (res || []).find((x) => x.i === i + 1) || {};
-          const el = list.querySelector(`[data-key="${m.key}"]`); const nameEl = el.querySelector('[data-k=full_name]');
-          if (m.kind === 'individu' && !r.found) { fieldErr(nameEl, t('err_mb_notfound')); bad = true; }
-          else if (m.kind === 'individu' && r.in_team) { fieldErr(nameEl, t('err_mb_inteam')); bad = true; }
-          else if (m.kind === 'tim' && r.found) { fieldErr(nameEl, t('err_mb_isind')); bad = true; }
-          else if (m.kind === 'individu') el.querySelector('[data-chk]').innerHTML = `<span class="ok-t">${esc(t('mb_found'))}</span>`;
-        });
         if (bad) { JO.toast(t('err_fix'), 'bad'); return focusFirstErr(box); }
       }
-      S.step = 4; saveDraft(); render();
+      S.step++; saveDraft(); render();
     } });
   }
 
   // ---------- langkah 3: atlet ----------
   function renderStep3(box) {
-    if (!S.athletes.length) S.athletes.push(newAthlete());
-    box.innerHTML = `<div id="aths"></div>
-      ${S.type === 'klub' ? `<button type="button" class="btn btn-ghost" id="add_ath">${esc(t('add_ath'))}</button>` : ''}
+    if (!S.athletes.length && !(hasTeamStep() && S.teams.length)) S.athletes.push(newAthlete());
+    box.innerHTML = `<p class="note info small" id="ath_count" aria-live="polite"></p>
+      <div id="aths"></div>
+      <p class="note info small" id="ath_empty" hidden>${esc(t('ath_empty'))}</p>
+      <button type="button" class="btn btn-ghost" id="add_ath">${esc(t('add_ath'))}</button>
       <div id="pairs"></div>`;
     const list = box.querySelector('#aths');
     S.athletes.forEach((a, i) => list.appendChild(athleteCard(a, i)));
     const add = box.querySelector('#add_ath');
-    if (add) {
-      add.hidden = S.athletes.length >= maxAth();
-      add.onclick = () => {
-        if (S.athletes.length >= maxAth()) return;
-        const a = newAthlete(); S.athletes.push(a); saveDraft();
-        list.appendChild(athleteCard(a, S.athletes.length - 1));
-        add.hidden = S.athletes.length >= maxAth();
-        drawPairs(); renumber();
-        list.lastElementChild.querySelector('input').focus();
-      };
+    function syncCount() {
+      const n = people(), max = maxAth();
+      const c = box.querySelector('#ath_count');
+      c.textContent = n >= max ? t('ath_full', { max }) : t('ath_count', { n, max });
+      c.className = 'note small ' + (n > max ? 'bad' : n >= max ? 'warn' : 'info');
+      add.hidden = n >= max;
+      box.querySelector('#ath_empty').hidden = S.athletes.length > 0;
     }
+    box._syncCount = syncCount;
+    syncCount();
+    add.onclick = () => {
+      if (people() >= maxAth()) return;
+      const a = newAthlete(); S.athletes.push(a); saveDraft();
+      list.appendChild(athleteCard(a, S.athletes.length - 1));
+      syncCount(); drawPairs(); renumber();
+      list.lastElementChild.querySelector('input').focus();
+    };
     function renumber() {
       list.querySelectorAll('.ath').forEach((el, i) => { el.querySelector('.n').textContent = i + 1; el.querySelector('.ath-title').textContent = t('ath', { n: i + 1 }); });
     }
@@ -683,7 +757,7 @@
     const pairsBox = box.querySelector('#pairs');
     function drawPairs() {
       const mp = cats().filter((c) => c.entry_type === 'pair');
-      if (!mp.length || S.type !== 'klub') { pairsBox.innerHTML = ''; return; }
+      if (!mp.length) { pairsBox.innerHTML = ''; return; }
       const males = S.athletes.filter((a) => a.gender === 'M'); const females = S.athletes.filter((a) => a.gender === 'F');
       const label = (a) => a.full_name.trim() || t('ath', { n: S.athletes.indexOf(a) + 1 });
       pairsBox.innerHTML = `<section class="card" style="margin-top:16px"><h2>${esc(t('pair_title'))}</h2>
@@ -718,6 +792,8 @@
       clearErrs(box);
       let bad = false;
       if (S.athletes.some((a) => a.uploading)) { JO.toast(t('err_uploading'), 'bad'); return; }
+      if (people() > maxAth()) { JO.toast(t('err_max', { max: maxAth() }), 'bad'); return; }
+      if (!S.athletes.length && !hasTeamStep()) { JO.toast(t('err_none'), 'bad'); return; }
       const inPair = new Set();
       S.pairs.forEach((p) => { inPair.add(p.m); inPair.add(p.f); });
       list.querySelectorAll('.ath').forEach((el) => {
@@ -747,7 +823,11 @@
         }
       }
       if (bad) { JO.toast(t('err_fix'), 'bad'); return focusFirstErr(box); }
-      S.step = 4; saveDraft(); render();
+      // anggota tim "atlet di pendaftaran ini" yang kategorinya berubah dilepas
+      S.teams.forEach((T) => T.members.forEach((m) => {
+        if (m.kind === 'form' && m.ref && !formChoices(T, m).some((a) => a.key === m.ref)) m.ref = '';
+      }));
+      S.step++; saveDraft(); render();
     } });
   }
 
@@ -755,7 +835,7 @@
     const el = document.createElement('div');
     el.className = 'ath'; el.dataset.key = a.key;
     el.innerHTML = `<div class="ath-head"><span class="n">${i + 1}</span><strong class="ath-title">${esc(t('ath', { n: i + 1 }))}</strong>
-        <span class="spacer"></span>${S.type === 'klub' ? `<button type="button" class="btn btn-bad btn-sm" data-rm>${esc(t('remove'))}</button>` : ''}</div>
+        <span class="spacer"></span><button type="button" class="btn btn-bad btn-sm" data-rm>${esc(t('remove'))}</button></div>
       <div class="ath-body">
         <div class="field"><label class="f" for="${a.key}_name">${esc(t('a_name'))}</label><input id="${a.key}_name" data-k="full_name" type="text" autocomplete="off" value="${esc(a.full_name)}"></div>
         <div class="grid-2">
@@ -791,13 +871,13 @@
     el.querySelectorAll(`input[name=${a.key}_n]`).forEach((r) => r.onchange = () => { a.nationality = r.value; drawRegion(); drawDocs(); drawCats(); redrawPairs(); saveDraft(); });
     const rm = q('[data-rm]');
     if (rm) rm.onclick = () => {
-      if (S.athletes.length === 1) { Object.assign(a, newAthlete(), { key: a.key }); el.replaceWith(athleteCard(a, i)); saveDraft(); return; }
+      if (S.athletes.length === 1 && !hasTeamStep()) { Object.assign(a, newAthlete(), { key: a.key }); el.replaceWith(athleteCard(a, i)); saveDraft(); return; }
       S.athletes = S.athletes.filter((x) => x !== a);
       S.pairs = S.pairs.filter((p) => p.m !== a.key && p.f !== a.key);
+      S.teams.forEach((T) => T.members.forEach((m) => { if (m.kind === 'form' && m.ref === a.key) m.ref = ''; }));
       el.remove(); saveDraft();
       const box = document.getElementById('stepbox');
-      box._renumber && box._renumber(); box._drawPairs && box._drawPairs();
-      const add = document.getElementById('add_ath'); if (add) add.hidden = S.athletes.length >= maxAth();
+      box._renumber && box._renumber(); box._drawPairs && box._drawPairs(); box._syncCount && box._syncCount();
     };
     function redrawPairs() { const box = document.getElementById('stepbox'); box && box._drawPairs && box._drawPairs(); }
     function validCat() { const c = a.cat && catById(a.cat); if (c && mismatch(c, a)) { a.cat = null; drawMusic(); } }
@@ -867,35 +947,41 @@
     return entries;
   }
   function renderStep4(box) {
-    const team = S.type === 'beregu';
-    const T = S.team;
-    const tim = T.members.filter((m) => m.kind === 'tim');
-    const entries = team ? [] : buildEntries();
-    const base = team ? teamFee() : entries.reduce((s, e) => s + catById(e.category_id).fee, 0);
+    const teams = S.teams;
+    const tim = [].concat(...teams.map((T) => T.members.filter((m) => m.kind === 'tim')));
+    const entries = buildEntries();
+    const entryFees = entries.reduce((s2, e) => s2 + catById(e.category_id).fee, 0);
+    const teamFees = teams.length * teamFee();
+    const base = entryFees + teamFees;
     const pri = 0;
-    const intl = team ? tim.some((m) => m.nationality === 'WNA') : S.athletes.some((a) => a.nationality === 'WNA');
-    const minors = team ? tim.some((m) => JO.isMinor(m.birth_date)) : S.athletes.some((a) => JO.isMinor(a.birth_date));
+    const intl = S.athletes.some((a) => a.nationality === 'WNA') || tim.some((m) => m.nationality === 'WNA');
+    const minors = S.athletes.some((a) => JO.isMinor(a.birth_date)) || tim.some((m) => JO.isMinor(m.birth_date));
     const cap = CFG.registration.qris_cap;
     const over = !intl && base + pri + 999 > cap;
     const consents = ['waiver', 'insurance', 'data', 'rules'].concat(minors ? ['guardian'] : []);
     const athName = (k) => (S.athletes.find((a) => a.key === k) || {}).full_name;
-    const rows = team
-      ? `<tr><td><strong>${esc(T.name.trim())}</strong><br><span class="small muted">${esc(dName(disc()))} · ${esc(T.level)}</span></td><td class="r num">${fmtRp(teamFee())}</td></tr>
-         ${T.members.map((m) => { const c = m.kind === 'tim' ? memberCat(m) : null;
-           return `<tr><td>${esc(m.full_name.trim())}<br><span class="small muted">${esc(t(m.kind === 'tim' ? 'sum_member_tim' : 'sum_member_ind'))}${c ? ' · ' + esc(cName(c)) : ''}</span></td><td class="r num muted">–</td></tr>`; }).join('')}`
-      : entries.map((e) => { const c = catById(e.category_id); return `<tr><td>${esc(e.athletes.map(athName).join(' & '))}<br><span class="small muted">${esc(cName(c))}</span></td>
-            <td class="r num">${fmtRp(c.fee)}</td></tr>`; }).join('');
+    const memberLine = (T, m) => {
+      if (m.kind === 'form') { const a = S.athletes.find((x) => x.key === m.ref) || {}; return [a.full_name, t('sum_member_ind')]; }
+      if (m.kind === 'individu') return [m.full_name, t('sum_member_prev')];
+      const c = memberCat(T, m); return [m.full_name, t('sum_member_tim') + (c ? ' · ' + cName(c) : '')];
+    };
+    const rows = entries.map((e) => { const c = catById(e.category_id); return `<tr><td>${esc(e.athletes.map(athName).join(' & '))}<br><span class="small muted">${esc(cName(c))}</span></td>
+            <td class="r num">${fmtRp(c.fee)}</td></tr>`; }).join('')
+      + teams.map((T) => `<tr><td><strong>${esc(t('st_team'))}: ${esc(T.name.trim())}</strong><br><span class="small muted">${esc(dName(disc()))} · ${esc(T.level)}</span></td><td class="r num">${fmtRp(teamFee())}</td></tr>
+         ${T.members.map((m) => { const [n, k] = memberLine(T, m);
+           return `<tr><td style="padding-left:18px">${esc((n || '').trim())}<br><span class="small muted">${esc(k)}</span></td><td class="r num muted">–</td></tr>`; }).join('')}`).join('');
     box.innerHTML = `<section class="card">
         <h2>${esc(t('sum_title'))}</h2>
         <div class="tbl-wrap" style="margin-bottom:14px"><table class="tbl"><tbody>${rows}</tbody></table></div>
         <table class="breakdown"><tbody>
-          <tr><td>${esc(t(team ? 'sum_team' : 'sum_fees'))}</td><td>${fmtRp(base)}</td></tr>
+          ${entryFees ? `<tr><td>${esc(t('sum_fees'))}</td><td>${fmtRp(entryFees)}</td></tr>` : ''}
+          ${teamFees ? `<tr><td>${esc(t('sum_team'))} (${teams.length} × ${fmtRp(teamFee())})</td><td>${fmtRp(teamFees)}</td></tr>` : ''}
           ${pri ? `<tr><td>${esc(t('sum_pri'))}</td><td>${fmtRp(pri)}</td></tr>` : ''}
           ${!intl ? `<tr><td>${esc(t('sum_uc'))}</td><td class="muted">${esc(t('sum_uc_val'))}</td></tr>` : ''}
           <tr class="total"><td>${esc(t('sum_total'))}</td><td>${fmtRp(base + pri)}${intl ? '' : ' + ' + esc(t('sum_uc').toLowerCase())}</td></tr>
         </tbody></table>
         ${!intl ? `<p class="note warn small" style="margin-top:12px">${esc(t('sum_15'))}</p>` : ''}
-        ${(() => { const list = (team ? tim : S.athletes).filter((x) => x.nationality !== 'WNA' && !x.bpjs).map((x) => x.full_name.trim()).filter(Boolean);
+        ${(() => { const list = S.athletes.concat(tim).filter((x) => x.nationality !== 'WNA' && !x.bpjs).map((x) => x.full_name.trim()).filter(Boolean);
             return list.length ? `<p class="note info small">${esc(t('sum_bpjs', { n: list.join(', ') }))}</p>` : ''; })()}
         ${intl ? `<p class="note info" style="margin-top:12px">${esc(t('sum_intl'))}</p>` : ''}
         ${over ? `<p class="note bad" style="margin-top:12px">${esc(t('sum_cap', { cap: fmtRp(cap) }))}</p>` : ''}
@@ -916,31 +1002,30 @@
       try {
         await JO.ensureSession();
         const payload = {
-          registrant_type: S.type, discipline: S.discipline, lang: JO.lang,
+          registrant_type: 'klub', discipline: S.discipline, lang: JO.lang,
           contact: { name: S.contact.name.trim(), email: S.contact.email.trim(), phone: S.contact.phone.trim(), role: S.contact.role },
           club: S.club.mode === 'existing' ? { id: S.club.id }
-            : S.club.mode === 'new' ? { new: { name: S.club.name.trim(), kind: S.club.kind, province: S.club.abroad ? null : S.club.province, kab_kota: S.club.abroad ? null : S.club.kab_kota.trim(), country: S.club.abroad ? S.club.country.trim() : 'Indonesia' } }
-            : { none: true },
-          athletes: team ? [] : S.athletes.map((a) => ({ key: a.key, full_name: a.full_name.trim(), gender: a.gender, birth_date: a.birth_date, nationality: a.nationality,
+            : { new: { name: S.club.name.trim(), kind: S.club.kind, province: S.club.abroad ? null : S.club.province, kab_kota: S.club.abroad ? null : S.club.kab_kota.trim(), country: S.club.abroad ? S.club.country.trim() : 'Indonesia' } },
+          athletes: S.athletes.map((a) => ({ key: a.key, full_name: a.full_name.trim(), gender: a.gender, birth_date: a.birth_date, nationality: a.nationality,
             country: a.nationality === 'WNA' ? a.country.trim() : 'Indonesia', province: a.nationality === 'WNI' ? a.province : null, kab_kota: a.nationality === 'WNI' ? a.kab_kota.trim() : null,
             ...docPaths(a),
             guardian: JO.isMinor(a.birth_date) ? a.guardian : null })),
-          entries: team ? [] : buildEntries(),
-          consents: Object.fromEntries(consents.map((k) => [k, true])),
-        };
-        if (team) {
-          payload.team = { level: T.level, name: T.name.trim(), members: T.members.map((m) => m.kind === 'individu'
+          entries: buildEntries(),
+          teams: teams.map((T) => ({ level: T.level, name: T.name.trim(), members: T.members.map((m) => m.kind === 'form'
+            ? { kind: 'form', key: m.ref }
+            : m.kind === 'individu'
             ? { kind: 'individu', full_name: m.full_name.trim(), birth_date: m.birth_date }
             : { kind: 'tim', full_name: m.full_name.trim(), birth_date: m.birth_date, nationality: m.nationality,
                 country: m.nationality === 'WNA' ? m.country.trim() : 'Indonesia',
                 ...docPaths(m),
-                guardian: JO.isMinor(m.birth_date) ? m.guardian : null, category_id: (memberCat(m) || {}).id }) };
-        }
+                guardian: JO.isMinor(m.birth_date) ? m.guardian : null, category_id: (memberCat(T, m) || {}).id }) })),
+          consents: Object.fromEntries(consents.map((k) => [k, true])),
+        };
         const r = await rpc('public_register', { p: payload });
         S.result = r;
         try {
           const my = JSON.parse(localStorage.getItem('jo26-my') || '[]');
-          my.unshift({ code: r.code, token: r.token, at: new Date().toISOString(), discipline: S.discipline, n: team ? T.members.length : S.athletes.length });
+          my.unshift({ code: r.code, token: r.token, at: new Date().toISOString(), discipline: S.discipline, n: people() });
           localStorage.setItem('jo26-my', JSON.stringify(my.slice(0, 30)));
         } catch (e) {}
         clearDraft();
@@ -972,7 +1057,8 @@
             <p style="margin:10px 0 6px;font-weight:700">${esc(t('pay_exact'))}</p>
             <p class="small muted">${esc(t('pay_why'))}</p>
             <table class="breakdown" style="margin:12px 0"><tbody>
-              <tr><td>${esc(t(S.type === 'beregu' ? 'sum_team' : 'sum_fees'))}</td><td>${fmtRp(r.base_amount)}</td></tr>
+              ${r.base_amount - (r.team_amount || 0) ? `<tr><td>${esc(t('sum_fees'))}</td><td>${fmtRp(r.base_amount - (r.team_amount || 0))}</td></tr>` : ''}
+              ${r.team_amount ? `<tr><td>${esc(t('sum_team'))}</td><td>${fmtRp(r.team_amount)}</td></tr>` : ''}
               <tr><td>${esc(t('sum_uc'))}</td><td>${fmtRp(r.unique_code)}</td></tr>
             </tbody></table>
             <p class="small">${t('pay_steps')}</p>
@@ -986,7 +1072,13 @@
         <div class="upload" id="proof_up"><label class="btn btn-dark" style="position:relative;overflow:hidden">${esc(t('proof_title'))}
           <input type="file" accept="image/*,application/pdf" style="position:absolute;inset:0;opacity:0;cursor:pointer"></label><span class="small" data-st></span></div>
       </section>` : `<section class="card"><p class="note info">${esc(t('pay_intl', { e: S.contact.email }))}</p></section>`}
-      <div class="step-actions"><a class="btn btn-ghost" href="daftar.html">${esc(t('register_more'))}</a><a class="btn btn-primary" href="${statusUrl}">${esc(t('open_status'))}</a></div>`;
+      <div class="step-actions"><a class="btn btn-ghost" href="daftar.html" id="more">${esc(t('register_more'))}</a><a class="btn btn-primary" href="${statusUrl}">${esc(t('open_status'))}</a></div>`;
+    const more = app.querySelector('#more');
+    if (more) more.onclick = () => {
+      // pendaftaran berikutnya dari klub yang sama: klub, disiplin, dan penanggung jawab dipertahankan
+      S.athletes = []; S.pairs = []; S.teams = []; S.consents = {}; S.step = 3;
+      saveDraft();
+    };
     const up = app.querySelector('#proof_up');
     if (up) up.querySelector('input').onchange = async (e) => {
       const file = e.target.files[0]; if (!file) return;
@@ -1025,6 +1117,10 @@
     } catch (e) {
       app.innerHTML = `<div class="note bad">${esc(t('load_fail'))} ${esc(e.message)}</div><p><button class="btn btn-ghost" onclick="location.reload()">${esc(t('retry'))}</button></p>`;
       return;
+    }
+    if ((CFG.registration.form_version || 0) < 8) {
+      const c = document.getElementById('closed'); c.hidden = false; c.textContent = t('form_old');
+      app.innerHTML = ''; return;
     }
     if (!CFG.registration.open) {
       const c = document.getElementById('closed'); c.hidden = false; c.textContent = t('closed');

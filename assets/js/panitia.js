@@ -7,6 +7,7 @@
   const root = document.getElementById('root');
   const DN = { MAG: 'Artistik Putra', WAG: 'Artistik Putri', RG: 'Ritmik', AER: 'Aerobik' };
   const DISCS = ['MAG', 'WAG', 'RG', 'AER'];
+  const ROLE_CLUB = { pemilik: 'pemilik klub', admin: 'admin klub', pelatih: 'pelatih', manajer: 'manajer/official', lainnya: 'lainnya', atlet: 'atlet', ortu: 'orang tua/wali' };
   const ROLE = { owner: 'Owner', superadmin: 'Superadmin', admin: 'Admin', td: 'TD', juri: 'Juri', pemantau: 'Pemantau' };
   const ST = { menunggu_pembayaran: 'Menunggu pembayaran', menunggu_verifikasi: 'Menunggu verifikasi', lunas: 'Lunas', perlu_perbaikan: 'Perlu perbaikan', dibatalkan: 'Dibatalkan' };
   let ME = null, CATS = null;
@@ -430,7 +431,7 @@
         <th>Kode</th><th>Pendaftar</th><th>Atlet</th><th class="r">Total</th><th>Status</th><th>Periksa</th></tr></thead><tbody>
         ${rows.map((r) => `<tr class="click" data-id="${r.id}">
           <td><span class="code">${esc(r.code)}</span><br><span class="tiny muted">${dt(r.created_at)}</span></td>
-          <td>${esc(r.club || 'Perorangan')}<br><span class="tiny muted">${esc(r.contact_name)}, ${esc(r.region || '')}</span></td>
+          <td>${esc(r.club || '–')}<br><span class="tiny muted">${esc(r.contact_name)}, ${esc(r.region || '')}</span></td>
           <td class="small">${r.team_name ? `<strong>Tim ${esc(r.team_name)}</strong><br>` : ''}${esc(r.athlete_names || '')}</td>
           <td class="r num">${fmtRp(r.total_amount)}${r.payment_method === 'manual' ? '<br><span class="pill warn">WNA</span>' : ''}</td>
           <td>${pill(r.status)}</td>
@@ -453,17 +454,17 @@
     const club = D.club ? `${esc(D.club.name)}<br><span class="tiny muted">${esc([D.club.kab_kota, D.club.province, D.club.country !== 'Indonesia' ? D.club.country : ''].filter(Boolean).join(', '))}${D.club.verified ? '' : ', klub baru belum diverifikasi'}</span>` : 'Perorangan (tanpa klub)';
     v.innerHTML = `<p><a href="#/pendaftaran">Kembali ke daftar</a></p>
       <div class="row" style="justify-content:space-between"><h1 class="code">${esc(s.code)}</h1>${pill(s.status)}</div>
-      <p class="muted">${esc(s.discipline_name)}, ${s.registrant_type === 'klub' ? 'pendaftaran klub' : s.registrant_type === 'beregu' ? 'pendaftaran beregu' : 'perorangan'}, ${dt(s.created_at)}</p>
+      <p class="muted">${esc(s.discipline_name)}, ${s.registrant_type === 'klub' ? 'pendaftaran klub' : s.registrant_type === 'beregu' ? 'pendaftaran beregu (format lama)' : 'perorangan (format lama)'}${D.teams.length ? `, ${D.teams.length} tim beregu` : ''}, ${dt(s.created_at)}</p>
       <div class="split" style="margin-top:14px">
         <div>
           <section class="card"><h2>Pendaftar</h2><dl class="kv">
-            <dt>Penanggung jawab</dt><dd>${esc(s.contact_name)}${s.contact_role ? ` <span class="tiny muted">(${esc(s.contact_role)})</span>` : ''}</dd>
+            <dt>Penanggung jawab</dt><dd>${esc(s.contact_name)}${s.contact_role ? ` <span class="tiny muted">(${esc(ROLE_CLUB[s.contact_role] || s.contact_role)})</span>` : ''}</dd>
             <dt>WhatsApp</dt><dd><a href="${wa(s.contact_phone)}" target="_blank" rel="noopener">${esc(s.contact_phone)}</a></dd>
             <dt>Email</dt><dd><a href="mailto:${esc(s.contact_email)}">${esc(s.contact_email)}</a></dd>
             <dt>Klub</dt><dd>${club}</dd>
             <dt>Bahasa</dt><dd>${s.lang === 'en' ? 'English' : 'Indonesia'}</dd></dl></section>
-          ${D.team ? teamCardConsole(D.team, s) : ''}
-          <section class="card"><h2>${D.team ? 'Pesenam khusus beregu' : 'Atlet & kategori'}</h2>${D.team && !D.athletes.length ? '<p class="small muted">Semua anggota tim juga terdaftar perorangan; data dan dokumen mereka ada di pendaftaran perorangannya.</p>' : ''}<div id="aths" class="stack"></div></section>
+          ${D.teams.map((T) => teamCardConsole(T, s)).join('')}
+          <section class="card"><h2>Atlet & kategori</h2>${D.teams.length && !D.athletes.length ? '<p class="small muted">Semua anggota tim didaftarkan perorangan lewat pendaftaran klub sebelumnya; data dan dokumen mereka ada di sana.</p>' : ''}<div id="aths" class="stack"></div></section>
           <section class="card"><h2>Email</h2>
             ${D.emails.length ? `<ul class="small" style="padding-left:18px;margin:0 0 10px">${D.emails.map((e) => `<li>${esc(e.kind)} ke ${esc(e.to)}: <strong>${esc(e.status)}</strong> ${e.sent_at ? dt(e.sent_at) : ''}</li>`).join('')}</ul>` : '<p class="small muted">Belum ada email.</p>'}
             <div class="actions"><button class="btn btn-ghost btn-sm" data-mail="pendaftaran">Kirim ulang tagihan</button>
@@ -474,7 +475,8 @@
         <div>
           <section class="card" style="position:sticky;top:12px"><h2>Pembayaran</h2>
             <table class="breakdown"><tbody>
-              <tr><td>${s.registrant_type === 'beregu' ? 'Biaya beregu' : 'Biaya pendaftaran'}</td><td>${fmtRp(s.base_amount)}</td></tr>
+              ${s.base_amount - (s.team_amount || 0) ? `<tr><td>Biaya pendaftaran</td><td>${fmtRp(s.base_amount - (s.team_amount || 0))}</td></tr>` : ''}
+              ${s.team_amount ? `<tr><td>Biaya beregu (${D.teams.length} tim)</td><td>${fmtRp(s.team_amount)}</td></tr>` : ''}
                 <tr><td>Kode unik</td><td>${fmtRp(s.unique_code)}</td></tr>
               <tr class="total"><td>Total</td><td>${fmtRp(s.total_amount)}</td></tr></tbody></table>
             ${s.payment_method === 'manual' ? '<p class="note warn" style="margin-top:12px">Atlet internasional: pembayaran terpisah. Hubungi pendaftar, lalu superadmin menandai lunas dengan nominal yang diterima.</p>' : ''}
@@ -1330,7 +1332,7 @@
         ${D.summary.map((s) => `<tr><td>${esc(s.name)}</td><td class="r num">${fmtRp(s.expected)}</td><td class="r num"><strong>${fmtRp(s.paid)}</strong></td><td class="r num">${fmtRp(s.fees_paid)}</td><td class="r num">${s.discipline === 'MAG' || s.discipline === 'WAG' ? `${fmtRp(s.team_paid || 0)}<br><span class="tiny muted">${s.teams_paid || 0} tim</span>` : '–'}</td><td class="r num">${fmtRp(s.priangan_paid)}</td><td class="r num">${fmtRp(s.unique_paid)}</td><td class="r num">${s.count_paid} / ${s.count_open}</td></tr>`).join('')}
         <tr><td><strong>Total</strong></td><td class="r num"><strong>${fmtRp(tot.expected)}</strong></td><td class="r num"><strong>${fmtRp(tot.paid)}</strong></td><td class="r num">${fmtRp(tot.fees)}</td><td class="r num">${fmtRp(tot.team)}<br><span class="tiny muted">${tot.teams} tim</span></td><td class="r num">${fmtRp(tot.pri)}</td><td class="r num">${fmtRp(tot.uc)}</td><td></td></tr></tbody></table></div>`;
       v.querySelector('#rows').innerHTML = D.rows.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Kode</th><th>Disiplin</th><th>Klub / pendaftar</th><th class="r">Biaya</th><th class="r">Priangan</th><th class="r">Unik</th><th class="r">Total</th><th>Status</th><th>Diverifikasi</th><th>Mutasi</th></tr></thead><tbody>
-        ${D.rows.map((r) => `<tr class="click" data-id="${r.id}"><td class="code small">${esc(r.code)}<br><span class="tiny muted">${dt(r.created_at)}</span></td><td>${r.discipline}</td><td class="small">${esc(r.club)}${r.registrant_type === 'beregu' ? `<br><span class="pill gold">Beregu</span> ${esc(r.team_name || '')}` : ''}<br><span class="muted">${esc(r.contact_name)}</span></td>
+        ${D.rows.map((r) => `<tr class="click" data-id="${r.id}"><td class="code small">${esc(r.code)}<br><span class="tiny muted">${dt(r.created_at)}</span></td><td>${r.discipline}</td><td class="small">${esc(r.club)}${r.team_name ? `<br><span class="pill gold">Beregu</span> ${esc(r.team_name)}` : ''}<br><span class="muted">${esc(r.contact_name)}</span></td>
           <td class="r num">${fmtRp(r.base_amount)}</td><td class="r num">${fmtRp(r.priangan_amount)}</td><td class="r num">${r.unique_code}</td><td class="r num"><strong>${fmtRp(r.total_amount)}</strong></td>
           <td>${pill(r.status)}</td><td class="small">${esc(r.verified_by || '')}<br><span class="muted">${r.verified_at ? dt(r.verified_at) : ''}</span></td>
           <td class="small">${(r.mutations || []).map((m) => `${fmtRp(m.amount)} <span class="muted">${esc(m.match_status)}</span>`).join('<br>')}</td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">Belum ada tagihan.</p>';

@@ -37,9 +37,9 @@ ITEMS = [
 - Aerobic: 19–20 December"""),
 
     ('umum', 'siapa-boleh-ikut', 'Siapa yang boleh ikut?',
-     """Sekolah, klub, pengkab/pengkot, dan perorangan, termasuk atlet dari luar negeri. Atlet tidak harus bergabung dengan klub; pilih "Perorangan" saat mendaftar.""",
+     """Atlet dari klub, sekolah, atau pengkab/pengkot, termasuk dari luar negeri. **Semua atlet didaftarkan lewat klubnya**, oleh pemilik, admin, pelatih, atau official klub; tidak ada pendaftaran perorangan. Atlet yang belum punya klub perlu didaftarkan oleh klub atau sekolah tempatnya berlatih.""",
      'Who can take part?',
-     """Schools, clubs, regency/city associations and individuals, including athletes from abroad. Athletes do not need a club; choose "Individual" when registering."""),
+     """Athletes from clubs, schools or regency/city associations, including from abroad. **Every athlete is registered through their club**, by the club's owner, admin, coach or official; there is no individual registration. An athlete without a club needs to be entered by the club or school where they train."""),
 
     ('umum', 'peraturan', 'Peraturan apa yang dipakai? Apakah ada protes nilai?',
      """Penilaian memakai CoP FIG 2025–2028, TR 2025, dan ALP tanpa bonus. Tidak ada protes nilai: dengan mendaftar, peserta menerima keputusan juri dan panitia.""",
@@ -95,11 +95,11 @@ Total yang dibayar ditambah kode unik tiga digit untuk mencocokkan pembayaran.""
 A three-digit unique code is added to the total to match your payment."""),
 
     ('pendaftaran', 'jumlah-atlet', 'Berapa atlet yang bisa didaftarkan sekaligus?',
-     """Satu pendaftaran untuk satu disiplin. Perorangan untuk satu atlet; klub, sekolah, atau pengkab hingga **lima atlet** per pendaftaran. Untuk lebih dari lima atlet, buat pendaftaran berikutnya.
+     """Satu pendaftaran untuk satu disiplin, maksimal **10 atlet**, termasuk anggota "khusus beregu". Klub dengan lebih dari 10 atlet cukup membuat pendaftaran berikutnya; data klub dan penanggung jawab tersimpan untuk pendaftaran berikutnya di perangkat yang sama.
 
 Kuota per klub per kategori: maksimal 10 pesenam untuk Artistik dan 4 atlet untuk Aerobik. Satu transaksi QRIS maksimal Rp10.000.000; bila total melebihinya, bagi atlet ke dalam dua pendaftaran.""",
      'How many athletes can be registered at once?',
-     """One registration covers one discipline. Individual registrations are for one athlete; clubs, schools and associations can enter up to **five athletes** per registration. For more than five, submit another registration.
+     """One registration covers one discipline, with up to **10 athletes**, including "team only" members. A club with more than 10 athletes simply submits another registration; the club and contact details are kept for the next one on the same device.
 
 Quota per club per category: up to 10 gymnasts for Artistic and 4 athletes for Aerobic. One QRIS transaction is capped at Rp10,000,000; if the total is higher, split the athletes into two registrations."""),
 
@@ -127,18 +127,18 @@ Quota per club per category: up to 10 gymnasts for Artistic and 4 athletes for A
      """**Indonesian** athletes whose ID address is in **West Java**, entered through a **West Java club**. Where the coach or contact person filling in the form comes from does not matter. The fee is the same Rp750,000, with no extra charge. Priangan has its own medal table."""),
 
     ('pendaftaran', 'beregu', 'Bagaimana aturan Beregu Artistik Putri?',
-     """Beregu hanya untuk Artistik Putri Level 1–6, biaya Rp650.000 per tim di luar biaya perorangan.
+     """Beregu hanya untuk Artistik Putri Level 1–6, biaya Rp650.000 per tim di luar biaya perorangan. Tim ditambahkan di langkah **Beregu** pada pendaftaran klub, bersama atletnya.
 
 - Satu tim untuk satu level, 1–6 pesenam; kelompok usia boleh campur.
 - Satu klub boleh mengirim beberapa tim di level yang sama dengan nama berbeda.
-- Anggota bisa "juga perorangan" (sudah terdaftar perorangan lewat klub yang sama) atau "khusus beregu" (dinilai untuk tim, tidak diperingkat perorangan).
+- Anggota bisa atlet di pendaftaran yang sama, atlet yang sudah didaftarkan klub di level itu lewat pendaftaran sebelumnya, atau "khusus beregu" (dinilai untuk tim, tidak diperingkat perorangan, dan dihitung dalam batas 10 atlet).
 - Nilai tim = jumlah 4 nilai serba bisa terbaik. Setiap anggota tim juara 1–3 mendapat sertifikat Juara Beregu.""",
      "How does the Women's Artistic team event work?",
-     """The team event is for Women's Artistic Levels 1–6 only, Rp650,000 per team on top of individual fees.
+     """The team event is for Women's Artistic Levels 1–6 only, Rp650,000 per team on top of individual fees. Teams are added in the **Team** step of the club registration, together with the athletes.
 
 - One team per level, 1–6 gymnasts; age groups can be mixed.
 - A club may send several teams at the same level under different names.
-- Members are either "also individual" (already registered individually through the same club) or "team only" (scored for the team, not ranked individually).
+- Members can be athletes in the same registration, athletes the club entered at that level in an earlier registration, or "team only" (scored for the team, not ranked individually, and counted in the 10-athlete limit).
 - Team score = sum of the best 4 all-around scores. Every member of a 1st–3rd place team receives a Team Champion certificate."""),
 
     ('pendaftaran', 'klub-belum-ada', 'Klub saya tidak ada di daftar. Bagaimana?',
@@ -258,6 +258,14 @@ If the committee marks a link as "cannot be opened", fix the sharing and resend 
 ]
 
 
+# teks lama (versi sebelum v8): diganti hanya bila isi jawabannya belum diubah panitia
+REVISED_V8 = {
+    'siapa-boleh-ikut': 'Sekolah, klub, pengkab/pengkot, dan perorangan, termasuk atlet dari luar negeri. Atlet tidak harus bergabung dengan klub; pilih "Perorangan" saat mendaftar.',
+    'jumlah-atlet': 'Satu pendaftaran untuk satu disiplin. Perorangan untuk satu atlet; klub, sekolah, atau pengkab hingga **lima atlet** per pendaftaran. Untuk lebih dari lima atlet, buat pendaftaran berikutnya.\n\nKuota per klub per kategori: maksimal 10 pesenam untuk Artistik dan 4 atlet untuk Aerobik. Satu transaksi QRIS maksimal Rp10.000.000; bila total melebihinya, bagi atlet ke dalam dua pendaftaran.',
+    'beregu': 'Beregu hanya untuk Artistik Putri Level 1–6, biaya Rp650.000 per tim di luar biaya perorangan.\n\n- Satu tim untuk satu level, 1–6 pesenam; kelompok usia boleh campur.\n- Satu klub boleh mengirim beberapa tim di level yang sama dengan nama berbeda.\n- Anggota bisa "juga perorangan" (sudah terdaftar perorangan lewat klub yang sama) atau "khusus beregu" (dinilai untuk tim, tidak diperingkat perorangan).\n- Nilai tim = jumlah 4 nilai serba bisa terbaik. Setiap anggota tim juara 1–3 mendapat sertifikat Juara Beregu.',
+}
+
+
 def q(s):
     assert '$f$' not in s
     return '$f$' + s + '$f$'
@@ -279,6 +287,12 @@ def main():
         sorts[cat] = sorts.get(cat, 0) + 10
         L.append(f"insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ("
                  f"{q(cat)}, {q(slug)}, {q(qid)}, {q(aid.strip())}, {q(qen)}, {q(aen.strip())}, {sorts[cat]}, 'draf', 'Draf awal') on conflict (slug) do nothing;")
+    # v8 (15/10/2026): pendaftaran hanya lewat klub, maks 10 atlet. Perbarui draf yang belum disunting panitia.
+    L.append('-- v8: perbarui butir yang terdampak, hanya bila isi jawabannya masih teks lama (status terbit tetap)')
+    for cat, slug, qid, aid, qen, aen in ITEMS:
+        if slug in REVISED_V8:
+            L.append(f"update jo.faq_items set q_id = {q(qid)}, a_id = {q(aid.strip())}, q_en = {q(qen)}, a_en = {q(aen.strip())}, updated_at = now() "
+                     f"where slug = {q(slug)} and a_id = {q(REVISED_V8[slug])};")
     open(out, 'w').write('\n'.join(L) + '\n')
     print(f'{out}: {len(CATS)} kategori, {len(ITEMS)} butir')
 

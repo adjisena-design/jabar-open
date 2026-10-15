@@ -499,6 +499,13 @@ create table if not exists jo.faq_items (
 );
 create index if not exists faq_items_cat on jo.faq_items (category, sort);
 
+-- v8 (15/10/2026): semua pendaftaran lewat klub (maks. 10 atlet), beregu menjadi bagian
+-- pendaftaran klub. Bagian biaya beregu disimpan terpisah untuk buku besar.
+alter table jo.submissions add column if not exists team_amount integer not null default 0;
+-- satu pendaftaran klub boleh berisi lebih dari satu tim (level berbeda atau nama berbeda)
+alter table jo.teams drop constraint if exists teams_submission_id_key;
+create index if not exists teams_submission_idx on jo.teams(submission_id);
+
 -- Semua tabel di skema jo: RLS aktif tanpa policy.
 -- Akses hanya lewat fungsi (RPC) yang memeriksa hak.
 do $$ declare t record; begin
@@ -1085,7 +1092,7 @@ $$;
 -- Ringkasan tim beregu untuk email
 create or replace function jo.email_team(p_sub uuid, p_lang text) returns text
 language sql stable set search_path = '' as $$
-  select '<p style="margin:10px 0 2px"><b>' || jo.h(t.name) || '</b> &middot; '
+  select string_agg('<p style="margin:10px 0 2px"><b>' || jo.tr(p_lang, 'Beregu: ', 'Team: ') || jo.h(t.name) || '</b> &middot; '
     || jo.h(case when p_lang = 'en' then d.name_en else d.name_id end) || ' ' || jo.h(t.level) || '</p>'
     || '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:4px 0">'
     || coalesce((select string_agg(
@@ -1097,7 +1104,7 @@ language sql stable set search_path = '' as $$
        from jo.team_members m join jo.athletes a on a.id = m.athlete_id
        join jo.entries e on e.id = m.entry_id join jo.categories c on c.id = e.category_id
        where m.team_id = t.id), '')
-    || '</table>'
+    || '</table>', '' order by t.level, t.name)
   from jo.teams t join jo.disciplines d on d.code = t.discipline
   where t.submission_id = p_sub
 $$;
@@ -1121,9 +1128,10 @@ begin
     || jo.h(case when l = 'en' then d.name_en else d.name_id end)
     || jo.tr(l, ' sudah kami terima. Kode pendaftaran Anda:', ' registration has been received. Your registration code:')
     || '</p><p style="font-size:22px;font-weight:bold;letter-spacing:1px;margin:6px 0 14px">' || jo.h(s.code) || '</p>'
-    || case when s.registrant_type = 'beregu' then coalesce(jo.email_team(s.id, l), '') else jo.email_roster(s.id, l) end
+    || jo.email_roster(s.id, l) || coalesce(jo.email_team(s.id, l), '')
     || '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:14px 0;font-size:14px">'
-    || '<tr><td style="padding:3px 0">' || case when s.registrant_type = 'beregu' then jo.tr(l,'Biaya beregu (per tim)','Team fee (per team)') else jo.tr(l,'Biaya pendaftaran','Entry fees') end || '</td><td align="right">' || jo.fmt_rp(s.base_amount) || '</td></tr>'
+    || case when s.base_amount - s.team_amount > 0 then '<tr><td style="padding:3px 0">' || jo.tr(l,'Biaya pendaftaran','Entry fees') || '</td><td align="right">' || jo.fmt_rp(s.base_amount - s.team_amount) || '</td></tr>' else '' end
+    || case when s.team_amount > 0 then '<tr><td style="padding:3px 0">' || jo.tr(l,'Biaya beregu','Team fees') || '</td><td align="right">' || jo.fmt_rp(s.team_amount) || '</td></tr>' else '' end
     || case when s.priangan_amount > 0 then '<tr><td style="padding:3px 0">' || jo.tr(l,'Kategori Priangan','Priangan category') || '</td><td align="right">' || jo.fmt_rp(s.priangan_amount) || '</td></tr>' else '' end
     || case when s.unique_code > 0 then '<tr><td style="padding:3px 0">' || jo.tr(l,'Kode unik','Unique code') || '</td><td align="right">' || jo.fmt_rp(s.unique_code) || '</td></tr>' else '' end
     || '<tr><td style="padding:10px 0 0;font-weight:bold;font-size:16px">' || jo.tr(l,'Total yang harus dibayar','Total to pay') || '</td>'
@@ -1171,7 +1179,7 @@ begin
   body := '<p>' || jo.tr(l,'Halo ','Hello ') || jo.h(s.contact_name) || ',</p>'
     || '<p>' || jo.tr(l,'Pembayaran untuk pendaftaran ','Payment for registration ') || '<b>' || jo.h(s.code) || '</b> '
     || jo.tr(l,'sudah kami verifikasi. Status: <b style="color:#1b8a4b">LUNAS</b>.','has been verified. Status: <b style="color:#1b8a4b">PAID</b>.') || '</p>'
-    || case when s.registrant_type = 'beregu' then coalesce(jo.email_team(s.id, l), '') else jo.email_roster(s.id, l) end
+    || jo.email_roster(s.id, l) || coalesce(jo.email_team(s.id, l), '')
     || '<p>' || jo.tr(l,'Athlete Identification Card (AIC) Jabar Open 2026 sudah bisa diunduh. Tekan tautan di bawah; AIC terunduh otomatis sebagai PDF. AIC wajib ditunjukkan secara digital (dari ponsel, tanpa dicetak) di venue. Tidak ada registrasi ulang: cukup datang sesuai jadwal yang diumumkan di Instagram dan situs Jabar Open 2026.',
                       'The Athlete Identification Cards (AIC) Jabar Open 2026 are ready. Tap a link below and the AIC downloads as a PDF. Show it digitally (on a phone, no printing) at the venue. There is no on-site check-in: just come at the schedule announced on Instagram and the Jabar Open 2026 website.') || '</p>'
     || jo.email_aic_links(s.id, l)
@@ -1287,7 +1295,8 @@ begin
               and now() <= coalesce((jo.setting_text('registration_deadline'))::timestamptz, now()),
       'deadline', jo.setting_text('registration_deadline'),
       'deadline_label', jo.setting_text('payment_deadline_label'),
-      'max_athletes', coalesce(jo.setting_int('max_athletes'), 5),
+      'max_athletes', coalesce(jo.setting_int('max_athletes'), 10),
+      'form_version', 8,
       'priangan_fee', coalesce(jo.setting_int('priangan_fee'), 150000),
       'team_fee', coalesce(jo.setting_int('team_fee'), 650000),
       'team_max', coalesce(jo.setting_int('team_max'), 6),
@@ -1419,7 +1428,7 @@ declare
   v_disc      jo.disciplines;
   v_type      text := p->>'registrant_type';
   v_contact   jsonb := coalesce(p->'contact', '{}'::jsonb);
-  v_max       integer := coalesce(jo.setting_int('max_athletes'), 5);
+  v_max       integer := coalesce(jo.setting_int('max_athletes'), 10);
   v_pri_fee   integer := coalesce(jo.setting_int('priangan_fee'), 150000);
   v_team_fee  integer := coalesce(jo.setting_int('team_fee'), 650000);
   v_team_max  integer := coalesce(jo.setting_int('team_max'), 6);
@@ -1453,6 +1462,7 @@ declare
   v_pri_ok    boolean;
   v_consents  jsonb := coalesce(p->'consents', '{}'::jsonb);
   i           integer := 0;
+  ti          integer := 0;
   -- beregu
   v_team      jsonb := coalesce(p->'team', '{}'::jsonb);
   v_level     text;
@@ -1464,6 +1474,13 @@ declare
   v_mgender   text;
   v_music     text;
   v_mus       jsonb;
+  v_teams     jsonb;
+  v_tm        jsonb;
+  v_n_teams   integer;
+  v_people    integer;
+  v_team_amt  integer := 0;
+  v_sortn     integer := 0;
+  v_role      text := lower(trim(coalesce(v_contact->>'role','')));
 begin
   if v_uid is null then
     raise exception 'Sesi browser belum siap. Muat ulang halaman lalu coba lagi.' using hint = 'ERR_SESSION';
@@ -1488,10 +1505,16 @@ begin
     raise exception 'Pendaftaran disiplin % sedang ditutup.', v_disc.name_id using hint = 'ERR_CLOSED';
   end if;
 
-  if v_type not in ('individu','klub','beregu') then
-    raise exception 'Pilih jenis pendaftar: perorangan, klub/sekolah, atau beregu.' using hint = 'ERR_TYPE';
+  -- v8: semua pendaftaran lewat klub; beregu adalah bagian opsional dari pendaftaran klub
+  if coalesce(v_type, 'klub') <> 'klub' then
+    raise exception 'Pendaftaran kini hanya lewat klub (perorangan dan beregu terpisah sudah tidak tersedia). Muat ulang halaman pendaftaran.' using hint = 'ERR_TYPE';
   end if;
-  if v_type = 'beregu' and not (jo.setting('team_levels') ? v_disc.code) then
+  v_type := 'klub';
+  v_teams := case when jsonb_typeof(p->'teams') = 'array' then p->'teams'
+                  when jsonb_typeof(p->'team') = 'object' and p->'team' <> '{}'::jsonb then jsonb_build_array(p->'team')
+                  else '[]'::jsonb end;
+  v_n_teams := jsonb_array_length(v_teams);
+  if v_n_teams > 0 and not (jo.setting('team_levels') ? v_disc.code) then
     raise exception 'Beregu hanya untuk Artistik Putri Level 1–6.' using hint = 'ERR_TEAM';
   end if;
 
@@ -1505,19 +1528,20 @@ begin
   if length(regexp_replace(coalesce(v_contact->>'phone',''), '[^0-9]', '', 'g')) < 9 then
     raise exception 'Nomor WhatsApp penanggung jawab tidak valid.' using hint = 'ERR_CONTACT_PHONE';
   end if;
+  if v_role not in ('pemilik','admin','pelatih','manajer','lainnya') then
+    raise exception 'Pilih peran Anda di klub (pemilik, admin, pelatih, manajer/official, atau lainnya).' using hint = 'ERR_CONTACT_ROLE';
+  end if;
 
-  -- Atlet (perorangan / klub)
+  -- Jumlah atlet: atlet perorangan + anggota "khusus beregu" (orang baru) maksimal v_max
   v_n_ath := coalesce(jsonb_array_length(p->'athletes'), 0);
-  if v_type <> 'beregu' then
-    if v_n_ath < 1 then
-      raise exception 'Tambahkan minimal satu atlet.' using hint = 'ERR_NO_ATHLETE';
-    end if;
-    if v_type = 'individu' and v_n_ath > 1 then
-      raise exception 'Pendaftaran perorangan hanya untuk satu atlet. Pilih klub/sekolah untuk mendaftarkan beberapa atlet.' using hint = 'ERR_INDIVIDU_MULTI';
-    end if;
-    if v_n_ath > v_max then
-      raise exception 'Satu pendaftaran maksimal % atlet. Kirim sisanya sebagai pendaftaran terpisah.', v_max using hint = 'ERR_MAX_ATHLETES';
-    end if;
+  select v_n_ath + coalesce(sum((select count(*) from jsonb_array_elements(coalesce(t->'members','[]'::jsonb)) m
+                                  where m->>'kind' = 'tim')), 0)::integer
+    into v_people from jsonb_array_elements(v_teams) t;
+  if v_n_ath < 1 and v_n_teams < 1 then
+    raise exception 'Tambahkan minimal satu atlet atau satu tim beregu.' using hint = 'ERR_NO_ATHLETE';
+  end if;
+  if v_people > v_max then
+    raise exception 'Satu pendaftaran maksimal % atlet (termasuk anggota khusus beregu). Kirim sisanya sebagai pendaftaran terpisah.', v_max using hint = 'ERR_MAX_ATHLETES';
   end if;
 
   -- Klub
@@ -1556,10 +1580,7 @@ begin
     end if;
     v_club_id := v_club.id;
   else
-    if v_type in ('klub','beregu') then
-      raise exception 'Pilih atau tambahkan klub/sekolah.' using hint = 'ERR_CLUB';
-    end if;
-    v_club_id := null;
+    raise exception 'Pendaftaran hanya lewat klub. Pilih atau tambahkan klub/sekolah.' using hint = 'ERR_CLUB';
   end if;
 
   -- Persetujuan
@@ -1575,13 +1596,201 @@ begin
   insert into jo.submissions (id, code, token, discipline, registrant_type, contact_name, contact_email,
      contact_phone, contact_role, club_id, payment_method, consents, lang, auth_uid)
   values (v_sub_id, v_code, v_token, v_disc.code, v_type, trim(v_contact->>'name'), lower(trim(v_contact->>'email')),
-     trim(v_contact->>'phone'), nullif(trim(coalesce(v_contact->>'role','')),''), v_club_id, 'qris',
+     trim(v_contact->>'phone'), v_role, v_club_id, 'qris',
      v_consents || jsonb_build_object('at', now()), v_lang, v_uid);
 
-  if v_type = 'beregu' then
-    -- =================================================================
-    --  BEREGU (Artistik): satu tim, 1–6 pesenam, satu level
-    -- =================================================================
+  -- =================================================================
+  --  ATLET & NOMOR PERORANGAN / PASANGAN
+  -- =================================================================
+  for a in select * from jsonb_array_elements(coalesce(p->'athletes','[]'::jsonb)) loop
+    i := i + 1;
+    k := coalesce(a->>'key', 'a' || i);
+    if k = any(v_keys) then
+      raise exception 'Data atlet ganda.' using hint = 'ERR_ATHLETE';
+    end if;
+    v_keys := v_keys || k;
+
+    if length(trim(coalesce(a->>'full_name',''))) < 3 then
+      raise exception 'Atlet %: isi nama lengkap sesuai identitas.', i using hint = 'ERR_ATHLETE_NAME';
+    end if;
+    if coalesce(a->>'gender','') not in ('M','F') then
+      raise exception 'Atlet %: pilih jenis kelamin.', i using hint = 'ERR_ATHLETE_GENDER';
+    end if;
+    if coalesce(a->>'birth_date','') !~ '^\d{4}-\d{2}-\d{2}$'
+       or (a->>'birth_date')::date < date '1950-01-01' or (a->>'birth_date')::date > current_date then
+      raise exception 'Atlet %: tanggal lahir tidak valid.', i using hint = 'ERR_ATHLETE_BIRTH';
+    end if;
+    if coalesce(a->>'nationality','WNI') not in ('WNI','WNA') then
+      raise exception 'Atlet %: pilih kewarganegaraan.', i using hint = 'ERR_ATHLETE';
+    end if;
+    if coalesce(a->>'nationality','WNI') = 'WNI' then
+      if coalesce(a->>'province','') = '' or coalesce(a->>'kab_kota','') = '' then
+        raise exception 'Atlet %: isi provinsi dan kabupaten/kota sesuai alamat di identitas.', i using hint = 'ERR_ATHLETE_ADDRESS';
+      end if;
+    else
+      v_pm := 'manual';
+      if length(trim(coalesce(a->>'country',''))) < 2 then
+        raise exception 'Atlet %: isi negara asal.', i using hint = 'ERR_ATHLETE_ADDRESS';
+      end if;
+    end if;
+    perform jo.check_athlete_docs(a, 'Atlet ' || i, v_uid);
+    if jo.is_minor((a->>'birth_date')::date) then
+      v_any_minor := true;
+      if length(trim(coalesce(a->'guardian'->>'name',''))) < 3
+         or length(regexp_replace(coalesce(a->'guardian'->>'phone',''), '[^0-9]', '', 'g')) < 9
+         or coalesce(a->'guardian'->>'email','') !~* '^[^@\s]+@[^@\s]+\.[^@\s]+$' then
+        raise exception 'Atlet %: atlet di bawah 18 tahun wajib mencantumkan nama, nomor WhatsApp, dan email orang tua/wali.', i using hint = 'ERR_GUARDIAN';
+      end if;
+    end if;
+
+    insert into jo.athletes (submission_id, full_name, gender, birth_date, nationality, country, province, kab_kota,
+       id_doc_path, akte_path, ktp_path, ijazah_path, passport_path, bpjs_path, photo_thumb,
+       photo_path, guardian_name, guardian_phone, guardian_email, guardian_relation, ticket_code, sort)
+    values (v_sub_id, trim(a->>'full_name'), a->>'gender', (a->>'birth_date')::date,
+       coalesce(a->>'nationality','WNI'),
+       case when coalesce(a->>'nationality','WNI') = 'WNI' then 'Indonesia' else trim(a->>'country') end,
+       nullif(trim(coalesce(a->>'province','')),''), nullif(trim(coalesce(a->>'kab_kota','')),''),
+       coalesce(nullif(a->>'akte_path',''), nullif(a->>'passport_path','')),
+       nullif(a->>'akte_path',''), nullif(a->>'ktp_path',''), nullif(a->>'ijazah_path',''), nullif(a->>'passport_path',''), nullif(a->>'bpjs_path',''), nullif(a->>'photo_thumb',''),
+       nullif(a->>'photo_path',''),
+       nullif(trim(coalesce(a->'guardian'->>'name','')),''), nullif(trim(coalesce(a->'guardian'->>'phone','')),''),
+       nullif(lower(trim(coalesce(a->'guardian'->>'email',''))),''), nullif(trim(coalesce(a->'guardian'->>'relation','')),''),
+       'T' || jo.rand_code(9), i)
+    returning id into v_ath_id;
+    -- simpan pemetaan kunci -> id di tabel sementara (jsonb)
+    p := jsonb_set(p, '{_map}', coalesce(p->'_map','{}'::jsonb) || jsonb_build_object(k, v_ath_id));
+  end loop;
+
+  -- Entri (nomor lomba)
+  if v_n_ath > 0 and coalesce(jsonb_array_length(p->'entries'), 0) < 1 then
+    raise exception 'Pilih kategori lomba untuk setiap atlet.' using hint = 'ERR_NO_ENTRY';
+  end if;
+
+  for e in select * from jsonb_array_elements(coalesce(p->'entries','[]'::jsonb)) loop
+    select * into v_cat from jo.categories
+     where id = nullif(e->>'category_id','')::integer and discipline = v_disc.code and active;
+    if v_cat.id is null then
+      raise exception 'Kategori yang dipilih tidak tersedia untuk disiplin ini.' using hint = 'ERR_CATEGORY';
+    end if;
+
+    select array_agg(x) into v_eath from jsonb_array_elements_text(e->'athletes') x;
+    v_eath := coalesce(v_eath, '{}');
+    if v_cat.entry_type = 'individual' and array_length(v_eath, 1) is distinct from 1 then
+      raise exception 'Kategori % hanya untuk satu atlet.', v_cat.name_id using hint = 'ERR_CATEGORY';
+    end if;
+    if v_cat.entry_type = 'pair' and (array_length(v_eath, 1) is distinct from 2 or v_eath[1] = v_eath[2]) then
+      raise exception 'Kategori % membutuhkan dua atlet (pasangan).', v_cat.name_id using hint = 'ERR_PAIR';
+    end if;
+
+    v_genders := '{}';
+    v_pri_ok := true;
+    foreach k in array v_eath loop
+      if (p->'_map'->>k) is null then
+        raise exception 'Atlet pada kategori % tidak ditemukan dalam formulir.', v_cat.name_id using hint = 'ERR_ENTRY';
+      end if;
+      select * into v_ath from jo.athletes where id = (p->'_map'->>k)::uuid;
+      v_genders := v_genders || v_ath.gender;
+      v_reason := jo.category_mismatch(v_cat, v_ath.gender, v_ath.birth_date);
+      if v_reason is not null then
+        raise exception '% tidak bisa ikut % (%).', v_ath.full_name, v_cat.name_id, v_reason using hint = 'ERR_ELIGIBILITY';
+      end if;
+      -- satu atlet tidak boleh dua kali di kategori yang sama
+      if exists (select 1 from jo.entry_athletes ea join jo.entries en on en.id = ea.entry_id
+                  where ea.athlete_id = v_ath.id and en.category_id = v_cat.id) then
+        raise exception '% terdaftar dua kali di kategori %.', v_ath.full_name, v_cat.name_id using hint = 'ERR_DUPLICATE';
+      end if;
+      -- aturan jumlah nomor per atlet
+      if v_disc.code in ('MAG','WAG','RG') then
+        if exists (select 1 from jo.entry_athletes ea where ea.athlete_id = v_ath.id) then
+          raise exception '% hanya boleh mengikuti satu kategori di disiplin ini.', v_ath.full_name using hint = 'ERR_ONE_CATEGORY';
+        end if;
+      else
+        if exists (select 1 from jo.entry_athletes ea join jo.entries en on en.id = ea.entry_id
+                    join jo.categories cc on cc.id = en.category_id
+                    where ea.athlete_id = v_ath.id and cc.entry_type = v_cat.entry_type) then
+          raise exception '% hanya boleh mengikuti satu nomor perorangan dan satu nomor pasangan.', v_ath.full_name using hint = 'ERR_ONE_CATEGORY';
+        end if;
+      end if;
+      -- kelayakan Priangan: WNI, alamat identitas di Jawa Barat, dan klub di Jawa Barat
+      if v_ath.nationality <> 'WNI' or coalesce(v_ath.province,'') <> 'Jawa Barat'
+         or (v_club_id is not null and coalesce(v_club.province,'') <> 'Jawa Barat') then
+        v_pri_ok := false;
+      end if;
+    end loop;
+
+    if v_cat.entry_type = 'pair' and v_cat.gender = 'X'
+       and not (('M' = any(v_genders)) and ('F' = any(v_genders))) then
+      raise exception 'Kategori % adalah pasangan campuran: satu putra dan satu putri.', v_cat.name_id using hint = 'ERR_PAIR';
+    end if;
+
+    -- batas peserta per klub per kategori
+    if v_club_id is not null and v_cat.max_per_club is not null then
+      select count(*) into v_cnt
+        from jo.entries en join jo.submissions s on s.id = en.submission_id
+       where en.category_id = v_cat.id and en.status = 'aktif'
+         and s.club_id = v_club_id and s.status <> 'dibatalkan';
+      if v_cnt + 1 > v_cat.max_per_club then
+        raise exception 'Klub ini sudah mencapai batas % peserta untuk kategori %.', v_cat.max_per_club, v_cat.name_id using hint = 'ERR_CLUB_LIMIT';
+      end if;
+    end if;
+
+    -- v6: Priangan bukan tambahan; kategori Priangan (khusus Jawa Barat) berdiri sendiri, tanpa biaya tambahan
+    if coalesce((e->>'priangan')::boolean, false) and not v_cat.allow_priangan then
+      raise exception 'Priangan kini kategori tersendiri (khusus Ritmik). Pilih kategori Ritmik Priangan.' using hint = 'ERR_PRIANGAN';
+    end if;
+    if v_cat.jabar_only and not v_pri_ok then
+      raise exception '% khusus atlet WNI dengan alamat identitas di Jawa Barat dan klub di Jawa Barat.', v_cat.name_id using hint = 'ERR_PRIANGAN';
+    end if;
+
+    -- musik Ritmik (v6): satu tautan Google Drive untuk setiap nomor (alat) kategori, semua wajib
+    v_mus := '{}'::jsonb;
+    if v_disc.code = 'RG' then
+      foreach k in array v_cat.apparatus loop
+        v_music := trim(coalesce(e->'music'->>k, ''));
+        if not jo.valid_drive_url(v_music) then
+          raise exception 'Isi tautan Google Drive musik % untuk % (diawali https://drive.google.com/).',
+            jo.apparatus_label(v_disc.code, k), v_ath.full_name using hint = 'ERR_MUSIC';
+        end if;
+        v_mus := v_mus || jsonb_build_object(k, v_music);
+      end loop;
+    end if;
+
+    insert into jo.entries (submission_id, category_id, fee, priangan_requested, priangan_fee, priangan_status,
+                            music, music_status, music_updated_at)
+    values (v_sub_id, v_cat.id, v_cat.fee,
+            v_cat.jabar_only, 0,
+            case when v_cat.jabar_only then 'menunggu' else 'tidak' end,
+            v_mus, case when v_mus <> '{}'::jsonb then 'menunggu' else 'tidak_perlu' end,
+            case when v_mus <> '{}'::jsonb then now() end)
+    returning id into v_entry_id;
+    if v_mus <> '{}'::jsonb then
+      insert into jo.music_log (entry_id, action, apparatus, new_url)
+      select v_entry_id, 'daftar', x.key, x.value from jsonb_each_text(v_mus) x;
+    end if;
+
+    foreach k in array v_eath loop
+      insert into jo.entry_athletes (entry_id, athlete_id, cert_code)
+      values (v_entry_id, (p->'_map'->>k)::uuid, 'C' || jo.rand_code(9));
+    end loop;
+
+    v_base := v_base + v_cat.fee;
+  end loop;
+
+  -- setiap atlet harus punya minimal satu nomor
+  if exists (select 1 from jo.athletes a where a.submission_id = v_sub_id
+              and not exists (select 1 from jo.entry_athletes ea where ea.athlete_id = a.id)) then
+    raise exception 'Setiap atlet harus memilih minimal satu kategori.' using hint = 'ERR_NO_ENTRY';
+  end if;
+
+  v_sortn := v_n_ath;
+
+  -- =================================================================
+  --  BEREGU (opsional, Artistik Putri): satu atau beberapa tim, 1–6 pesenam per tim
+  -- =================================================================
+  for v_tm in select * from jsonb_array_elements(v_teams) loop
+    ti := ti + 1;
+    v_team := v_tm;
+    i := 0;
     v_level := trim(coalesce(v_team->>'level',''));
     if not exists (select 1 from jo.categories where discipline = v_disc.code and level = v_level and active)
        or not coalesce(jo.setting('team_levels')->v_disc.code ? v_level, false) then
@@ -1589,16 +1798,15 @@ begin
     end if;
     v_tname := regexp_replace(trim(coalesce(v_team->>'name','')), '\s+', ' ', 'g');
     if length(v_tname) < 2 then
-      raise exception 'Isi nama tim.' using hint = 'ERR_TEAM_NAME';
+      raise exception 'Tim %: isi nama tim.', ti using hint = 'ERR_TEAM_NAME';
     end if;
     if exists (select 1 from jo.teams t join jo.submissions s on s.id = t.submission_id
                 where t.discipline = v_disc.code and t.level = v_level and s.club_id = v_club_id
                   and s.status <> 'dibatalkan' and lower(t.name) = lower(v_tname)) then
       raise exception 'Nama tim "%" sudah dipakai klub ini di % %. Beri nama berbeda, mis. "% B".', v_tname, v_disc.name_id, v_level, v_tname using hint = 'ERR_TEAM_NAME';
     end if;
-    v_n_ath := coalesce(jsonb_array_length(v_team->'members'), 0);
-    if v_n_ath < 1 or v_n_ath > v_team_max then
-      raise exception 'Satu tim berisi 1 sampai % pesenam.', v_team_max using hint = 'ERR_TEAM_SIZE';
+    if coalesce(jsonb_array_length(v_team->'members'), 0) < 1 or jsonb_array_length(v_team->'members') > v_team_max then
+      raise exception 'Tim %: satu tim berisi 1 sampai % pesenam.', v_tname, v_team_max using hint = 'ERR_TEAM_SIZE';
     end if;
     v_mgender := case when v_disc.code = 'MAG' then 'M' else 'F' end;
 
@@ -1607,6 +1815,10 @@ begin
 
     for a in select * from jsonb_array_elements(v_team->'members') loop
       i := i + 1;
+      if coalesce(a->>'kind','') = 'form' then
+        select a || jsonb_build_object('full_name', x.full_name, 'birth_date', x.birth_date::text) into a
+          from jo.athletes x where x.id = nullif(p->'_map'->>coalesce(a->>'key',''), '')::uuid and x.submission_id = v_sub_id;
+      end if;
       v_mname := trim(coalesce(a->>'full_name',''));
       if length(v_mname) < 3 then
         raise exception 'Anggota %: isi nama lengkap sesuai identitas.', i using hint = 'ERR_ATHLETE_NAME';
@@ -1630,9 +1842,31 @@ begin
          and at2.birth_date = v_mbirth and jo.norm_name(at2.full_name) = jo.norm_name(v_mname)
        order by en.created_at limit 1;
 
-      if coalesce(a->>'kind','') = 'individu' then
+      if coalesce(a->>'kind','') = 'form' then
+        -- atlet dari pendaftaran ini yang punya nomor perorangan di level tim
+        v_entry_id := null; v_ath_id := nullif(p->'_map'->>coalesce(a->>'key',''), '')::uuid;
+        if v_ath_id is null then
+          raise exception 'Anggota %: atlet tidak ditemukan di pendaftaran ini.', i using hint = 'ERR_TEAM_MEMBER';
+        end if;
+        select en.id into v_entry_id
+          from jo.entries en join jo.entry_athletes ea on ea.entry_id = en.id join jo.categories c on c.id = en.category_id
+         where en.submission_id = v_sub_id and ea.athlete_id = v_ath_id and c.level = v_level
+           and c.entry_type = 'individual' and not en.team_only
+         limit 1;
         if v_entry_id is null then
-          raise exception 'Anggota %: % (lahir %) belum terdaftar sebagai atlet perorangan % % di klub ini. Daftarkan perorangan dulu, periksa ejaan nama dan tanggal lahir, atau pilih "Khusus beregu".',
+          raise exception 'Anggota %: % tidak memilih kategori % % di pendaftaran ini.', i,
+            (select full_name from jo.athletes where id = v_ath_id), v_disc.name_id, v_level using hint = 'ERR_TEAM_MEMBER';
+        end if;
+        if v_entry_id = any(v_seen) or exists (select 1 from jo.team_members tm where tm.entry_id = v_entry_id) then
+          raise exception 'Anggota %: % sudah masuk tim lain.', i, (select full_name from jo.athletes where id = v_ath_id) using hint = 'ERR_TEAM_MEMBER';
+        end if;
+        v_seen := v_seen || v_entry_id;
+        insert into jo.team_members (team_id, entry_id, athlete_id, team_only, cert_code, sort)
+        values (v_team_id, v_entry_id, v_ath_id, false, 'B' || jo.rand_code(9), i);
+
+      elsif coalesce(a->>'kind','') = 'individu' then
+        if v_entry_id is null then
+          raise exception 'Anggota %: % (lahir %) belum terdaftar sebagai atlet perorangan % % di klub ini. Periksa ejaan nama dan tanggal lahir, tambahkan sebagai atlet di pendaftaran ini, atau pilih "Khusus beregu".',
             i, v_mname, to_char(v_mbirth, 'DD-MM-YYYY'), v_disc.name_id, v_level using hint = 'ERR_TEAM_MEMBER';
         end if;
         if v_entry_id = any(v_seen) then
@@ -1649,7 +1883,7 @@ begin
 
       elsif coalesce(a->>'kind','') = 'tim' then
         if v_entry_id is not null then
-          raise exception 'Anggota %: % sudah terdaftar sebagai atlet perorangan di level ini. Pilih "Juga perorangan" untuknya.', i, v_mname using hint = 'ERR_TEAM_MEMBER';
+          raise exception 'Anggota %: % sudah terdaftar dengan kategori perorangan di level ini (di pendaftaran ini atau sebelumnya). Pilih atlet itu dari daftar, bukan "Khusus beregu".', i, v_mname using hint = 'ERR_TEAM_MEMBER';
         end if;
         if coalesce(a->>'nationality','WNI') not in ('WNI','WNA') then
           raise exception 'Anggota %: pilih kewarganegaraan.', i using hint = 'ERR_ATHLETE';
@@ -1661,6 +1895,7 @@ begin
           end if;
         end if;
         perform jo.check_athlete_docs(a, 'Anggota ' || i, v_uid);
+        v_sortn := v_sortn + 1;
         if jo.is_minor(v_mbirth) then
           v_any_minor := true;
           if length(trim(coalesce(a->'guardian'->>'name',''))) < 3
@@ -1697,7 +1932,7 @@ begin
            nullif(a->>'photo_path',''),
            nullif(trim(coalesce(a->'guardian'->>'name','')),''), nullif(trim(coalesce(a->'guardian'->>'phone','')),''),
            nullif(lower(trim(coalesce(a->'guardian'->>'email',''))),''), nullif(trim(coalesce(a->'guardian'->>'relation','')),''),
-           'T' || jo.rand_code(9), i)
+           'T' || jo.rand_code(9), v_sortn)
         returning id into v_ath_id;
         insert into jo.entries (submission_id, category_id, fee, team_only)
         values (v_sub_id, v_cat.id, 0, true) returning id into v_entry_id;
@@ -1705,202 +1940,16 @@ begin
         insert into jo.team_members (team_id, entry_id, athlete_id, team_only, cert_code, sort)
         values (v_team_id, v_entry_id, v_ath_id, true, 'B' || jo.rand_code(9), i);
       else
-        raise exception 'Anggota %: pilih "Juga perorangan" atau "Khusus beregu".', i using hint = 'ERR_TEAM_MEMBER';
+        raise exception 'Anggota %: pilih atlet dari pendaftaran ini, "Juga perorangan", atau "Khusus beregu".', i using hint = 'ERR_TEAM_MEMBER';
       end if;
     end loop;
 
-    if v_any_minor and not coalesce((v_consents->>'guardian')::boolean, false) then
-      raise exception 'Persetujuan orang tua/wali wajib dicentang untuk pesenam di bawah 18 tahun.' using hint = 'ERR_CONSENT';
-    end if;
-    v_base := v_team_fee;
+    v_team_amt := v_team_amt + v_team_fee;
+  end loop;
+  v_base := v_base + v_team_amt;
 
-  else
-    -- =================================================================
-    --  PERORANGAN / KLUB
-    -- =================================================================
-    for a in select * from jsonb_array_elements(p->'athletes') loop
-      i := i + 1;
-      k := coalesce(a->>'key', 'a' || i);
-      if k = any(v_keys) then
-        raise exception 'Data atlet ganda.' using hint = 'ERR_ATHLETE';
-      end if;
-      v_keys := v_keys || k;
-
-      if length(trim(coalesce(a->>'full_name',''))) < 3 then
-        raise exception 'Atlet %: isi nama lengkap sesuai identitas.', i using hint = 'ERR_ATHLETE_NAME';
-      end if;
-      if coalesce(a->>'gender','') not in ('M','F') then
-        raise exception 'Atlet %: pilih jenis kelamin.', i using hint = 'ERR_ATHLETE_GENDER';
-      end if;
-      if coalesce(a->>'birth_date','') !~ '^\d{4}-\d{2}-\d{2}$'
-         or (a->>'birth_date')::date < date '1950-01-01' or (a->>'birth_date')::date > current_date then
-        raise exception 'Atlet %: tanggal lahir tidak valid.', i using hint = 'ERR_ATHLETE_BIRTH';
-      end if;
-      if coalesce(a->>'nationality','WNI') not in ('WNI','WNA') then
-        raise exception 'Atlet %: pilih kewarganegaraan.', i using hint = 'ERR_ATHLETE';
-      end if;
-      if coalesce(a->>'nationality','WNI') = 'WNI' then
-        if coalesce(a->>'province','') = '' or coalesce(a->>'kab_kota','') = '' then
-          raise exception 'Atlet %: isi provinsi dan kabupaten/kota sesuai alamat di identitas.', i using hint = 'ERR_ATHLETE_ADDRESS';
-        end if;
-      else
-        v_pm := 'manual';
-        if length(trim(coalesce(a->>'country',''))) < 2 then
-          raise exception 'Atlet %: isi negara asal.', i using hint = 'ERR_ATHLETE_ADDRESS';
-        end if;
-      end if;
-      perform jo.check_athlete_docs(a, 'Atlet ' || i, v_uid);
-      if jo.is_minor((a->>'birth_date')::date) then
-        v_any_minor := true;
-        if length(trim(coalesce(a->'guardian'->>'name',''))) < 3
-           or length(regexp_replace(coalesce(a->'guardian'->>'phone',''), '[^0-9]', '', 'g')) < 9
-           or coalesce(a->'guardian'->>'email','') !~* '^[^@\s]+@[^@\s]+\.[^@\s]+$' then
-          raise exception 'Atlet %: atlet di bawah 18 tahun wajib mencantumkan nama, nomor WhatsApp, dan email orang tua/wali.', i using hint = 'ERR_GUARDIAN';
-        end if;
-      end if;
-
-      insert into jo.athletes (submission_id, full_name, gender, birth_date, nationality, country, province, kab_kota,
-         id_doc_path, akte_path, ktp_path, ijazah_path, passport_path, bpjs_path, photo_thumb,
-         photo_path, guardian_name, guardian_phone, guardian_email, guardian_relation, ticket_code, sort)
-      values (v_sub_id, trim(a->>'full_name'), a->>'gender', (a->>'birth_date')::date,
-         coalesce(a->>'nationality','WNI'),
-         case when coalesce(a->>'nationality','WNI') = 'WNI' then 'Indonesia' else trim(a->>'country') end,
-         nullif(trim(coalesce(a->>'province','')),''), nullif(trim(coalesce(a->>'kab_kota','')),''),
-         coalesce(nullif(a->>'akte_path',''), nullif(a->>'passport_path','')),
-         nullif(a->>'akte_path',''), nullif(a->>'ktp_path',''), nullif(a->>'ijazah_path',''), nullif(a->>'passport_path',''), nullif(a->>'bpjs_path',''), nullif(a->>'photo_thumb',''),
-         nullif(a->>'photo_path',''),
-         nullif(trim(coalesce(a->'guardian'->>'name','')),''), nullif(trim(coalesce(a->'guardian'->>'phone','')),''),
-         nullif(lower(trim(coalesce(a->'guardian'->>'email',''))),''), nullif(trim(coalesce(a->'guardian'->>'relation','')),''),
-         'T' || jo.rand_code(9), i)
-      returning id into v_ath_id;
-      -- simpan pemetaan kunci -> id di tabel sementara (jsonb)
-      p := jsonb_set(p, '{_map}', coalesce(p->'_map','{}'::jsonb) || jsonb_build_object(k, v_ath_id));
-    end loop;
-
-    if v_any_minor and not coalesce((v_consents->>'guardian')::boolean, false) then
-      raise exception 'Persetujuan orang tua/wali wajib dicentang untuk atlet di bawah 18 tahun.' using hint = 'ERR_CONSENT';
-    end if;
-
-    -- Entri (nomor lomba)
-    if coalesce(jsonb_array_length(p->'entries'), 0) < 1 then
-      raise exception 'Pilih kategori lomba untuk setiap atlet.' using hint = 'ERR_NO_ENTRY';
-    end if;
-
-    for e in select * from jsonb_array_elements(p->'entries') loop
-      select * into v_cat from jo.categories
-       where id = nullif(e->>'category_id','')::integer and discipline = v_disc.code and active;
-      if v_cat.id is null then
-        raise exception 'Kategori yang dipilih tidak tersedia untuk disiplin ini.' using hint = 'ERR_CATEGORY';
-      end if;
-
-      select array_agg(x) into v_eath from jsonb_array_elements_text(e->'athletes') x;
-      v_eath := coalesce(v_eath, '{}');
-      if v_cat.entry_type = 'individual' and array_length(v_eath, 1) is distinct from 1 then
-        raise exception 'Kategori % hanya untuk satu atlet.', v_cat.name_id using hint = 'ERR_CATEGORY';
-      end if;
-      if v_cat.entry_type = 'pair' and (array_length(v_eath, 1) is distinct from 2 or v_eath[1] = v_eath[2]) then
-        raise exception 'Kategori % membutuhkan dua atlet (pasangan).', v_cat.name_id using hint = 'ERR_PAIR';
-      end if;
-
-      v_genders := '{}';
-      v_pri_ok := true;
-      foreach k in array v_eath loop
-        if (p->'_map'->>k) is null then
-          raise exception 'Atlet pada kategori % tidak ditemukan dalam formulir.', v_cat.name_id using hint = 'ERR_ENTRY';
-        end if;
-        select * into v_ath from jo.athletes where id = (p->'_map'->>k)::uuid;
-        v_genders := v_genders || v_ath.gender;
-        v_reason := jo.category_mismatch(v_cat, v_ath.gender, v_ath.birth_date);
-        if v_reason is not null then
-          raise exception '% tidak bisa ikut % (%).', v_ath.full_name, v_cat.name_id, v_reason using hint = 'ERR_ELIGIBILITY';
-        end if;
-        -- satu atlet tidak boleh dua kali di kategori yang sama
-        if exists (select 1 from jo.entry_athletes ea join jo.entries en on en.id = ea.entry_id
-                    where ea.athlete_id = v_ath.id and en.category_id = v_cat.id) then
-          raise exception '% terdaftar dua kali di kategori %.', v_ath.full_name, v_cat.name_id using hint = 'ERR_DUPLICATE';
-        end if;
-        -- aturan jumlah nomor per atlet
-        if v_disc.code in ('MAG','WAG','RG') then
-          if exists (select 1 from jo.entry_athletes ea where ea.athlete_id = v_ath.id) then
-            raise exception '% hanya boleh mengikuti satu kategori di disiplin ini.', v_ath.full_name using hint = 'ERR_ONE_CATEGORY';
-          end if;
-        else
-          if exists (select 1 from jo.entry_athletes ea join jo.entries en on en.id = ea.entry_id
-                      join jo.categories cc on cc.id = en.category_id
-                      where ea.athlete_id = v_ath.id and cc.entry_type = v_cat.entry_type) then
-            raise exception '% hanya boleh mengikuti satu nomor perorangan dan satu nomor pasangan.', v_ath.full_name using hint = 'ERR_ONE_CATEGORY';
-          end if;
-        end if;
-        -- kelayakan Priangan: WNI, alamat identitas di Jawa Barat, dan klub di Jawa Barat
-        if v_ath.nationality <> 'WNI' or coalesce(v_ath.province,'') <> 'Jawa Barat'
-           or (v_club_id is not null and coalesce(v_club.province,'') <> 'Jawa Barat') then
-          v_pri_ok := false;
-        end if;
-      end loop;
-
-      if v_cat.entry_type = 'pair' and v_cat.gender = 'X'
-         and not (('M' = any(v_genders)) and ('F' = any(v_genders))) then
-        raise exception 'Kategori % adalah pasangan campuran: satu putra dan satu putri.', v_cat.name_id using hint = 'ERR_PAIR';
-      end if;
-
-      -- batas peserta per klub per kategori
-      if v_club_id is not null and v_cat.max_per_club is not null then
-        select count(*) into v_cnt
-          from jo.entries en join jo.submissions s on s.id = en.submission_id
-         where en.category_id = v_cat.id and en.status = 'aktif'
-           and s.club_id = v_club_id and s.status <> 'dibatalkan';
-        if v_cnt + 1 > v_cat.max_per_club then
-          raise exception 'Klub ini sudah mencapai batas % peserta untuk kategori %.', v_cat.max_per_club, v_cat.name_id using hint = 'ERR_CLUB_LIMIT';
-        end if;
-      end if;
-
-      -- v6: Priangan bukan tambahan; kategori Priangan (khusus Jawa Barat) berdiri sendiri, tanpa biaya tambahan
-      if coalesce((e->>'priangan')::boolean, false) and not v_cat.allow_priangan then
-        raise exception 'Priangan kini kategori tersendiri (khusus Ritmik). Pilih kategori Ritmik Priangan.' using hint = 'ERR_PRIANGAN';
-      end if;
-      if v_cat.jabar_only and not v_pri_ok then
-        raise exception '% khusus atlet WNI dengan alamat identitas di Jawa Barat dan klub di Jawa Barat.', v_cat.name_id using hint = 'ERR_PRIANGAN';
-      end if;
-
-      -- musik Ritmik (v6): satu tautan Google Drive untuk setiap nomor (alat) kategori, semua wajib
-      v_mus := '{}'::jsonb;
-      if v_disc.code = 'RG' then
-        foreach k in array v_cat.apparatus loop
-          v_music := trim(coalesce(e->'music'->>k, ''));
-          if not jo.valid_drive_url(v_music) then
-            raise exception 'Isi tautan Google Drive musik % untuk % (diawali https://drive.google.com/).',
-              jo.apparatus_label(v_disc.code, k), v_ath.full_name using hint = 'ERR_MUSIC';
-          end if;
-          v_mus := v_mus || jsonb_build_object(k, v_music);
-        end loop;
-      end if;
-
-      insert into jo.entries (submission_id, category_id, fee, priangan_requested, priangan_fee, priangan_status,
-                              music, music_status, music_updated_at)
-      values (v_sub_id, v_cat.id, v_cat.fee,
-              v_cat.jabar_only, 0,
-              case when v_cat.jabar_only then 'menunggu' else 'tidak' end,
-              v_mus, case when v_mus <> '{}'::jsonb then 'menunggu' else 'tidak_perlu' end,
-              case when v_mus <> '{}'::jsonb then now() end)
-      returning id into v_entry_id;
-      if v_mus <> '{}'::jsonb then
-        insert into jo.music_log (entry_id, action, apparatus, new_url)
-        select v_entry_id, 'daftar', x.key, x.value from jsonb_each_text(v_mus) x;
-      end if;
-
-      foreach k in array v_eath loop
-        insert into jo.entry_athletes (entry_id, athlete_id, cert_code)
-        values (v_entry_id, (p->'_map'->>k)::uuid, 'C' || jo.rand_code(9));
-      end loop;
-
-      v_base := v_base + v_cat.fee;
-    end loop;
-
-    -- setiap atlet harus punya minimal satu nomor
-    if exists (select 1 from jo.athletes a where a.submission_id = v_sub_id
-                and not exists (select 1 from jo.entry_athletes ea where ea.athlete_id = a.id)) then
-      raise exception 'Setiap atlet harus memilih minimal satu kategori.' using hint = 'ERR_NO_ENTRY';
-    end if;
+  if v_any_minor and not coalesce((v_consents->>'guardian')::boolean, false) then
+    raise exception 'Persetujuan orang tua/wali wajib dicentang untuk atlet di bawah 18 tahun.' using hint = 'ERR_CONSENT';
   end if;
 
   -- nomor atlet per disiplin (MAG-001, ...)
@@ -1924,18 +1973,18 @@ begin
 
   v_code := 'JO26-' || v_disc.code || '-' || lpad(nextval('jo.submission_seq')::text, 4, '0');
   update jo.submissions
-     set code = v_code, base_amount = v_base, priangan_amount = v_pri, unique_code = v_uc, total_amount = v_total,
+     set code = v_code, base_amount = v_base, team_amount = v_team_amt, priangan_amount = v_pri, unique_code = v_uc, total_amount = v_total,
          payment_method = v_pm
    where id = v_sub_id;
 
   insert into jo.rate_events (uid, action) values (v_uid, 'register');
   perform jo.log(null, 'pendaftaran_baru', 'submission', v_sub_id::text,
-    jsonb_build_object('code', v_code, 'athletes', v_n_ath, 'total', v_total, 'type', v_type));
+    jsonb_build_object('code', v_code, 'athletes', v_people, 'teams', v_n_teams, 'total', v_total, 'type', v_type));
   perform jo.queue_registration_email(v_sub_id);
 
   return jsonb_build_object(
     'code', v_code, 'token', v_token, 'status', 'menunggu_pembayaran', 'payment_method', v_pm,
-    'base_amount', v_base, 'priangan_amount', v_pri, 'unique_code', v_uc, 'total_amount', v_total,
+    'base_amount', v_base, 'team_amount', v_team_amt, 'priangan_amount', v_pri, 'unique_code', v_uc, 'total_amount', v_total,
     'expires_at', case when v_pm = 'qris' then now() + interval '15 minutes' end);
 end $$;
 
@@ -2033,7 +2082,8 @@ language sql stable set search_path = '' as $$
       from jo.entries en join jo.categories cat on cat.id = en.category_id
       left join jo.sessions ses on ses.id = en.session_id
       where en.submission_id = s.id and en.status <> 'dibatalkan'),
-    'team', (select jsonb_build_object(
+    'team_amount', s.team_amount,
+    'teams', (select coalesce(jsonb_agg(jsonb_build_object(
         'name', t.name, 'level', t.level,
         'published', coalesce(tl.published, false) and s.status = 'lunas',
         'members', (select coalesce(jsonb_agg(jsonb_build_object(
@@ -2045,7 +2095,7 @@ language sql stable set search_path = '' as $$
           where m.team_id = t.id),
         'result', case when coalesce(tl.published, false) and s.status = 'lunas' then (
             select r from jsonb_array_elements(jo.team_results(t.discipline, t.level, false)) r
-             where r->>'team_id' = t.id::text limit 1) end)
+             where r->>'team_id' = t.id::text limit 1) end) order by t.level, t.name), '[]'::jsonb)
       from jo.teams t left join jo.team_levels tl on tl.discipline = t.discipline and tl.level = t.level
       where t.submission_id = s.id)
   )
@@ -2178,7 +2228,9 @@ begin
     return jsonb_build_object('type', 'ticket', 'valid', s.status = 'lunas', 'status', s.status,
       'athlete_no', a.athlete_no, 'name', a.full_name, 'club', club, 'discipline', s.discipline,
       'photo', case when s.status = 'lunas' then a.photo_thumb end,
-      'registered_by', case when s.status = 'lunas' then s.contact_name end,
+      'registered_by', case when s.status = 'lunas' then s.contact_name || coalesce(' (' || case s.contact_role
+          when 'pemilik' then 'pemilik klub' when 'admin' then 'admin klub' when 'pelatih' then 'pelatih'
+          when 'manajer' then 'manajer/official' end || ')', '') end,
       'categories', (select jsonb_agg(cc.name_id) from jo.entry_athletes x join jo.entries e on e.id = x.entry_id
                      join jo.categories cc on cc.id = e.category_id where x.athlete_id = a.id and e.status <> 'dibatalkan'));
   end if;
@@ -2543,7 +2595,7 @@ begin
       c.name as club, coalesce(c.kab_kota, (select a.kab_kota from jo.athletes a where a.submission_id = s.id order by a.sort limit 1)) as region,
       (select count(*) from jo.athletes a where a.submission_id = s.id) as n_athletes,
       (select string_agg(a.full_name, ', ' order by a.sort) from jo.athletes a where a.submission_id = s.id) as athlete_names,
-      (select t.name || ' (' || t.level || ', ' || (select count(*) from jo.team_members m where m.team_id = t.id) || ' pesenam)' from jo.teams t where t.submission_id = s.id) as team_name,
+      (select string_agg(t.name || ' (' || t.level || ', ' || (select count(*) from jo.team_members m where m.team_id = t.id) || ' pesenam)', '; ' order by t.level, t.name) from jo.teams t where t.submission_id = s.id) as team_name,
       (select count(*) from jo.entries e where e.submission_id = s.id and e.status <> 'dibatalkan' and e.music_status in ('menunggu','belum','tidak_bisa')) as music_pending,
       s.total_amount, s.unique_code, s.status, s.payment_method, s.proof_uploaded_at, s.paid_at,
       case when s.payment_method = 'qris' and s.status = 'menunggu_pembayaran' and s.proof_path is null
@@ -2561,7 +2613,7 @@ begin
       and (coalesce(f->>'flag','') = ''
            or (f->>'flag' = 'docs' and exists (select 1 from jo.athletes a where a.submission_id = s.id and a.doc_status = 'menunggu') and s.status <> 'dibatalkan')
            or (f->>'flag' = 'priangan' and exists (select 1 from jo.entries e where e.submission_id = s.id and e.priangan_status = 'menunggu') and s.status <> 'dibatalkan')
-           or (f->>'flag' = 'beregu' and s.registrant_type = 'beregu')
+           or (f->>'flag' = 'beregu' and exists (select 1 from jo.teams t where t.submission_id = s.id))
            or (f->>'flag' = 'musik' and exists (select 1 from jo.entries e where e.submission_id = s.id and e.status <> 'dibatalkan' and e.music_status in ('menunggu','belum','tidak_bisa')) and s.status <> 'dibatalkan'))
     order by s.created_at desc
     limit 1000) x);
@@ -2604,14 +2656,14 @@ begin
                       where ea.entry_id = e.id and jo.category_mismatch(c, a.gender, a.birth_date) is not null)
       ) order by c.sort), '[]'::jsonb)
       from jo.entries e join jo.categories c on c.id = e.category_id where e.submission_id = s.id),
-    'team', (select jsonb_build_object('id', t.id, 'name', t.name, 'level', t.level,
+    'teams', (select coalesce(jsonb_agg(jsonb_build_object('id', t.id, 'name', t.name, 'level', t.level,
         'members', (select coalesce(jsonb_agg(jsonb_build_object(
             'athlete_id', a.id, 'name', a.full_name, 'athlete_no', a.athlete_no, 'team_only', m.team_only,
             'category', c2.name_id, 'entry_status', e2.status,
             'submission_id', e2.submission_id, 'submission_code', s2.code, 'submission_status', s2.status) order by m.sort), '[]'::jsonb)
           from jo.team_members m join jo.athletes a on a.id = m.athlete_id join jo.entries e2 on e2.id = m.entry_id
           join jo.categories c2 on c2.id = e2.category_id join jo.submissions s2 on s2.id = e2.submission_id
-          where m.team_id = t.id))
+          where m.team_id = t.id)) order by t.level, t.name), '[]'::jsonb)
       from jo.teams t where t.submission_id = s.id),
     'mutations', (select coalesce(jsonb_agg(to_jsonb(m) - 'raw' order by m.trx_time), '[]'::jsonb)
         from jo.mutations m where m.submission_id = s.id),
@@ -3359,11 +3411,11 @@ begin
   return jsonb_build_object(
     'rows', (select coalesce(jsonb_agg(row_to_json(x)::jsonb order by x.created_at), '[]'::jsonb) from (
       select s.id, s.code, s.created_at, s.discipline, coalesce(c.name, 'Perorangan') as club, s.registrant_type,
-        (select t.name || ' (' || t.level || ')' from jo.teams t where t.submission_id = s.id) as team_name,
+        (select string_agg(t.name || ' (' || t.level || ')', '; ' order by t.level, t.name) from jo.teams t where t.submission_id = s.id) as team_name,
         s.contact_name, s.contact_phone, s.contact_email,
         (select count(*) from jo.athletes a where a.submission_id = s.id) as n_athletes,
         (select count(*) from jo.entries e where e.submission_id = s.id and e.status <> 'dibatalkan') as n_entries,
-        s.base_amount, s.priangan_amount, s.unique_code, s.total_amount, s.status, s.payment_method,
+        s.base_amount, s.team_amount, s.priangan_amount, s.unique_code, s.total_amount, s.status, s.payment_method,
         s.paid_amount, s.paid_at, s.proof_path, s.proof_uploaded_at, s.verify_note,
         (select name from jo.staff where id = s.verified_by) as verified_by, s.verified_at,
         (select jsonb_agg(jsonb_build_object('id', m.id, 'amount', m.amount, 'trx_time', m.trx_time, 'reference', m.reference, 'match_status', m.match_status))
@@ -3374,9 +3426,9 @@ begin
     'summary', (select coalesce(jsonb_agg(jsonb_build_object('discipline', d.code, 'name', d.name_id,
         'expected', (select coalesce(sum(total_amount),0) from jo.submissions s where s.discipline = d.code and s.status <> 'dibatalkan'),
         'paid', (select coalesce(sum(coalesce(paid_amount,total_amount)),0) from jo.submissions s where s.discipline = d.code and s.status = 'lunas'),
-        'fees_paid', (select coalesce(sum(base_amount),0) from jo.submissions s where s.discipline = d.code and s.status = 'lunas' and s.registrant_type <> 'beregu'),
-        'team_paid', (select coalesce(sum(base_amount),0) from jo.submissions s where s.discipline = d.code and s.status = 'lunas' and s.registrant_type = 'beregu'),
-        'teams_paid', (select count(*) from jo.submissions s where s.discipline = d.code and s.status = 'lunas' and s.registrant_type = 'beregu'),
+        'fees_paid', (select coalesce(sum(base_amount - team_amount),0) from jo.submissions s where s.discipline = d.code and s.status = 'lunas'),
+        'team_paid', (select coalesce(sum(team_amount),0) from jo.submissions s where s.discipline = d.code and s.status = 'lunas'),
+        'teams_paid', (select count(*) from jo.teams t join jo.submissions s on s.id = t.submission_id where s.discipline = d.code and s.status = 'lunas'),
         'priangan_paid', (select coalesce(sum(priangan_amount),0) from jo.submissions s where s.discipline = d.code and s.status = 'lunas'),
         'unique_paid', (select coalesce(sum(unique_code),0) from jo.submissions s where s.discipline = d.code and s.status = 'lunas'),
         'count_paid', (select count(*) from jo.submissions s where s.discipline = d.code and s.status = 'lunas'),
@@ -4212,7 +4264,7 @@ begin
     'contact', s.contact_name, 'email', s.contact_email, 'phone', s.contact_phone, 'total', s.total_amount, 'paid', s.paid_amount,
     'club', (select name from jo.clubs where id = s.club_id),
     'athletes', (select jsonb_agg(a.full_name || coalesce(' (' || a.athlete_no || ')', '') order by a.sort) from jo.athletes a where a.submission_id = s.id),
-    'team', (select t.name || ' ' || t.level from jo.teams t where t.submission_id = s.id),
+    'team', (select string_agg(t.name || ' ' || t.level, '; ') from jo.teams t where t.submission_id = s.id),
     'reason', trim(p_reason));
   v_files := jo.purge_submission(s.id);
   perform jo.log(st.id, 'pendaftaran_dihapus', 'submission', s.id::text, v_detail);
@@ -4242,9 +4294,9 @@ begin
   delete from jo.entry_athletes where entry_id in (select unnest(v_e));
   delete from jo.entries where id = any(v_e);
   delete from jo.athletes where id = a.id;
-  -- tagihan dihitung ulang bila belum lunas (perorangan/klub)
-  if s.status <> 'lunas' and s.registrant_type <> 'beregu' then
-    select coalesce(sum(fee), 0) into v_base from jo.entries where submission_id = s.id and status <> 'dibatalkan';
+  -- tagihan dihitung ulang bila belum lunas (biaya nomor + biaya beregu)
+  if s.status <> 'lunas' then
+    select coalesce(sum(fee), 0) + s.team_amount into v_base from jo.entries where submission_id = s.id and status <> 'dibatalkan';
     update jo.submissions set base_amount = v_base, priangan_amount = 0,
       total_amount = v_base + unique_code, updated_at = now() where id = s.id;
   end if;
@@ -4508,7 +4560,7 @@ insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, 
 - Men's and Women's Artistic: 12–15 December
 - Rhythmic: 16–18 December
 - Aerobic: 19–20 December$f$, 10, 'draf', 'Draf awal') on conflict (slug) do nothing;
-insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$umum$f$, $f$siapa-boleh-ikut$f$, $f$Siapa yang boleh ikut?$f$, $f$Sekolah, klub, pengkab/pengkot, dan perorangan, termasuk atlet dari luar negeri. Atlet tidak harus bergabung dengan klub; pilih "Perorangan" saat mendaftar.$f$, $f$Who can take part?$f$, $f$Schools, clubs, regency/city associations and individuals, including athletes from abroad. Athletes do not need a club; choose "Individual" when registering.$f$, 20, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$umum$f$, $f$siapa-boleh-ikut$f$, $f$Siapa yang boleh ikut?$f$, $f$Atlet dari klub, sekolah, atau pengkab/pengkot, termasuk dari luar negeri. **Semua atlet didaftarkan lewat klubnya**, oleh pemilik, admin, pelatih, atau official klub; tidak ada pendaftaran perorangan. Atlet yang belum punya klub perlu didaftarkan oleh klub atau sekolah tempatnya berlatih.$f$, $f$Who can take part?$f$, $f$Athletes from clubs, schools or regency/city associations, including from abroad. **Every athlete is registered through their club**, by the club's owner, admin, coach or official; there is no individual registration. An athlete without a club needs to be entered by the club or school where they train.$f$, 20, 'draf', 'Draf awal') on conflict (slug) do nothing;
 insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$umum$f$, $f$peraturan$f$, $f$Peraturan apa yang dipakai? Apakah ada protes nilai?$f$, $f$Penilaian memakai CoP FIG 2025–2028, TR 2025, dan ALP tanpa bonus. Tidak ada protes nilai: dengan mendaftar, peserta menerima keputusan juri dan panitia.$f$, $f$Which rules apply? Can scores be protested?$f$, $f$Judging follows the FIG CoP 2025–2028, TR 2025 and ALP without bonus. There are no score protests: by registering, participants accept the decisions of the judges and the committee.$f$, 30, 'draf', 'Draf awal') on conflict (slug) do nothing;
 insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$umum$f$, $f$jadwal-tampil$f$, $f$Kapan jadwal tampil atlet saya diumumkan?$f$, $f$Jadwal per hari di beranda masih sementara. Sesi dan urutan tampil diumumkan di [Start list](startlist.html) setelah pendaftaran ditutup, dan dibagikan lebih dulu di Instagram [@gimnastikjabar](https://www.instagram.com/gimnastikjabar/). Setelah terbit, jadwal tampil juga muncul di halaman status dan di AIC atlet.$f$, $f$When is my athlete's competition slot announced?$f$, $f$The day-by-day schedule on the home page is provisional. Sessions and start order are announced on the [Start list](startlist.html) after registration closes, and shared first on Instagram [@gimnastikjabar](https://www.instagram.com/gimnastikjabar/). Once published, the slot also appears on the status page and on the athlete's AIC.$f$, 40, 'draf', 'Draf awal') on conflict (slug) do nothing;
 insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$umum$f$, $f$hasil-sertifikat$f$, $f$Di mana melihat hasil dan mengunduh sertifikat?$f$, $f$Hasil tampil di halaman [Hasil](hasil.html) setelah panitia mempublikasikannya. Sertifikat atlet diunduh dari halaman status pendaftaran. Keaslian sertifikat bisa dicek lewat kode QR-nya di halaman [Verifikasi](verifikasi.html).$f$, $f$Where can I see results and download certificates?$f$, $f$Results appear on the [Results](hasil.html) page once the committee publishes them. Athlete certificates are downloaded from the registration status page. A certificate can be checked for authenticity through its QR code on the [Verify](verifikasi.html) page.$f$, 50, 'draf', 'Draf awal') on conflict (slug) do nothing;
@@ -4537,9 +4589,9 @@ Total yang dibayar ditambah kode unik tiga digit untuk mencocokkan pembayaran.$f
 - Aerobic mixed pair (MP): Rp400,000 per pair
 
 A three-digit unique code is added to the total to match your payment.$f$, 30, 'draf', 'Draf awal') on conflict (slug) do nothing;
-insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$jumlah-atlet$f$, $f$Berapa atlet yang bisa didaftarkan sekaligus?$f$, $f$Satu pendaftaran untuk satu disiplin. Perorangan untuk satu atlet; klub, sekolah, atau pengkab hingga **lima atlet** per pendaftaran. Untuk lebih dari lima atlet, buat pendaftaran berikutnya.
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$jumlah-atlet$f$, $f$Berapa atlet yang bisa didaftarkan sekaligus?$f$, $f$Satu pendaftaran untuk satu disiplin, maksimal **10 atlet**, termasuk anggota "khusus beregu". Klub dengan lebih dari 10 atlet cukup membuat pendaftaran berikutnya; data klub dan penanggung jawab tersimpan untuk pendaftaran berikutnya di perangkat yang sama.
 
-Kuota per klub per kategori: maksimal 10 pesenam untuk Artistik dan 4 atlet untuk Aerobik. Satu transaksi QRIS maksimal Rp10.000.000; bila total melebihinya, bagi atlet ke dalam dua pendaftaran.$f$, $f$How many athletes can be registered at once?$f$, $f$One registration covers one discipline. Individual registrations are for one athlete; clubs, schools and associations can enter up to **five athletes** per registration. For more than five, submit another registration.
+Kuota per klub per kategori: maksimal 10 pesenam untuk Artistik dan 4 atlet untuk Aerobik. Satu transaksi QRIS maksimal Rp10.000.000; bila total melebihinya, bagi atlet ke dalam dua pendaftaran.$f$, $f$How many athletes can be registered at once?$f$, $f$One registration covers one discipline, with up to **10 athletes**, including "team only" members. A club with more than 10 athletes simply submits another registration; the club and contact details are kept for the next one on the same device.
 
 Quota per club per category: up to 10 gymnasts for Artistic and 4 athletes for Aerobic. One QRIS transaction is capped at Rp10,000,000; if the total is higher, split the athletes into two registrations.$f$, 40, 'draf', 'Draf awal') on conflict (slug) do nothing;
 insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$kategori-usia$f$, $f$Bagaimana menentukan kategori usia atlet?$f$, $f$Kategori ditentukan oleh **tahun lahir** (usia 2026 = 2026 dikurangi tahun lahir). Setelah jenis kelamin dan tanggal lahir diisi, formulir hanya menampilkan kategori yang sesuai.
@@ -4553,16 +4605,16 @@ insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, 
 - Men's and Women's Artistic: the age groups for each level are shown in the form.$f$, 50, 'draf', 'Draf awal') on conflict (slug) do nothing;
 insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$ritmik-level$f$, $f$Apa beda Ritmik Profesional, Amatir, dan Priangan?$f$, $f$Ketiganya adalah level Ritmik yang terpisah dengan kelompok umur yang sama. Priangan berada di bawah Amatir dan hanya untuk atlet Jawa Barat. Satu atlet hanya boleh ikut **satu level**.$f$, $f$What is the difference between Rhythmic Professional, Amateur and Priangan?$f$, $f$They are separate Rhythmic levels with the same age groups. Priangan sits below Amateur and is only for West Java athletes. Each athlete may enter **one level only**.$f$, 60, 'draf', 'Draf awal') on conflict (slug) do nothing;
 insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$priangan$f$, $f$Siapa yang boleh ikut kategori Ritmik Priangan?$f$, $f$Atlet **WNI** yang alamat pada identitasnya di **Jawa Barat** dan didaftarkan lewat **klub dari Jawa Barat**. Asal pelatih atau penanggung jawab yang mengisi formulir tidak berpengaruh. Biayanya sama, Rp750.000, tanpa biaya tambahan. Priangan punya tabel medali sendiri.$f$, $f$Who can enter the Rhythmic Priangan level?$f$, $f$**Indonesian** athletes whose ID address is in **West Java**, entered through a **West Java club**. Where the coach or contact person filling in the form comes from does not matter. The fee is the same Rp750,000, with no extra charge. Priangan has its own medal table.$f$, 70, 'draf', 'Draf awal') on conflict (slug) do nothing;
-insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$beregu$f$, $f$Bagaimana aturan Beregu Artistik Putri?$f$, $f$Beregu hanya untuk Artistik Putri Level 1–6, biaya Rp650.000 per tim di luar biaya perorangan.
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$beregu$f$, $f$Bagaimana aturan Beregu Artistik Putri?$f$, $f$Beregu hanya untuk Artistik Putri Level 1–6, biaya Rp650.000 per tim di luar biaya perorangan. Tim ditambahkan di langkah **Beregu** pada pendaftaran klub, bersama atletnya.
 
 - Satu tim untuk satu level, 1–6 pesenam; kelompok usia boleh campur.
 - Satu klub boleh mengirim beberapa tim di level yang sama dengan nama berbeda.
-- Anggota bisa "juga perorangan" (sudah terdaftar perorangan lewat klub yang sama) atau "khusus beregu" (dinilai untuk tim, tidak diperingkat perorangan).
-- Nilai tim = jumlah 4 nilai serba bisa terbaik. Setiap anggota tim juara 1–3 mendapat sertifikat Juara Beregu.$f$, $f$How does the Women's Artistic team event work?$f$, $f$The team event is for Women's Artistic Levels 1–6 only, Rp650,000 per team on top of individual fees.
+- Anggota bisa atlet di pendaftaran yang sama, atlet yang sudah didaftarkan klub di level itu lewat pendaftaran sebelumnya, atau "khusus beregu" (dinilai untuk tim, tidak diperingkat perorangan, dan dihitung dalam batas 10 atlet).
+- Nilai tim = jumlah 4 nilai serba bisa terbaik. Setiap anggota tim juara 1–3 mendapat sertifikat Juara Beregu.$f$, $f$How does the Women's Artistic team event work?$f$, $f$The team event is for Women's Artistic Levels 1–6 only, Rp650,000 per team on top of individual fees. Teams are added in the **Team** step of the club registration, together with the athletes.
 
 - One team per level, 1–6 gymnasts; age groups can be mixed.
 - A club may send several teams at the same level under different names.
-- Members are either "also individual" (already registered individually through the same club) or "team only" (scored for the team, not ranked individually).
+- Members can be athletes in the same registration, athletes the club entered at that level in an earlier registration, or "team only" (scored for the team, not ranked individually, and counted in the 10-athlete limit).
 - Team score = sum of the best 4 all-around scores. Every member of a 1st–3rd place team receives a Team Champion certificate.$f$, 80, 'draf', 'Draf awal') on conflict (slug) do nothing;
 insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$klub-belum-ada$f$, $f$Klub saya tidak ada di daftar. Bagaimana?$f$, $f$Ketik nama klub di kolom pencarian. Bila tidak ditemukan, pilih "Klub saya belum ada di daftar", lalu isi nama klub, provinsi, dan kabupaten/kota. Panitia akan merapikan datanya.$f$, $f$My club is not in the list. What should I do?$f$, $f$Type the club name in the search box. If it is not found, choose "My club is not listed" and fill in the club name, province and regency/city. The committee will tidy up the record.$f$, 90, 'draf', 'Draf awal') on conflict (slug) do nothing;
 insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$salah-data$f$, $f$Saya salah mengisi data atlet atau kategori. Bagaimana memperbaikinya?$f$, $f$Jangan mendaftar ulang. Kirim email ke [jabaropen2026@gmail.com](mailto:jabaropen2026@gmail.com) dengan menyertakan kode pendaftaran (JO26-…) dan data yang perlu diperbaiki. Panitia memperbaikinya dari sistem.$f$, $f$I entered wrong athlete details or the wrong category. How do I fix it?$f$, $f$Do not register again. Email [jabaropen2026@gmail.com](mailto:jabaropen2026@gmail.com) with the registration code (JO26-…) and what needs correcting. The committee will fix it in the system.$f$, 100, 'draf', 'Draf awal') on conflict (slug) do nothing;
@@ -4602,6 +4654,31 @@ insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, 
 insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$hari-h$f$, $f$aic-kapan$f$, $f$Kapan AIC bisa diunduh?$f$, $f$Hanya setelah pendaftaran **lunas**. Saat itu email berisi tautan "Unduh AIC" per atlet dikirim ke penanggung jawab, dan tombol unduh di halaman status terbuka. Sebelum lunas, tombolnya terkunci dengan keterangan apa yang masih ditunggu (unggah bukti bayar, verifikasi panitia, atau perbaikan bukti).$f$, $f$When can the AIC be downloaded?$f$, $f$Only once the registration is **paid**. At that point an email with a "Download AIC" link for each athlete is sent to the contact person, and the download button on the status page unlocks. Until then the button is locked with a note on what is still pending (payment proof upload, committee verification, or a proof fix).$f$, 20, 'draf', 'Draf awal') on conflict (slug) do nothing;
 insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$hari-h$f$, $f$registrasi-ulang$f$, $f$Apakah ada registrasi ulang di venue?$f$, $f$Tidak ada registrasi ulang. Datang sesuai jadwal yang diumumkan di Instagram dan situs Jabar Open 2026, lalu tunjukkan AIC dari ponsel. Atlet yang belum mengunggah BPJS Ketenagakerjaan membawa kartunya ke meja panitia sebelum bertanding.$f$, $f$Is there an on-site check-in?$f$, $f$There is no on-site check-in. Come at the time announced on Instagram and the Jabar Open 2026 website and show the AIC on a phone. Athletes who did not upload BPJS Ketenagakerjaan bring the card to the committee desk before competing.$f$, 30, 'draf', 'Draf awal') on conflict (slug) do nothing;
 insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$juri$f$, $f$daftar-juri$f$, $f$Bagaimana mendaftar sebagai juri?$f$, $f$Juri berbrevet mendaftar di halaman [Pendaftaran juri](juri.html) untuk **satu disiplin**: Artistik Putra, Artistik Putri, atau Ritmik. Siapkan KTP atau identitas lain, pas foto, kartu BPJS Ketenagakerjaan (wajib), dan sertifikat brevet bila ada; berkas JPG, PNG, atau PDF, maksimal 5 MB. Panitia memeriksa setiap pendaftaran dan menghubungi juri terpilih lewat WhatsApp.$f$, $f$How do I apply as a judge?$f$, $f$Licensed judges apply on the [Judge application](juri.html) page for **one discipline**: Men's Artistic, Women's Artistic or Rhythmic. Have an ID card, a passport photo, a BPJS Ketenagakerjaan card (required) and the judging licence if available; files in JPG, PNG or PDF, up to 5 MB. The committee reviews every application and contacts selected judges by WhatsApp.$f$, 10, 'draf', 'Draf awal') on conflict (slug) do nothing;
+-- v8: perbarui butir yang terdampak, hanya bila isi jawabannya masih teks lama (status terbit tetap)
+update jo.faq_items set q_id = $f$Siapa yang boleh ikut?$f$, a_id = $f$Atlet dari klub, sekolah, atau pengkab/pengkot, termasuk dari luar negeri. **Semua atlet didaftarkan lewat klubnya**, oleh pemilik, admin, pelatih, atau official klub; tidak ada pendaftaran perorangan. Atlet yang belum punya klub perlu didaftarkan oleh klub atau sekolah tempatnya berlatih.$f$, q_en = $f$Who can take part?$f$, a_en = $f$Athletes from clubs, schools or regency/city associations, including from abroad. **Every athlete is registered through their club**, by the club's owner, admin, coach or official; there is no individual registration. An athlete without a club needs to be entered by the club or school where they train.$f$, updated_at = now() where slug = $f$siapa-boleh-ikut$f$ and a_id = $f$Sekolah, klub, pengkab/pengkot, dan perorangan, termasuk atlet dari luar negeri. Atlet tidak harus bergabung dengan klub; pilih "Perorangan" saat mendaftar.$f$;
+update jo.faq_items set q_id = $f$Berapa atlet yang bisa didaftarkan sekaligus?$f$, a_id = $f$Satu pendaftaran untuk satu disiplin, maksimal **10 atlet**, termasuk anggota "khusus beregu". Klub dengan lebih dari 10 atlet cukup membuat pendaftaran berikutnya; data klub dan penanggung jawab tersimpan untuk pendaftaran berikutnya di perangkat yang sama.
+
+Kuota per klub per kategori: maksimal 10 pesenam untuk Artistik dan 4 atlet untuk Aerobik. Satu transaksi QRIS maksimal Rp10.000.000; bila total melebihinya, bagi atlet ke dalam dua pendaftaran.$f$, q_en = $f$How many athletes can be registered at once?$f$, a_en = $f$One registration covers one discipline, with up to **10 athletes**, including "team only" members. A club with more than 10 athletes simply submits another registration; the club and contact details are kept for the next one on the same device.
+
+Quota per club per category: up to 10 gymnasts for Artistic and 4 athletes for Aerobic. One QRIS transaction is capped at Rp10,000,000; if the total is higher, split the athletes into two registrations.$f$, updated_at = now() where slug = $f$jumlah-atlet$f$ and a_id = $f$Satu pendaftaran untuk satu disiplin. Perorangan untuk satu atlet; klub, sekolah, atau pengkab hingga **lima atlet** per pendaftaran. Untuk lebih dari lima atlet, buat pendaftaran berikutnya.
+
+Kuota per klub per kategori: maksimal 10 pesenam untuk Artistik dan 4 atlet untuk Aerobik. Satu transaksi QRIS maksimal Rp10.000.000; bila total melebihinya, bagi atlet ke dalam dua pendaftaran.$f$;
+update jo.faq_items set q_id = $f$Bagaimana aturan Beregu Artistik Putri?$f$, a_id = $f$Beregu hanya untuk Artistik Putri Level 1–6, biaya Rp650.000 per tim di luar biaya perorangan. Tim ditambahkan di langkah **Beregu** pada pendaftaran klub, bersama atletnya.
+
+- Satu tim untuk satu level, 1–6 pesenam; kelompok usia boleh campur.
+- Satu klub boleh mengirim beberapa tim di level yang sama dengan nama berbeda.
+- Anggota bisa atlet di pendaftaran yang sama, atlet yang sudah didaftarkan klub di level itu lewat pendaftaran sebelumnya, atau "khusus beregu" (dinilai untuk tim, tidak diperingkat perorangan, dan dihitung dalam batas 10 atlet).
+- Nilai tim = jumlah 4 nilai serba bisa terbaik. Setiap anggota tim juara 1–3 mendapat sertifikat Juara Beregu.$f$, q_en = $f$How does the Women's Artistic team event work?$f$, a_en = $f$The team event is for Women's Artistic Levels 1–6 only, Rp650,000 per team on top of individual fees. Teams are added in the **Team** step of the club registration, together with the athletes.
+
+- One team per level, 1–6 gymnasts; age groups can be mixed.
+- A club may send several teams at the same level under different names.
+- Members can be athletes in the same registration, athletes the club entered at that level in an earlier registration, or "team only" (scored for the team, not ranked individually, and counted in the 10-athlete limit).
+- Team score = sum of the best 4 all-around scores. Every member of a 1st–3rd place team receives a Team Champion certificate.$f$, updated_at = now() where slug = $f$beregu$f$ and a_id = $f$Beregu hanya untuk Artistik Putri Level 1–6, biaya Rp650.000 per tim di luar biaya perorangan.
+
+- Satu tim untuk satu level, 1–6 pesenam; kelompok usia boleh campur.
+- Satu klub boleh mengirim beberapa tim di level yang sama dengan nama berbeda.
+- Anggota bisa "juga perorangan" (sudah terdaftar perorangan lewat klub yang sama) atau "khusus beregu" (dinilai untuk tim, tidak diperingkat perorangan).
+- Nilai tim = jumlah 4 nilai serba bisa terbaik. Setiap anggota tim juara 1–3 mendapat sertifikat Juara Beregu.$f$;
 -- =====================================================================
 --  Data awal: disiplin, kategori (Undangan 06/10/2026), pengaturan
 --  'on conflict do nothing' -> perubahan dari konsol tidak tertimpa
@@ -4676,7 +4753,7 @@ insert into jo.settings (key, value) values
   ('payment_deadline_label', '"12 November 2026"'::jsonb),
   ('priangan_fee', '150000'::jsonb),
   ('qris_cap', '10000000'::jsonb),
-  ('max_athletes', '5'::jsonb),
+  ('max_athletes', '10'::jsonb),
   ('qris_image_url', 'null'::jsonb),
   ('qris_merchant', '"Jabar Open 2026"'::jsonb),
   ('payment_note', '"Scan QRIS dengan aplikasi bank atau dompet digital apa pun, lalu ketik nominal persis seperti tertera (termasuk tiga digit kode unik)."'::jsonb),
@@ -4894,6 +4971,10 @@ begin
     insert into jo.settings (key, value) values ('migrasi_v6_hapus_uji', to_jsonb(now()));
   end if;
 end $$;
+
+-- v8 (15/10/2026): batas atlet per pendaftaran naik dari 5 ke 10; beregu lama dicatat sebagai biaya beregu
+update jo.settings set value = '10'::jsonb, updated_at = now() where key = 'max_athletes' and value = '5'::jsonb;
+update jo.submissions set team_amount = base_amount where registrant_type = 'beregu' and team_amount = 0;
 -- =====================================================================
 --  Penyimpanan berkas (Supabase Storage)
 --   dokumen : identitas & foto atlet (privat)

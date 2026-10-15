@@ -16,7 +16,7 @@ begin
     'contact', s.contact_name, 'email', s.contact_email, 'phone', s.contact_phone, 'total', s.total_amount, 'paid', s.paid_amount,
     'club', (select name from jo.clubs where id = s.club_id),
     'athletes', (select jsonb_agg(a.full_name || coalesce(' (' || a.athlete_no || ')', '') order by a.sort) from jo.athletes a where a.submission_id = s.id),
-    'team', (select t.name || ' ' || t.level from jo.teams t where t.submission_id = s.id),
+    'team', (select string_agg(t.name || ' ' || t.level, '; ') from jo.teams t where t.submission_id = s.id),
     'reason', trim(p_reason));
   v_files := jo.purge_submission(s.id);
   perform jo.log(st.id, 'pendaftaran_dihapus', 'submission', s.id::text, v_detail);
@@ -46,9 +46,9 @@ begin
   delete from jo.entry_athletes where entry_id in (select unnest(v_e));
   delete from jo.entries where id = any(v_e);
   delete from jo.athletes where id = a.id;
-  -- tagihan dihitung ulang bila belum lunas (perorangan/klub)
-  if s.status <> 'lunas' and s.registrant_type <> 'beregu' then
-    select coalesce(sum(fee), 0) into v_base from jo.entries where submission_id = s.id and status <> 'dibatalkan';
+  -- tagihan dihitung ulang bila belum lunas (biaya nomor + biaya beregu)
+  if s.status <> 'lunas' then
+    select coalesce(sum(fee), 0) + s.team_amount into v_base from jo.entries where submission_id = s.id and status <> 'dibatalkan';
     update jo.submissions set base_amount = v_base, priangan_amount = 0,
       total_amount = v_base + unique_code, updated_at = now() where id = s.id;
   end if;

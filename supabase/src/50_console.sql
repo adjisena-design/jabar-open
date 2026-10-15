@@ -120,7 +120,7 @@ begin
       c.name as club, coalesce(c.kab_kota, (select a.kab_kota from jo.athletes a where a.submission_id = s.id order by a.sort limit 1)) as region,
       (select count(*) from jo.athletes a where a.submission_id = s.id) as n_athletes,
       (select string_agg(a.full_name, ', ' order by a.sort) from jo.athletes a where a.submission_id = s.id) as athlete_names,
-      (select t.name || ' (' || t.level || ', ' || (select count(*) from jo.team_members m where m.team_id = t.id) || ' pesenam)' from jo.teams t where t.submission_id = s.id) as team_name,
+      (select string_agg(t.name || ' (' || t.level || ', ' || (select count(*) from jo.team_members m where m.team_id = t.id) || ' pesenam)', '; ' order by t.level, t.name) from jo.teams t where t.submission_id = s.id) as team_name,
       (select count(*) from jo.entries e where e.submission_id = s.id and e.status <> 'dibatalkan' and e.music_status in ('menunggu','belum','tidak_bisa')) as music_pending,
       s.total_amount, s.unique_code, s.status, s.payment_method, s.proof_uploaded_at, s.paid_at,
       case when s.payment_method = 'qris' and s.status = 'menunggu_pembayaran' and s.proof_path is null
@@ -138,7 +138,7 @@ begin
       and (coalesce(f->>'flag','') = ''
            or (f->>'flag' = 'docs' and exists (select 1 from jo.athletes a where a.submission_id = s.id and a.doc_status = 'menunggu') and s.status <> 'dibatalkan')
            or (f->>'flag' = 'priangan' and exists (select 1 from jo.entries e where e.submission_id = s.id and e.priangan_status = 'menunggu') and s.status <> 'dibatalkan')
-           or (f->>'flag' = 'beregu' and s.registrant_type = 'beregu')
+           or (f->>'flag' = 'beregu' and exists (select 1 from jo.teams t where t.submission_id = s.id))
            or (f->>'flag' = 'musik' and exists (select 1 from jo.entries e where e.submission_id = s.id and e.status <> 'dibatalkan' and e.music_status in ('menunggu','belum','tidak_bisa')) and s.status <> 'dibatalkan'))
     order by s.created_at desc
     limit 1000) x);
@@ -181,14 +181,14 @@ begin
                       where ea.entry_id = e.id and jo.category_mismatch(c, a.gender, a.birth_date) is not null)
       ) order by c.sort), '[]'::jsonb)
       from jo.entries e join jo.categories c on c.id = e.category_id where e.submission_id = s.id),
-    'team', (select jsonb_build_object('id', t.id, 'name', t.name, 'level', t.level,
+    'teams', (select coalesce(jsonb_agg(jsonb_build_object('id', t.id, 'name', t.name, 'level', t.level,
         'members', (select coalesce(jsonb_agg(jsonb_build_object(
             'athlete_id', a.id, 'name', a.full_name, 'athlete_no', a.athlete_no, 'team_only', m.team_only,
             'category', c2.name_id, 'entry_status', e2.status,
             'submission_id', e2.submission_id, 'submission_code', s2.code, 'submission_status', s2.status) order by m.sort), '[]'::jsonb)
           from jo.team_members m join jo.athletes a on a.id = m.athlete_id join jo.entries e2 on e2.id = m.entry_id
           join jo.categories c2 on c2.id = e2.category_id join jo.submissions s2 on s2.id = e2.submission_id
-          where m.team_id = t.id))
+          where m.team_id = t.id)) order by t.level, t.name), '[]'::jsonb)
       from jo.teams t where t.submission_id = s.id),
     'mutations', (select coalesce(jsonb_agg(to_jsonb(m) - 'raw' order by m.trx_time), '[]'::jsonb)
         from jo.mutations m where m.submission_id = s.id),
@@ -936,11 +936,11 @@ begin
   return jsonb_build_object(
     'rows', (select coalesce(jsonb_agg(row_to_json(x)::jsonb order by x.created_at), '[]'::jsonb) from (
       select s.id, s.code, s.created_at, s.discipline, coalesce(c.name, 'Perorangan') as club, s.registrant_type,
-        (select t.name || ' (' || t.level || ')' from jo.teams t where t.submission_id = s.id) as team_name,
+        (select string_agg(t.name || ' (' || t.level || ')', '; ' order by t.level, t.name) from jo.teams t where t.submission_id = s.id) as team_name,
         s.contact_name, s.contact_phone, s.contact_email,
         (select count(*) from jo.athletes a where a.submission_id = s.id) as n_athletes,
         (select count(*) from jo.entries e where e.submission_id = s.id and e.status <> 'dibatalkan') as n_entries,
-        s.base_amount, s.priangan_amount, s.unique_code, s.total_amount, s.status, s.payment_method,
+        s.base_amount, s.team_amount, s.priangan_amount, s.unique_code, s.total_amount, s.status, s.payment_method,
         s.paid_amount, s.paid_at, s.proof_path, s.proof_uploaded_at, s.verify_note,
         (select name from jo.staff where id = s.verified_by) as verified_by, s.verified_at,
         (select jsonb_agg(jsonb_build_object('id', m.id, 'amount', m.amount, 'trx_time', m.trx_time, 'reference', m.reference, 'match_status', m.match_status))
@@ -951,9 +951,9 @@ begin
     'summary', (select coalesce(jsonb_agg(jsonb_build_object('discipline', d.code, 'name', d.name_id,
         'expected', (select coalesce(sum(total_amount),0) from jo.submissions s where s.discipline = d.code and s.status <> 'dibatalkan'),
         'paid', (select coalesce(sum(coalesce(paid_amount,total_amount)),0) from jo.submissions s where s.discipline = d.code and s.status = 'lunas'),
-        'fees_paid', (select coalesce(sum(base_amount),0) from jo.submissions s where s.discipline = d.code and s.status = 'lunas' and s.registrant_type <> 'beregu'),
-        'team_paid', (select coalesce(sum(base_amount),0) from jo.submissions s where s.discipline = d.code and s.status = 'lunas' and s.registrant_type = 'beregu'),
-        'teams_paid', (select count(*) from jo.submissions s where s.discipline = d.code and s.status = 'lunas' and s.registrant_type = 'beregu'),
+        'fees_paid', (select coalesce(sum(base_amount - team_amount),0) from jo.submissions s where s.discipline = d.code and s.status = 'lunas'),
+        'team_paid', (select coalesce(sum(team_amount),0) from jo.submissions s where s.discipline = d.code and s.status = 'lunas'),
+        'teams_paid', (select count(*) from jo.teams t join jo.submissions s on s.id = t.submission_id where s.discipline = d.code and s.status = 'lunas'),
         'priangan_paid', (select coalesce(sum(priangan_amount),0) from jo.submissions s where s.discipline = d.code and s.status = 'lunas'),
         'unique_paid', (select coalesce(sum(unique_code),0) from jo.submissions s where s.discipline = d.code and s.status = 'lunas'),
         'count_paid', (select count(*) from jo.submissions s where s.discipline = d.code and s.status = 'lunas'),

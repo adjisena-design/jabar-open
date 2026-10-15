@@ -72,7 +72,7 @@ insert into jo.settings (key, value) values
   ('payment_deadline_label', '"12 November 2026"'::jsonb),
   ('priangan_fee', '150000'::jsonb),
   ('qris_cap', '10000000'::jsonb),
-  ('max_athletes', '5'::jsonb),
+  ('max_athletes', '10'::jsonb),
   ('qris_image_url', 'null'::jsonb),
   ('qris_merchant', '"Jabar Open 2026"'::jsonb),
   ('payment_note', '"Scan QRIS dengan aplikasi bank atau dompet digital apa pun, lalu ketik nominal persis seperti tertera (termasuk tiga digit kode unik)."'::jsonb),
