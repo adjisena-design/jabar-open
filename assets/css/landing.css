@@ -444,3 +444,26 @@ details[open]:not(.closing) > summary .tog::after{transform:rotate(0)}
   .f-addr,.f-links{border-left:0;padding-left:0;border-top:1px solid var(--line-2)}
   .footer-bottom{flex-direction:column;gap:4px}
 }
+
+/* ============ Tutorial pendaftaran (video vertikal) ============ */
+.tut-in{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:". video" "head video" "steps video" "dl video" ". video";grid-template-rows:1fr auto auto auto 1fr;column-gap:clamp(32px,6vw,96px);align-items:start}
+.tut-head{grid-area:head}.tut-steps{grid-area:steps}.tut-dl{grid-area:dl;justify-self:start;align-self:start}.tut-video{grid-area:video;align-self:center}
+.tut .lead{margin:18px 0 0}
+.tut-steps{list-style:none;margin:clamp(22px,3.4vh,34px) 0 clamp(22px,3.4vh,32px);padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 28px;max-width:640px}
+.tut-steps li{display:grid;grid-template-columns:30px minmax(0,1fr);gap:12px;align-items:start;font-size:15.5px;line-height:1.45;color:rgba(255,255,255,.86);padding-top:12px;border-top:1px solid rgba(255,255,255,.16)}
+.tut-steps .no{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--gold);color:var(--ink);font-weight:800;font-size:13.5px;line-height:1}
+.tut-dl small.tut-size{font-weight:500;font-size:13px;opacity:.7}
+.tut-video{margin:0;justify-self:end;width:min(380px,calc((100svh - 150px) * 9 / 16));min-width:260px}
+.tut-video video{display:block;width:100%;height:auto;aspect-ratio:9/16;border-radius:28px;background:#0d1d38;
+  border:1px solid rgba(255,255,255,.18);box-shadow:0 30px 60px -28px rgba(0,0,0,.6),0 0 0 6px rgba(228,200,125,.10)}
+@media (max-width:900px){
+  .tut-in{grid-template-columns:1fr;grid-template-areas:"head" "video" "steps" "dl";grid-template-rows:none;row-gap:0}
+  .tut-video{margin-top:26px}
+  .tut-video{justify-self:center;width:min(100%,360px,calc((100svh - 120px) * 9 / 16));min-width:0}
+}
+@media (max-width:560px){
+  .tut-steps{grid-template-columns:1fr;gap:10px}
+  .tut-steps li{font-size:15px;padding-top:10px}
+  .tut-dl{width:100%}
+  .tut-video video{border-radius:22px}
+}
