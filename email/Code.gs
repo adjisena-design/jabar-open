@@ -16,6 +16,14 @@
  *       REPLY_TO     = jabaropen2026@gmail.com   (opsional; balasan peserta masuk ke sini)
  *  3. Pilih fungsi `ujiKoneksi` lalu Run. Izinkan akses saat diminta.
  *  4. Pilih fungsi `pasangJadwal` lalu Run. Selesai: email terkirim tiap menit.
+ *
+ * Notifikasi WhatsApp ke admin pendaftaran (opsional, v9):
+ *  5. Daftar di gateway WhatsApp Fonnte (fonnte.com), hubungkan satu nomor WhatsApp
+ *     khusus panitia dengan memindai QR, lalu salin token perangkat.
+ *  6. Script properties -> tambahkan FONNTE_TOKEN = (token perangkat dari Fonnte).
+ *  7. Isi penerima di konsol panitia > Pengaturan > Notifikasi WhatsApp, tekan "Kirim tes".
+ *  Tanpa FONNTE_TOKEN, bagian WhatsApp dilewati dan email tetap berjalan.
+ *  Token gateway hanya disimpan di sini, tidak di database.
  */
 
 var NAMA_PENGIRIM = 'Jabar Open 2026';
@@ -46,6 +54,30 @@ function kirimEmail() {
     }
   });
   if (hasil.length) panggil_(url, key, 'outbox_report', { p_secret: secret, p_results: hasil });
+  try { kirimWA_(url, key, secret, p.getProperty('FONNTE_TOKEN')); } catch (e) { Logger.log('WhatsApp: ' + e); }
+}
+
+// Antrean WhatsApp: database menyusun ringkasan (default tiap 15 menit), skrip ini mengirim lewat Fonnte
+function kirimWA_(url, key, secret, token) {
+  if (!token) return;
+  var batch = panggil_(url, key, 'wa_claim', { p_secret: secret, p_limit: 10 }) || [];
+  var hasil = [];
+  batch.forEach(function (m) {
+    try {
+      var r = UrlFetchApp.fetch('https://api.fonnte.com/send', {
+        method: 'post', muteHttpExceptions: true,
+        headers: { Authorization: token },
+        payload: { target: m.to, message: m.message, countryCode: '62' },
+      });
+      var body = {};
+      try { body = JSON.parse(r.getContentText() || '{}'); } catch (x) {}
+      if (r.getResponseCode() < 300 && body.status !== false) hasil.push({ id: m.id, ok: true });
+      else hasil.push({ id: m.id, ok: false, error: 'Fonnte ' + r.getResponseCode() + ': ' + (body.reason || r.getContentText()).toString().slice(0, 300) });
+    } catch (e) {
+      hasil.push({ id: m.id, ok: false, error: String(e && e.message ? e.message : e) });
+    }
+  });
+  if (hasil.length) panggil_(url, key, 'wa_report', { p_secret: secret, p_results: hasil });
 }
 
 function panggil_(url, key, fn, body) {
@@ -71,6 +103,7 @@ function ujiKoneksi() {
     if (!p.getProperty(k)) throw new Error('Script property ' + k + ' belum diisi.');
   });
   Logger.log('Kuota email hari ini: ' + MailApp.getRemainingDailyQuota());
+  Logger.log(p.getProperty('FONNTE_TOKEN') ? 'Notifikasi WhatsApp: aktif (FONNTE_TOKEN terisi).' : 'Notifikasi WhatsApp: belum aktif (FONNTE_TOKEN kosong).');
   kirimEmail();
   Logger.log('Koneksi ke database berhasil. Cek konsol panitia > Pengaturan > Pengirim email.');
 }

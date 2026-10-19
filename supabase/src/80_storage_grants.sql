@@ -72,13 +72,13 @@ do $$ declare f record; begin
       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'public'
        and (p.proname like 'public\_%' or p.proname like 'console\_%'
-            or p.proname like 'outbox\_%' or p.proname like 'jo\_%')
+            or p.proname like 'outbox\_%' or p.proname like 'wa\_%' or p.proname like 'jo\_%')
   loop
     execute format('revoke all on function %s from public', f.sig);
     begin
       execute format('revoke all on function %s from anon, authenticated', f.sig);
     exception when others then null; end;
-    if f.proname like 'public\_%' or f.proname like 'outbox\_%' then
+    if f.proname like 'public\_%' or f.proname like 'outbox\_%' or f.proname like 'wa\_%' then
       execute format('grant execute on function %s to anon, authenticated', f.sig);
     else
       execute format('grant execute on function %s to authenticated', f.sig);

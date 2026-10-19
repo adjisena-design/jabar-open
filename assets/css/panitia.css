@@ -281,3 +281,23 @@ body[data-page="panitia"] .score-in:disabled{background:var(--paper);color:var(-
 .lg-sub,.lg-title{text-shadow:0 2px 18px rgba(15,33,64,.55)}
 .lg-sub span{display:block}
 .lg-sub .lg-date{margin-top:4px;color:#fff;font-weight:600}
+
+/* ============ Perlu tindakan (titik merah) ============ */
+.rdot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--bad);box-shadow:0 0 0 3px rgba(192,57,43,.16);flex:none}
+.todo{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:0 0 14px}
+.todo.has{border-color:rgba(192,57,43,.35);box-shadow:0 0 0 3px rgba(192,57,43,.06)}
+.todo h2{display:flex;align-items:center;gap:10px;font-size:1rem;margin:0 0 10px}
+.todo.none h2{margin-bottom:4px;color:var(--ok)}
+.todo-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.todo-item{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;text-decoration:none;color:var(--ink);background:var(--mist,#f4f6fa);min-height:52px}
+.todo-item:hover{border-color:var(--bad)}
+.todo-item b{display:block;font-size:.9rem;line-height:1.25}
+.todo-item small{display:block;color:var(--muted);font-size:.78rem}
+.todo-item strong{font-size:1.25rem;font-weight:800;font-variant-numeric:tabular-nums}
+.todo-item svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;color:var(--muted)}
+.kpi small + b + small{margin-top:2px}
+.side nav a{position:relative}
+.side nav a.has-action::after{content:'';position:absolute;right:14px;top:50%;margin-top:-4.5px;width:9px;height:9px;border-radius:50%;background:var(--bad);box-shadow:0 0 0 3px rgba(180,35,24,.18)}
+.menu-tg{position:relative}
+.menu-tg.has-action::after{content:'';position:absolute;right:4px;top:4px;width:9px;height:9px;border-radius:50%;background:var(--bad);box-shadow:0 0 0 2px #fff}
+@media (max-width:560px){.todo-list{grid-template-columns:1fr}}

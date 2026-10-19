@@ -506,6 +506,31 @@ alter table jo.submissions add column if not exists team_amount integer not null
 alter table jo.teams drop constraint if exists teams_submission_id_key;
 create index if not exists teams_submission_idx on jo.teams(submission_id);
 
+-- v9 (19/10/2026): notifikasi WhatsApp ke admin pendaftaran (lewat gateway, dikirim Apps Script)
+create table if not exists jo.wa_recipients (
+  id          uuid primary key default gen_random_uuid(),
+  name        text not null,
+  phone       text not null,
+  discipline  text references jo.disciplines(code),
+  active      boolean not null default true,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+create table if not exists jo.wa_outbox (
+  id           bigserial primary key,
+  created_at   timestamptz not null default now(),
+  kind         text not null default 'digest',
+  recipient_id uuid references jo.wa_recipients(id) on delete set null,
+  to_phone     text not null,
+  message      text not null,
+  status       text not null default 'pending' check (status in ('pending','sending','sent','error')),
+  attempts     integer not null default 0,
+  claimed_at   timestamptz,
+  sent_at      timestamptz,
+  last_error   text
+);
+create index if not exists wa_outbox_status on jo.wa_outbox (status, id);
+
 -- Semua tabel di skema jo: RLS aktif tanpa policy.
 -- Akses hanya lewat fungsi (RPC) yang memeriksa hak.
 do $$ declare t record; begin

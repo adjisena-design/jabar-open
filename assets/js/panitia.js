@@ -200,6 +200,7 @@
   // ---------------- kerangka ----------------
   // ikon garis sederhana (24x24)
   const IC = {
+    chev: '<path d="M9 6l6 6-6 6"/>',
     home: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
     inbox: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 13h5l2 3h4l2-3h5"/>',
     users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/>',
@@ -362,20 +363,33 @@
     const d = await api('console_dashboard');
     const emailOk = d.email && d.email.last_poll && (Date.now() - new Date(d.email.last_poll).getTime() < 30 * 60 * 1000);
     const sum = (k) => d.by_discipline.reduce((a, x) => a + (Number(x[k]) || 0), 0);
+    const A = await api('console_actions').catch(() => null);
+    const one = (x) => (ME.discipline ? `&d=${ME.discipline}` : '') + x;
+    const acts = A ? [
+      [Number(A.to_verify), `Verifikasi pembayaran`, `${A.to_verify} pendaftaran, ${A.to_verify_athletes} atlet`, `#/pendaftaran?s=menunggu_verifikasi${one('')}`],
+      [Number(A.docs_pending), 'Periksa dokumen atlet', `${A.docs_pending} atlet`, `#/pendaftaran?f=docs${one('')}`],
+      [Number(A.priangan_pending), 'Cek syarat Priangan', `${A.priangan_pending} nomor Ritmik`, `#/pendaftaran?f=priangan${one('')}`],
+      [Number(A.music_pending), 'Periksa tautan musik', `${A.music_pending} nomor Ritmik`, '#/musik'],
+    ].filter((x) => x[0] > 0) : [];
     v.innerHTML = `<h1>Ringkasan</h1><p class="muted">Halo, ${esc(ME.name)}. Angka diperbarui setiap halaman ini dibuka.</p>
+      <section class="todo ${acts.length ? 'has' : 'none'}" aria-live="polite">
+        <h2>${acts.length ? '<span class="rdot" aria-hidden="true"></span>Perlu tindakan' : 'Tidak ada yang perlu ditindaklanjuti'}</h2>
+        ${acts.length ? `<div class="todo-list">${acts.map((x) => `<a class="todo-item" href="${x[3]}"><span class="rdot" aria-hidden="true"></span><span><b>${esc(x[1])}</b><small>${esc(x[2])}</small></span><strong>${x[0]}</strong>${icon('chev')}</a>`).join('')}</div>`
+          : '<p class="small muted" style="margin:0">Semua pembayaran dan dokumen yang masuk sudah diperiksa.</p>'}
+      </section>
       <div class="kpis">
-        <div class="kpi"><div><small>Atlet terdaftar</small><b>${sum('athletes')}</b></div><i>${icon('users')}</i></div>
-        <div class="kpi ok"><div><small>Atlet lunas</small><b>${sum('athletes_paid')}</b></div><i>${icon('check')}</i></div>
-        <div class="kpi warn"><div><small>Menunggu verifikasi</small><b>${sum('to_verify')}</b></div><i>${icon('clock')}</i></div>
-        <div class="kpi bad"><div><small>Dokumen belum diperiksa</small><b>${sum('docs_pending')}</b></div><i>${icon('alert')}</i></div>
+        <div class="kpi"><div><small>Atlet terdaftar</small><b>${sum('athletes')}</b><small>dalam ${sum('submissions')} pendaftaran</small></div><i>${icon('users')}</i></div>
+        <div class="kpi ok"><div><small>Atlet lunas</small><b>${sum('athletes_paid')}</b><small>atlet</small></div><i>${icon('check')}</i></div>
+        <div class="kpi warn"><div><small>Pembayaran menunggu verifikasi</small><b>${sum('to_verify')}</b><small>pendaftaran${A ? `, ${A.to_verify_athletes} atlet` : ''}</small></div><i>${icon('clock')}</i></div>
+        <div class="kpi bad"><div><small>Dokumen belum diperiksa</small><b>${sum('docs_pending')}</b><small>atlet</small></div><i>${icon('alert')}</i></div>
       </div>
       <div class="stats">${d.by_discipline.map((x) => `<div class="stat">
         <h3>${esc(x.name)} <a class="small" href="#/pendaftaran?d=${x.code}">Lihat</a></h3>
-        <div class="big">${x.athletes}</div><div class="small muted">atlet terdaftar, ${x.athletes_paid} lunas</div>
+        <div class="big">${x.athletes}</div><div class="small muted">atlet terdaftar dalam ${x.submissions} pendaftaran, ${x.athletes_paid} atlet lunas</div>
         <ul>
-          <li><a href="#/pendaftaran?d=${x.code}&s=menunggu_verifikasi">Menunggu verifikasi</a><strong>${x.to_verify}</strong></li>
-          <li><a href="#/pendaftaran?d=${x.code}&s=menunggu_pembayaran">Belum bayar / perlu perbaikan</a><strong>${x.unpaid}</strong></li>
-          <li><a href="#/pendaftaran?d=${x.code}&f=docs">Dokumen belum diperiksa</a><strong>${x.docs_pending}</strong></li>
+          <li><a href="#/pendaftaran?d=${x.code}&s=menunggu_verifikasi">Pendaftaran menunggu verifikasi</a><strong>${x.to_verify}</strong></li>
+          <li><a href="#/pendaftaran?d=${x.code}&s=menunggu_pembayaran">Pendaftaran belum bayar / perlu perbaikan</a><strong>${x.unpaid}</strong></li>
+          <li><a href="#/pendaftaran?d=${x.code}&f=docs">Atlet: dokumen belum diperiksa</a><strong>${x.docs_pending}</strong></li>
           ${x.code === 'RG' ? `<li><a href="#/pendaftaran?d=${x.code}&f=priangan">Priangan: cek syarat Jawa Barat</a><strong>${x.priangan_pending}</strong></li>` : ''}
           ${x.code === 'MAG' || x.code === 'WAG' ? `<li><a href="#/pendaftaran?d=${x.code}&f=beregu">Tim beregu (lunas / terdaftar)</a><strong>${x.teams_paid || 0} / ${x.teams || 0}</strong></li>` : ''}
           ${x.code === 'RG' ? `<li><a href="#/musik">Musik perlu diperiksa</a><strong>${x.music_pending || 0}</strong></li>` : ''}
@@ -1617,8 +1631,24 @@
   };
   const waText = (p, text) => { const u = wa(p); return u === '#' ? '#' : u + (text ? '?text=' + encodeURIComponent(text) : ''); };
 
+  const BASE_TITLE = document.title;
+  async function pollActions() {
+    if (!ME || !isAdmin()) return;
+    let a;
+    try { a = await api('console_actions'); } catch (e) { return; }
+    const n = (k) => Number(a[k]) || 0;
+    const reg = n('to_verify') + n('docs_pending') + n('priangan_pending');
+    const total = reg + n('music_pending');
+    const dot = (k, on, t) => { const el = root.querySelector(`[data-k="${k}"]`); if (!el) return; el.classList.toggle('has-action', !!on); if (t) el.title = on ? t : ''; };
+    dot('ringkasan', total, total + ' hal perlu tindakan');
+    dot('pendaftaran', reg, `${n('to_verify')} pembayaran, ${n('docs_pending')} dokumen atlet${n('priangan_pending') ? ', ' + n('priangan_pending') + ' Priangan' : ''}`);
+    dot('musik', n('music_pending'), n('music_pending') + ' musik perlu diperiksa');
+    const mt = root.querySelector('#menu-tg'); if (mt) mt.classList.toggle('has-action', !!total);
+    document.title = total ? `(${total}) ${BASE_TITLE}` : BASE_TITLE;
+  }
   async function pollUnread() {
     if (!ME || isViewer()) return;
+    pollActions();
     let u;
     try { u = await api('console_unread'); } catch (e) { return; }
     const set = (k, n) => { const b = root.querySelector(`[data-badge="${k}"]`); if (b) { b.hidden = !n; b.textContent = n > 99 ? '99+' : String(n || ''); } };
@@ -2021,6 +2051,57 @@
     return await new Promise((r) => out.toBlob(r, 'image/png'));
   }
 
+  // Notifikasi WhatsApp ke admin pendaftaran (dikirim Apps Script lewat gateway)
+  async function drawWa(card) {
+    if (!card) return;
+    let W;
+    try { W = await api('console_wa'); } catch (e) { card.innerHTML = `<h2>Notifikasi WhatsApp</h2><p class="note bad small">${esc(e.message)}</p>`; return; }
+    const live = W.last_poll && (Date.now() - new Date(W.last_poll).getTime() < 30 * 60 * 1000);
+    const dn = (c) => (c ? DN[c] || c : 'Semua disiplin');
+    card.innerHTML = `<h2>Notifikasi WhatsApp</h2>
+      <p class="small">Setiap ${W.interval_min} menit sistem memeriksa bukti bayar baru. Bila ada, penerima di bawah mendapat ringkasan berisi kode pendaftaran, klub, jumlah atlet, total yang menunggu, dan tautan ke konsol. Tidak ada pesan bila tidak ada yang baru.</p>
+      <p class="small">${live ? `<span class="pill ok">Terhubung</span> Terakhir diperiksa ${dt(W.last_poll)}` : '<span class="pill warn">Belum terhubung</span> Isi FONNTE_TOKEN di Apps Script (lihat panduan).'}</p>
+      <div class="row" style="gap:10px;align-items:end;flex-wrap:wrap">
+        <label class="check" style="margin:0"><input type="checkbox" id="wa_on" ${W.enabled ? 'checked' : ''}><span>Kirim notifikasi</span></label>
+        <div class="field" style="margin:0;width:150px"><label class="f" for="wa_int">Interval (menit)</label><input id="wa_int" type="number" min="5" max="240" value="${W.interval_min}"></div>
+        <button class="btn btn-ghost btn-sm" id="wa_set">Simpan</button>
+      </div>
+      <h3 style="margin-top:16px">Penerima</h3>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nama</th><th>Nomor</th><th>Disiplin</th><th></th></tr></thead><tbody>
+        ${W.recipients.map((r) => `<tr class="${r.active ? '' : 'muted'}"><td><strong>${esc(r.name)}</strong>${r.active ? '' : ' <span class="pill">nonaktif</span>'}</td><td class="small">${esc(r.phone)}</td><td class="small">${esc(dn(r.discipline))}</td>
+          <td class="r"><button class="btn btn-ghost btn-sm" data-wae="${r.id}">Ubah</button> ${r.active ? `<button class="btn btn-ghost btn-sm" data-wat="${r.id}">Kirim tes</button>` : ''}</td></tr>`).join('')
+          || '<tr><td colspan="4" class="muted">Belum ada penerima. Tambahkan admin pendaftaran.</td></tr>'}
+      </tbody></table></div>
+      <button class="btn btn-primary btn-sm" id="wa_add" style="margin-top:10px">Tambah penerima</button>
+      <h3 style="margin-top:16px">Pesan terakhir</h3>
+      <div class="tbl-wrap" style="max-height:320px;overflow:auto"><table class="tbl"><tbody>
+        ${W.recent.map((o) => `<tr><td class="small"><strong>${esc(o.name || o.to)}</strong> · ${o.kind === 'tes' ? 'tes' : 'ringkasan'}<br><span class="muted">${dt(o.created_at)}</span>${o.error ? `<br><span style="color:var(--bad)">${esc(o.error)}</span>` : ''}</td>
+          <td><span class="pill ${o.status === 'sent' ? 'ok' : o.status === 'error' ? 'bad' : 'warn'}">${esc(o.status === 'sent' ? 'terkirim' : o.status === 'error' ? 'gagal' : 'antre')}</span></td></tr>`).join('') || '<tr><td class="muted">Belum ada pesan.</td></tr>'}
+      </tbody></table></div>`;
+    const edit = async (r) => {
+      r = r || { name: '', phone: '', discipline: '', active: true };
+      const res = await dialog({ title: r.id ? 'Ubah penerima' : 'Tambah penerima', ok: 'Simpan',
+        body: `<div class="field"><label class="f" for="wn">Nama</label><input id="wn" value="${esc(r.name)}" placeholder="mis. Vici (admin WAG)"></div>
+          <div class="field"><label class="f" for="wp">Nomor WhatsApp</label><input id="wp" inputmode="tel" value="${esc(r.phone)}" placeholder="08xx-xxxx-xxxx"></div>
+          <div class="field"><label class="f" for="wd">Disiplin</label><select id="wd"><option value="">Semua disiplin</option>
+            ${Object.keys(DN).map((c) => `<option value="${c}" ${r.discipline === c ? 'selected' : ''}>${esc(DN[c])}</option>`).join('')}</select>
+            <div class="tiny muted">Penerima satu disiplin hanya mendapat pendaftaran disiplin itu.</div></div>
+          ${r.id ? `<label class="check"><input type="checkbox" id="wa_act" ${r.active ? 'checked' : ''}><span>Aktif</span></label>` : ''}`,
+        onOk: async (d) => api('console_wa_save', { p: { id: r.id || null, name: d.querySelector('#wn').value, phone: d.querySelector('#wp').value,
+          discipline: d.querySelector('#wd').value, active: r.id ? d.querySelector('#wa_act').checked : true } }) });
+      if (res) { JO.toast('Penerima disimpan.'); drawWa(card); }
+    };
+    card.querySelector('#wa_add').onclick = () => edit(null);
+    card.querySelectorAll('[data-wae]').forEach((b) => b.onclick = () => edit(W.recipients.find((x) => x.id === b.dataset.wae)));
+    card.querySelectorAll('[data-wat]').forEach((b) => b.onclick = async () => {
+      try { await api('console_wa_test', { p_id: b.dataset.wat }); JO.toast('Pesan tes masuk antrean; terkirim dalam 1 menit bila Apps Script terhubung.'); drawWa(card); }
+      catch (e) { JO.toast(e.message, 'bad'); }
+    });
+    card.querySelector('#wa_set').onclick = async () => {
+      try { await api('console_wa_settings', { p: { enabled: card.querySelector('#wa_on').checked, interval_min: Number(card.querySelector('#wa_int').value) } }); JO.toast('Pengaturan notifikasi disimpan.'); drawWa(card); }
+      catch (e) { JO.toast(e.message, 'bad'); }
+    };
+  }
   async function pageSettings(v) {
     const D = await api('console_settings');
     const S = D.settings;
@@ -2082,7 +2163,9 @@
           ${ob.rows.map((o) => `<tr><td class="small"><strong>${esc(o.subject)}</strong><br>${esc(o.to)}${o.cc ? ' cc ' + esc(o.cc) : ''}<br><span class="muted">${dt(o.created_at)}</span>${o.last_error ? `<br><span style="color:var(--bad)">${esc(o.last_error)}</span>` : ''}</td>
             <td><span class="pill ${o.status === 'sent' ? 'ok' : o.status === 'error' ? 'bad' : 'warn'}">${esc(o.status)}</span></td>
             <td>${o.status === 'error' || o.status === 'sending' ? `<button class="btn btn-ghost btn-sm" data-retry="${o.id}">Ulangi</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">Belum ada email.</td></tr>'}</tbody></table></div></section>
+        <section class="card" id="wa-card"></section>
       </div></div>`;
+    drawWa(v.querySelector('#wa-card'));
     const sigImg = [0, 1].map((i) => (sig[i] && sig[i].sig) || '');
     const drawSig = (i) => {
       const box = v.querySelector(`[data-sigprev="${i}"]`); const u = sigImg[i];
