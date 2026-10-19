@@ -21,7 +21,7 @@
     t_s1: 'Enter the club contact person.', t_s2: 'Find and choose your club, or add a new one.',
     t_s3: 'Enter athlete details, upload documents, choose a category.', t_s4: 'Add a team if any, tick the declarations, submit.',
     t_s5: 'Pay by QRIS and upload the proof within 15 minutes.', t_s6: 'Once paid, download the AIC from the email or status page.',
-    t_dl: 'Download video', t_video: 'Jabar Open 2026 athlete registration tutorial video',
+    t_dl: 'Download video', ft_console: 'Committee console', t_video: 'Jabar Open 2026 athlete registration tutorial video',
     i_eyebrow: 'About the championship',
     i_title: 'Open to all, <em>judged by the same standard.</em>',
     i_r3: 'Dates', i_r3v: '12–20 December 2026', i_r4: 'Venue', i_r5: 'Participants',
