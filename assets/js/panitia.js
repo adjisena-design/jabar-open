@@ -421,6 +421,16 @@
   // =====================================================================
   const subFilter = { discipline: '', status: '', flag: '', q: '' };
   function hashParams() { const i = location.hash.indexOf('?'); return new URLSearchParams(i >= 0 ? location.hash.slice(i + 1) : ''); }
+  // daftar atlet per pendaftaran: jumlah, lalu satu nama per baris; lebih dari 5 atlet: 3 tampil, sisanya dilipat
+  function athList(r) {
+    const names = (r.athlete_names || '').split(', ').filter(Boolean);
+    if (!names.length) return '<span class="muted">Tanpa atlet perorangan</span>';
+    const li = (n, i) => `<li><span class="ix">${i + 1}</span>${esc(n)}</li>`;
+    const head = `<b class="ath-n">${names.length} atlet</b>`;
+    if (names.length <= 5) return `${head}<ol class="ath-ol">${names.map(li).join('')}</ol>`;
+    return `${head}<ol class="ath-ol">${names.slice(0, 3).map(li).join('')}</ol>
+      <details class="ath-more"><summary>Lihat ${names.length - 3} lainnya</summary><ol class="ath-ol">${names.slice(3).map((n, i) => li(n, i + 3)).join('')}</ol></details>`;
+  }
   async function pageSubmissions(v, rest) {
     const id = (rest[0] || '').split('?')[0];
     if (id) return pageSubmission(v, id);
@@ -446,13 +456,13 @@
         ${rows.map((r) => `<tr class="click" data-id="${r.id}">
           <td><span class="code">${esc(r.code)}</span><br><span class="tiny muted">${dt(r.created_at)}</span></td>
           <td>${esc(r.club || '–')}<br><span class="tiny muted">${esc(r.contact_name)}, ${esc(r.region || '')}</span></td>
-          <td class="small">${r.team_name ? `<strong>Tim ${esc(r.team_name)}</strong><br>` : ''}${esc(r.athlete_names || '')}</td>
+          <td class="small">${r.team_name ? `<div class="team-l">${r.team_name.split('; ').map((x) => `<span class="pill gold">Tim</span> ${esc(x)}`).join('<br>')}</div>` : ''}${athList(r)}</td>
           <td class="r num">${fmtRp(r.total_amount)}${r.payment_method === 'manual' ? '<br><span class="pill warn">WNA</span>' : ''}</td>
           <td>${pill(r.status)}</td>
           <td class="small">${r.proof_uploaded_at ? '<span class="pill info">Bukti ada</span> ' : ''}${r.mutation_matched ? '<span class="pill ok">Mutasi cocok</span> ' : ''}
-            ${r.expires_at ? `<span class="pill warn">hapus otomatis ${esc(new Date(r.expires_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }))}</span> ` : ''}${r.docs_pending ? `<span class="pill">${r.docs_pending} dokumen</span> ` : ''}${r.priangan_pending ? `<span class="pill warn">${r.priangan_pending} cek Priangan</span> ` : ''}${r.music_pending ? `<span class="pill warn">${r.music_pending} musik</span>` : ''}</td></tr>`).join('')}
+            ${r.expires_at ? `<span class="pill warn">hapus otomatis ${esc(new Date(r.expires_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }))}</span> ` : ''}${r.docs_pending ? `<span class="pill">dokumen ${r.docs_pending} atlet</span> ` : ''}${r.priangan_pending ? `<span class="pill warn">${r.priangan_pending} cek Priangan</span> ` : ''}${r.music_pending ? `<span class="pill warn">${r.music_pending} musik</span>` : ''}</td></tr>`).join('')}
         </tbody></table></div>`;
-      list.querySelectorAll('tr[data-id]').forEach((tr) => tr.onclick = () => { location.hash = '#/pendaftaran/' + tr.dataset.id; });
+      list.querySelectorAll('tr[data-id]').forEach((tr) => tr.onclick = (e) => { if (e.target.closest('.ath-more')) return; location.hash = '#/pendaftaran/' + tr.dataset.id; });
     };
     const bind = (sel, key, ev) => { const el = v.querySelector(sel); if (el) el.addEventListener(ev || 'change', () => { subFilter[key] = el.value; load().catch((e) => fail(v.querySelector('#list'), e)); }); };
     bind('#fd', 'discipline'); bind('#fs', 'status'); bind('#ff', 'flag');
