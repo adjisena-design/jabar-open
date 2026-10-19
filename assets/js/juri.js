@@ -36,6 +36,7 @@
     e_fix: ['Periksa kembali isian yang ditandai.', 'Please check the highlighted fields.'],
   });
   const app = document.getElementById('app');
+  JO.autoNameCase(app, '#full_name');
   const DISC = [['MAG', 'Artistik Putra', "Men's Artistic"], ['WAG', 'Artistik Putri', "Women's Artistic"], ['RG', 'Ritmik', 'Rhythmic']];   // Aerobik tidak membuka pendaftaran juri
   const LEVELS = [['FIG Kategori 1', 'b_fig1'], ['FIG Kategori 2', 'b_fig2'], ['FIG Kategori 3', 'b_fig3'], ['FIG Kategori 4', 'b_fig4'], ['Nasional', 'b_nas'], ['Provinsi/Daerah', 'b_prov'], ['Belum ada', 'b_none'], ['Lainnya', 'b_other']];
   const S = { full_name: '', phone: '', email: '', city: '', province: 'Jawa Barat', disciplines: [], brevet: {}, note: '', consent: false,

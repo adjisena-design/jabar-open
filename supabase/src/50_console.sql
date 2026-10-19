@@ -327,14 +327,14 @@ begin
   end loop;
   b := to_jsonb(a);
   update jo.athletes set
-    full_name = coalesce(nullif(trim(p_patch->>'full_name'),''), full_name),
+    full_name = coalesce(nullif(jo.name_case(p_patch->>'full_name'),''), full_name),
     gender = coalesce(nullif(p_patch->>'gender',''), gender),
     birth_date = coalesce(nullif(p_patch->>'birth_date','')::date, birth_date),
     nationality = coalesce(nullif(p_patch->>'nationality',''), nationality),
     country = coalesce(nullif(trim(p_patch->>'country'),''), country),
     province = case when p_patch ? 'province' then nullif(trim(p_patch->>'province'),'') else province end,
     kab_kota = case when p_patch ? 'kab_kota' then nullif(trim(p_patch->>'kab_kota'),'') else kab_kota end,
-    guardian_name = case when p_patch ? 'guardian_name' then nullif(trim(p_patch->>'guardian_name'),'') else guardian_name end,
+    guardian_name = case when p_patch ? 'guardian_name' then nullif(jo.name_case(p_patch->>'guardian_name'),'') else guardian_name end,
     guardian_phone = case when p_patch ? 'guardian_phone' then nullif(trim(p_patch->>'guardian_phone'),'') else guardian_phone end,
     guardian_email = case when p_patch ? 'guardian_email' then nullif(lower(trim(p_patch->>'guardian_email')),'') else guardian_email end,
     guardian_relation = case when p_patch ? 'guardian_relation' then nullif(trim(p_patch->>'guardian_relation'),'') else guardian_relation end
@@ -506,7 +506,7 @@ begin
   if d.code is null then raise exception 'Disiplin tidak ditemukan.'; end if;
   update jo.disciplines set
     registration_open = coalesce((p_patch->>'registration_open')::boolean, registration_open),
-    contact_name = case when p_patch ? 'contact_name' then p_patch->>'contact_name' else contact_name end,
+    contact_name = case when p_patch ? 'contact_name' then jo.name_case(p_patch->>'contact_name') else contact_name end,
     contact_phone = case when p_patch ? 'contact_phone' then p_patch->>'contact_phone' else contact_phone end,
     date_start = coalesce(nullif(p_patch->>'date_start','')::date, date_start),
     date_end = coalesce(nullif(p_patch->>'date_end','')::date, date_end)
@@ -1245,12 +1245,12 @@ begin
   if length(trim(coalesce(p->>'name',''))) < 2 then raise exception 'Isi nama klub.'; end if;
   if nullif(p->>'id','') is null then
     insert into jo.clubs (name, kind, kab_kota, province, country, verified, created_via)
-    values (trim(p->>'name'), coalesce(nullif(p->>'kind',''),'klub'), nullif(trim(coalesce(p->>'kab_kota','')),''),
+    values (jo.name_case(p->>'name'), coalesce(nullif(p->>'kind',''),'klub'), nullif(trim(coalesce(p->>'kab_kota','')),''),
       nullif(trim(coalesce(p->>'province','')),''), coalesce(nullif(trim(coalesce(p->>'country','')),''),'Indonesia'),
       coalesce((p->>'verified')::boolean, true), 'konsol')
     returning id into v_id;
   else
-    update jo.clubs set name = trim(p->>'name'), kind = coalesce(nullif(p->>'kind',''), kind),
+    update jo.clubs set name = jo.name_case(p->>'name'), kind = coalesce(nullif(p->>'kind',''), kind),
       kab_kota = nullif(trim(coalesce(p->>'kab_kota','')),''), province = nullif(trim(coalesce(p->>'province','')),''),
       country = coalesce(nullif(trim(coalesce(p->>'country','')),''), country),
       verified = coalesce((p->>'verified')::boolean, verified)

@@ -562,6 +562,23 @@ language sql immutable set search_path = '' as $$
   select regexp_replace(upper(coalesce(t,'')), '[^A-Z0-9]', '', 'g')
 $$;
 
+-- v9: nama orang, klub, dan tim: huruf pertama setiap kata dijadikan kapital.
+-- Huruf lain dibiarkan seperti diketik, jadi kata yang ditulis kapital penuh
+-- (mis. PPOP, DKI) dan bentuk seperti McDonald tetap. Apostrof tidak memulai
+-- kata baru (Ma'ruf tetap Ma'ruf).
+create or replace function jo.name_case(p text) returns text
+language plpgsql immutable set search_path = '' as $$
+declare s text := regexp_replace(btrim(coalesce(p, '')), '\s+', ' ', 'g'); r text := ''; c text; prev text := ' '; i integer;
+begin
+  if p is null then return null; end if;
+  for i in 1 .. length(s) loop
+    c := substr(s, i, 1);
+    if prev in (' ', '-', '(', '/', '.') and c <> upper(c) then c := upper(c); end if;
+    r := r || c; prev := c;
+  end loop;
+  return r;
+end $$;
+
 create or replace function jo.setting(k text) returns jsonb
 language sql stable set search_path = '' as $$
   select value from jo.settings where key = k
@@ -1595,7 +1612,7 @@ begin
      limit 1;
     if v_club.id is null then
       insert into jo.clubs (name, kind, kab_kota, province, country, created_via)
-      values (trim(p->'club'->'new'->>'name'),
+      values (jo.name_case(p->'club'->'new'->>'name'),
               coalesce(nullif(p->'club'->'new'->>'kind',''), 'klub'),
               nullif(trim(coalesce(p->'club'->'new'->>'kab_kota','')),''),
               nullif(trim(coalesce(p->'club'->'new'->>'province','')),''),
@@ -1620,7 +1637,7 @@ begin
 
   insert into jo.submissions (id, code, token, discipline, registrant_type, contact_name, contact_email,
      contact_phone, contact_role, club_id, payment_method, consents, lang, auth_uid)
-  values (v_sub_id, v_code, v_token, v_disc.code, v_type, trim(v_contact->>'name'), lower(trim(v_contact->>'email')),
+  values (v_sub_id, v_code, v_token, v_disc.code, v_type, jo.name_case(v_contact->>'name'), lower(trim(v_contact->>'email')),
      trim(v_contact->>'phone'), v_role, v_club_id, 'qris',
      v_consents || jsonb_build_object('at', now()), v_lang, v_uid);
 
@@ -1671,14 +1688,14 @@ begin
     insert into jo.athletes (submission_id, full_name, gender, birth_date, nationality, country, province, kab_kota,
        id_doc_path, akte_path, ktp_path, ijazah_path, passport_path, bpjs_path, photo_thumb,
        photo_path, guardian_name, guardian_phone, guardian_email, guardian_relation, ticket_code, sort)
-    values (v_sub_id, trim(a->>'full_name'), a->>'gender', (a->>'birth_date')::date,
+    values (v_sub_id, jo.name_case(a->>'full_name'), a->>'gender', (a->>'birth_date')::date,
        coalesce(a->>'nationality','WNI'),
        case when coalesce(a->>'nationality','WNI') = 'WNI' then 'Indonesia' else trim(a->>'country') end,
        nullif(trim(coalesce(a->>'province','')),''), nullif(trim(coalesce(a->>'kab_kota','')),''),
        coalesce(nullif(a->>'akte_path',''), nullif(a->>'passport_path','')),
        nullif(a->>'akte_path',''), nullif(a->>'ktp_path',''), nullif(a->>'ijazah_path',''), nullif(a->>'passport_path',''), nullif(a->>'bpjs_path',''), nullif(a->>'photo_thumb',''),
        nullif(a->>'photo_path',''),
-       nullif(trim(coalesce(a->'guardian'->>'name','')),''), nullif(trim(coalesce(a->'guardian'->>'phone','')),''),
+       nullif(jo.name_case(coalesce(a->'guardian'->>'name','')),''), nullif(trim(coalesce(a->'guardian'->>'phone','')),''),
        nullif(lower(trim(coalesce(a->'guardian'->>'email',''))),''), nullif(trim(coalesce(a->'guardian'->>'relation','')),''),
        'T' || jo.rand_code(9), i)
     returning id into v_ath_id;
@@ -1821,7 +1838,7 @@ begin
        or not coalesce(jo.setting('team_levels')->v_disc.code ? v_level, false) then
       raise exception 'Beregu tidak tersedia untuk %.', coalesce(nullif(v_level,''), 'level ini') using hint = 'ERR_TEAM_LEVEL';
     end if;
-    v_tname := regexp_replace(trim(coalesce(v_team->>'name','')), '\s+', ' ', 'g');
+    v_tname := jo.name_case(coalesce(v_team->>'name',''));
     if length(v_tname) < 2 then
       raise exception 'Tim %: isi nama tim.', ti using hint = 'ERR_TEAM_NAME';
     end if;
@@ -1844,7 +1861,7 @@ begin
         select a || jsonb_build_object('full_name', x.full_name, 'birth_date', x.birth_date::text) into a
           from jo.athletes x where x.id = nullif(p->'_map'->>coalesce(a->>'key',''), '')::uuid and x.submission_id = v_sub_id;
       end if;
-      v_mname := trim(coalesce(a->>'full_name',''));
+      v_mname := jo.name_case(coalesce(a->>'full_name',''));
       if length(v_mname) < 3 then
         raise exception 'Anggota %: isi nama lengkap sesuai identitas.', i using hint = 'ERR_ATHLETE_NAME';
       end if;
@@ -1955,7 +1972,7 @@ begin
            null, null, coalesce(nullif(a->>'akte_path',''), nullif(a->>'passport_path','')),
            nullif(a->>'akte_path',''), nullif(a->>'ktp_path',''), nullif(a->>'ijazah_path',''), nullif(a->>'passport_path',''), nullif(a->>'bpjs_path',''), nullif(a->>'photo_thumb',''),
            nullif(a->>'photo_path',''),
-           nullif(trim(coalesce(a->'guardian'->>'name','')),''), nullif(trim(coalesce(a->'guardian'->>'phone','')),''),
+           nullif(jo.name_case(coalesce(a->'guardian'->>'name','')),''), nullif(trim(coalesce(a->'guardian'->>'phone','')),''),
            nullif(lower(trim(coalesce(a->'guardian'->>'email',''))),''), nullif(trim(coalesce(a->'guardian'->>'relation','')),''),
            'T' || jo.rand_code(9), v_sortn)
         returning id into v_ath_id;
@@ -2827,14 +2844,14 @@ begin
   end loop;
   b := to_jsonb(a);
   update jo.athletes set
-    full_name = coalesce(nullif(trim(p_patch->>'full_name'),''), full_name),
+    full_name = coalesce(nullif(jo.name_case(p_patch->>'full_name'),''), full_name),
     gender = coalesce(nullif(p_patch->>'gender',''), gender),
     birth_date = coalesce(nullif(p_patch->>'birth_date','')::date, birth_date),
     nationality = coalesce(nullif(p_patch->>'nationality',''), nationality),
     country = coalesce(nullif(trim(p_patch->>'country'),''), country),
     province = case when p_patch ? 'province' then nullif(trim(p_patch->>'province'),'') else province end,
     kab_kota = case when p_patch ? 'kab_kota' then nullif(trim(p_patch->>'kab_kota'),'') else kab_kota end,
-    guardian_name = case when p_patch ? 'guardian_name' then nullif(trim(p_patch->>'guardian_name'),'') else guardian_name end,
+    guardian_name = case when p_patch ? 'guardian_name' then nullif(jo.name_case(p_patch->>'guardian_name'),'') else guardian_name end,
     guardian_phone = case when p_patch ? 'guardian_phone' then nullif(trim(p_patch->>'guardian_phone'),'') else guardian_phone end,
     guardian_email = case when p_patch ? 'guardian_email' then nullif(lower(trim(p_patch->>'guardian_email')),'') else guardian_email end,
     guardian_relation = case when p_patch ? 'guardian_relation' then nullif(trim(p_patch->>'guardian_relation'),'') else guardian_relation end
@@ -3006,7 +3023,7 @@ begin
   if d.code is null then raise exception 'Disiplin tidak ditemukan.'; end if;
   update jo.disciplines set
     registration_open = coalesce((p_patch->>'registration_open')::boolean, registration_open),
-    contact_name = case when p_patch ? 'contact_name' then p_patch->>'contact_name' else contact_name end,
+    contact_name = case when p_patch ? 'contact_name' then jo.name_case(p_patch->>'contact_name') else contact_name end,
     contact_phone = case when p_patch ? 'contact_phone' then p_patch->>'contact_phone' else contact_phone end,
     date_start = coalesce(nullif(p_patch->>'date_start','')::date, date_start),
     date_end = coalesce(nullif(p_patch->>'date_end','')::date, date_end)
@@ -3745,12 +3762,12 @@ begin
   if length(trim(coalesce(p->>'name',''))) < 2 then raise exception 'Isi nama klub.'; end if;
   if nullif(p->>'id','') is null then
     insert into jo.clubs (name, kind, kab_kota, province, country, verified, created_via)
-    values (trim(p->>'name'), coalesce(nullif(p->>'kind',''),'klub'), nullif(trim(coalesce(p->>'kab_kota','')),''),
+    values (jo.name_case(p->>'name'), coalesce(nullif(p->>'kind',''),'klub'), nullif(trim(coalesce(p->>'kab_kota','')),''),
       nullif(trim(coalesce(p->>'province','')),''), coalesce(nullif(trim(coalesce(p->>'country','')),''),'Indonesia'),
       coalesce((p->>'verified')::boolean, true), 'konsol')
     returning id into v_id;
   else
-    update jo.clubs set name = trim(p->>'name'), kind = coalesce(nullif(p->>'kind',''), kind),
+    update jo.clubs set name = jo.name_case(p->>'name'), kind = coalesce(nullif(p->>'kind',''), kind),
       kab_kota = nullif(trim(coalesce(p->>'kab_kota','')),''), province = nullif(trim(coalesce(p->>'province','')),''),
       country = coalesce(nullif(trim(coalesce(p->>'country','')),''), country),
       verified = coalesce((p->>'verified')::boolean, verified)
@@ -4165,7 +4182,7 @@ declare v_id uuid;
 begin
   insert into jo.jury_applications (source, auth_uid, full_name, phone, email, city, province, disciplines, brevet,
      cert_path, availability, ktp_path, photo_path, bpjs_path, note)
-  values (p_source, auth.uid(), trim(p->>'full_name'), regexp_replace(p->>'phone', '[^0-9+]', '', 'g'),
+  values (p_source, auth.uid(), jo.name_case(p->>'full_name'), regexp_replace(p->>'phone', '[^0-9+]', '', 'g'),
      nullif(lower(trim(coalesce(p->>'email',''))),''), nullif(trim(coalesce(p->>'city','')),''), nullif(trim(coalesce(p->>'province','')),''),
      (select array_agg(x) from jsonb_array_elements_text(p->'disciplines') x),
      coalesce(p->'brevet', '{}'::jsonb), nullif(p->>'cert_path',''),
@@ -5236,6 +5253,14 @@ update jo.settings set value = '"https://gimnastikjabaropen2026.com/"'::jsonb, u
  where key = 'site_url' and value = '"https://adjisena-design.github.io/jabar-open/"'::jsonb;
 update jo.settings set value = '""'::jsonb, updated_at = now()
  where key = 'pm_email' and value = '"adjisena.daffa@gmail.com"'::jsonb;
+
+-- v9 (19/10/2026): nama orang, klub, dan tim memakai huruf kapital di awal setiap kata (jo.name_case)
+update jo.clubs set name = jo.name_case(name) where name is distinct from jo.name_case(name);
+update jo.athletes set full_name = jo.name_case(full_name) where full_name is distinct from jo.name_case(full_name);
+update jo.athletes set guardian_name = jo.name_case(guardian_name) where guardian_name is not null and guardian_name is distinct from jo.name_case(guardian_name);
+update jo.submissions set contact_name = jo.name_case(contact_name) where contact_name is distinct from jo.name_case(contact_name);
+update jo.teams set name = jo.name_case(name) where name is distinct from jo.name_case(name);
+update jo.jury_applications set full_name = jo.name_case(full_name) where full_name is distinct from jo.name_case(full_name);
 -- =====================================================================
 --  Penyimpanan berkas (Supabase Storage)
 --   dokumen : identitas & foto atlet (privat)

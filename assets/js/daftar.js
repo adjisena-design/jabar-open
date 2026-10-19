@@ -204,6 +204,7 @@
   const stepKeys = () => ['st1', 'st2', 'st3'].concat(hasTeamStep() ? ['st_team'] : []).concat(['st4']);
 
   const app = document.getElementById('app');
+  JO.autoNameCase(app, '#c_name, #cn_name, [data-k=full_name], [data-g=name], [data-tk=name]');
   const maxAth = () => (CFG && CFG.registration.max_athletes) || 10;
   const disc = () => CFG.disciplines.find((d) => d.code === S.discipline);
   const appLabel = (x) => { const d = disc().apparatus.find((y) => y.code === x); return d ? (JO.lang === 'en' ? d.en : d.id) : x; };

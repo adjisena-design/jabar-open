@@ -385,7 +385,22 @@
     return doc;
   }
 
+  // Nama orang, klub, tim: huruf pertama tiap kata kapital; huruf lain tetap seperti diketik
+  // (kata kapital penuh seperti PPOP/DKI tidak berubah). Sama dengan jo.name_case di database.
+  function nameCase(v) {
+    return String(v || '').trim().replace(/\s+/g, ' ').replace(/(^|[\s\-(\/.])(\p{Ll})/gu, (m, a, b) => a + b.toUpperCase());
+  }
+  // pasang di formulir: rapikan saat kolom ditinggalkan
+  function autoNameCase(root, sel) {
+    root.addEventListener('focusout', (e) => {
+      const el = e.target;
+      if (!el.matches || !el.matches(sel)) return;
+      const v = nameCase(el.value);
+      if (v !== el.value) { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); }
+    });
+  }
   window.JO = {
+    nameCase, autoNameCase,
     sb, config: C, t, addDict, applyI18n, setLang, onLang, get lang() { return lang; },
     fmtRp, fmtDate, fmtDateTime, esc, statusPill, amountHtml, compAge, isMinor,
     ensureSession, rpc, uploadFile, photoThumb, toast, header, footer, qs, siteUrl, qrSvg, ticketPdf, certificatePdf,

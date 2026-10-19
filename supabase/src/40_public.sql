@@ -295,7 +295,7 @@ begin
      limit 1;
     if v_club.id is null then
       insert into jo.clubs (name, kind, kab_kota, province, country, created_via)
-      values (trim(p->'club'->'new'->>'name'),
+      values (jo.name_case(p->'club'->'new'->>'name'),
               coalesce(nullif(p->'club'->'new'->>'kind',''), 'klub'),
               nullif(trim(coalesce(p->'club'->'new'->>'kab_kota','')),''),
               nullif(trim(coalesce(p->'club'->'new'->>'province','')),''),
@@ -320,7 +320,7 @@ begin
 
   insert into jo.submissions (id, code, token, discipline, registrant_type, contact_name, contact_email,
      contact_phone, contact_role, club_id, payment_method, consents, lang, auth_uid)
-  values (v_sub_id, v_code, v_token, v_disc.code, v_type, trim(v_contact->>'name'), lower(trim(v_contact->>'email')),
+  values (v_sub_id, v_code, v_token, v_disc.code, v_type, jo.name_case(v_contact->>'name'), lower(trim(v_contact->>'email')),
      trim(v_contact->>'phone'), v_role, v_club_id, 'qris',
      v_consents || jsonb_build_object('at', now()), v_lang, v_uid);
 
@@ -371,14 +371,14 @@ begin
     insert into jo.athletes (submission_id, full_name, gender, birth_date, nationality, country, province, kab_kota,
        id_doc_path, akte_path, ktp_path, ijazah_path, passport_path, bpjs_path, photo_thumb,
        photo_path, guardian_name, guardian_phone, guardian_email, guardian_relation, ticket_code, sort)
-    values (v_sub_id, trim(a->>'full_name'), a->>'gender', (a->>'birth_date')::date,
+    values (v_sub_id, jo.name_case(a->>'full_name'), a->>'gender', (a->>'birth_date')::date,
        coalesce(a->>'nationality','WNI'),
        case when coalesce(a->>'nationality','WNI') = 'WNI' then 'Indonesia' else trim(a->>'country') end,
        nullif(trim(coalesce(a->>'province','')),''), nullif(trim(coalesce(a->>'kab_kota','')),''),
        coalesce(nullif(a->>'akte_path',''), nullif(a->>'passport_path','')),
        nullif(a->>'akte_path',''), nullif(a->>'ktp_path',''), nullif(a->>'ijazah_path',''), nullif(a->>'passport_path',''), nullif(a->>'bpjs_path',''), nullif(a->>'photo_thumb',''),
        nullif(a->>'photo_path',''),
-       nullif(trim(coalesce(a->'guardian'->>'name','')),''), nullif(trim(coalesce(a->'guardian'->>'phone','')),''),
+       nullif(jo.name_case(coalesce(a->'guardian'->>'name','')),''), nullif(trim(coalesce(a->'guardian'->>'phone','')),''),
        nullif(lower(trim(coalesce(a->'guardian'->>'email',''))),''), nullif(trim(coalesce(a->'guardian'->>'relation','')),''),
        'T' || jo.rand_code(9), i)
     returning id into v_ath_id;
@@ -521,7 +521,7 @@ begin
        or not coalesce(jo.setting('team_levels')->v_disc.code ? v_level, false) then
       raise exception 'Beregu tidak tersedia untuk %.', coalesce(nullif(v_level,''), 'level ini') using hint = 'ERR_TEAM_LEVEL';
     end if;
-    v_tname := regexp_replace(trim(coalesce(v_team->>'name','')), '\s+', ' ', 'g');
+    v_tname := jo.name_case(coalesce(v_team->>'name',''));
     if length(v_tname) < 2 then
       raise exception 'Tim %: isi nama tim.', ti using hint = 'ERR_TEAM_NAME';
     end if;
@@ -544,7 +544,7 @@ begin
         select a || jsonb_build_object('full_name', x.full_name, 'birth_date', x.birth_date::text) into a
           from jo.athletes x where x.id = nullif(p->'_map'->>coalesce(a->>'key',''), '')::uuid and x.submission_id = v_sub_id;
       end if;
-      v_mname := trim(coalesce(a->>'full_name',''));
+      v_mname := jo.name_case(coalesce(a->>'full_name',''));
       if length(v_mname) < 3 then
         raise exception 'Anggota %: isi nama lengkap sesuai identitas.', i using hint = 'ERR_ATHLETE_NAME';
       end if;
@@ -655,7 +655,7 @@ begin
            null, null, coalesce(nullif(a->>'akte_path',''), nullif(a->>'passport_path','')),
            nullif(a->>'akte_path',''), nullif(a->>'ktp_path',''), nullif(a->>'ijazah_path',''), nullif(a->>'passport_path',''), nullif(a->>'bpjs_path',''), nullif(a->>'photo_thumb',''),
            nullif(a->>'photo_path',''),
-           nullif(trim(coalesce(a->'guardian'->>'name','')),''), nullif(trim(coalesce(a->'guardian'->>'phone','')),''),
+           nullif(jo.name_case(coalesce(a->'guardian'->>'name','')),''), nullif(trim(coalesce(a->'guardian'->>'phone','')),''),
            nullif(lower(trim(coalesce(a->'guardian'->>'email',''))),''), nullif(trim(coalesce(a->'guardian'->>'relation','')),''),
            'T' || jo.rand_code(9), v_sortn)
         returning id into v_ath_id;

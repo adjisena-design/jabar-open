@@ -354,7 +354,7 @@ declare v_id uuid;
 begin
   insert into jo.jury_applications (source, auth_uid, full_name, phone, email, city, province, disciplines, brevet,
      cert_path, availability, ktp_path, photo_path, bpjs_path, note)
-  values (p_source, auth.uid(), trim(p->>'full_name'), regexp_replace(p->>'phone', '[^0-9+]', '', 'g'),
+  values (p_source, auth.uid(), jo.name_case(p->>'full_name'), regexp_replace(p->>'phone', '[^0-9+]', '', 'g'),
      nullif(lower(trim(coalesce(p->>'email',''))),''), nullif(trim(coalesce(p->>'city','')),''), nullif(trim(coalesce(p->>'province','')),''),
      (select array_agg(x) from jsonb_array_elements_text(p->'disciplines') x),
      coalesce(p->'brevet', '{}'::jsonb), nullif(p->>'cert_path',''),

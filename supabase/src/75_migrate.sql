@@ -211,3 +211,11 @@ update jo.settings set value = '"https://gimnastikjabaropen2026.com/"'::jsonb, u
  where key = 'site_url' and value = '"https://adjisena-design.github.io/jabar-open/"'::jsonb;
 update jo.settings set value = '""'::jsonb, updated_at = now()
  where key = 'pm_email' and value = '"adjisena.daffa@gmail.com"'::jsonb;
+
+-- v9 (19/10/2026): nama orang, klub, dan tim memakai huruf kapital di awal setiap kata (jo.name_case)
+update jo.clubs set name = jo.name_case(name) where name is distinct from jo.name_case(name);
+update jo.athletes set full_name = jo.name_case(full_name) where full_name is distinct from jo.name_case(full_name);
+update jo.athletes set guardian_name = jo.name_case(guardian_name) where guardian_name is not null and guardian_name is distinct from jo.name_case(guardian_name);
+update jo.submissions set contact_name = jo.name_case(contact_name) where contact_name is distinct from jo.name_case(contact_name);
+update jo.teams set name = jo.name_case(name) where name is distinct from jo.name_case(name);
+update jo.jury_applications set full_name = jo.name_case(full_name) where full_name is distinct from jo.name_case(full_name);

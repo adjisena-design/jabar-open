@@ -22,6 +22,23 @@ language sql immutable set search_path = '' as $$
   select regexp_replace(upper(coalesce(t,'')), '[^A-Z0-9]', '', 'g')
 $$;
 
+-- v9: nama orang, klub, dan tim: huruf pertama setiap kata dijadikan kapital.
+-- Huruf lain dibiarkan seperti diketik, jadi kata yang ditulis kapital penuh
+-- (mis. PPOP, DKI) dan bentuk seperti McDonald tetap. Apostrof tidak memulai
+-- kata baru (Ma'ruf tetap Ma'ruf).
+create or replace function jo.name_case(p text) returns text
+language plpgsql immutable set search_path = '' as $$
+declare s text := regexp_replace(btrim(coalesce(p, '')), '\s+', ' ', 'g'); r text := ''; c text; prev text := ' '; i integer;
+begin
+  if p is null then return null; end if;
+  for i in 1 .. length(s) loop
+    c := substr(s, i, 1);
+    if prev in (' ', '-', '(', '/', '.') and c <> upper(c) then c := upper(c); end if;
+    r := r || c; prev := c;
+  end loop;
+  return r;
+end $$;
+
 create or replace function jo.setting(k text) returns jsonb
 language sql stable set search_path = '' as $$
   select value from jo.settings where key = k
