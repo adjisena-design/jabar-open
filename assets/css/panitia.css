@@ -284,7 +284,7 @@ body[data-page="panitia"] .score-in:disabled{background:var(--paper);color:var(-
 
 /* ============ Perlu tindakan (titik merah) ============ */
 .rdot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--bad);box-shadow:0 0 0 3px rgba(192,57,43,.16);flex:none}
-.todo{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:0 0 14px}
+.todo{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:20px 0 16px}
 .todo.has{border-color:rgba(192,57,43,.35);box-shadow:0 0 0 3px rgba(192,57,43,.06)}
 .todo h2{display:flex;align-items:center;gap:10px;font-size:1rem;margin:0 0 10px}
 .todo.none h2{margin-bottom:4px;color:var(--ok)}
