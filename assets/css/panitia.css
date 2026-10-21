@@ -312,3 +312,9 @@ body[data-page="panitia"] .score-in:disabled{background:var(--paper);color:var(-
 .ath-more summary::after{content:' \25BE'}
 .ath-more[open] summary{display:none}
 .team-l{margin-bottom:6px;line-height:1.7}
+
+.bk-line{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:0 0 16px;text-decoration:none;color:var(--ink)}
+.bk-line:not(.late){grid-template-columns:minmax(0,1fr) auto}
+.bk-line.late{border-color:rgba(180,35,24,.35)}
+.bk-line b{display:block;font-size:.92rem}.bk-line small{display:block;color:var(--muted);font-size:.78rem}
+.bk-line svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;color:var(--muted)}

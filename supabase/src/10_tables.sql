@@ -379,7 +379,7 @@ create table if not exists jo.team_levels (
 -- v5 (14 Okt 2026): peran TD, nomor WA panitia, chat, laporan masalah, pendaftaran juri
 -- ---------------------------------------------------------------------
 alter table jo.staff drop constraint if exists staff_role_check;
-alter table jo.staff add constraint staff_role_check check (role in ('owner','superadmin','admin','td','juri','pemantau'));
+alter table jo.staff add constraint staff_role_check check (role in ('owner','superadmin','admin','td','juri','pemantau','bendahara'));
 alter table jo.staff add column if not exists phone text;
 alter table jo.clubs add column if not exists note text;
 

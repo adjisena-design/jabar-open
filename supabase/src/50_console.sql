@@ -33,7 +33,7 @@ begin
   on conflict (uid) do update set staff_id = excluded.staff_id, created_at = now(), expires_at = excluded.expires_at;
   update jo.staff set last_login_at = now() where id = st.id;
   perform jo.log(st.id, 'masuk', 'staff', st.id::text);
-  return jsonb_build_object('ok', true, 'staff', jo.staff_json(st));
+  return jsonb_build_object('ok', true, 'staff', jo.staff_json(st) || jsonb_build_object('pm_enabled', coalesce(jo.setting_bool('pm_enabled'), true)));
 end $$;
 
 create or replace function public.console_me() returns jsonb
@@ -42,7 +42,7 @@ declare st jo.staff;
 begin
   select * into st from jo.current_staff();
   if st.id is null then return null; end if;
-  return jo.staff_json(st);
+  return jo.staff_json(st) || jsonb_build_object('pm_enabled', coalesce(jo.setting_bool('pm_enabled'), true));
 end $$;
 
 create or replace function public.console_logout() returns jsonb
@@ -1031,7 +1031,7 @@ declare st jo.staff;
 begin
   st := jo.require_staff(array['owner','superadmin']);
   return (select coalesce(jsonb_agg(jo.staff_json(x) order by
-      array_position(array['owner','superadmin','admin','td','juri','pemantau'], x.role), x.discipline nulls first, x.name), '[]'::jsonb)
+      array_position(array['owner','superadmin','admin','td','juri','pemantau','bendahara'], x.role), x.discipline nulls first, x.name), '[]'::jsonb)
     from jo.staff x);
 end $$;
 
@@ -1040,7 +1040,7 @@ create or replace function jo.staff_create(st jo.staff, p jsonb) returns jsonb
 language plpgsql volatile set search_path = '' as $$
 declare v_code text; v_role text := p->>'role'; x jo.staff;
 begin
-  if v_role not in ('superadmin','admin','td','juri','pemantau') then raise exception 'Peran tidak dikenal.'; end if;
+  if v_role not in ('superadmin','admin','td','juri','pemantau','bendahara') then raise exception 'Peran tidak dikenal.'; end if;
   if v_role = 'superadmin' and st.role <> 'owner' then raise exception 'Hanya owner yang bisa membuat kode superadmin.'; end if;
   if length(trim(coalesce(p->>'name',''))) < 2 then raise exception 'Isi nama pemegang kode.'; end if;
   if nullif(p->>'discipline','') is not null and not exists (select 1 from jo.disciplines where code = p->>'discipline') then

@@ -1,6 +1,6 @@
 # Jabar Open 2026 — Panduan Sistem Pendaftaran & Konsol Panitia
 
-*Versi 9, 19 Oktober 2026 (kotak Perlu tindakan dan titik merah di konsol, notifikasi WhatsApp ke admin pendaftaran lewat gateway Fonnte). Versi 8, 15 Oktober 2026 (pendaftaran hanya lewat klub, maksimal 10 atlet per pendaftaran, beregu menjadi langkah di pendaftaran klub, peran penanggung jawab wajib). Versi 7 (jam tugas juri, peran Pemantau, konsol ramah ponsel). Versi 6 (FAQ situs dikelola dari konsol; AIC hanya terbuka saat lunas dengan tautan unduh langsung di email). Versi 5, 14 Oktober 2026 (revisi PDF panitia: Priangan menjadi kategori Ritmik tersendiri, musik per nomor, dokumen atlet terpisah + BPJS TK, pas foto wajib dan Athlete Identification Card (AIC), juri satu disiplin + BPJS TK, batas 15 menit bukti bayar, hapus data oleh owner/superadmin). Versi 4: chat panitia, laporan masalah, halaman kontak WhatsApp, pendaftaran juri, peran TD, daftar 53 klub di formulir, hapus klub). Versi 3: aturan penghargaan dari lampiran Medali & Piala Artistik, beregu hanya WAG L1–6, tanda tangan sertifikat, ekspor Nominative Form & kebutuhan medali, tampilan konsol baru). Disusun untuk Daffa Adjisena (owner sistem).*
+*Versi 10, 21 Oktober 2026 (modul Proyek di konsol: Gantt, Struktur, RAB, Pendapatan; peran Bendahara; Backup darurat khusus owner; batas pendaftaran 27 November 2026). Versi 9, 19 Oktober 2026 (kotak Perlu tindakan dan titik merah di konsol, notifikasi WhatsApp ke admin pendaftaran lewat gateway Fonnte). Versi 8, 15 Oktober 2026 (pendaftaran hanya lewat klub, maksimal 10 atlet per pendaftaran, beregu menjadi langkah di pendaftaran klub, peran penanggung jawab wajib). Versi 7 (jam tugas juri, peran Pemantau, konsol ramah ponsel). Versi 6 (FAQ situs dikelola dari konsol; AIC hanya terbuka saat lunas dengan tautan unduh langsung di email). Versi 5, 14 Oktober 2026 (revisi PDF panitia: Priangan menjadi kategori Ritmik tersendiri, musik per nomor, dokumen atlet terpisah + BPJS TK, pas foto wajib dan Athlete Identification Card (AIC), juri satu disiplin + BPJS TK, batas 15 menit bukti bayar, hapus data oleh owner/superadmin). Versi 4: chat panitia, laporan masalah, halaman kontak WhatsApp, pendaftaran juri, peran TD, daftar 53 klub di formulir, hapus klub). Versi 3: aturan penghargaan dari lampiran Medali & Piala Artistik, beregu hanya WAG L1–6, tanda tangan sertifikat, ekspor Nominative Form & kebutuhan medali, tampilan konsol baru). Disusun untuk Daffa Adjisena (owner sistem).*
 
 ## 1. Gambaran sistem
 
@@ -182,3 +182,33 @@ Setelah demo dan sebelum peluncuran: jalankan `supabase/reset-data-uji.sql` di S
 - Gateway seperti Fonnte bukan layanan resmi WhatsApp: gunakan nomor khusus (bukan nomor pribadi), karena nomor pengirim berisiko diblokir bila dilaporkan sebagai spam.
 - **Penulisan nama**: nama atlet, orang tua/wali, penanggung jawab, klub, tim, dan pendaftar juri otomatis memakai huruf kapital di awal setiap kata ("max junior wakanno" menjadi "Max Junior Wakanno"), di formulir maupun di database. Kata yang diketik kapital penuh (mis. PPOP, DKI) tidak diubah.
 - **Kolom Atlet di halaman Pendaftaran** kini satu nama per baris dengan nomor urut dan jumlah atlet di atasnya; bila lebih dari 5 atlet, 3 pertama tampil dan sisanya dibuka lewat "Lihat N lainnya". Tim beregu tampil satu per baris.
+
+## 12. Modul Proyek, Bendahara, dan Backup darurat (versi 10)
+
+**Batas pendaftaran** diperpanjang ke **27 November 2026 pukul 23.59 WIB** (situs, FAQ, email, Nominative Form).
+
+**Modul Proyek** (menu Proyek di konsol) menggantikan workbook "RAB Jabar Open 2026 - Gabungan":
+
+| Halaman | Isi | Lihat & unduh |
+|---|---|---|
+| Gantt | 112 tugas, fase 0–9, grafik harian/mingguan (21 Okt 2026 – 31 Jan 2027), garis hari ini, arsiran 12–20 Des, peringatan TERLAMBAT / HARUS MULAI | owner, superadmin, TD, bendahara |
+| Struktur | Bagan otomatis dari divisi + tugas: Pengarah → PM → divisi, ketua ("Belum ditentukan" bila kosong), anggota, tugas per divisi | owner, superadmin, TD, bendahara |
+| RAB | Rumus sama dengan workbook: Hari 2026 = ROUNDUP(Hari 2025 × 9/6), Harga 2026 = ROUNDUP(Harga 2025 × 1,2; ribuan), Total = Vol × Hari × Harga, Hemat = Total × % diganti sistem; seksi P/Q harga tetap | owner, superadmin, bendahara |
+| Pendapatan | Target A (dasar 2025, Rp517.800.000) dan B (tambahan 2026) berdampingan dengan realisasi lunas dari Ledger per disiplin | owner, superadmin, bendahara |
+
+* Hanya **owner** yang menambah, mengubah, mengarsipkan, dan mengunggah. "Arsipkan" tidak menghapus; baris tetap di database dan backup.
+* **Unduh xlsx**: 4 tab (Gantt, Struktur, RAB, Pendapatan) dengan rumus hidup; kolom A (ID) tersembunyi, jangan diubah. Peran tanpa akses keuangan hanya mendapat Gantt dan Struktur.
+* **Unggah xlsx** (owner): pakai file hasil unduhan. Konsol menampilkan pratinjau baris baru / berubah / tidak ada di file. Hanya kolom isian yang dibaca; kolom rumus dan tab Struktur diabaikan. Baris yang hilang dari file **ditandai**, tidak dihapus. Bila ada satu galat (mis. nama divisi salah), tidak ada yang diterapkan.
+* Modul berjalan dari skrip terpisah; bila bermasalah, hanya halamannya yang menampilkan pesan, pendaftaran, verifikasi, dan penilaian tetap jalan. Owner dapat mematikannya di **Pengaturan → Modul proyek**.
+* Tidak ada pengingat otomatis atau Apps Script untuk modul ini.
+
+**Peran Bendahara**: buat di **Kode akses → Kode baru → Peran: Bendahara**. Bendahara melihat dan mengunduh Gantt, Struktur, RAB, Pendapatan; tidak melihat pendaftaran, penilaian, chat, atau Backup.
+
+**Backup darurat** (menu Sistem, hanya owner; server menolak peran lain dan setiap unduhan tercatat di Log):
+
+1. **Unduh data lengkap** → `jabar-open-backup-YYYY-MM-DD-HHmm.zip` berisi `data.json` (semua tabel, untuk pemulihan), Excel satu tab per tabel, `TITIK-LANJUT.txt` (status pendaftaran, antrean verifikasi, start list/hasil terbit, log terakhir), dan `CARA-PULIHKAN.txt`.
+2. **Unduh berkas** → dokumen, pas foto, bukti bayar, tanda tangan dalam ZIP bertahap (maks. ±250 MB per bagian).
+
+Tidak pernah diekspor: kode akses / hash, secret email, token Fonnte, kunci API. Ringkasan owner menampilkan "Backup terakhir", merah bila lebih dari 7 hari (mulai 5 Desember: lebih dari 1 hari). Simpan ZIP di folder terenkripsi; isinya data pribadi anak (UU PDP), hapus sesuai jadwal Januari 2027.
+
+**Pemulihan** (skrip `supabase/tools/restore.mjs`, sudah diuji ke database kosong): proyek Supabase baru → jalankan `setup.sql` → `node restore.mjs data.json` (DATABASE_URL proyek baru) → `node restore.mjs --files folder-berkas` (service key hanya diketik di Terminal sendiri) → ubah `assets/js/config.js` → buat ulang kode akses → lanjutkan dari TITIK-LANJUT.txt. Kode lama dipulihkan nonaktif agar riwayat tetap tersambung; kode owner dari setup baru yang berlaku.

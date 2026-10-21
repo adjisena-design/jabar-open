@@ -8,14 +8,20 @@
   const DN = { MAG: 'Artistik Putra', WAG: 'Artistik Putri', RG: 'Ritmik', AER: 'Aerobik' };
   const DISCS = ['MAG', 'WAG', 'RG', 'AER'];
   const ROLE_CLUB = { pemilik: 'pemilik klub', admin: 'admin klub', pelatih: 'pelatih', manajer: 'manajer/official', lainnya: 'lainnya', atlet: 'atlet', ortu: 'orang tua/wali' };
-  const ROLE = { owner: 'Owner', superadmin: 'Superadmin', admin: 'Admin', td: 'TD', juri: 'Juri', pemantau: 'Pemantau' };
+  const ROLE = { owner: 'Owner', superadmin: 'Superadmin', admin: 'Admin', td: 'TD', juri: 'Juri', pemantau: 'Pemantau', bendahara: 'Bendahara' };
   const ST = { menunggu_pembayaran: 'Menunggu pembayaran', menunggu_verifikasi: 'Menunggu verifikasi', lunas: 'Lunas', perlu_perbaikan: 'Perlu perbaikan', dibatalkan: 'Dibatalkan' };
   let ME = null, CATS = null;
   const isSuper = () => ME && (ME.role === 'owner' || ME.role === 'superadmin');
   const isAdmin = () => ME && ['owner', 'superadmin', 'admin'].includes(ME.role);
   const isTD = () => ME && (ME.role === 'td' || ME.role === 'pemantau');   // hanya baca di halaman pertandingan
-  const isViewer = () => ME && ME.role === 'pemantau';                        // pemantau: halaman pertandingan saja
-  const canSee = () => isAdmin() || isTD();   // halaman pertandingan: admin ke atas, TD & pemantau hanya baca
+  const isViewer = () => ME && (ME.role === 'pemantau' || ME.role === 'bendahara');                        // pemantau: halaman pertandingan saja
+  const canSee = () => isAdmin() || isTD();
+  const isBendahara = () => ME && ME.role === 'bendahara';
+  const isOwner = () => ME && ME.role === 'owner';
+  // modul proyek (Gantt, Struktur, RAB, Pendapatan): skrip terpisah, dimuat saat dibuka
+  const pmOn = () => ME && (ME.pm_enabled !== false || ME.role === 'owner');
+  const pmView = () => pmOn() && ['owner', 'superadmin', 'td', 'bendahara'].includes(ME.role);
+  const pmFin = () => pmOn() && ['owner', 'superadmin', 'bendahara'].includes(ME.role);   // halaman pertandingan: admin ke atas, TD & pemantau hanya baca
   const roMode = () => (ME && ME.role === 'pemantau' ? 'Mode pemantau' : 'Mode TD');
   let pageTimer = null;                        // polling halaman aktif (chat), dihentikan saat pindah halaman
   const setPageTimer = (fn, ms) => { clearInterval(pageTimer); pageTimer = setInterval(fn, ms); };
@@ -200,6 +206,10 @@
   // ---------------- kerangka ----------------
   // ikon garis sederhana (24x24)
   const IC = {
+    gantt: '<path d="M4 5h9M7 10h10M5 15h7M10 20h10"/>',
+    org: '<rect x="9" y="3" width="6" height="5" rx="1"/><rect x="3" y="16" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M6 16v-4h12v4"/>',
+    coins: '<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/>',
+    shield: '<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M12 8v5M12 16v.5"/>',
     chev: '<path d="M9 6l6 6-6 6"/>',
     home: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
     inbox: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 13h5l2 3h4l2-3h5"/>',
@@ -288,6 +298,31 @@
     return `<br>Jam tugas: ${ws.map((w) => esc(winLabel(w))).join('; ')}<br><span class="pill ${st.open ? 'ok' : ''}">${st.open ? 'sedang bertugas' : 'di luar jam: hanya lihat'}</span>`;
   };
 
+  // ---------------- modul terpisah (proyek, backup) ----------------
+  // Dimuat hanya saat halamannya dibuka. Galat di modul hanya tampil di halaman itu;
+  // pendaftaran, verifikasi, dan penilaian tidak ikut terganggu.
+  const MOD_V = '2610y';
+  function loadModule(name) {
+    window.JO_MOD = window.JO_MOD || {};
+    if (window.JO_MOD[name]) return Promise.resolve(window.JO_MOD[name]);
+    return new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = `../assets/js/${name}.js?v=${MOD_V}`;
+      s.onload = () => (window.JO_MOD[name] ? res(window.JO_MOD[name]) : rej(new Error('modul tidak terdaftar')));
+      s.onerror = () => rej(new Error('berkas modul tidak bisa dimuat'));
+      document.head.appendChild(s);
+    });
+  }
+  const modCtx = () => ({ api, dialog, esc, fmtRp, dt, icon, ME, DN, ROLE, loading, fail, labelTables, rowMenu, signed, removeFiles,
+    toast: JO.toast, root, version: MOD_V });
+  const modPage = (mod, fn) => async (v, rest) => {
+    loading(v);
+    try { const M = await loadModule(mod); await M[fn](v, modCtx(), rest); }
+    catch (e) {
+      if (e.hint === 'ERR_SESSION') throw e;
+      v.innerHTML = `<p class="note bad">Halaman ini bermasalah: ${esc(e.message)}. Bagian konsol lain tetap berjalan normal.</p>`;
+    }
+  };
   const PAGES = [
     ['ringkasan', 'Ringkasan', () => isAdmin(), pageDashboard, 'home', 'Utama'],
     ['chat', 'Chat panitia', () => !isViewer(), pageChat, 'chat', 'Komunikasi'],
@@ -300,16 +335,21 @@
     ['klub', 'Klub', () => isAdmin(), pageClubs, 'flag', 'Peserta'],
     ['kategori', 'Kategori', () => canSee(), pageCategories, 'tag', 'Pertandingan'],
     ['startlist', 'Start list', () => canSee(), pageStartlist, 'list', 'Pertandingan'],
-    ['nilai', 'Penilaian', () => true, pageScoring, 'pen', 'Pertandingan'],
+    ['nilai', 'Penilaian', () => !isBendahara(), pageScoring, 'pen', 'Pertandingan'],
     ['hasil', 'Hasil & medali', () => canSee(), pageResults, 'trophy', 'Pertandingan'],
     ['juri', 'Pendaftaran juri', () => isAdmin(), pageJury, 'whistle', 'Pertandingan'],
+    ['gantt', 'Gantt', () => pmView(), modPage('proyek', 'gantt'), 'gantt', 'Proyek'],
+    ['struktur', 'Struktur', () => pmView(), modPage('proyek', 'struktur'), 'org', 'Proyek'],
+    ['rab', 'RAB', () => pmFin(), modPage('proyek', 'rab'), 'coins', 'Proyek'],
+    ['pendapatan', 'Pendapatan', () => pmFin(), modPage('proyek', 'pendapatan'), 'wallet', 'Proyek'],
     ['ledger', 'Ledger', () => isSuper(), pageLedger, 'wallet', 'Keuangan'],
     ['akses', 'Kode akses', () => isSuper(), pageAccess, 'key', 'Sistem'],
     ['pengaturan', 'Pengaturan', () => isSuper(), pageSettings, 'gear', 'Sistem'],
     ['log', 'Log', () => isSuper(), pageLog, 'log', 'Sistem'],
+    ['backup', 'Backup darurat', () => isOwner(), modPage('backup', 'page'), 'shield', 'Sistem'],
   ];
   async function startApp() {
-    await refreshCats();
+    if (isBendahara()) CATS = CATS || []; else await refreshCats();   // bendahara tidak membuka halaman pertandingan
     let grp = '';
     const nav = PAGES.filter((p) => p[2]()).map(([k, l, , , ic, g]) => {
       const head = g !== grp ? `<div class="grp">${esc(g)}</div>` : ''; grp = g;
@@ -340,13 +380,14 @@
     root.querySelector('#mebtn').onclick = () => editMyPhone();
     window.onhashchange = route;
     pollUnread(); clearInterval(window.__joUnread); window.__joUnread = setInterval(pollUnread, 30000);
-    if (!location.hash || location.hash === '#/' || location.hash === '#') location.hash = isAdmin() ? '#/ringkasan' : isTD() ? '#/hasil' : '#/nilai';
+    if (!location.hash || location.hash === '#/' || location.hash === '#') location.hash = isAdmin() ? '#/ringkasan' : isBendahara() ? (pmOn() ? '#/gantt' : '#/ringkasan') : isTD() ? '#/hasil' : '#/nilai';
     else route();
   }
   function route() {
     if (!ME) return;
     const parts = location.hash.replace(/^#\/?/, '').split('?')[0].split('/');
     const page = PAGES.find((p) => p[0] === parts[0] && p[2]()) || PAGES.find((p) => p[2]());
+    if (!page) { root.querySelector('#view').innerHTML = '<h1>Konsol</h1><p class="note info">Belum ada halaman untuk peran Anda saat ini. Modul proyek sedang dinonaktifkan owner.</p>'; return; }
     root.querySelectorAll('#nav a').forEach((a) => a.toggleAttribute('aria-current', a.dataset.k === page[0]));
     if (root.querySelector('#nav a[aria-current]')) root.querySelector('#nav a[aria-current]').setAttribute('aria-current', 'page');
     const v = root.querySelector('#view');
@@ -364,6 +405,20 @@
     const emailOk = d.email && d.email.last_poll && (Date.now() - new Date(d.email.last_poll).getTime() < 30 * 60 * 1000);
     const sum = (k) => d.by_discipline.reduce((a, x) => a + (Number(x[k]) || 0), 0);
     const A = await api('console_actions').catch(() => null);
+    // owner: pengingat backup darurat (merah bila lewat 7 hari; mulai 5 Des lewat 1 hari)
+    let bk = '';
+    if (isOwner()) {
+      const L = await api('console_backup_last').catch(() => null);
+      if (L) {
+        const at = L.data && L.data.at ? new Date(L.data.at) : null;
+        const days = at ? Math.floor((Date.now() - at.getTime()) / 86400000) : null;
+        const limit = Date.now() >= new Date('2026-12-05T00:00:00+07:00').getTime() ? 1 : 7;
+        const late = days === null || days >= limit;
+        bk = `<a class="bk-line ${late ? 'late' : ''}" href="#/backup">${late ? '<span class="rdot" aria-hidden="true"></span>' : ''}
+          <span><b>Backup terakhir: ${at ? (days === 0 ? 'hari ini' : days + ' hari lalu') : 'belum pernah'}</b>
+          <small>${at ? dt(at) + ' · ' : ''}${limit === 1 ? 'mulai 5 Desember: backup setiap hari' : 'disarankan sekali seminggu sampai 4 Desember'}</small></span>${icon('chev')}</a>`;
+      }
+    }
     const one = (x) => (ME.discipline ? `&d=${ME.discipline}` : '') + x;
     const acts = A ? [
       [Number(A.to_verify), `Verifikasi pembayaran`, `${A.to_verify} pendaftaran, ${A.to_verify_athletes} atlet`, `#/pendaftaran?s=menunggu_verifikasi${one('')}`],
@@ -377,6 +432,7 @@
         ${acts.length ? `<div class="todo-list">${acts.map((x) => `<a class="todo-item" href="${x[3]}"><span class="rdot" aria-hidden="true"></span><span><b>${esc(x[1])}</b><small>${esc(x[2])}</small></span><strong>${x[0]}</strong>${icon('chev')}</a>`).join('')}</div>`
           : '<p class="small muted" style="margin:0">Semua pembayaran dan dokumen yang masuk sudah diperiksa.</p>'}
       </section>
+      ${bk}
       <div class="kpis">
         <div class="kpi"><div><small>Atlet terdaftar</small><b>${sum('athletes')}</b><small>dalam ${sum('submissions')} pendaftaran</small></div><i>${icon('users')}</i></div>
         <div class="kpi ok"><div><small>Atlet lunas</small><b>${sum('athletes_paid')}</b><small>atlet</small></div><i>${icon('check')}</i></div>
@@ -1989,6 +2045,7 @@
         <option value="td">TD / Technical Director (pantau kategori, start list, nilai, hasil; hanya baca)</option>
         <option value="juri">Juri (input nilai saja; bisa dibatasi jam tugas)</option>
         <option value="pemantau">Pemantau (hanya lihat: kategori, start list, nilai, hasil)</option>
+        <option value="bendahara">Bendahara (hanya lihat & unduh: Gantt, Struktur, RAB, Pendapatan)</option>
         ${ME.role === 'owner' ? '<option value="superadmin">Superadmin (semua, termasuk ledger)</option>' : ''}</select></div>`}
       <div class="field"><label class="f">Disiplin</label><select id="sd"><option value="">Semua disiplin</option>${DISCS.map((d) => `<option value="${d}" ${s && s.discipline === d ? 'selected' : ''}>${DN[d]}</option>`).join('')}</select></div>
       <div id="jopt" ${!s || s.role !== 'juri' ? 'hidden' : ''}><div class="field"><span class="f">Batasi komponen (juri)</span><div class="row">${['D', 'E', 'A', 'PEN'].map((c) => `<label class="check" style="padding:2px 10px 2px 0"><input type="checkbox" data-comp="${c}" ${s && s.components && s.components.includes(c) ? 'checked' : ''}>${c}</label>`).join('')}</div><div class="f-hint">Kosongkan untuk semua komponen.</div></div>
@@ -2174,8 +2231,16 @@
             <td><span class="pill ${o.status === 'sent' ? 'ok' : o.status === 'error' ? 'bad' : 'warn'}">${esc(o.status)}</span></td>
             <td>${o.status === 'error' || o.status === 'sending' ? `<button class="btn btn-ghost btn-sm" data-retry="${o.id}">Ulangi</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">Belum ada email.</td></tr>'}</tbody></table></div></section>
         <section class="card" id="wa-card"></section>
+        ${ME.role === 'owner' ? `<section class="card"><h2>Modul proyek</h2>
+          <p class="small">Gantt, Struktur, RAB, dan Pendapatan berjalan sebagai modul terpisah. Bila bermasalah, nonaktifkan di sini: menu modul hilang untuk semua peran selain owner, sementara pendaftaran, verifikasi, dan penilaian tetap berjalan.</p>
+          <label class="check"><input type="checkbox" id="pm_on" ${ME.pm_enabled !== false ? 'checked' : ''}><span>Modul proyek aktif</span></label></section>` : ''}
       </div></div>`;
     drawWa(v.querySelector('#wa-card'));
+    const pmT = v.querySelector('#pm_on');
+    if (pmT) pmT.onchange = async () => {
+      try { const r = await api('console_pm_toggle', { p_on: pmT.checked }); ME.pm_enabled = r.enabled; JO.toast(r.enabled ? 'Modul proyek aktif.' : 'Modul proyek dinonaktifkan untuk peran lain.'); }
+      catch (e) { pmT.checked = !pmT.checked; JO.toast(e.message, 'bad'); }
+    };
     const sigImg = [0, 1].map((i) => (sig[i] && sig[i].sig) || '');
     const drawSig = (i) => {
       const box = v.querySelector(`[data-sigprev="${i}"]`); const u = sigImg[i];
