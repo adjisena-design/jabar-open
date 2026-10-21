@@ -301,7 +301,7 @@
   // ---------------- modul terpisah (proyek, backup) ----------------
   // Dimuat hanya saat halamannya dibuka. Galat di modul hanya tampil di halaman itu;
   // pendaftaran, verifikasi, dan penilaian tidak ikut terganggu.
-  const MOD_V = '2610y';
+  const MOD_V = '2610z';
   function loadModule(name) {
     window.JO_MOD = window.JO_MOD || {};
     if (window.JO_MOD[name]) return Promise.resolve(window.JO_MOD[name]);
@@ -338,6 +338,7 @@
     ['nilai', 'Penilaian', () => !isBendahara(), pageScoring, 'pen', 'Pertandingan'],
     ['hasil', 'Hasil & medali', () => canSee(), pageResults, 'trophy', 'Pertandingan'],
     ['juri', 'Pendaftaran juri', () => isAdmin(), pageJury, 'whistle', 'Pertandingan'],
+    ['mitra', 'Calon mitra', () => ME && ['owner', 'superadmin', 'bendahara'].includes(ME.role), pageLeads, 'users', 'Proyek'],
     ['gantt', 'Gantt', () => pmView(), modPage('proyek', 'gantt'), 'gantt', 'Proyek'],
     ['struktur', 'Struktur', () => pmView(), modPage('proyek', 'struktur'), 'org', 'Proyek'],
     ['rab', 'RAB', () => pmFin(), modPage('proyek', 'rab'), 'coins', 'Proyek'],
@@ -1875,6 +1876,38 @@
 
   // ---------------- kontak ----------------
   const ctState = { tab: 'panitia', q: '' };
+  // ---------------- calon mitra / sponsor (dari formulir beranda) ----------------
+  const LEAD_ST = { baru: ['Baru', 'warn'], dihubungi: ['Dihubungi', 'info'], deal: ['Deal', 'ok'], tidak_lanjut: ['Tidak lanjut', ''] };
+  const leadState = { st: '' };
+  async function pageLeads(v) {
+    const D = await api('console_partner_leads');
+    const n = (k) => (D.counts && D.counts[k]) || 0;
+    const list = D.items.filter((x) => !leadState.st || x.status === leadState.st);
+    v.innerHTML = `<h1>Calon mitra</h1>
+      <p class="muted">Masuk dari formulir "Calon mitra &amp; sponsor" di beranda. Hubungi lewat WhatsApp, lalu catat statusnya agar tidak ada yang dihubungi dua kali.</p>
+      <div class="tabs">${[['', `Semua (${D.items.length})`], ...Object.entries(LEAD_ST).map(([k, [l]]) => [k, `${l} (${n(k)})`])]
+        .map(([k, l]) => `<button data-st="${k}" aria-selected="${leadState.st === k}">${l}</button>`).join('')}</div>
+      ${list.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Masuk</th><th>Nama &amp; perusahaan</th><th>Kebutuhan</th><th>Status</th><th></th></tr></thead><tbody>
+        ${list.map((x) => `<tr>
+          <td class="small">${dt(x.created_at)}</td>
+          <td><strong>${esc(x.company)}</strong><br><span class="small">${esc(x.name)}</span><br><span class="small num">${esc(x.phone)}</span></td>
+          <td class="small" style="max-width:360px;white-space:pre-line">${esc(x.inquiry || '–')}${x.note ? `<br><span class="tiny muted">Catatan: ${esc(x.note)}${x.updated_by_name ? ` (${esc(x.updated_by_name)})` : ''}</span>` : ''}</td>
+          <td><span class="pill ${LEAD_ST[x.status][1]}">${LEAD_ST[x.status][0]}</span></td>
+          <td class="r"><span class="rm"><a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${esc(waText(x.phone, `Halo ${x.name}, terima kasih atas minat ${x.company} untuk bermitra dengan Jabar Open 2026. Kami dari panitia ingin menindaklanjuti.`))}">WhatsApp</a>
+            <button class="btn btn-dark btn-sm" data-lead="${x.id}">Status</button></span></td></tr>`).join('')}</tbody></table></div>`
+        : '<p class="empty">Belum ada calon mitra di daftar ini.</p>'}`;
+    labelTables(v);
+    v.querySelectorAll('[data-st]').forEach((b) => (b.onclick = () => { leadState.st = b.dataset.st; pageLeads(v); }));
+    v.querySelectorAll('[data-lead]').forEach((b) => (b.onclick = async () => {
+      const x = D.items.find((i) => i.id === b.dataset.lead);
+      const r = await dialog({ title: x.company,
+        body: `<div class="field"><label class="f" for="ls">Status</label><select id="ls">${Object.entries(LEAD_ST).map(([k, [l]]) => `<option value="${k}" ${x.status === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+          <div class="field"><label class="f" for="ln">Catatan</label><textarea id="ln" placeholder="Mis. minat paket Gold, kirim MoU minggu depan">${esc(x.note || '')}</textarea></div>`,
+        onOk: (d) => api('console_partner_lead_update', { p_id: x.id, p_status: d.querySelector('#ls').value, p_note: d.querySelector('#ln').value }) });
+      if (r) { JO.toast('Tersimpan.', 'ok'); pageLeads(v); }
+    }));
+  }
+
   async function pageContacts(v) {
     const C = await api('console_contacts');
     if (!C.can_registrants) ctState.tab = 'panitia';

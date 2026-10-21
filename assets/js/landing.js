@@ -3,7 +3,7 @@
   'use strict';
   const EN = {
     n_about: 'About', n_sched: 'Schedule', n_fee: 'Fees', n_startlist: 'Start list', n_results: 'Results', n_merch: 'Merch',
-    n_contact: 'Contact', n_faq: 'FAQ',
+    n_contact: 'Contact', n_faq: 'FAQ', n_partner: 'Partners',
     fq_eyebrow: 'Frequently asked', fq_title: 'Common questions, <em>answered here.</em>', fq_lead: 'Search by keyword or pick a category.', fq_all: 'Open the FAQ page', n_status: 'Check status', n_register: 'Register', n_verify: 'Verify a certificate', n_jury: 'Judge application',
     h_kick1: 'Open gymnastics championship', h_kick2: '12–20 December 2026 · Bandung',
     h_t1: 'One arena.', h_t2: 'Four disciplines.', h_t3: 'Hundreds of dreams.',
@@ -69,7 +69,17 @@
     cp1: "Men's Artistic", cp2: "Women's Artistic", cp3: 'Rhythmic', cp4: 'Aerobic',
     cl_t1: 'See you at',
     ft_org: 'Organised by Gimnastik Indonesia (GI) West Java under KONI West Java.', ft_sec: 'Secretariat', ft_map: 'View on map',
-    ft_links: 'Links', ft_credit: 'Built and maintained by Daffa Adjisena, M.B.A.',
+    ft_links: 'Links', ft_credit: 'Built and maintained by Daffa Adjisena, M.B.A.', ft_partner: 'Partnership & sponsorship',
+    pm_eyebrow: 'Prospective partners & sponsors', pm_title: 'Grow with <em>young gymnasts.</em>',
+    pm_lead: 'Nine days, around 800 athletes with their families, and your logo in the arena, on athlete cards, certificates and results pages. See the partnership packages in our proposal (in Indonesian).',
+    pm_cover_alt: 'Cover of the Jabar Open 2026 partnership proposal', pm_doc_t: 'Partnership proposal 2026', pm_doc_m: 'PDF · 15 pages · 3.8 MB · Indonesian',
+    pm_inkind: 'In-kind', pm_view: 'View proposal', pm_dl: 'Download PDF',
+    pm_form_t: 'Interested in partnering? Leave your contact.', pm_form_d: 'Our team will reach you on WhatsApp within 1–2 working days.',
+    pm_f_name: 'Name', pm_f_company: 'Company / organisation', pm_f_phone: 'WhatsApp number', pm_f_inq: 'Needs or questions',
+    pm_f_inq_ph: 'For example: interested in the Gold package, a booth, or product sampling', pm_send: 'Send', pm_or: 'or go straight to',
+    pm_wa_t: 'WhatsApp Inda Sofia', pm_wa_d: 'Treasurer, Jabar Open 2026 · +62 821-1559-6852',
+    pm_ok: 'Thank you. We have received your details and will contact you on WhatsApp soon.',
+    pm_err_req: 'Please fill in name, company and WhatsApp number.', pm_err_net: 'Could not send. Check your connection, or contact us on WhatsApp.',
   };
 
 
@@ -78,11 +88,17 @@
   document.querySelectorAll('[data-i18n]').forEach((el) => { ID[el.dataset.i18n] = el.textContent; });
   document.querySelectorAll('[data-i18n-html]').forEach((el) => { ID[el.dataset.i18nHtml] = el.innerHTML; });
   document.querySelectorAll('[data-i18n-alt]').forEach((el) => { ID[el.dataset.i18nAlt] = el.alt; });
+  document.querySelectorAll('[data-i18n-ph]').forEach((el) => { ID[el.dataset.i18nPh] = el.placeholder; });
+  Object.assign(ID, { pm_ok: 'Terima kasih. Data Anda sudah kami terima; tim kami akan segera menghubungi lewat WhatsApp.',
+    pm_err_req: 'Isi nama, perusahaan, dan nomor WhatsApp.', pm_err_net: 'Gagal mengirim. Periksa koneksi, atau hubungi kami lewat WhatsApp.' });
+  let LANG = 'id';
   function setLang(l) {
+    LANG = l;
     const d = l === 'en' ? EN : ID;
     document.querySelectorAll('[data-i18n]').forEach((el) => { const v = d[el.dataset.i18n]; if (v) el.textContent = v; });
     document.querySelectorAll('[data-i18n-html]').forEach((el) => { const v = d[el.dataset.i18nHtml]; if (v) el.innerHTML = v; });
     document.querySelectorAll('[data-i18n-alt]').forEach((el) => { const v = d[el.dataset.i18nAlt]; if (v) el.alt = v; });
+    document.querySelectorAll('[data-i18n-ph]').forEach((el) => { const v = d[el.dataset.i18nPh]; if (v) el.placeholder = v; });
     document.querySelectorAll('.lang-sw button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lang === l)));
     document.documentElement.lang = l;
     try { localStorage.setItem('jo26-lang', l); } catch (e) {}
@@ -182,7 +198,7 @@
   if ('IntersectionObserver' in window) {
     const map = {};
     links.querySelectorAll('a[href^="#"]').forEach((a) => { map[a.getAttribute('href').slice(1)] = a; });
-    const order = ['tentang', 'info', 'jadwal', 'kenangan', 'biaya', 'merch', 'faq', 'kontak'];
+    const order = ['tentang', 'info', 'jadwal', 'kenangan', 'biaya', 'merch', 'faq', 'mitra', 'kontak'];
     const seen = new Set();
     const secObs = new IntersectionObserver((entries) => {
       entries.forEach((en) => { if (en.isIntersecting) seen.add(en.target.id); else seen.delete(en.target.id); });
@@ -199,6 +215,37 @@
     document.querySelectorAll('.rv').forEach((el) => rvObs.observe(el));
   } else {
     document.querySelectorAll('.rv').forEach((el) => el.classList.add('in'));
+  }
+
+  // ---------- calon mitra: formulir singkat (tanpa SDK, lewat REST + kunci anon) ----------
+  const pf = document.getElementById('p-form');
+  if (pf) {
+    const msg = document.getElementById('p-msg');
+    const t = (k) => (LANG === 'en' ? EN : ID)[k];
+    pf.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = Object.fromEntries(new FormData(pf).entries());
+      let bad = false;
+      ['name', 'company', 'phone'].forEach((k) => {
+        const lab = pf.elements[k].closest('.p-f');
+        const miss = k === 'phone' ? String(f[k] || '').replace(/[^0-9]/g, '').length < 9 : String(f[k] || '').trim().length < 2;
+        lab.classList.toggle('bad', miss); if (miss) bad = true;
+      });
+      if (bad) { msg.className = 'p-msg bad'; msg.textContent = t('pm_err_req'); return; }
+      const btn = pf.querySelector('.p-submit'); btn.disabled = true; msg.className = 'p-msg'; msg.textContent = '';
+      try {
+        const C = window.JO_CONFIG;
+        const r = await fetch(C.supabaseUrl + '/rest/v1/rpc/public_partner_lead', {
+          method: 'POST', headers: { apikey: C.supabaseKey, Authorization: 'Bearer ' + C.supabaseKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ p: { ...f, lang: LANG } }) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j && j.message ? j.message : t('pm_err_net'));
+        pf.reset(); msg.className = 'p-msg ok'; msg.textContent = t('pm_ok');
+      } catch (err) {
+        msg.className = 'p-msg bad'; msg.textContent = err && err.message && !/fetch/i.test(err.message) ? err.message : t('pm_err_net');
+      } finally { btn.disabled = false; }
+    });
+    pf.querySelectorAll('input,textarea').forEach((el) => el.addEventListener('input', () => el.closest('.p-f') && el.closest('.p-f').classList.remove('bad')));
   }
 
   // ---------- hitung mundur (hari) ke 12 Desember 2026 07.00 WIB ----------
