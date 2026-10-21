@@ -219,3 +219,9 @@ update jo.athletes set guardian_name = jo.name_case(guardian_name) where guardia
 update jo.submissions set contact_name = jo.name_case(contact_name) where contact_name is distinct from jo.name_case(contact_name);
 update jo.teams set name = jo.name_case(name) where name is distinct from jo.name_case(name);
 update jo.jury_applications set full_name = jo.name_case(full_name) where full_name is distinct from jo.name_case(full_name);
+
+-- v10 (21/10/2026): batas pendaftaran diperpanjang ke 27 November 2026 23.59 WIB
+update jo.settings set value = '"2026-11-27T23:59:59+07:00"'::jsonb, updated_at = now()
+ where key = 'registration_deadline' and value = '"2026-11-12T23:59:59+07:00"'::jsonb;
+update jo.settings set value = '"27 November 2026"'::jsonb, updated_at = now()
+ where key = 'payment_deadline_label' and value = '"12 November 2026"'::jsonb;

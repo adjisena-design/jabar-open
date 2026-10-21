@@ -1063,7 +1063,7 @@
               <tr><td>${esc(t('sum_uc'))}</td><td>${fmtRp(r.unique_code)}</td></tr>
             </tbody></table>
             <p class="small">${t('pay_steps')}</p>
-            <p class="small muted">${esc(t('pay_deadline', { d: CFG.registration.deadline_label || '12 November 2026' }))}</p>
+            <p class="small muted">${esc(t('pay_deadline', { d: CFG.registration.deadline_label || '27 November 2026' }))}</p>
           </div>
         </div>
       </section>

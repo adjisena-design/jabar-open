@@ -73,9 +73,9 @@ ITEMS = [
 - Once the committee confirms the payment, the Athlete Identification Card (AIC) download link is emailed to the contact person."""),
 
     ('pendaftaran', 'batas-pendaftaran', 'Kapan batas akhir pendaftaran?',
-     """Pendaftaran dan pembayaran ditutup **12 November 2026 pukul 23.59 WIB**.""",
+     """Pendaftaran dan pembayaran ditutup **27 November 2026 pukul 23.59 WIB**.""",
      'When does registration close?',
-     """Registration and payment close on **12 November 2026 at 23:59 WIB (UTC+7)**."""),
+     """Registration and payment close on **27 November 2026 at 23:59 WIB (UTC+7)**."""),
 
     ('pendaftaran', 'biaya', 'Berapa biaya pendaftaran?',
      """- Artistik Putra / Putri: Rp750.000 per atlet
@@ -260,6 +260,7 @@ If the committee marks a link as "cannot be opened", fix the sharing and resend 
 
 # teks lama (versi sebelum v8): diganti hanya bila isi jawabannya belum diubah panitia
 REVISED_V8 = {
+    'batas-pendaftaran': 'Pendaftaran dan pembayaran ditutup **12 November 2026 pukul 23.59 WIB**.',
     'siapa-boleh-ikut': 'Sekolah, klub, pengkab/pengkot, dan perorangan, termasuk atlet dari luar negeri. Atlet tidak harus bergabung dengan klub; pilih "Perorangan" saat mendaftar.',
     'jumlah-atlet': 'Satu pendaftaran untuk satu disiplin. Perorangan untuk satu atlet; klub, sekolah, atau pengkab hingga **lima atlet** per pendaftaran. Untuk lebih dari lima atlet, buat pendaftaran berikutnya.\n\nKuota per klub per kategori: maksimal 10 pesenam untuk Artistik dan 4 atlet untuk Aerobik. Satu transaksi QRIS maksimal Rp10.000.000; bila total melebihinya, bagi atlet ke dalam dua pendaftaran.',
     'beregu': 'Beregu hanya untuk Artistik Putri Level 1–6, biaya Rp650.000 per tim di luar biaya perorangan.\n\n- Satu tim untuk satu level, 1–6 pesenam; kelompok usia boleh campur.\n- Satu klub boleh mengirim beberapa tim di level yang sama dengan nama berbeda.\n- Anggota bisa "juga perorangan" (sudah terdaftar perorangan lewat klub yang sama) atau "khusus beregu" (dinilai untuk tim, tidak diperingkat perorangan).\n- Nilai tim = jumlah 4 nilai serba bisa terbaik. Setiap anggota tim juara 1–3 mendapat sertifikat Juara Beregu.',

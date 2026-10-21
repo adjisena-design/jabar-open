@@ -1219,7 +1219,7 @@
         clubName: d.querySelector('#nc2').selectedOptions[0].textContent }) });
     if (!r) return;
     const D = await api('console_nominative', { p_discipline: r.disc, p_club: r.club });
-    const g = [['JABAR OPEN 2026 - ARTISTIC GYMNASTICS'], [' Form Nominative'], ['', '', '', '', '', '', 'Deadline : 12 November 2026'],
+    const g = [['JABAR OPEN 2026 - ARTISTIC GYMNASTICS'], [' Form Nominative'], ['', '', '', '', '', '', 'Deadline : 27 November 2026'],
       ['NO', 'KLUB', 'NAMA', 'TANGGAL LAHIR', 'UMUR', 'MAG / WAG', 'LEVEL', 'KATEGORI', 'NO. ATLET', 'KODE PENDAFTARAN', 'STATUS'],
       ['', '', '', '(dd/mm/yyyy)']];
     D.gymnasts.forEach((x, i) => g.push([i + 1, x.club, x.name, fmtDMY(x.birth_date), x.age, x.discipline, x.level, x.category + (x.priangan ? ' + Priangan' : ''), x.athlete_no || '', x.code, ST[x.status] || x.status]));

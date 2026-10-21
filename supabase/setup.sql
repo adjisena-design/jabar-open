@@ -4617,7 +4617,7 @@ insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, 
 - Pay by QRIS for the exact amount shown.
 - Upload the payment proof **within 15 minutes** of registering.
 - Once the committee confirms the payment, the Athlete Identification Card (AIC) download link is emailed to the contact person.$f$, 10, 'draf', 'Draf awal') on conflict (slug) do nothing;
-insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$batas-pendaftaran$f$, $f$Kapan batas akhir pendaftaran?$f$, $f$Pendaftaran dan pembayaran ditutup **12 November 2026 pukul 23.59 WIB**.$f$, $f$When does registration close?$f$, $f$Registration and payment close on **12 November 2026 at 23:59 WIB (UTC+7)**.$f$, 20, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$batas-pendaftaran$f$, $f$Kapan batas akhir pendaftaran?$f$, $f$Pendaftaran dan pembayaran ditutup **27 November 2026 pukul 23.59 WIB**.$f$, $f$When does registration close?$f$, $f$Registration and payment close on **27 November 2026 at 23:59 WIB (UTC+7)**.$f$, 20, 'draf', 'Draf awal') on conflict (slug) do nothing;
 insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$biaya$f$, $f$Berapa biaya pendaftaran?$f$, $f$- Artistik Putra / Putri: Rp750.000 per atlet
 - Beregu Artistik Putri (Level 1–6): Rp650.000 per tim, di luar biaya perorangan
 - Ritmik (Profesional, Amatir, Priangan): Rp750.000 per atlet
@@ -4698,6 +4698,7 @@ insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, 
 insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$juri$f$, $f$daftar-juri$f$, $f$Bagaimana mendaftar sebagai juri?$f$, $f$Juri berbrevet mendaftar di halaman [Pendaftaran juri](juri.html) untuk **satu disiplin**: Artistik Putra, Artistik Putri, atau Ritmik. Siapkan KTP atau identitas lain, pas foto, kartu BPJS Ketenagakerjaan (wajib), dan sertifikat brevet bila ada; berkas JPG, PNG, atau PDF, maksimal 5 MB. Panitia memeriksa setiap pendaftaran dan menghubungi juri terpilih lewat WhatsApp.$f$, $f$How do I apply as a judge?$f$, $f$Licensed judges apply on the [Judge application](juri.html) page for **one discipline**: Men's Artistic, Women's Artistic or Rhythmic. Have an ID card, a passport photo, a BPJS Ketenagakerjaan card (required) and the judging licence if available; files in JPG, PNG or PDF, up to 5 MB. The committee reviews every application and contacts selected judges by WhatsApp.$f$, 10, 'draf', 'Draf awal') on conflict (slug) do nothing;
 -- v8: perbarui butir yang terdampak, hanya bila isi jawabannya masih teks lama (status terbit tetap)
 update jo.faq_items set q_id = $f$Siapa yang boleh ikut?$f$, a_id = $f$Atlet dari klub, sekolah, atau pengkab/pengkot, termasuk dari luar negeri. **Semua atlet didaftarkan lewat klubnya**, oleh pemilik, admin, pelatih, atau official klub; tidak ada pendaftaran perorangan. Atlet yang belum punya klub perlu didaftarkan oleh klub atau sekolah tempatnya berlatih.$f$, q_en = $f$Who can take part?$f$, a_en = $f$Athletes from clubs, schools or regency/city associations, including from abroad. **Every athlete is registered through their club**, by the club's owner, admin, coach or official; there is no individual registration. An athlete without a club needs to be entered by the club or school where they train.$f$, updated_at = now() where slug = $f$siapa-boleh-ikut$f$ and a_id = $f$Sekolah, klub, pengkab/pengkot, dan perorangan, termasuk atlet dari luar negeri. Atlet tidak harus bergabung dengan klub; pilih "Perorangan" saat mendaftar.$f$;
+update jo.faq_items set q_id = $f$Kapan batas akhir pendaftaran?$f$, a_id = $f$Pendaftaran dan pembayaran ditutup **27 November 2026 pukul 23.59 WIB**.$f$, q_en = $f$When does registration close?$f$, a_en = $f$Registration and payment close on **27 November 2026 at 23:59 WIB (UTC+7)**.$f$, updated_at = now() where slug = $f$batas-pendaftaran$f$ and a_id = $f$Pendaftaran dan pembayaran ditutup **12 November 2026 pukul 23.59 WIB**.$f$;
 update jo.faq_items set q_id = $f$Berapa atlet yang bisa didaftarkan sekaligus?$f$, a_id = $f$Satu pendaftaran untuk satu disiplin, maksimal **10 atlet**, termasuk anggota "khusus beregu". Klub dengan lebih dari 10 atlet cukup membuat pendaftaran berikutnya; data klub dan penanggung jawab tersimpan untuk pendaftaran berikutnya di perangkat yang sama.
 
 Kuota per klub per kategori: maksimal 10 pesenam untuk Artistik dan 4 atlet untuk Aerobik. Satu transaksi QRIS maksimal Rp10.000.000; bila total melebihinya, bagi atlet ke dalam dua pendaftaran.$f$, q_en = $f$How many athletes can be registered at once?$f$, a_en = $f$One registration covers one discipline, with up to **10 athletes**, including "team only" members. A club with more than 10 athletes simply submits another registration; the club and contact details are kept for the next one on the same device.
@@ -5021,8 +5022,8 @@ insert into jo.settings (key, value) values
   ('event_year', '2026'::jsonb),
   ('site_url', '"https://gimnastikjabaropen2026.com/"'::jsonb),
   ('registration_open', 'true'::jsonb),
-  ('registration_deadline', '"2026-11-12T23:59:59+07:00"'::jsonb),
-  ('payment_deadline_label', '"12 November 2026"'::jsonb),
+  ('registration_deadline', '"2026-11-27T23:59:59+07:00"'::jsonb),
+  ('payment_deadline_label', '"27 November 2026"'::jsonb),
   ('priangan_fee', '150000'::jsonb),
   ('qris_cap', '10000000'::jsonb),
   ('max_athletes', '10'::jsonb),
@@ -5261,6 +5262,12 @@ update jo.athletes set guardian_name = jo.name_case(guardian_name) where guardia
 update jo.submissions set contact_name = jo.name_case(contact_name) where contact_name is distinct from jo.name_case(contact_name);
 update jo.teams set name = jo.name_case(name) where name is distinct from jo.name_case(name);
 update jo.jury_applications set full_name = jo.name_case(full_name) where full_name is distinct from jo.name_case(full_name);
+
+-- v10 (21/10/2026): batas pendaftaran diperpanjang ke 27 November 2026 23.59 WIB
+update jo.settings set value = '"2026-11-27T23:59:59+07:00"'::jsonb, updated_at = now()
+ where key = 'registration_deadline' and value = '"2026-11-12T23:59:59+07:00"'::jsonb;
+update jo.settings set value = '"27 November 2026"'::jsonb, updated_at = now()
+ where key = 'payment_deadline_label' and value = '"12 November 2026"'::jsonb;
 -- =====================================================================
 --  Penyimpanan berkas (Supabase Storage)
 --   dokumen : identitas & foto atlet (privat)

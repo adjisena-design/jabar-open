@@ -216,7 +216,7 @@
             <tr><td>${esc(t('sum_uc'))}</td><td>${fmtRp(d.unique_code)}</td></tr>
           </tbody></table>
           ${p.note ? `<p class="small">${esc(p.note)}</p>` : ''}
-          <p class="small muted">${esc(t('pay_deadline', { d: p.deadline_label || '12 November 2026' }))}</p>
+          <p class="small muted">${esc(t('pay_deadline', { d: p.deadline_label || '27 November 2026' }))}</p>
         </div>
       </div>
       <hr class="divider">
