@@ -24,7 +24,7 @@
   const tgl = (s, yr) => { if (!s) return '–'; const d = new Date(day(s) * 864e5); return `${d.getUTCDate()} ${BLN[d.getUTCMonth()]}${yr ? ' ' + d.getUTCFullYear() : ''}`; };
   const num = (n, dg) => (n === null || n === undefined || n === '' ? '–' : Number(n).toLocaleString('id-ID', { maximumFractionDigits: dg ?? 0 }));
   const pct = (n) => Math.round(Number(n || 0) * 100) + '%';
-  const rp = (n) => (n === null || n === undefined ? '–' : 'Rp' + Math.round(Number(n)).toLocaleString('id-ID'));
+  const rp = (n) => (n === null || n === undefined ? '–' : (Number(n) < 0 ? '−Rp' : 'Rp') + Math.abs(Math.round(Number(n))).toLocaleString('id-ID'));
   const stamp = () => { const d = new Date(); const p = (x) => String(x).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; };
   const norm = (v) => (v === null || v === undefined ? '' : String(v).trim());
   let cssDone = false;
@@ -296,31 +296,29 @@
   // =====================================================================
   //  RAB
   // =====================================================================
+  const SRC = ['Inda Sofia (Sheet1)', 'RAB Aktual 2025 +20%', 'Usulan Daffa', 'RAB Aktual 2025 (analisis sistem)'];
   function rabForm(C, fin, it) {
-    const secs = fin.sections.map((s) => [s.code, `${s.code}. ${C.esc(s.name)}${s.fixed_price ? ' (harga tetap)' : ''}`]);
-    const fixed = (code) => (fin.sections.find((s) => s.code === code) || {}).fixed_price;
+    const secs = fin.sections.map((s) => [s.code, `${s.code}. ${C.esc(s.name)}`]);
+    const srcs = [...new Set([...SRC, it.source || ''].filter(Boolean))].map((x) => [x, x]);
     return `<div class="field"><label class="f" for="r_sec">Seksi</label><select id="r_sec">${opt(secs, it.section)}</select></div>
-      <div class="field"><label class="f" for="r_u">Uraian</label><input id="r_u" required value="${C.esc(it.uraian || '')}"></div>
+      <div class="field"><label class="f" for="r_u">Uraian kebutuhan</label><input id="r_u" required value="${C.esc(it.uraian || '')}"></div>
+      <div class="grid-2"><div class="field"><label class="f" for="r_v">Volume</label><input id="r_v" inputmode="decimal" value="${C.esc(it.vol ?? '')}">
+          <label class="check pm-chk"><input type="checkbox" id="r_vd" ${it.vol_days ? 'checked' : ''}><span>Ikut jumlah hari kegiatan (${num(fin.params.event_days)})</span></label></div>
+        <div class="field"><label class="f" for="r_s">Satuan</label><input id="r_s" value="${C.esc(it.satuan || '')}"></div></div>
+      <div class="grid-2"><div class="field"><label class="f" for="r_f">Frekuensi</label><input id="r_f" inputmode="decimal" value="${C.esc(it.freq ?? '')}">
+          <label class="check pm-chk"><input type="checkbox" id="r_fd" ${it.freq_days ? 'checked' : ''}><span>Ikut jumlah hari kegiatan</span></label><p class="f-hint">Kosong = 1.</p></div>
+        <div class="field"><label class="f" for="r_fu">Satuan frekuensi</label><input id="r_fu" value="${C.esc(it.freq_unit || '')}" placeholder="hari, jam, keping, orang"></div></div>
+      <div class="field"><label class="f" for="r_pf">Harga satuan (Rp)</label><input id="r_pf" inputmode="numeric" value="${C.esc(it.price_final ?? '')}"><p class="f-hint">Jumlah = volume × frekuensi × harga satuan.</p></div>
+      <div class="grid-2"><div class="field"><label class="f" for="r_c">Dihitung di total</label><select id="r_c">${opt([['true', 'Ya'], ['false', 'Tidak (acuan)']], String(it.counted !== false))}</select></div>
+        <div class="field"><label class="f" for="r_src">Sumber</label><select id="r_src"><option value="">(tidak ada)</option>${opt(srcs, it.source || '')}</select></div></div>
       <div class="field"><label class="f" for="r_k">Keterangan</label><input id="r_k" value="${C.esc(it.keterangan || '')}"></div>
-      <div class="grid-2"><div class="field"><label class="f" for="r_v">Volume</label><input id="r_v" inputmode="decimal" value="${C.esc(it.vol ?? '')}"></div>
-      <div class="field"><label class="f" for="r_s">Satuan</label><input id="r_s" value="${C.esc(it.satuan || '')}"></div></div>
-      <div class="grid-2 r-var" ${fixed(it.section) ? 'hidden' : ''}><div class="field"><label class="f" for="r_d">Hari 2025</label><input id="r_d" inputmode="decimal" value="${C.esc(it.days_2025 ?? '')}"><p class="f-hint">Kosong = tidak dikali hari.</p></div>
-      <div class="field"><label class="f" for="r_p">Harga 2025 (Rp)</label><input id="r_p" inputmode="numeric" value="${C.esc(it.price_2025 ?? '')}"><p class="f-hint">Harga 2026 = naik ${pct(fin.params.increase)}, dibulatkan ke atas ribuan.</p></div></div>
-      <div class="field r-fix" ${fixed(it.section) ? '' : 'hidden'}><label class="f" for="r_pf">Harga tetap (Rp)</label><input id="r_pf" inputmode="numeric" value="${C.esc(it.price_final ?? '')}"></div>
-      <div class="grid-2"><div class="field"><label class="f" for="r_ss">Status sistem</label><select id="r_ss">${opt(SYS.map((s) => [s, s || '(tidak ada)']), it.status_sistem || '')}</select></div>
-      <div class="field"><label class="f" for="r_pc">% diganti sistem</label><input id="r_pc" type="number" min="0" max="100" step="5" value="${Math.round(Number(it.pct_replaced || 0) * 100)}"></div></div>
       <div class="field"><label class="f" for="r_n">Catatan</label><textarea id="r_n">${C.esc(it.note || '')}</textarea></div>`;
   }
-  async function editRab(C, fin, it) {
-    const fixed = (code) => (fin.sections.find((s) => s.code === code) || {}).fixed_price;
-    const p = C.dialog({ title: it.id ? 'Ubah baris RAB' : 'Tambah baris RAB', wide: true, body: rabForm(C, fin, it),
-      onOk: (d) => C.api('console_pm_save', { p_kind: 'rab_item', p: { id: it.id || '', section: val(d, 'r_sec'), uraian: val(d, 'r_u'), keterangan: val(d, 'r_k'),
-        vol: val(d, 'r_v'), satuan: val(d, 'r_s'), days_2025: fixed(val(d, 'r_sec')) ? '' : val(d, 'r_d'), price_2025: fixed(val(d, 'r_sec')) ? '' : val(d, 'r_p'),
-        price_final: fixed(val(d, 'r_sec')) ? val(d, 'r_pf') : '', status_sistem: val(d, 'r_ss'),
-        pct_replaced: Math.min(100, Math.max(0, Number(val(d, 'r_pc') || 0))) / 100, note: val(d, 'r_n') } }) });
-    const dl = document.getElementById('dlg'); const sel = dl.querySelector('#r_sec');
-    sel.onchange = () => { const f = fixed(sel.value); dl.querySelector('.r-var').hidden = !!f; dl.querySelector('.r-fix').hidden = !f; };
-    return p;
+  function editRab(C, fin, it) {
+    return C.dialog({ title: it.id ? 'Ubah baris RAB' : 'Tambah baris RAB', wide: true, body: rabForm(C, fin, it),
+      onOk: (d) => C.api('console_pm_save', { p_kind: 'rab_item', p: { id: it.id || '', section: val(d, 'r_sec'), sort: it.sort ?? '', uraian: val(d, 'r_u'), keterangan: val(d, 'r_k'),
+        vol: val(d, 'r_v'), satuan: val(d, 'r_s'), vol_days: val(d, 'r_vd'), freq: val(d, 'r_f'), freq_unit: val(d, 'r_fu'), freq_days: val(d, 'r_fd'),
+        price_final: val(d, 'r_pf'), counted: val(d, 'r_c') === 'true', source: val(d, 'r_src'), status_sistem: it.status_sistem || '', pct_replaced: it.pct_replaced || 0, note: val(d, 'r_n') } }) });
   }
 
   async function rab(v, C) {
@@ -328,41 +326,43 @@
     const fin = await C.api('console_pm_finance');
     const can = fin.can_edit; const S = fin.summary; const P = fin.params;
     const q = RF.q.toLowerCase();
-    const items = fin.items.filter((i) => (!RF.sec || i.section === RF.sec) && (!q || [i.uraian, i.keterangan, i.note, i.satuan].join(' ').toLowerCase().includes(q)));
+    const items = fin.items.filter((i) => (!RF.sec || i.section === RF.sec) && (!q || [i.uraian, i.keterangan, i.note, i.satuan, i.source].join(' ').toLowerCase().includes(q)));
+    const dayTag = (on) => (on ? ' <span class="pill" title="Ikut jumlah hari kegiatan">hari</span>' : '');
     const secHtml = fin.sections.filter((s) => items.some((i) => i.section === s.code)).map((s) => {
       const rows = items.filter((i) => i.section === s.code);
       const all = fin.items.filter((i) => i.section === s.code);
-      const sub = all.reduce((a, i) => a + Number(i.total || 0), 0); const hem = all.reduce((a, i) => a + Number(i.saved || 0), 0);
-      return `<section class="rab-sec"><header><h2>${C.esc(s.code)}. ${C.esc(s.name)}${s.fixed_price ? ' <span class="pill gold">harga tetap</span>' : ''}</h2>
-          <span class="rab-sub">${rp(sub)}${hem ? ` <span class="muted">· hemat ${rp(hem)}</span>` : ''}</span>
+      const sub = all.filter((i) => s.is_note || i.counted !== false).reduce((a, i) => a + Number(i.total || 0), 0);
+      const ref = s.is_note ? 0 : all.filter((i) => i.counted === false).reduce((a, i) => a + Number(i.total || 0), 0);
+      return `<section class="rab-sec${s.is_note ? ' rab-note' : ''}"><header><h2>${C.esc(s.code)}. ${C.esc(s.name)}</h2>
+          <span class="rab-sub">${s.is_note ? '<span class="muted">tidak dihitung · </span>' : ''}${rp(sub)}${ref ? ` <span class="muted">· acuan ${rp(ref)}</span>` : ''}</span>
           ${can ? `<button class="btn btn-ghost btn-sm" data-ra="${C.esc(s.code)}">Tambah baris</button>` : ''}</header>
-        <div class="tbl-wrap"><table class="tbl rab-tbl"><thead><tr><th>Uraian</th><th class="r">Vol</th><th>Satuan</th>
-          ${s.fixed_price ? '<th class="r">Harga tetap</th>' : '<th class="r">Hari 2025</th><th class="r">Harga 2025</th><th class="r">Hari 2026</th><th class="r">Harga 2026</th>'}
-          <th class="r">Total</th><th>Sistem</th><th class="r">Hemat</th>${can ? '<th></th>' : ''}</tr></thead><tbody>
-          ${rows.map((i) => `<tr data-r="${i.id}" class="${can ? 'click ' : ''}${i.status_sistem === 'DIHAPUS' ? 'rab-del' : i.status_sistem === 'DIKURANGI' ? 'rab-less' : ''}${i.flagged ? ' flag' : ''}">
+        <div class="tbl-wrap"><table class="tbl rab-tbl"><thead><tr><th>Uraian</th><th class="r">Vol</th><th>Satuan</th><th class="r">Frek</th><th>Satuan frek</th>
+          <th class="r">Harga satuan</th><th class="r">Jumlah</th><th>Dihitung</th><th>Sumber</th>${can ? '<th></th>' : ''}</tr></thead><tbody>
+          ${rows.map((i) => { const nc = i.counted === false || s.is_note; const hl = i.status_sistem === 'SISTEM' && !nc;
+            return `<tr data-r="${i.id}" class="${can ? 'click ' : ''}${nc ? 'rab-nc' : ''}${hl ? ' rab-hl' : ''}${i.flagged ? ' flag' : ''}">
             <td><b>${C.esc(i.uraian)}</b>${i.keterangan ? `<div class="tiny muted">${C.esc(i.keterangan)}</div>` : ''}${i.note ? `<div class="tiny muted">Catatan: ${C.esc(i.note)}</div>` : ''}${i.flagged ? `<div><span class="pill warn">${C.esc(i.flagged)}</span></div>` : ''}</td>
-            <td class="r num">${num(i.vol, 2)}</td><td>${C.esc(i.satuan || '')}</td>
-            ${s.fixed_price ? `<td class="r num">${rp(i.price_2026)}</td>` : `<td class="r num">${num(i.days_2025)}</td><td class="r num">${rp(i.price_2025)}</td><td class="r num">${num(i.days_2026)}</td><td class="r num">${rp(i.price_2026)}</td>`}
-            <td class="r num"><b>${rp(i.total)}</b></td>
-            <td>${i.status_sistem ? `<span class="pill ${i.status_sistem === 'DIHAPUS' ? 'bad' : i.status_sistem === 'DIKURANGI' ? 'warn' : 'info'}">${i.status_sistem} ${pct(i.pct_replaced)}</span>` : ''}</td>
-            <td class="r num">${Number(i.saved) ? rp(i.saved) : '–'}</td>
-            ${can ? `<td class="r">${C.rowMenu('', [{ label: 'Ubah', attr: `data-re="${i.id}"` }, { label: 'Arsipkan', danger: true, attr: `data-rx="${i.id}"` }])}</td>` : ''}</tr>`).join('')}
+            <td class="r num">${num(i.vol_eff, 2)}${dayTag(i.vol_days)}</td><td>${C.esc(i.satuan || '')}</td>
+            <td class="r num">${i.freq_eff === null || i.freq_eff === undefined ? '–' : num(i.freq_eff, 2)}${dayTag(i.freq_days)}</td><td>${C.esc(i.freq_unit || '')}</td>
+            <td class="r num">${rp(i.price_2026)}</td><td class="r num"><b>${rp(i.total)}</b></td>
+            <td>${nc ? '<span class="pill">Tidak</span>' : hl ? '<span class="pill bad">Ya · dihitung</span>' : 'Ya'}</td>
+            <td class="small">${C.esc(i.source || '')}</td>
+            ${can ? `<td class="r">${C.rowMenu('', [{ label: 'Ubah', attr: `data-re="${i.id}"` }, { label: 'Arsipkan', danger: true, attr: `data-rx="${i.id}"` }])}</td>` : ''}</tr>`; }).join('')}
           </tbody></table></div></section>`;
     }).join('');
     v.innerHTML = `<h1>RAB</h1>
-      <p class="muted">Rencana anggaran 2026 dari dasar 2025. Hari 2026 = hari 2025 × ${num(P.days_2026)}/${num(P.days_2025)} dibulatkan ke atas; harga 2026 = harga 2025 + ${pct(P.increase)} dibulatkan ke atas ribuan; total = volume × hari × harga. Seksi harga tetap tidak dikali hari.</p>
+      <p class="muted">Jumlah = volume × frekuensi × harga satuan. Baris bertanda <span class="pill">hari</span> mengikuti jumlah hari kegiatan. Baris "Tidak" tampil sebagai acuan dan tidak masuk total.</p>
       <div class="stats pm-stats">
-        <div class="stat"><h3>Total anggaran</h3><div class="big">${rp(S.total)}</div><ul><li><span>Operasional</span><b>${rp(S.ops)}</b></li><li><span>Sistem (harga tetap)</span><b>${rp(S.system)}</b></li></ul></div>
-        <div class="stat"><h3>Hemat dari sistem</h3><div class="big">${rp(S.saved)}</div><ul><li><span>Biaya sistem bersih</span><b>${rp(S.system_net)}</b></li><li><span>Sistem tertutup hemat</span><b>${pct(S.system_covered)}</b></li></ul></div>
-        <div class="stat"><h3>Setelah hemat</h3><div class="big">${rp(S.after_saving)}</div><ul><li><span>Target pendapatan</span><b>${rp(S.income)}</b></li><li><span>Selisih</span><b class="${S.balance < 0 ? 'bad-t' : 'ok-t'}">${rp(S.balance)}</b></li></ul></div>
+        <div class="stat"><h3>Total anggaran (dihitung)</h3><div class="big">${rp(S.total)}</div><ul><li><span>Di luar sistem website</span><b>${rp(S.ops)}</b></li><li><span>Sistem website</span><b>${rp(S.system)}</b></li></ul></div>
+        <div class="stat"><h3>Acuan (tidak dihitung)</h3><div class="big">${rp(S.reference)}</div><ul><li><span>Efisiensi karena sistem (nilai 2025)</span><b>${rp(S.efficiency)}</b></li></ul></div>
+        <div class="stat"><h3>Dibanding pendapatan</h3><div class="big ${S.balance < 0 ? 'bad-t' : 'ok-t'}">${rp(S.balance)}</div><ul><li><span>Target pendapatan</span><b>${rp(S.income)}</b></li><li><span>Total anggaran</span><b>${rp(S.total)}</b></li></ul></div>
       </div>
       <section class="card pm-params"><div><h2 style="margin:0 0 4px">Parameter</h2>
-        <p class="small" style="margin:0">Kenaikan harga <b>${pct(P.increase)}</b> · Hari 2025 <b>${num(P.days_2025)}</b> · Hari 2026 <b>${num(P.days_2026)}</b></p>
+        <p class="small" style="margin:0">Jumlah hari kegiatan <b>${num(P.event_days)}</b></p>
         ${P.note ? `<p class="small muted" style="margin:6px 0 0;white-space:pre-line">${C.esc(P.note)}</p>` : ''}</div>
         ${can ? '<button class="btn btn-ghost btn-sm" id="r_par">Ubah parameter</button>' : ''}</section>
       <div class="bar pm-filter">
         <div class="field"><label class="f" for="r_fs">Seksi</label><select id="r_fs"><option value="">Semua seksi</option>${opt(fin.sections.map((s) => [s.code, `${s.code}. ${C.esc(s.name)}`]), RF.sec)}</select></div>
-        <div class="field"><label class="f" for="r_q">Cari</label><input id="r_q" type="search" value="${C.esc(RF.q)}" placeholder="Uraian, catatan"></div>
+        <div class="field"><label class="f" for="r_q">Cari</label><input id="r_q" type="search" value="${C.esc(RF.q)}" placeholder="Uraian, sumber, catatan"></div>
       </div>
       ${toolbar(C, can)}
       ${secHtml || '<div class="empty">Tidak ada baris yang cocok.</div>'}`;
@@ -376,12 +376,10 @@
     const done = (ok, m) => { if (ok) { C.toast(m || 'Tersimpan.', 'ok'); rer(); } };
     const par = v.querySelector('#r_par');
     if (par) par.onclick = async () => done(await C.dialog({ title: 'Parameter RAB',
-      body: `<div class="grid-2"><div class="field"><label class="f" for="p_i">Kenaikan harga (%)</label><input id="p_i" type="number" min="0" step="1" value="${Math.round(P.increase * 100)}"></div><span></span>
-        <div class="field"><label class="f" for="p_a">Hari 2025</label><input id="p_a" type="number" min="1" value="${P.days_2025}"></div>
-        <div class="field"><label class="f" for="p_b">Hari 2026</label><input id="p_b" type="number" min="1" value="${P.days_2026}"></div></div>
+      body: `<div class="field"><label class="f" for="p_e">Jumlah hari kegiatan</label><input id="p_e" type="number" min="1" value="${P.event_days}"><p class="f-hint">Dipakai semua baris bertanda "hari".</p></div>
         <div class="field"><label class="f" for="p_n">Catatan</label><textarea id="p_n" rows="5">${C.esc(P.note || '')}</textarea></div>`,
-      onOk: (d) => C.api('console_pm_save', { p_kind: 'params', p: { increase: Number(val(d, 'p_i')) / 100, days_2025: val(d, 'p_a'), days_2026: val(d, 'p_b'), note: val(d, 'p_n') } }) }));
-    v.querySelectorAll('[data-ra]').forEach((b) => (b.onclick = async () => done(await editRab(C, fin, { section: b.dataset.ra, vol: 1 }))));
+      onOk: (d) => C.api('console_pm_save', { p_kind: 'params', p: { event_days: val(d, 'p_e'), note: val(d, 'p_n') } }) }));
+    v.querySelectorAll('[data-ra]').forEach((b) => (b.onclick = async () => done(await editRab(C, fin, { section: b.dataset.ra, vol: 1, counted: true }))));
     v.querySelectorAll('[data-re]').forEach((b) => (b.onclick = async (e) => { e.stopPropagation(); done(await editRab(C, fin, byId[b.dataset.re])); }));
     v.querySelectorAll('[data-rx]').forEach((b) => (b.onclick = async (e) => {
       e.stopPropagation();
@@ -434,7 +432,7 @@
     v.innerHTML = `<h1>Pendapatan</h1>
       <p class="muted">Target pendapatan (dasar 2025 dan tambahan 2026) berdampingan dengan realisasi dari pendaftaran yang sudah lunas di konsol. Realisasi diperbarui setiap halaman dibuka.</p>
       <div class="stats pm-stats">
-        <div class="stat"><h3>Target pendapatan</h3><div class="big">${rp(S.income)}</div><ul><li><span>Anggaran setelah hemat</span><b>${rp(S.after_saving)}</b></li><li><span>Selisih target</span><b class="${S.balance < 0 ? 'bad-t' : 'ok-t'}">${rp(S.balance)}</b></li></ul></div>
+        <div class="stat"><h3>Target pendapatan</h3><div class="big">${rp(S.income)}</div><ul><li><span>Total anggaran</span><b>${rp(S.after_saving)}</b></li><li><span>Selisih target</span><b class="${S.balance < 0 ? 'bad-t' : 'ok-t'}">${rp(S.balance)}</b></li></ul></div>
         <div class="stat"><h3>Sudah lunas</h3><div class="big">${rp(Act.paid_total)}</div><ul><li><span>Capaian target</span><b>${S.income ? pct(Act.paid_total / S.income) : '–'}</b></li><li><span>Belum lunas (tagihan aktif)</span><b>${rp(Act.outstanding)}</b></li></ul></div>
       </div>
       ${toolbar(C, can)}
@@ -514,42 +512,35 @@
 
     if (fin) {
       const P = fin.params;
-      const fixed = new Set(fin.sections.filter((x) => x.fixed_price).map((x) => x.code));
       const secName = Object.fromEntries(fin.sections.map((x) => [x.code, x.name]));
+      const notes = new Set(fin.sections.filter((x) => x.is_note).map((x) => x.code));
       // ---- RAB ----
-      const H = 13; // baris judul kolom
+      const H = 10; // baris judul kolom
       const first = H + 1; const last = H + fin.items.length;
       const rng = (c) => `${c}$${first}:${c}$${Math.max(last, first)}`;
-      const notFixed = [...fixed].map((c) => `,${rng('B')},"<>${c}"`).join('');
-      const isFixed = (col) => [...fixed].map((c) => `SUMIFS(${rng(col)},${rng('B')},"${c}")`).join('+') || '0';
+      const exNote = [...notes].map((c) => `,${rng('B')},"<>${c}"`).join('');
       const R = [['RAB 2026 · Jabar Open 2026'],
-        ['Parameter', 'Kenaikan harga', { v: Number(P.increase), t: 'n', z: '0%' }],
-        ['', 'Hari 2025', Number(P.days_2025)],
-        ['', 'Hari 2026', Number(P.days_2026)],
-        ['Ringkasan', 'Operasional', { f: `SUMIFS(${rng('M')}${notFixed})`, z: '#,##0' }],
-        ['', 'Sistem (harga tetap)', { f: isFixed('M'), z: '#,##0' }],
-        ['', 'Total anggaran', { f: 'C5+C6', z: '#,##0' }],
-        ['', 'Hemat dari sistem', { f: `SUMIFS(${rng('P')}${notFixed})`, z: '#,##0' }],
-        ['', 'Setelah hemat', { f: 'C7-C8', z: '#,##0' }],
-        ['', 'Target pendapatan', { f: "Pendapatan!C3", z: '#,##0' }],
-        ['', 'Selisih', { f: 'C10-C9', z: '#,##0' }],
-        [ro + ' Hari/Harga 2026, Total, Hemat = rumus. Seksi harga tetap: isi kolom J saja.'],
-        ['ID', 'Seksi', 'No', 'Uraian', 'Keterangan', 'Vol', 'Satuan', 'Hari 2025', 'Harga 2025', 'Harga tetap', 'Hari 2026', 'Harga 2026', 'Total', 'Status sistem', '% diganti', 'Hemat', 'Catatan', 'Nama seksi', 'Tanda']];
+        ['Parameter', 'Jumlah hari kegiatan', Number(P.event_days)],
+        ['Ringkasan', 'Total anggaran (dihitung)', { f: `SUMIFS(${rng('K')},${rng('L')},"Ya"${exNote})`, z: '#,##0' }],
+        ['', 'Acuan (tidak dihitung)', { f: `SUMIFS(${rng('K')},${rng('L')},"Tidak"${exNote})`, z: '#,##0' }],
+        ['', 'Efisiensi karena sistem (nilai 2025)', { f: [...notes].map((c) => `SUMIFS(${rng('K')},${rng('B')},"${c}")`).join('+') || '0', z: '#,##0' }],
+        ['', 'Target pendapatan', { f: 'Pendapatan!C3', z: '#,##0' }],
+        ['', 'Selisih', { f: 'C6-C3', z: '#,##0' }],
+        [],
+        [ro + ' Jumlah = rumus (Vol × Frek × Harga satuan). Ikut hari: Vol / Frek / Vol+Frek mengikuti C2. Dihitung: Ya / Tidak.'],
+        ['ID', 'Seksi', 'No', 'Uraian', 'Keterangan', 'Vol', 'Satuan', 'Frek', 'Satuan frek', 'Harga satuan', 'Jumlah', 'Dihitung', 'Ikut hari', 'Sumber', 'Status sistem', 'Catatan', 'Nama seksi', 'Tanda']];
       const nos = {};
       fin.items.forEach((i) => {
         const r = R.length + 1; nos[i.section] = (nos[i.section] || 0) + 1;
-        const fx = fixed.has(i.section);
-        R.push([i.id, i.section, nos[i.section], i.uraian, i.keterangan || '', N_(i.vol), i.satuan || '',
-          fx ? '' : N_(i.days_2025), fx ? '' : RP(i.price_2025), fx ? RP(i.price_final) : '',
-          fx ? '' : { f: `IF(H${r}="","",ROUNDUP(H${r}*$C$4/$C$3,0))` },
-          fx ? { f: `J${r}`, z: '#,##0' } : { f: `IF(I${r}="","",ROUNDUP(I${r}*(1+$C$2),-3))`, z: '#,##0' },
-          { f: `F${r}*IF(K${r}="",1,K${r})*IF(L${r}="",0,L${r})`, z: '#,##0' },
-          i.status_sistem || '', { v: Number(i.pct_replaced || 0), t: 'n', z: '0%' }, { f: `M${r}*O${r}`, z: '#,##0' },
-          i.note || '', secName[i.section] || '', i.flagged || '']);
+        const ih = i.vol_days && i.freq_days ? 'Vol+Frek' : i.vol_days ? 'Vol' : i.freq_days ? 'Frek' : '';
+        R.push([i.id, i.section, nos[i.section], i.uraian, i.keterangan || '', i.vol_days ? { f: '$C$2' } : N_(i.vol), i.satuan || '',
+          i.freq_days ? { f: '$C$2' } : N_(i.freq), i.freq_unit || '', RP(i.price_final),
+          { f: `IF(F${r}="",0,F${r})*IF(H${r}="",1,H${r})*IF(J${r}="",0,J${r})`, z: '#,##0' },
+          notes.has(i.section) || i.counted === false ? 'Tidak' : 'Ya', ih, i.source || '', i.status_sistem || '', i.note || '', secName[i.section] || '', i.flagged || '']);
       });
-      R.push([]); R.push(['', 'Kode seksi: ' + fin.sections.map((x) => `${x.code} = ${x.name}${x.fixed_price ? ' (harga tetap)' : ''}`).join('; ')]);
+      R.push([]); R.push(['', 'Kode seksi: ' + fin.sections.map((x) => `${x.code} = ${x.name}`).join('; ')]);
       if (P.note) R.push(['', 'Catatan: ' + P.note]);
-      XLSX.utils.book_append_sheet(wb, sheet(R, [{ hidden: true, wch: 38 }, { wch: 22 }, { wch: 14 }, { wch: 46 }, { wch: 28 }, { wch: 7 }, { wch: 10 }, { wch: 9 }, { wch: 13 }, { wch: 13 }, { wch: 9 }, { wch: 13 }, { wch: 15 }, { wch: 12 }, { wch: 9 }, { wch: 13 }, { wch: 30 }, { wch: 28 }, { wch: 22 }]), 'RAB');
+      XLSX.utils.book_append_sheet(wb, sheet(R, [{ hidden: true, wch: 38 }, { wch: 22 }, { wch: 5 }, { wch: 46 }, { wch: 24 }, { wch: 7 }, { wch: 9 }, { wch: 7 }, { wch: 10 }, { wch: 13 }, { wch: 15 }, { wch: 9 }, { wch: 9 }, { wch: 22 }, { wch: 11 }, { wch: 34 }, { wch: 28 }, { wch: 22 }]), 'RAB');
 
       // ---- Pendapatan ----
       const IH = 7; const i1 = IH + 1; const i2 = IH + fin.income.length;
@@ -651,16 +642,12 @@
     const R = readSheet(RS);
     if (RS) {
       const lab = {}; for (let r = 1; r <= 4; r++) { const k = RS['B' + r] && norm(RS['B' + r].v); if (k) lab[k] = RS['C' + r] ? RS['C' + r].v : ''; }
-      const par = { increase: xpct(lab['Kenaikan harga']), days_2025: xnum(lab['Hari 2025']), days_2026: xnum(lab['Hari 2026']) };
-      const P = fin.params; const pc = [];
-      if (!same(par.increase, P.increase)) pc.push(`Kenaikan ${pct(P.increase)} → ${pct(par.increase)}`);
-      if (!same(par.days_2025, P.days_2025)) pc.push(`Hari 2025 ${P.days_2025} → ${par.days_2025}`);
-      if (!same(par.days_2026, P.days_2026)) pc.push(`Hari 2026 ${P.days_2026} → ${par.days_2026}`);
-      if (pc.length) { if (!(par.days_2025 > 0) || !(par.days_2026 > 0)) errs.push('RAB: Hari 2025 dan Hari 2026 harus angka lebih dari 0.'); out.params = par; prev.params = pc; }
+      const ed = xnum(lab['Jumlah hari kegiatan']); const P = fin.params; const pc = [];
+      if (ed !== '' && !same(ed, P.event_days)) { if (!(ed > 0)) errs.push('RAB: Jumlah hari kegiatan harus angka lebih dari 0.'); out.params = { event_days: ed }; pc.push(`Jumlah hari kegiatan ${P.event_days} → ${ed}`); prev.params = pc; }
     }
     if (R) {
       const cur = Object.fromEntries(fin.items.map((i) => [i.id, i])); const list = [];
-      const secs = new Set(fin.sections.map((s) => s.code)); const fixed = new Set(fin.sections.filter((s) => s.fixed_price).map((s) => s.code));
+      const secs = new Set(fin.sections.map((s) => s.code));
       R.rows.forEach((r) => {
         const ur = norm(r.get('Uraian')); const id = norm(r.get('ID'));
         if (!ur && !id) return;
@@ -670,12 +657,20 @@
           if (!secs.has(sec)) throw new Error(`seksi "${sec}" tidak dikenal`);
           const ss = norm(r.get('Status sistem')).toUpperCase();
           if (!SYS.includes(ss)) throw new Error(`status sistem "${ss}" tidak dikenal`);
-          const fx = fixed.has(sec);
-          const row = { id: cur[id] ? id : '', section: sec, uraian: ur, keterangan: norm(r.get('Keterangan')), vol: xnum(r.get('Vol')) || 0, satuan: norm(r.get('Satuan')),
-            days_2025: fx ? '' : xnum(r.get('Hari 2025')), price_2025: fx ? '' : xnum(r.get('Harga 2025')), price_final: fx ? xnum(r.get('Harga tetap')) : '',
-            status_sistem: ss, pct_replaced: Math.min(1, Math.max(0, xpct(r.get('% diganti')))), note: norm(r.get('Catatan')) };
+          const dh = norm(r.get('Dihitung')).toLowerCase();
+          if (dh && !['ya', 'tidak'].includes(dh)) throw new Error(`Dihitung harus Ya atau Tidak, bukan "${dh}"`);
+          const ih = norm(r.get('Ikut hari')).toLowerCase().replace(/\s/g, '');
+          if (ih && !['vol', 'frek', 'vol+frek'].includes(ih)) throw new Error(`Ikut hari harus Vol, Frek, atau Vol+Frek, bukan "${ih}"`);
+          const vd = ih === 'vol' || ih === 'vol+frek'; const fd = ih === 'frek' || ih === 'vol+frek';
+          const c0 = cur[id];
+          const row = { id: c0 ? id : '', section: sec, sort: c0 ? c0.sort : '', uraian: ur, keterangan: norm(r.get('Keterangan')),
+            vol: vd ? (c0 ? c0.vol : 0) : xnum(r.get('Vol')) || 0, satuan: norm(r.get('Satuan')), vol_days: vd,
+            freq: fd ? (c0 ? c0.freq : '') : xnum(r.get('Frek')), freq_unit: norm(r.get('Satuan frek')), freq_days: fd,
+            price_final: xnum(r.get('Harga satuan')), counted: dh !== 'tidak', source: norm(r.get('Sumber')),
+            status_sistem: ss, pct_replaced: c0 ? c0.pct_replaced : 0, note: norm(r.get('Catatan')) };
           list.push(row);
-          diff('rab_items', row, cur[row.id], [['section'], ['uraian'], ['keterangan'], ['vol'], ['satuan'], ['days_2025'], ['price_2025'], ['price_final'], ['status_sistem'], ['pct_replaced'], ['note']],
+          diff('rab_items', row, c0, [['section'], ['uraian'], ['keterangan'], ['vol'], ['satuan'], ['vol_days', (c) => !!c.vol_days], ['freq'], ['freq_unit'],
+            ['freq_days', (c) => !!c.freq_days], ['price_final'], ['counted', (c) => c.counted !== false], ['source'], ['status_sistem'], ['note']],
             (x) => `${x.section}. ${C.esc(x.uraian)}`);
         } catch (e) { errs.push(`RAB baris ${r.line}: ${e.message}`); }
       });

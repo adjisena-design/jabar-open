@@ -5070,7 +5070,7 @@ begin
   return jsonb_build_object('data', jo.setting('backup_last'), 'files', jo.setting('backup_files_last'));
 end $$;
 -- =====================================================================
---  Modul Proyek (v10, 21/10/2026): Gantt, Struktur, RAB, Pendapatan
+--  Modul Proyek (v10, 21/10/2026; v11 26/10/2026 RAB rekonsiliasi): Gantt, Struktur, RAB, Pendapatan
 --  Pindahan dari workbook "RAB Jabar Open 2026 - Gabungan.xlsx".
 --  * Tulis (tambah/ubah/arsip/unggah): hanya OWNER.
 --  * Lihat & unduh Gantt/Struktur: owner, superadmin, TD, bendahara.
@@ -5174,6 +5174,17 @@ create table if not exists jo.pm_income_items (
   updated_at  timestamptz not null default now(),
   archived_at timestamptz
 );
+-- v11 (26/10/2026): model RAB rekonsiliasi Inda Sofia: harga final, frekuensi, hari kegiatan, dihitung/tidak
+alter table jo.pm_rab_params   add column if not exists event_days numeric not null default 10;
+alter table jo.pm_rab_sections add column if not exists hidden boolean not null default false;
+alter table jo.pm_rab_sections add column if not exists is_note boolean not null default false;
+alter table jo.pm_rab_items    add column if not exists freq numeric;
+alter table jo.pm_rab_items    add column if not exists freq_unit text;
+alter table jo.pm_rab_items    add column if not exists vol_days boolean not null default false;
+alter table jo.pm_rab_items    add column if not exists freq_days boolean not null default false;
+alter table jo.pm_rab_items    add column if not exists counted boolean not null default true;
+alter table jo.pm_rab_items    add column if not exists source text;
+
 do $$ declare t text; begin
   foreach t in array array['pm_divisions','pm_members','pm_phases','pm_tasks','pm_rab_params','pm_rab_sections','pm_rab_items','pm_income_items'] loop
     execute format('alter table jo.%I enable row level security', t);
@@ -5240,12 +5251,14 @@ end $$;
 -- ---------------------------------------------------------------------
 -- Baca: RAB & Pendapatan (rumus sama dengan workbook)
 -- ---------------------------------------------------------------------
+drop function if exists jo.pm_rab_calc();
 create or replace function jo.pm_rab_calc() returns table (
-  id uuid, section text, days_2026 numeric, price_2026 numeric, total numeric, saved numeric)
+  id uuid, section text, days_2026 numeric, price_2026 numeric, total numeric, saved numeric, vol_eff numeric, freq_eff numeric)
 language sql stable set search_path = '' as $$
   select i.id, i.section, x.d26, x.p26,
-         i.vol * coalesce(x.d26, 1) * coalesce(x.p26, 0),
-         i.vol * coalesce(x.d26, 1) * coalesce(x.p26, 0) * i.pct_replaced
+         x.v * coalesce(x.f, 1) * coalesce(x.p26, 0),
+         x.v * coalesce(x.f, 1) * coalesce(x.p26, 0) * i.pct_replaced,
+         x.v, x.f
     from jo.pm_rab_items i
     join jo.pm_rab_sections s on s.code = i.section
     cross join jo.pm_rab_params p
@@ -5254,33 +5267,39 @@ language sql stable set search_path = '' as $$
              else ceil(i.days_2025 * p.days_2026 / nullif(p.days_2025, 0)) end as d26,
         case when s.fixed_price then i.price_final
              when i.price_2025 is null then null
-             else ceil(i.price_2025 * (1 + p.increase) / 1000) * 1000 end as p26) x
+             else ceil(i.price_2025 * (1 + p.increase) / 1000) * 1000 end as p26,
+        case when i.vol_days then p.event_days else i.vol end as v,
+        case when not s.fixed_price then ceil(i.days_2025 * p.days_2026 / nullif(p.days_2025, 0))
+             when i.freq_days then p.event_days else i.freq end as f) x
    where i.archived_at is null
 $$;
 
 create or replace function public.console_pm_finance() returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
-declare st jo.staff; v_ops numeric; v_sys numeric; v_saved numeric; v_income numeric;
+declare st jo.staff; v_total numeric; v_ref numeric; v_eff numeric; v_sys numeric; v_income numeric;
 begin
   st := jo.pm_require('keuangan');
-  select coalesce(sum(c.total) filter (where not s.fixed_price), 0), coalesce(sum(c.total) filter (where s.fixed_price), 0),
-         coalesce(sum(c.saved) filter (where not s.fixed_price), 0)
-    into v_ops, v_sys, v_saved
-    from jo.pm_rab_calc() c join jo.pm_rab_sections s on s.code = c.section;
+  select coalesce(sum(c.total) filter (where i.counted and not s.is_note), 0),
+         coalesce(sum(c.total) filter (where not i.counted and not s.is_note), 0),
+         coalesce(sum(c.total) filter (where s.is_note), 0) + coalesce(sum(c.saved) filter (where not s.is_note), 0),
+         coalesce(sum(c.total) filter (where i.counted and not s.is_note and s.fixed_price and upper(s.name) like '%SISTEM%'), 0)
+    into v_total, v_ref, v_eff, v_sys
+    from jo.pm_rab_calc() c join jo.pm_rab_items i on i.id = c.id join jo.pm_rab_sections s on s.code = c.section;
   select coalesce(sum(vol * rate), 0) into v_income from jo.pm_income_items where archived_at is null;
   return jsonb_build_object(
     'can_edit', st.role = 'owner',
     'params', (select to_jsonb(p) from jo.pm_rab_params p where id = 1),
-    'sections', (select coalesce(jsonb_agg(to_jsonb(s) order by s.sort, s.code), '[]'::jsonb) from jo.pm_rab_sections s),
+    'sections', (select coalesce(jsonb_agg(to_jsonb(s) order by s.sort, s.code), '[]'::jsonb) from jo.pm_rab_sections s where not s.hidden),
     'items', (select coalesce(jsonb_agg(to_jsonb(i) - 'archived_at' || jsonb_build_object(
-                 'days_2026', c.days_2026, 'price_2026', c.price_2026, 'total', c.total, 'saved', c.saved)
+                 'days_2026', c.days_2026, 'price_2026', c.price_2026, 'total', c.total, 'saved', c.saved,
+                 'vol_eff', c.vol_eff, 'freq_eff', c.freq_eff)
                  order by s.sort, i.sort), '[]'::jsonb)
                 from jo.pm_rab_items i join jo.pm_rab_calc() c on c.id = i.id join jo.pm_rab_sections s on s.code = i.section),
     'summary', jsonb_build_object(
-        'ops', v_ops, 'system', v_sys, 'total', v_ops + v_sys, 'saved', v_saved,
-        'after_saving', v_ops + v_sys - v_saved, 'system_net', v_sys - v_saved,
-        'system_covered', case when v_sys = 0 then 0 else v_saved / v_sys end,
-        'income', v_income, 'balance', v_income - (v_ops + v_sys - v_saved)),
+        'total', v_total, 'reference', v_ref, 'efficiency', v_eff, 'system', v_sys,
+        -- kunci lama tetap dikirim untuk halaman Pendapatan
+        'ops', v_total - v_sys, 'saved', v_eff, 'after_saving', v_total,
+        'income', v_income, 'balance', v_income - v_total),
     'income', (select coalesce(jsonb_agg(to_jsonb(i) - 'archived_at' || jsonb_build_object('total', i.vol * i.rate) order by i.grp, i.sort), '[]'::jsonb)
                  from jo.pm_income_items i where i.archived_at is null),
     -- pendaftaran 2026 yang sudah lunas, untuk dibandingkan dengan target (dasar 2025)
@@ -5343,12 +5362,15 @@ begin
     if length(btrim(coalesce(p->>'uraian',''))) < 2 then raise exception 'Isi uraian.'; end if;
     if not exists (select 1 from jo.pm_rab_sections where code = p->>'section') then raise exception 'Seksi RAB tidak dikenal.'; end if;
     if v_id is null then
-      insert into jo.pm_rab_items (section, sort, uraian, keterangan, vol, satuan, days_2025, price_2025, price_final, status_sistem, pct_replaced, note)
+      insert into jo.pm_rab_items (section, sort, uraian, keterangan, vol, satuan, days_2025, price_2025, price_final, status_sistem, pct_replaced, note,
+                                   freq, freq_unit, vol_days, freq_days, counted, source)
       values (p->>'section', coalesce(nullif(p->>'sort','')::integer, (select coalesce(max(sort), 0) + 10 from jo.pm_rab_items where section = p->>'section')),
               btrim(p->>'uraian'), nullif(btrim(coalesce(p->>'keterangan','')),''), coalesce(jo.pm_num(p->'vol'), 0), nullif(btrim(coalesce(p->>'satuan','')),''),
               jo.pm_num(p->'days_2025'), jo.pm_num(p->'price_2025'), jo.pm_num(p->'price_final'),
               nullif(upper(btrim(coalesce(p->>'status_sistem',''))),''), least(greatest(coalesce(jo.pm_num(p->'pct_replaced'), 0), 0), 1),
-              nullif(btrim(coalesce(p->>'note','')),''))
+              nullif(btrim(coalesce(p->>'note','')),''),
+              jo.pm_num(p->'freq'), nullif(btrim(coalesce(p->>'freq_unit','')),''), coalesce((p->>'vol_days')::boolean, false),
+              coalesce((p->>'freq_days')::boolean, false), coalesce((p->>'counted')::boolean, true), nullif(btrim(coalesce(p->>'source','')),''))
       returning id into v_id;
     else
       update jo.pm_rab_items set section = p->>'section', sort = coalesce(nullif(p->>'sort','')::integer, sort),
@@ -5357,7 +5379,11 @@ begin
         days_2025 = jo.pm_num(p->'days_2025'), price_2025 = jo.pm_num(p->'price_2025'), price_final = jo.pm_num(p->'price_final'),
         status_sistem = nullif(upper(btrim(coalesce(p->>'status_sistem',''))),''),
         pct_replaced = least(greatest(coalesce(jo.pm_num(p->'pct_replaced'), 0), 0), 1),
-        note = nullif(btrim(coalesce(p->>'note','')),''), flagged = null, archived_at = null, updated_at = now()
+        note = nullif(btrim(coalesce(p->>'note','')),''),
+        freq = jo.pm_num(p->'freq'), freq_unit = nullif(btrim(coalesce(p->>'freq_unit','')),''),
+        vol_days = coalesce((p->>'vol_days')::boolean, false), freq_days = coalesce((p->>'freq_days')::boolean, false),
+        counted = coalesce((p->>'counted')::boolean, counted), source = nullif(btrim(coalesce(p->>'source','')),''),
+        flagged = null, archived_at = null, updated_at = now()
        where id = v_id;
       if not found then raise exception 'Baris RAB tidak ditemukan.'; end if;
     end if;
@@ -5413,9 +5439,11 @@ begin
   elsif p_kind = 'params' then
     update jo.pm_rab_params set
       increase = coalesce(jo.pm_num(p->'increase'), increase), days_2025 = coalesce(jo.pm_num(p->'days_2025'), days_2025),
-      days_2026 = coalesce(jo.pm_num(p->'days_2026'), days_2026), note = coalesce(p->>'note', note), updated_at = now()
+      days_2026 = coalesce(jo.pm_num(p->'days_2026'), days_2026), event_days = coalesce(jo.pm_num(p->'event_days'), event_days),
+      note = coalesce(p->>'note', note), updated_at = now()
      where id = 1;
     if (select days_2025 from jo.pm_rab_params where id = 1) <= 0 then raise exception 'Hari 2025 harus lebih dari 0.'; end if;
+    if (select event_days from jo.pm_rab_params where id = 1) <= 0 then raise exception 'Jumlah hari kegiatan harus lebih dari 0.'; end if;
     v_id := null;
   else
     raise exception 'Jenis data tidak dikenal: %', p_kind;

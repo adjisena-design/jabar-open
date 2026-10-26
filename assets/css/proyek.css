@@ -113,6 +113,10 @@ tr.flag td,tr.flag th{background:#fffaf0}
 .rab-tbl tr.rab-del td b{text-decoration:line-through;text-decoration-color:rgba(180,35,24,.5)}
 .rab-tbl tr.rab-less td:first-child{box-shadow:inset 3px 0 0 var(--warn)}
 .rab-tbl tr.rab-del td:first-child{box-shadow:inset 3px 0 0 var(--bad)}
+.rab-tbl tr.rab-nc td{color:var(--faint);font-style:italic}
+.rab-tbl tr.rab-hl td:first-child{box-shadow:inset 3px 0 0 var(--bad)}
+.rab-tbl tr.rab-hl td{background:rgba(180,35,24,.06)}
+.rab-note h2{color:var(--faint)}
 .gt-name .rm-btn{width:26px;height:22px}.gt-name .rm-btn svg{width:14px;height:14px}
 .pm-params .btn{white-space:nowrap;flex:none}
 @media (max-width:800px){.pm-stats-4{grid-template-columns:1fr 1fr;gap:8px}.pm-stats-4 .stat{padding:10px 12px}.pm-stats-4 .stat .big{font-size:1.4rem}.pm-stats-4 .stat p{font-size:.74rem}}
