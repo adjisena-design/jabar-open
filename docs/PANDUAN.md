@@ -191,7 +191,7 @@ Setelah demo dan sebelum peluncuran: jalankan `supabase/reset-data-uji.sql` di S
 
 | Halaman | Isi | Lihat & unduh |
 |---|---|---|
-| Gantt | 112 tugas, fase 0–9, grafik harian/mingguan (21 Okt 2026 – 31 Jan 2027), garis hari ini, arsiran 12–20 Des, peringatan TERLAMBAT / HARUS MULAI | owner, superadmin, TD, bendahara |
+| Gantt | 116 tugas, fase 0–9, grafik harian/mingguan (21 Okt 2026 – 31 Jan 2027), garis hari ini, arsiran 12–20 Des, peringatan TERLAMBAT / HARUS MULAI | owner, superadmin, TD, bendahara |
 | Struktur | Bagan otomatis dari divisi + tugas: Pengarah → PM → divisi, ketua ("Belum ditentukan" bila kosong), anggota, tugas per divisi | owner, superadmin, TD, bendahara |
 | RAB | Sejak 26 Okt 2026 (rekonsiliasi RAB Inda Sofia): Jumlah = Vol × Frek × Harga satuan; baris bertanda *hari* mengikuti parameter **Jumlah hari kegiatan** (10); kolom *Dihitung* Ya/Tidak (Tidak = acuan, mis. usulan Daffa website Rp95.005.000 dan Instagram); seksi I–X + catatan efisiensi karena sistem (nilai 2025, tidak dihitung). Baris RAB lama (2025 +20%) diarsipkan, tidak dihapus | owner, superadmin, bendahara |
 | Pendapatan | Target A (dasar 2025, Rp517.800.000) dan B (tambahan 2026) berdampingan dengan realisasi lunas dari Ledger per disiplin | owner, superadmin, bendahara |
