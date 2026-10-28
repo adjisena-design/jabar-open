@@ -2202,6 +2202,25 @@
       catch (e) { JO.toast(e.message, 'bad'); }
     };
   }
+  // Direktori atlet publik (atlet.html): otomatis buka 12 Des 00:00 WIB, bisa dipaksa buka/tutup
+  async function drawDirectory(box) {
+    if (!box) return;
+    box.innerHTML = '<h2>Direktori atlet publik</h2><p class="small muted">Memuat…</p>';
+    let D;
+    try { D = await api('console_athletes_directory'); }
+    catch (e) { box.innerHTML = `<h2>Direktori atlet publik</h2><p class="note warn small">Fitur ini belum aktif di database (${esc(e.message)}). Jalankan patch SQL direktori atlet terlebih dahulu.</p>`; return; }
+    const rel = D.release_at ? new Date(D.release_at) : null;
+    const relTxt = rel ? rel.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' WIB' : '–';
+    const modes = [['auto', 'Otomatis', 'Terbuka mulai ' + relTxt + '.'], ['on', 'Buka sekarang', 'Halaman Atlet dan menunya tampil untuk publik.'], ['off', 'Tutup', 'Tetap tertutup, termasuk setelah tanggal otomatis.']];
+    box.innerHTML = `<h2>Direktori atlet publik</h2>
+      <p class="small">Halaman <a href="../atlet.html" target="_blank" rel="noopener">Atlet</a> menampilkan atlet terdaftar penuh (lunas dan dokumen valid) beserta tim beregu. Pas foto atlet di bawah 10 tahun tidak pernah ditampilkan.</p>
+      <p class="small">Status sekarang: ${D.open ? '<span class="pill ok">Terbuka</span>' : '<span class="pill">Tertutup</span>'} · ${D.visible} atlet, ${D.teams} tim akan tampil${D.hidden_photos ? ` · ${D.hidden_photos} tanpa foto (di bawah 10 tahun)` : ''}</p>
+      <div class="choices">${modes.map(([k, l, d]) => `<label class="choice"><input type="radio" name="dirmode" value="${k}" ${D.mode === k ? 'checked' : ''}><span><span class="c-title">${l}</span><br><span class="c-sub">${esc(d)}</span></span></label>`).join('')}</div>`;
+    box.querySelectorAll('input[name=dirmode]').forEach((r) => r.onchange = async () => {
+      try { await api('console_set_athletes_directory', { p_mode: r.value }); JO.toast('Direktori atlet: ' + modes.find((m) => m[0] === r.value)[1] + '.'); drawDirectory(box); }
+      catch (e) { JO.toast(e.message, 'bad'); drawDirectory(box); }
+    });
+  }
   async function pageSettings(v) {
     const D = await api('console_settings');
     const S = D.settings;
@@ -2264,11 +2283,13 @@
             <td><span class="pill ${o.status === 'sent' ? 'ok' : o.status === 'error' ? 'bad' : 'warn'}">${esc(o.status)}</span></td>
             <td>${o.status === 'error' || o.status === 'sending' ? `<button class="btn btn-ghost btn-sm" data-retry="${o.id}">Ulangi</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">Belum ada email.</td></tr>'}</tbody></table></div></section>
         <section class="card" id="wa-card"></section>
+        <section class="card" id="dir-card"></section>
         ${ME.role === 'owner' ? `<section class="card"><h2>Modul proyek</h2>
           <p class="small">Gantt, Struktur, RAB, dan Pendapatan berjalan sebagai modul terpisah. Bila bermasalah, nonaktifkan di sini: menu modul hilang untuk semua peran selain owner, sementara pendaftaran, verifikasi, dan penilaian tetap berjalan.</p>
           <label class="check"><input type="checkbox" id="pm_on" ${ME.pm_enabled !== false ? 'checked' : ''}><span>Modul proyek aktif</span></label></section>` : ''}
       </div></div>`;
     drawWa(v.querySelector('#wa-card'));
+    drawDirectory(v.querySelector('#dir-card'));
     const pmT = v.querySelector('#pm_on');
     if (pmT) pmT.onchange = async () => {
       try { const r = await api('console_pm_toggle', { p_on: pmT.checked }); ME.pm_enabled = r.enabled; JO.toast(r.enabled ? 'Modul proyek aktif.' : 'Modul proyek dinonaktifkan untuk peran lain.'); }

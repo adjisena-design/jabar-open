@@ -3,9 +3,9 @@
   'use strict';
   const { t, esc, rpc } = JO;
   JO.addDict({
-    sl_title: ['Start list', 'Start list'],
+    sl_title: ['Jadwal pertandingan', 'Competition schedule'],
     sl_lead: ['Sesi, grup, dan urutan tampil resmi. Tidak ada registrasi ulang: datang sesuai jadwal sesi Anda di Gymnasium Arcamanik, Bandung.', 'Official sessions, groups and start order. There is no on-site check-in: come for your session at Gymnasium Arcamanik, Bandung.'],
-    sl_empty: ['Start list disiplin ini belum diumumkan. Pantau Instagram @gimnastikjabar.', 'The start list for this discipline has not been announced yet. Follow Instagram @gimnastikjabar.'],
+    sl_empty: ['Jadwal pertandingan disiplin ini belum diumumkan. Pantau Instagram @gimnastikjabar.', 'The competition schedule for this discipline has not been announced yet. Follow Instagram @gimnastikjabar.'],
     sl_search: ['Cari nama atlet atau klub', 'Search athlete or club'],
     sl_session: ['Sesi', 'Session'], sl_group: ['Grup', 'Group'], sl_order: ['Urutan', 'Order'], sl_name: ['Nama', 'Name'], sl_club: ['Klub', 'Club'],
     sl_noresult: ['Tidak ada yang cocok.', 'No matches.'],

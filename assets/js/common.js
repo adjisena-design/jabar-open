@@ -43,7 +43,7 @@
 
   addDict({
     nav_home: ['Beranda', 'Home'], nav_register: ['Daftar', 'Register'], nav_status: ['Cek status', 'Check status'],
-    nav_startlist: ['Start list', 'Start list'], nav_results: ['Hasil', 'Results'], nav_faq: ['FAQ', 'FAQ'],
+    nav_startlist: ['Jadwal', 'Schedule'], nav_athletes: ['Atlet', 'Athletes'], nav_results: ['Hasil', 'Results'], nav_faq: ['FAQ', 'FAQ'],
     menu: ['Menu', 'Menu'],
     footer_org: ['Diselenggarakan oleh Gimnastik Indonesia (GI) Jawa Barat', 'Organised by Gimnastik Indonesia (GI) West Java'],
     footer_contact: ['Pertanyaan pendaftaran', 'Registration questions'],
@@ -179,14 +179,14 @@
   }
   function header(active) {
     const base = relRoot();
-    const links = [['index.html', 'nav_home'], ['daftar.html', 'nav_register'], ['status.html', 'nav_status'], ['startlist.html', 'nav_startlist'], ['hasil.html', 'nav_results']];
+    const links = [['index.html', 'nav_home'], ['daftar.html', 'nav_register'], ['status.html', 'nav_status'], ['startlist.html', 'nav_startlist'], ['atlet.html', 'nav_athletes'], ['hasil.html', 'nav_results']];
     const h = document.createElement('header');
     h.className = 'topbar';
     h.innerHTML = `<div class="topbar-in">
       <a class="brand" href="${base}index.html"><img src="${base}assets/img/brand/jabar-open.webp" alt="" width="360" height="246"><span>Jabar Open 2026</span></a>
       <button class="menu-btn" type="button" aria-expanded="false" aria-controls="topnav" data-i18n="menu">Menu</button>
       <nav class="topnav" id="topnav">
-        ${links.map(([href, key]) => `<a href="${base}${href}" data-i18n="${key}" ${active === href ? 'aria-current="page"' : ''}></a>`).join('')}
+        ${links.map(([href, key]) => `<a href="${base}${href}" data-i18n="${key}" ${active === href ? 'aria-current="page"' : ''}${href === 'atlet.html' && active !== href ? ' data-athletes-nav hidden' : ''}></a>`).join('')}
         <a href="${base}faq.html" data-i18n="nav_faq" data-faq-nav ${active === 'faq.html' ? 'aria-current="page"' : 'hidden'}></a>
         <span class="lang" role="group" aria-label="Bahasa / Language"><button type="button" data-lang="id">ID</button><button type="button" data-lang="en">EN</button></span>
       </nav></div>`;
@@ -196,6 +196,8 @@
       e.currentTarget.setAttribute('aria-expanded', String(open));
     });
     h.querySelectorAll('.lang button').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang)));
+    // tautan Atlet hanya tampil setelah direktori atlet dibuka (otomatis 12 Des atau dari konsol)
+    if (active !== 'atlet.html') rpc('public_athletes_open').then((on) => { if (on) h.querySelectorAll('[data-athletes-nav]').forEach((a) => { a.hidden = false; }); }).catch(() => {});
     // tautan FAQ hanya tampil bila sudah ada pertanyaan terbit
     if (active !== 'faq.html' && window.JOFaq) window.JOFaq.count().then((n) => { if (n > 0) h.querySelectorAll('[data-faq-nav]').forEach((a) => { a.hidden = false; }); }).catch(() => {});
   }

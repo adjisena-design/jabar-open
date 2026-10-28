@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@100..900&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/img/hero/athletes.webp" imagesrcset="assets/img/hero/athletes-800.webp 800w, assets/img/hero/athletes.webp 1570w" imagesizes="(max-width:1100px) 120vw, 62vw">
-<link rel="stylesheet" href="assets/css/landing.css?v=2610y">
+<link rel="stylesheet" href="assets/css/landing.css?v=2810a">
 <link rel="stylesheet" href="assets/css/faq.css?v=2610y">
 <script>document.documentElement.classList.add('js')</script>
 </head>
@@ -31,10 +31,10 @@
       <img class="gi" src="assets/img/brand/gi-jabar.webp" alt="Gimnastik Indonesia Jawa Barat" width="520" height="248">
     </a>
     <ul class="nav-links" id="nav-links">
-      <li><a href="#tentang" data-i18n="n_about">Tentang</a></li>
-      <li><a href="#jadwal" data-i18n="n_sched">Jadwal</a></li>
+      <li><a href="#jadwal" data-i18n="n_sched">Agenda</a></li>
       <li><a href="#biaya" data-i18n="n_fee">Biaya</a></li>
-      <li><a href="startlist.html" data-i18n="n_startlist">Start list</a></li>
+      <li><a href="startlist.html" data-i18n="n_startlist">Jadwal</a></li>
+      <li data-athletes-nav hidden><a href="atlet.html" data-i18n="n_athletes">Atlet</a></li>
       <li><a href="hasil.html" data-i18n="n_results">Hasil</a></li>
       <li><a href="#merch" data-i18n="n_merch">Merch</a></li>
       <li data-faq-nav hidden><a href="#faq" data-i18n="n_faq">FAQ</a></li>
@@ -58,7 +58,6 @@
   <div class="hero-box">
     <img class="hero-star spin" src="assets/img/deco/star-red.webp" alt="" width="420" height="420">
     <div class="hero-text">
-      <p class="kicker"><span class="k1"><span class="dot" aria-hidden="true"></span><b data-i18n="h_kick1">Kejuaraan gimnastik terbuka</b></span><span class="bar" aria-hidden="true"></span><span class="k2" data-i18n="h_kick2">12–20 Desember 2026 · Bandung</span></p>
       <h1 class="hero-title">
         <span data-i18n="h_t1">Satu arena.</span>
         <span><em data-i18n="h_t2">Empat disiplin.</em></span>
@@ -66,7 +65,7 @@
       </h1>
       <div class="btns hero-cta">
         <a href="daftar.html" class="btn btn-primary"><span data-i18n="cta_reg">Daftar sekarang</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4"/></svg></a>
-        <a href="#jadwal" class="btn btn-ghost" data-i18n="cta_fee">Jadwal &amp; biaya</a>
+        <a href="#jadwal" class="btn btn-ghost" data-i18n="cta_fee">Agenda &amp; biaya</a>
       </div>
       <p class="hero-count"><b id="st-days">–</b> <span data-i18n="h_days">hari lagi menuju 12 Desember</span></p>
     </div>
@@ -218,15 +217,15 @@
   </div>
 </section>
 
-<!-- ============ JADWAL (foto, navy) ============ -->
+<!-- ============ AGENDA (foto, navy) ============ -->
 <section class="sched dark" id="jadwal">
   <div class="sched-photo"><img src="assets/img/sched/jadwal.webp" srcset="assets/img/sched/jadwal-600.webp 600w, assets/img/sched/jadwal.webp 1100w" sizes="(max-width:900px) 100vw, 42vw" alt="Pesenam putri berjalan menuju alat" data-i18n-alt="sc_alt" width="1100" height="1650" loading="lazy"></div>
   <div class="sched-in">
     <div class="sched-content">
       <div class="sched-head rv">
-        <p class="eyebrow" data-i18n="sc_eyebrow">Jadwal sementara</p>
+        <p class="eyebrow" data-i18n="sc_eyebrow">Agenda sementara</p>
         <h2 class="h2" data-i18n-html="sc_title">Sembilan hari, <em>tiga babak.</em></h2>
-        <p class="lead" data-i18n-html="sc_lead">Jadwal dapat berubah. Sesi dan urutan tampil diumumkan di <a href="startlist.html">start list</a> setelah pendaftaran ditutup.</p>
+        <p class="lead" data-i18n-html="sc_lead">Agenda dapat berubah. Sesi dan urutan tampil diumumkan di halaman <a href="startlist.html">jadwal pertandingan</a> setelah pendaftaran ditutup.</p>
       </div>
       <div class="sched-grid">
         <details class="sched-col rv">
@@ -431,7 +430,7 @@
       <div class="c-card c-ig rv d1">
         <img class="gi" src="assets/img/brand/gi-jabar.webp" alt="Gimnastik Indonesia Jawa Barat" width="520" height="248" loading="lazy">
         <a class="ig-handle" href="https://www.instagram.com/gimnastikjabar/" target="_blank" rel="noopener"><em>@</em>gimnastikjabar</a>
-        <p data-i18n="ig_lead">Pengumuman dan start list dibagikan di sini lebih dulu.</p>
+        <p data-i18n="ig_lead">Pengumuman dan jadwal pertandingan dibagikan di sini lebih dulu.</p>
         <a class="btn btn-primary" href="https://www.instagram.com/gimnastikjabar/" target="_blank" rel="noopener"><span data-i18n="ig_cta">Ikuti di Instagram</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12L12 4M5.5 4H12v6.5"/></svg></a>
       </div>
     </div>
@@ -471,7 +470,8 @@
         <li><a href="daftar.html" data-i18n="n_register">Daftar</a></li>
         <li><a href="status.html" data-i18n="n_status">Cek status</a></li>
         <li data-faq-nav hidden><a href="faq.html">FAQ</a></li>
-        <li><a href="startlist.html" data-i18n="n_startlist">Start list</a></li>
+        <li><a href="startlist.html" data-i18n="n_startlist">Jadwal</a></li>
+        <li data-athletes-nav hidden><a href="atlet.html" data-i18n="n_athletes">Atlet</a></li>
         <li><a href="hasil.html" data-i18n="n_results">Hasil</a></li>
         <li><a href="verifikasi.html" data-i18n="n_verify">Verifikasi sertifikat</a></li>
         <li><a href="juri.html" data-i18n="n_jury">Pendaftaran juri</a></li>
@@ -488,6 +488,6 @@
 
 <script src="assets/js/config.js"></script>
 <script src="assets/js/faq-widget.js?v=2610y"></script>
-<script src="assets/js/landing.js?v=2610y"></script>
+<script src="assets/js/landing.js?v=2810a"></script>
 </body>
 </html>

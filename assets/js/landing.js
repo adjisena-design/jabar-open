@@ -2,12 +2,11 @@
 (function () {
   'use strict';
   const EN = {
-    n_about: 'About', n_sched: 'Schedule', n_fee: 'Fees', n_startlist: 'Start list', n_results: 'Results', n_merch: 'Merch',
+    n_sched: 'Agenda', n_fee: 'Fees', n_startlist: 'Schedule', n_athletes: 'Athletes', n_results: 'Results', n_merch: 'Merch',
     n_contact: 'Contact', n_faq: 'FAQ', n_partner: 'Partners',
     fq_eyebrow: 'Frequently asked', fq_title: 'Common questions, <em>answered here.</em>', fq_lead: 'Search by keyword or pick a category.', fq_all: 'Open the FAQ page', n_status: 'Check status', n_register: 'Register', n_verify: 'Verify a certificate', n_jury: 'Judge application',
-    h_kick1: 'Open gymnastics championship', h_kick2: '12–20 December 2026 · Bandung',
     h_t1: 'One arena.', h_t2: 'Four disciplines.', h_t3: 'Hundreds of dreams.',
-    cta_reg: 'Register now', cta_fee: 'Schedule & fees', h_days: 'days to 12 December',
+    cta_reg: 'Register now', cta_fee: 'Agenda & fees', h_days: 'days to 12 December',
     h_ath_alt: "Men's and women's artistic gymnasts",
     h_medals_alt: 'Jabar Open 2026 silver, gold and bronze medals with the official lanyard',
     c_eyebrow: 'Why we compete',
@@ -42,8 +41,8 @@
     v_aer1: 'Individual men, individual women, mixed pair', v_aer2: 'Individual men and women', v_final: 'Straight finals',
     ap_fx: 'Floor', ap_ph: 'Pommel horse', ap_sr: 'Rings', ap_vt: 'Vault', ap_pb: 'Parallel bars', ap_hb: 'High bar',
     ap_ub: 'Uneven bars', ap_bb: 'Balance beam', ap_fh: 'Freehand', ap_hoop: 'Hoop', ap_ball: 'Ball', ap_clubs: 'Clubs', ap_rib: 'Ribbon',
-    sc_eyebrow: 'Provisional schedule', sc_title: 'Nine days, <em>three stages.</em>',
-    sc_lead: 'The schedule may change. Sessions and start order are announced on the <a href="startlist.html">start list</a> after registration closes.',
+    sc_eyebrow: 'Provisional agenda', sc_title: 'Nine days, <em>three stages.</em>',
+    sc_lead: 'The agenda may change. Sessions and start order are announced on the <a href="startlist.html">competition schedule</a> page after registration closes.',
     sc_alt: 'A female gymnast walking to the apparatus', sc_days: 'Day by day',
     dec26: 'December 2026', sc_art: "Artistic <em>Men's &amp; Women's</em>",
     day_sat12: 'Sat, 12 Dec', day_sun13: 'Sun, 13 Dec', day_mon14: 'Mon, 14 Dec', day_tue15: 'Tue, 15 Dec', day_wed16: 'Wed, 16 Dec', day_thu17: 'Thu, 17 Dec', day_fri18: 'Fri, 18 Dec', day_sat19: 'Sat, 19 Dec', day_sun20: 'Sun, 20 Dec',
@@ -64,7 +63,7 @@
     mc_alt: 'Jabar Open 2026 merchandise preview: t-shirt and water bottles',
     k_eyebrow: 'Get in touch', k_title: 'Questions? <em>We are here to help.</em>',
     k_mail_t: 'Registration and payment', k_mail_d: 'Include your registration code (JO26-…) for a faster reply.', k_mail_cta: 'Send an email',
-    ig_lead: 'Announcements and start lists appear here first.', ig_cta: 'Follow on Instagram',
+    ig_lead: 'Announcements and competition schedules appear here first.', ig_cta: 'Follow on Instagram',
     k_wa: 'Discipline contacts', k_jury: 'A licensed judge who would like to officiate at Jabar Open 2026?', k_jury_cta: 'Apply as a judge',
     cp1: "Men's Artistic", cp2: "Women's Artistic", cp3: 'Rhythmic', cp4: 'Aerobic',
     cl_t1: 'See you at',
@@ -166,6 +165,16 @@
   }
   document.querySelectorAll('details').forEach(animateDetails);
 
+  // ---------- menu Atlet: tampil hanya setelah direktori atlet dibuka ----------
+  (function () {
+    const C = window.JO_CONFIG; if (!C || !C.supabaseUrl) return;
+    fetch(C.supabaseUrl + '/rest/v1/rpc/public_athletes_open', {
+      method: 'POST', headers: { apikey: C.supabaseKey, Authorization: 'Bearer ' + C.supabaseKey, 'Content-Type': 'application/json' }, body: '{}',
+    }).then((r) => (r.ok ? r.json() : false)).then((on) => {
+      if (on === true) document.querySelectorAll('[data-athletes-nav]').forEach((x) => { x.hidden = false; });
+    }).catch(() => {});
+  })();
+
   // ---------- FAQ: tampil hanya bila ada pertanyaan terbit ----------
   const faqSec = document.getElementById('faq');
   if (faqSec && window.JOFaq) {
@@ -198,12 +207,12 @@
   if ('IntersectionObserver' in window) {
     const map = {};
     links.querySelectorAll('a[href^="#"]').forEach((a) => { map[a.getAttribute('href').slice(1)] = a; });
-    const order = ['tentang', 'info', 'jadwal', 'kenangan', 'biaya', 'merch', 'faq', 'mitra', 'kontak'];
+    const order = ['jadwal', 'kenangan', 'biaya', 'merch', 'faq', 'mitra', 'kontak'];
     const seen = new Set();
     const secObs = new IntersectionObserver((entries) => {
       entries.forEach((en) => { if (en.isIntersecting) seen.add(en.target.id); else seen.delete(en.target.id); });
       const cur = order.find((id) => seen.has(id));
-      const key = cur === 'info' ? 'tentang' : cur === 'kenangan' ? '' : cur;
+      const key = cur;
       Object.keys(map).forEach((id) => map[id].classList.toggle('on', id === key));
     }, { rootMargin: '-45% 0px -50% 0px' });
     order.forEach((id) => { const s = document.getElementById(id); if (s) secObs.observe(s); });

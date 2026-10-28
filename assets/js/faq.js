@@ -9,7 +9,7 @@
     f_help_t: ['Belum menemukan jawabannya?', 'Still need an answer?'],
     f_mail_t: ['Pendaftaran dan pembayaran', 'Registration and payment'],
     f_mail_d: ['Sertakan kode pendaftaran (JO26-…) agar cepat ditangani.', 'Include your registration code (JO26-…) for a faster reply.'],
-    f_ig: ['Pengumuman dan start list dibagikan di Instagram lebih dulu.', 'Announcements and start lists appear on Instagram first.'],
+    f_ig: ['Pengumuman dan jadwal pertandingan dibagikan di Instagram lebih dulu.', 'Announcements and competition schedules appear on Instagram first.'],
     f_wa: ['Narahubung per disiplin (WhatsApp)', 'Discipline contacts (WhatsApp)'],
     f_send: ['Kirim email', 'Send an email'],
     cp_mag: ['Artistik Putra', "Men's Artistic"], cp_wag: ['Artistik Putri', "Women's Artistic"], cp_rg: ['Ritmik', 'Rhythmic'], cp_aer: ['Aerobik', 'Aerobic'],
