@@ -47,7 +47,7 @@ Kode akses bisa ditambah kapan saja dari **Konsol → Kode akses**. Kode hanya t
 5. Panitia menandai lunas → email e-ticket otomatis → e-ticket PDF per atlet (dengan QR verifikasi) bisa diunduh dari halaman status.
 6. Tidak ada registrasi ulang. Start list dipublikasikan di situs; hasil dan sertifikat setelah UPP.
 
-Atlet WNA: tanpa QRIS dan kode unik; panitia menghubungi lewat email, superadmin menandai lunas dengan nominal yang diterima.
+Atlet WNA membayar lewat QRIS dengan kode unik, sama seperti WNI (sejak 1 Nov 2026). Pendaftaran WNA lama berstatus "manual" tetap ditandai lunas oleh superadmin.
 
 ### Beregu Artistik Putri (WAG Level 1–6)
 - Langkah **Beregu** di pendaftaran klub (muncul hanya untuk Artistik Putri): tombol *Tambah tim beregu*, Rp650.000 per tim, di luar biaya nomor perorangan. Hanya Level 1–6 (sesuai Piala Beregu di lampiran medali; daftar level diatur di pengaturan `team_levels`). Satu pendaftaran boleh berisi beberapa tim; satu tim = satu level (kelompok usia boleh campur), 1–6 pesenam. Satu klub boleh beberapa tim per level dengan nama berbeda. Klub juga boleh mengirim pendaftaran yang hanya berisi tim. Beregu Level 6 berjalan bila peminat cukup.

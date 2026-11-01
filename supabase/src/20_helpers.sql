@@ -26,18 +26,35 @@ $$;
 -- Huruf lain dibiarkan seperti diketik, jadi kata yang ditulis kapital penuh
 -- (mis. PPOP, DKI) dan bentuk seperti McDonald tetap. Apostrof tidak memulai
 -- kata baru (Ma'ruf tetap Ma'ruf).
-create or replace function jo.name_case(p text) returns text
+-- huruf kapital di awal setiap kata (setelah spasi, -, (, /, ., ')
+create or replace function jo.cap_words(p text) returns text
 language plpgsql immutable set search_path = '' as $$
 declare s text := regexp_replace(btrim(coalesce(p, '')), '\s+', ' ', 'g'); r text := ''; c text; prev text := ' '; i integer;
 begin
   if p is null then return null; end if;
   for i in 1 .. length(s) loop
     c := substr(s, i, 1);
-    if prev in (' ', '-', '(', '/', '.') and c <> upper(c) then c := upper(c); end if;
+    if prev in (' ', '-', '(', '/', '.', '''') and c <> upper(c) then c := upper(c); end if;
     r := r || c; prev := c;
   end loop;
   return r;
 end $$;
+
+-- nama orang: kata tanpa huruf kecil (mis. PUTU, DANILOVA) diturunkan dulu, lalu huruf awal kapital
+create or replace function jo.name_case(p text) returns text
+language sql immutable set search_path = '' as $$
+  select case when p is null then null else jo.cap_words((
+    select coalesce(string_agg(case when w ~ '[[:lower:]]' then w else lower(w) end, ' ' order by o), '')
+    from regexp_split_to_table(regexp_replace(btrim(p), '\s+', ' ', 'g'), ' ') with ordinality as t(w, o))) end
+$$;
+
+-- nama klub/tim: singkatan dipertahankan; hanya nama yang seluruhnya huruf besar yang diturunkan
+create or replace function jo.org_case(p text) returns text
+language sql immutable set search_path = '' as $$
+  select case when p is null then null
+              when p ~ '[[:lower:]]' then jo.cap_words(p)
+              else jo.cap_words(lower(p)) end
+$$;
 
 create or replace function jo.setting(k text) returns jsonb
 language sql stable set search_path = '' as $$

@@ -1245,12 +1245,12 @@ begin
   if length(trim(coalesce(p->>'name',''))) < 2 then raise exception 'Isi nama klub.'; end if;
   if nullif(p->>'id','') is null then
     insert into jo.clubs (name, kind, kab_kota, province, country, verified, created_via)
-    values (jo.name_case(p->>'name'), coalesce(nullif(p->>'kind',''),'klub'), nullif(trim(coalesce(p->>'kab_kota','')),''),
+    values (jo.org_case(p->>'name'), coalesce(nullif(p->>'kind',''),'klub'), nullif(trim(coalesce(p->>'kab_kota','')),''),
       nullif(trim(coalesce(p->>'province','')),''), coalesce(nullif(trim(coalesce(p->>'country','')),''),'Indonesia'),
       coalesce((p->>'verified')::boolean, true), 'konsol')
     returning id into v_id;
   else
-    update jo.clubs set name = jo.name_case(p->>'name'), kind = coalesce(nullif(p->>'kind',''), kind),
+    update jo.clubs set name = jo.org_case(p->>'name'), kind = coalesce(nullif(p->>'kind',''), kind),
       kab_kota = nullif(trim(coalesce(p->>'kab_kota','')),''), province = nullif(trim(coalesce(p->>'province','')),''),
       country = coalesce(nullif(trim(coalesce(p->>'country','')),''), country),
       verified = coalesce((p->>'verified')::boolean, verified)
@@ -1279,9 +1279,19 @@ language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff;
 begin
   st := jo.require_staff(array['owner','superadmin']);
+  -- ctx: konteks yang mudah dibaca (kode pendaftaran, klub, nama atlet, kategori) untuk kolom Detail di konsol
   return (select coalesce(jsonb_agg(jsonb_build_object('id', l.id, 'at', l.at, 'action', l.action,
       'staff', coalesce((select name from jo.staff where id = l.staff_id), l.detail->>'staff_name'), 'target_type', l.target_type,
-      'target_id', l.target_id, 'detail', l.detail) order by l.id desc), '[]'::jsonb)
+      'target_id', l.target_id, 'detail', l.detail,
+      'ctx', case
+        when l.target_type = 'athlete' then (select jsonb_build_object('athlete', a.full_name, 'athlete_no', a.athlete_no, 'code', s.code, 'club', c.name)
+          from jo.athletes a join jo.submissions s on s.id = a.submission_id left join jo.clubs c on c.id = s.club_id where a.id::text = l.target_id)
+        when l.target_type = 'entry' then (select jsonb_build_object('athletes', (select string_agg(a.full_name, ' & ' order by a.sort) from jo.entry_athletes ea join jo.athletes a on a.id = ea.athlete_id where ea.entry_id = e.id),
+            'category', k.name_id, 'code', s.code, 'club', c.name)
+          from jo.entries e join jo.submissions s on s.id = e.submission_id join jo.categories k on k.id = e.category_id left join jo.clubs c on c.id = s.club_id where e.id::text = l.target_id)
+        when l.target_type = 'submission' then (select jsonb_build_object('code', s.code, 'club', c.name, 'contact', s.contact_name, 'athletes', (select count(*) from jo.athletes a where a.submission_id = s.id))
+          from jo.submissions s left join jo.clubs c on c.id = s.club_id where s.id::text = l.target_id)
+      end) order by l.id desc), '[]'::jsonb)
     from (select * from jo.audit
            where (nullif(p_filter->>'action','') is null or action = p_filter->>'action')
            order by id desc limit coalesce((p_filter->>'limit')::integer, 500)) l);

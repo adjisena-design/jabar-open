@@ -113,6 +113,9 @@
     err_a_birth: ['Isi tanggal lahir.', 'Enter date of birth.'], err_a_addr: ['Pilih provinsi dan kabupaten/kota.', 'Choose province and regency/city.'],
     err_a_country: ['Isi negara.', 'Enter country.'], err_a_doc: ['Unggah Akte Kelahiran.', 'Upload the birth certificate.'], err_a_pass: ['Unggah paspor.', 'Upload the passport.'],
     err_a_cat: ['Pilih kategori.', 'Choose a category.'], err_g: ['Lengkapi nama, WhatsApp, dan email orang tua/wali.', 'Complete parent/guardian name, WhatsApp and email.'],
+    err_g_name: ['Isi nama orang tua/wali (minimal 3 huruf).', 'Enter the parent/guardian name (at least 3 letters).'],
+    err_g_phone: ['Isi nomor WhatsApp orang tua/wali (minimal 9 angka).', 'Enter the parent/guardian WhatsApp number (at least 9 digits).'],
+    err_g_email: ['Email orang tua/wali belum valid (contoh: nama@gmail.com).', 'The parent/guardian email is not valid (e.g. name@gmail.com).'],
     err_pair: ['Lengkapi kategori, atlet putra, dan atlet putri untuk setiap pasangan.', 'Complete category, male and female athlete for each pair.'],
     err_pair_age: ['Pasangan {c}: {n} tidak sesuai usia kategori.', 'Pair {c}: {n} does not fit the category age.'],
     err_uploading: ['Tunggu sampai semua berkas selesai diunggah.', 'Wait until all files finish uploading.'],
@@ -128,7 +131,6 @@
     sum_fees: ['Biaya pendaftaran', 'Entry fees'], sum_pri: ['Kategori Priangan', 'Priangan category'],
     sum_uc: ['Kode unik', 'Unique code'], sum_uc_val: ['ditambahkan setelah kirim (Rp1–Rp999)', 'added after submitting (Rp1–Rp999)'],
     sum_total: ['Perkiraan total', 'Estimated total'],
-    sum_intl: ['Ada atlet WNA: pembayaran dilakukan terpisah. Panitia akan menghubungi Anda lewat email.', 'Includes a foreign athlete: payment is handled separately. The committee will contact you by email.'],
     sum_cap: ['Total melebihi batas satu transaksi QRIS ({cap}). Bagi atlet ke dalam dua pendaftaran.', 'The total exceeds the single QRIS transaction limit ({cap}). Split the athletes into two registrations.'],
     submit: ['Kirim pendaftaran', 'Submit registration'], submitting: ['Mengirim…', 'Submitting…'],
     done_title: ['Pendaftaran terkirim', 'Registration submitted'],
@@ -204,7 +206,8 @@
   const stepKeys = () => ['st1', 'st2', 'st3'].concat(hasTeamStep() ? ['st_team'] : []).concat(['st4']);
 
   const app = document.getElementById('app');
-  JO.autoNameCase(app, '#c_name, #cn_name, [data-k=full_name], [data-g=name], [data-tk=name]');
+  JO.autoNameCase(app, '#c_name, [data-k=full_name], [data-g=name]');
+  JO.autoNameCase(app, '#cn_name, [data-tk=name]', JO.orgCase);
   const maxAth = () => (CFG && CFG.registration.max_athletes) || 10;
   const disc = () => CFG.disciplines.find((d) => d.code === S.discipline);
   const appLabel = (x) => { const d = disc().apparatus.find((y) => y.code === x); return d ? (JO.lang === 'en' ? d.en : d.id) : x; };
@@ -347,7 +350,8 @@
       let bad = false;
       if (!S.discipline) { fieldErr(box.querySelector('#discs'), t('err_disc')); bad = true; }
       if (S.contact.name.trim().length < 3) { fieldErr(box.querySelector('#c_name'), t('err_name')); bad = true; }
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(S.contact.email.trim())) { fieldErr(box.querySelector('#c_email'), t('err_email')); bad = true; }
+      S.contact.email = cleanEmail(S.contact.email); box.querySelector('#c_email').value = S.contact.email;
+      if (!EMAIL_RE.test(S.contact.email)) { fieldErr(box.querySelector('#c_email'), t('err_email')); bad = true; }
       if (S.contact.phone.replace(/\D/g, '').length < 9) { fieldErr(box.querySelector('#c_phone'), t('err_phone')); bad = true; }
       if (!['pemilik', 'admin', 'pelatih', 'manajer', 'lainnya'].includes(S.contact.role)) { fieldErr(box.querySelector('#c_role'), t('err_role')); bad = true; }
       if (bad) return focusFirstErr(box);
@@ -501,9 +505,25 @@
         <div class="field"><label class="f" for="${o.key}_gp">${esc(t('g_phone'))}</label><input id="${o.key}_gp" data-g="phone" type="tel" inputmode="tel" value="${esc(o.guardian.phone)}"></div>
         <div class="field"><label class="f" for="${o.key}_ge">${esc(t('g_email'))}</label><input id="${o.key}_ge" data-g="email" type="email" inputmode="email" value="${esc(o.guardian.email)}"></div>
       </div>`;
-    g.querySelectorAll('[data-g]').forEach((inp) => inp.oninput = () => { o.guardian[inp.dataset.g] = inp.value; saveDraft(); });
+    g.querySelectorAll('[data-g]').forEach((inp) => {
+      inp.oninput = () => { o.guardian[inp.dataset.g] = inp.value; saveDraft(); };
+      if (inp.dataset.g === 'email') inp.addEventListener('blur', () => {
+        const v = cleanEmail(inp.value).toLowerCase(); if (v !== inp.value) { inp.value = v; o.guardian.email = v; saveDraft(); } });
+    });
   }
-  const guardOk = (g) => g.name.trim().length >= 3 && g.phone.replace(/\D/g, '').length >= 9 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(g.email.trim());
+  const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+  const cleanEmail = (v) => String(v || '').replace(/[\s\u200B-\u200D\uFEFF]/g, '');
+  // kolom orang tua/wali yang belum benar, masing-masing dengan pesannya sendiri
+  const guardBad = (g) => [g.name.trim().length < 3 ? ['name', 'err_g_name'] : null,
+    g.phone.replace(/\D/g, '').length < 9 ? ['phone', 'err_g_phone'] : null,
+    !EMAIL_RE.test(cleanEmail(g.email)) ? ['email', 'err_g_email'] : null].filter(Boolean);
+  const guardOk = (g) => !guardBad(g).length;
+  // tandai merah tepat di kolom yang salah (dulu semua kesalahan ditandai di kolom nama)
+  function guardMark(root, g) {
+    const bad = guardBad(g);
+    bad.forEach(([k, m]) => { const el = root.querySelector(`[data-g=${k}]`); if (el) fieldErr(el, t(m)); });
+    return bad.length > 0;
+  }
 
   // ---------- langkah beregu (opsional, Artistik Putri): satu atau beberapa tim ----------
   function renderStepTeams(box) {
@@ -688,7 +708,7 @@
           if (m.kind === 'tim') {
             if (m.nationality === 'WNA' && m.country.trim().length < 2) { fieldErr(q('[data-k=country]'), t('err_a_country')); bad = true; }
             { const de = docErr(m); if (de) { fieldErr(q(de[0]), t(de[1])); bad = true; } }
-            if (m.birth_date && JO.isMinor(m.birth_date) && !guardOk(m.guardian)) { fieldErr(q('[data-g=name]'), t('err_g')); bad = true; }
+            if (m.birth_date && JO.isMinor(m.birth_date) && guardMark(el, m.guardian)) bad = true;
             if (T.level && m.birth_date && !memberCat(T, m)) { fieldErr(q('[data-cat]'), t('err_mb_cat')); bad = true; }
           }
         });
@@ -812,8 +832,7 @@
         }
         if (a.cat && catById(a.cat).jabar_only && !priEligible(a)) { fieldErr(q('.cat-list'), t(priReason(a))); bad = true; }
         if (a.birth_date && JO.isMinor(a.birth_date)) {
-          const g = a.guardian;
-          if (g.name.trim().length < 3 || g.phone.replace(/\D/g, '').length < 9 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(g.email.trim())) { fieldErr(q('[data-g=name]'), t('err_g')); bad = true; }
+          if (guardMark(el, a.guardian)) bad = true;
         }
       });
       for (const p of S.pairs) {
@@ -955,10 +974,9 @@
     const teamFees = teams.length * teamFee();
     const base = entryFees + teamFees;
     const pri = 0;
-    const intl = S.athletes.some((a) => a.nationality === 'WNA') || tim.some((m) => m.nationality === 'WNA');
     const minors = S.athletes.some((a) => JO.isMinor(a.birth_date)) || tim.some((m) => JO.isMinor(m.birth_date));
     const cap = CFG.registration.qris_cap;
-    const over = !intl && base + pri + 999 > cap;
+    const over = base + pri + 999 > cap;
     const consents = ['waiver', 'insurance', 'data', 'rules'].concat(minors ? ['guardian'] : []);
     const athName = (k) => (S.athletes.find((a) => a.key === k) || {}).full_name;
     const memberLine = (T, m) => {
@@ -978,13 +996,12 @@
           ${entryFees ? `<tr><td>${esc(t('sum_fees'))}</td><td>${fmtRp(entryFees)}</td></tr>` : ''}
           ${teamFees ? `<tr><td>${esc(t('sum_team'))} (${teams.length} × ${fmtRp(teamFee())})</td><td>${fmtRp(teamFees)}</td></tr>` : ''}
           ${pri ? `<tr><td>${esc(t('sum_pri'))}</td><td>${fmtRp(pri)}</td></tr>` : ''}
-          ${!intl ? `<tr><td>${esc(t('sum_uc'))}</td><td class="muted">${esc(t('sum_uc_val'))}</td></tr>` : ''}
-          <tr class="total"><td>${esc(t('sum_total'))}</td><td>${fmtRp(base + pri)}${intl ? '' : ' + ' + esc(t('sum_uc').toLowerCase())}</td></tr>
+          <tr><td>${esc(t('sum_uc'))}</td><td class="muted">${esc(t('sum_uc_val'))}</td></tr>
+          <tr class="total"><td>${esc(t('sum_total'))}</td><td>${fmtRp(base + pri)} + ${esc(t('sum_uc').toLowerCase())}</td></tr>
         </tbody></table>
-        ${!intl ? `<p class="note warn small" style="margin-top:12px">${esc(t('sum_15'))}</p>` : ''}
+        <p class="note warn small" style="margin-top:12px">${esc(t('sum_15'))}</p>
         ${(() => { const list = S.athletes.concat(tim).filter((x) => x.nationality !== 'WNA' && !x.bpjs).map((x) => x.full_name.trim()).filter(Boolean);
             return list.length ? `<p class="note info small">${esc(t('sum_bpjs', { n: list.join(', ') }))}</p>` : ''; })()}
-        ${intl ? `<p class="note info" style="margin-top:12px">${esc(t('sum_intl'))}</p>` : ''}
         ${over ? `<p class="note bad" style="margin-top:12px">${esc(t('sum_cap', { cap: fmtRp(cap) }))}</p>` : ''}
       </section>
       <section class="card"><h2>${esc(t('cons_title'))}</h2>
@@ -1010,7 +1027,7 @@
           athletes: S.athletes.map((a) => ({ key: a.key, full_name: a.full_name.trim(), gender: a.gender, birth_date: a.birth_date, nationality: a.nationality,
             country: a.nationality === 'WNA' ? a.country.trim() : 'Indonesia', province: a.nationality === 'WNI' ? a.province : null, kab_kota: a.nationality === 'WNI' ? a.kab_kota.trim() : null,
             ...docPaths(a),
-            guardian: JO.isMinor(a.birth_date) ? a.guardian : null })),
+            guardian: JO.isMinor(a.birth_date) ? { ...a.guardian, email: cleanEmail(a.guardian.email) } : null })),
           entries: buildEntries(),
           teams: teams.map((T) => ({ level: T.level, name: T.name.trim(), members: T.members.map((m) => m.kind === 'form'
             ? { kind: 'form', key: m.ref }
@@ -1019,7 +1036,7 @@
             : { kind: 'tim', full_name: m.full_name.trim(), birth_date: m.birth_date, nationality: m.nationality,
                 country: m.nationality === 'WNA' ? m.country.trim() : 'Indonesia',
                 ...docPaths(m),
-                guardian: JO.isMinor(m.birth_date) ? m.guardian : null, category_id: (memberCat(T, m) || {}).id }) })),
+                guardian: JO.isMinor(m.birth_date) ? { ...m.guardian, email: cleanEmail(m.guardian.email) } : null, category_id: (memberCat(T, m) || {}).id }) })),
           consents: Object.fromEntries(consents.map((k) => [k, true])),
         };
         const r = await rpc('public_register', { p: payload });

@@ -176,7 +176,7 @@
       </article>`).join('')).join('');
 
     v.innerHTML = `<h1>Gantt</h1>
-      <p class="muted">Jadwal kerja panitia per fase, ${tgl(RANGE[0], 1)} sampai ${tgl(RANGE[1], 1)}. Garis merah = hari ini, arsiran = hari lomba 12–20 Desember.${can ? ' Klik tugas untuk mengubah.' : ''}</p>
+      <p class="muted">Garis merah: hari ini. Arsiran: hari lomba.</p>
       ${ov.enabled ? '' : '<p class="note warn small">Modul proyek sedang dinonaktifkan di Pengaturan. Hanya owner yang melihat halaman ini.</p>'}
       <div class="stats pm-stats pm-stats-4">
         <div class="stat"><h3>Tugas</h3><div class="big">${cnt.all}</div><p class="small muted" style="margin:4px 0 0">Progres rata-rata ${pct(avg)}</p></div>
@@ -255,7 +255,6 @@
     };
     const loose = ov.tasks.filter((t) => !t.division_id);
     v.innerHTML = `<h1>Struktur</h1>
-      <p class="muted">Bagan panitia dari data divisi dan tugas di Gantt. Pengarah memberi arahan lewat Project Manager; PM satu pintu ke seluruh divisi.</p>
       ${toolbar(C, false, can ? '<button class="btn btn-primary btn-sm" id="o_add">Tambah divisi</button>' : '')}
       <div class="og">
         <div class="og-row og-top">${peng.map((d) => card(d, 'og-peng')).join('')}</div>
@@ -350,7 +349,7 @@
           </tbody></table></div></section>`;
     }).join('');
     v.innerHTML = `<h1>RAB</h1>
-      <p class="muted">Jumlah = volume × frekuensi × harga satuan. Baris bertanda <span class="pill">hari</span> mengikuti jumlah hari kegiatan. Baris "Tidak" tampil sebagai acuan dan tidak masuk total.</p>
+      <p class="muted">Baris "Tidak" tidak masuk total.</p>
       <div class="stats pm-stats">
         <div class="stat"><h3>Total anggaran (dihitung)</h3><div class="big">${rp(S.total)}</div><ul><li><span>Di luar sistem website</span><b>${rp(S.ops)}</b></li><li><span>Sistem website</span><b>${rp(S.system)}</b></li></ul></div>
         <div class="stat"><h3>Acuan (tidak dihitung)</h3><div class="big">${rp(S.reference)}</div><ul><li><span>Efisiensi karena sistem (nilai 2025)</span><b>${rp(S.efficiency)}</b></li></ul></div>
@@ -430,7 +429,6 @@
           </tbody></table></div>` : '<p class="small muted">Belum ada baris.</p>'}</section>`;
     };
     v.innerHTML = `<h1>Pendapatan</h1>
-      <p class="muted">Target pendapatan (dasar 2025 dan tambahan 2026) berdampingan dengan realisasi dari pendaftaran yang sudah lunas di konsol. Realisasi diperbarui setiap halaman dibuka.</p>
       <div class="stats pm-stats">
         <div class="stat"><h3>Target pendapatan</h3><div class="big">${rp(S.income)}</div><ul><li><span>Total anggaran</span><b>${rp(S.after_saving)}</b></li><li><span>Selisih target</span><b class="${S.balance < 0 ? 'bad-t' : 'ok-t'}">${rp(S.balance)}</b></li></ul></div>
         <div class="stat"><h3>Sudah lunas</h3><div class="big">${rp(Act.paid_total)}</div><ul><li><span>Capaian target</span><b>${S.income ? pct(Act.paid_total / S.income) : '–'}</b></li><li><span>Belum lunas (tagihan aktif)</span><b>${rp(Act.outstanding)}</b></li></ul></div>

@@ -301,7 +301,7 @@
   // ---------------- modul terpisah (proyek, backup) ----------------
   // Dimuat hanya saat halamannya dibuka. Galat di modul hanya tampil di halaman itu;
   // pendaftaran, verifikasi, dan penilaian tidak ikut terganggu.
-  const MOD_V = '2610rb';
+  const MOD_V = '0111a';
   function loadModule(name) {
     window.JO_MOD = window.JO_MOD || {};
     if (window.JO_MOD[name]) return Promise.resolve(window.JO_MOD[name]);
@@ -360,17 +360,21 @@
     root.innerHTML = `<div class="shell"><aside class="side" id="side">
         <div class="brandbox"><img src="../assets/img/brand/jabar-open.webp" alt="" width="360" height="246"><div><small>Konsol panitia</small><b>Jabar Open 2026</b></div></div>
         <nav id="nav">${nav}</nav>
-        <div class="foot">${ROLE[ME.role]}${ME.discipline ? ' ' + DN[ME.discipline] : ''} · setiap tindakan tercatat atas nama Anda</div>
+        <div class="foot">Setiap tindakan tercatat atas nama Anda</div>
       </aside>
       <div class="mainwrap">
         <header class="topline">
           <button type="button" class="btn btn-ghost btn-sm menu-tg" id="menu-tg" aria-label="Menu">${icon('menu')}</button>
-          <div class="ttl"><b>Konsol Panitia</b><small>Jabar Open 2026 · Gymnasium Arcamanik · 12–20 Desember</small></div>
+          <img class="tl-logo" src="../assets/img/brand/jabar-open.webp" alt="Jabar Open 2026" width="360" height="246"><div class="ttl"><b>Gymnasium Arcamanik</b><small>12–20 Desember 2026</small></div>
           <div class="me"><button type="button" class="avatar" id="mebtn" title="Nomor WhatsApp saya">${esc(initials)}</button><span class="who"><b>${esc(ME.name)}</b><small>${ROLE[ME.role]}${ME.discipline ? ' ' + DN[ME.discipline] : ''}</small></span>
             <button class="btn btn-ghost btn-sm" id="logout" type="button" title="Keluar">${icon('out')}<span>Keluar</span></button></div>
         </header>
         <main class="main" id="view"></main></div></div>`;
     const side = root.querySelector('#side');
+    // tinggi logo di sidebar mengikuti tinggi baris atas agar garis bawahnya sejajar
+    const top = root.querySelector('.topline');
+    const syncTop = () => document.documentElement.style.setProperty('--topline-h', top.offsetHeight + 'px');
+    syncTop(); if (window.ResizeObserver) new ResizeObserver(syncTop).observe(top);
     const closeSide = () => { side.classList.remove('open'); const sc = document.querySelector('.scrim'); if (sc) sc.remove(); };
     root.querySelector('#menu-tg').onclick = () => {
       side.classList.add('open');
@@ -427,7 +431,7 @@
       [Number(A.priangan_pending), 'Cek syarat Priangan', `${A.priangan_pending} nomor Ritmik`, `#/pendaftaran?f=priangan${one('')}`],
       [Number(A.music_pending), 'Periksa tautan musik', `${A.music_pending} nomor Ritmik`, '#/musik'],
     ].filter((x) => x[0] > 0) : [];
-    v.innerHTML = `<h1>Ringkasan</h1><p class="muted">Halo, ${esc(ME.name)}. Angka diperbarui setiap halaman ini dibuka.</p>
+    v.innerHTML = `<h1>Ringkasan</h1>
       <section class="todo ${acts.length ? 'has' : 'none'}" aria-live="polite">
         <h2>${acts.length ? '<span class="rdot" aria-hidden="true"></span>Perlu tindakan' : 'Tidak ada yang perlu ditindaklanjuti'}</h2>
         ${acts.length ? `<div class="todo-list">${acts.map((x) => `<a class="todo-item" href="${x[3]}"><span class="rdot" aria-hidden="true"></span><span><b>${esc(x[1])}</b><small>${esc(x[2])}</small></span><strong>${x[0]}</strong>${icon('chev')}</a>`).join('')}</div>`
@@ -462,7 +466,7 @@
           <ul><li><span>Antre</span><strong>${d.email.pending}</strong></li><li><span>Terkirim</span><strong>${d.email.sent}</strong></li><li><span>Gagal</span><strong>${d.email.error}</strong></li></ul></div>` : ''}
       </div>
       ${d.low_categories.length ? `<section class="card" style="margin-top:16px"><h2>Kategori dengan peserta kurang dari 3</h2>
-        <p class="small muted">Sesuai Undangan, kategori artistik dengan kurang dari 3 peserta digabung ke kategori di atas atau di bawahnya. Pindahkan peserta dari halaman detail pendaftaran.</p>
+        <p class="small muted">Kategori artistik dengan kurang dari 3 peserta digabung. Pindahkan peserta dari detail pendaftaran.</p>
         <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Kategori</th><th class="r">Terdaftar</th><th class="r">Lunas</th></tr></thead><tbody>
         ${d.low_categories.map((c) => `<tr><td>${esc(c.name)}</td><td class="r">${c.registered}</td><td class="r">${c.paid}</td></tr>`).join('')}</tbody></table></div></section>` : ''}
       <section class="card" style="margin-top:16px"><h2>Pendaftaran terbaru</h2>
@@ -493,7 +497,7 @@
     if (id) return pageSubmission(v, id);
     const hp = hashParams();
     if (hp.has('d') || hp.has('s') || hp.has('f')) { subFilter.discipline = hp.get('d') || ''; subFilter.status = hp.get('s') || ''; subFilter.flag = hp.get('f') || ''; }
-    v.innerHTML = `<h1>Pendaftaran</h1><p class="muted">Klik baris untuk memeriksa bukti bayar, dokumen, dan syarat Priangan (Ritmik). Pendaftaran QRIS tanpa bukti bayar dihapus otomatis 15 menit setelah dikirim.</p>
+    v.innerHTML = `<h1>Pendaftaran</h1><p class="muted">Tanpa bukti bayar, pendaftaran terhapus otomatis setelah 15 menit.</p>
       <div class="bar">${discSelect('fd', subFilter.discipline)}
         <div class="field"><label class="f" for="fs">Status</label><select id="fs"><option value="">Semua status</option>
           ${Object.entries(ST).map(([k, l]) => `<option value="${k}" ${subFilter.status === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
@@ -737,7 +741,7 @@
   // =====================================================================
   const muFilter = { status: 'perlu', q: '' };
   async function pageMusic(v) {
-    v.innerHTML = `<h1>Musik Ritmik</h1><p class="muted">Buka setiap tautan Google Drive dan pastikan folder bisa diakses dan berisi MP3. Tandai "Bisa dibuka", atau "Tidak bisa dibuka" untuk meminta pendaftar memperbaiki akses lewat email.</p>
+    v.innerHTML = `<h1>Musik Ritmik</h1><p class="muted">"Tidak bisa dibuka" otomatis mengirim email perbaikan ke pendaftar.</p>
       <div class="bar"><div class="field"><label class="f" for="ms">Status</label><select id="ms">
         ${[['perlu', 'Perlu tindakan'], ['', 'Semua'], ['menunggu', 'Menunggu diperiksa'], ['tidak_bisa', 'Tidak bisa dibuka'], ['belum', 'Belum ada tautan'], ['ok', 'Bisa dibuka']].map(([k, l]) => `<option value="${k}" ${muFilter.status === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
         <div class="field" style="flex:1;min-width:200px"><label class="f" for="mq">Cari</label><input id="mq" type="search" placeholder="Nama atlet, klub, kode" value="${esc(muFilter.q)}"></div>
@@ -811,7 +815,7 @@
   // =====================================================================
   async function pageAthletes(v) {
     const f = { discipline: '', status: '', q: '' };
-    v.innerHTML = `<h1>Data atlet</h1><p class="muted">Seluruh atlet dari pendaftaran yang tidak dibatalkan. Unduh ke Excel untuk rekap panitia.</p>
+    v.innerHTML = `<h1>Data atlet</h1>
       <div class="bar">${discSelect('ad', '')}
         <div class="field"><label class="f" for="as">Pembayaran</label><select id="as"><option value="">Semua</option>${Object.entries(ST).filter(([k]) => k !== 'dibatalkan').map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></div>
         <div class="field" style="flex:1;min-width:200px"><label class="f" for="aq">Cari</label><input id="aq" type="search" placeholder="Nama, nomor atlet, klub, kota"></div>
@@ -822,14 +826,31 @@
     const load = async () => {
       const list = v.querySelector('#list'); loading(list);
       rows = await api('console_athletes', { p_filter: f });
-      list.innerHTML = rows.length ? `<p class="small muted">${rows.length} atlet</p><div class="tbl-wrap"><table class="tbl"><thead><tr>
-        <th>No.</th><th>Nama</th><th>L/P</th><th>Lahir</th><th>Klub</th><th>Asal</th><th>Kategori</th><th>Bayar</th><th>Dokumen</th><th></th></tr></thead><tbody>
-        ${rows.map((r) => `<tr class="click" data-sub="${r.submission_id}"><td><span class="bib">${esc(r.athlete_no)}</span></td><td>${esc(r.full_name)}</td><td>${r.gender === 'M' ? 'L' : 'P'}</td>
-          <td class="small">${esc(r.birth_date)}<br><span class="muted">usia ${r.age}</span></td><td>${esc(r.club)}</td>
-          <td class="small">${esc(r.nationality === 'WNA' ? r.country : r.kab_kota || '')}</td><td class="small">${esc(r.categories || '')}</td>
-          <td>${pill(r.payment_status)}</td><td class="small">${esc(r.doc_status)}${r.nationality === 'WNI' && !r.has_bpjs ? '<br><span class="pill warn">tanpa BPJS TK</span>' : ''}</td>
-          <td class="r">${isSuper() ? rowMenu('', [{ label: 'Buka pendaftaran', attr: `data-open="${r.submission_id}"` }, { sep: true }, { label: 'Hapus atlet', attr: `data-delath="${r.id}"`, danger: true }]) : ''}</td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">Tidak ada atlet yang cocok.</p>';
-      list.querySelectorAll('tr[data-sub]').forEach((tr) => tr.onclick = (ev) => { if (ev.target.closest('.rm')) return; location.hash = '#/pendaftaran/' + tr.dataset.sub; });
+      const kv = (k, v) => (v ? `<div><span>${esc(k)}</span><b>${v}</b></div>` : '');
+      const det = (r) => `<div class="ath-det">
+          ${kv('Tanggal lahir', esc(r.birth_date) + ` (usia ${r.age})`)}
+          ${kv('Kewarganegaraan', esc(r.nationality === 'WNA' ? 'WNA · ' + (r.country || '') : 'WNI'))}
+          ${r.nationality === 'WNI' ? kv('Alamat (KTP)', esc([r.kab_kota, r.province].filter(Boolean).join(', '))) : ''}
+          ${kv('Klub', esc([r.club, r.club_kab_kota].filter(Boolean).join(', ')))}
+          ${kv('Kode pendaftaran', `<a href="#/pendaftaran/${r.submission_id}">${esc(r.submission_code)}</a>`)}
+          ${r.nationality === 'WNI' ? kv('BPJS TK', r.has_bpjs ? 'Diunggah' : 'Belum (bawa ke venue)') : ''}
+          ${kv('Orang tua/wali', esc([r.guardian_name, r.guardian_phone, r.guardian_email].filter(Boolean).join(' · ')))}
+          ${kv('Penanggung jawab', esc([r.contact_name, r.contact_phone, r.contact_email].filter(Boolean).join(' · ')))}
+        </div>`;
+      list.innerHTML = rows.length ? `<p class="small muted">${rows.length} atlet</p><div class="tbl-wrap"><table class="tbl ath-tbl"><thead><tr>
+        <th></th><th>No.</th><th>Nama</th><th>Klub</th><th>Kategori</th><th>Bayar</th><th>Dokumen</th><th></th></tr></thead><tbody>
+        ${rows.map((r) => `<tr class="click" data-row="${r.id}"><td class="tg" aria-hidden="true">${icon('chev')}</td><td><span class="bib">${esc(r.athlete_no)}</span></td>
+          <td><b class="nm">${esc(r.full_name)}</b><span class="sub">${r.gender === 'M' ? 'L' : 'P'} · ${r.age} th${r.nationality === 'WNA' ? ' · WNA' : ''}</span></td>
+          <td>${esc(r.club)}<span class="sub">${esc(r.nationality === 'WNA' ? r.country : r.kab_kota || '')}</span></td>
+          <td class="catc">${esc(r.categories || '')}</td>
+          <td>${pill(r.payment_status)}</td><td class="nowrap">${esc(r.doc_status)}${r.nationality === 'WNI' && !r.has_bpjs ? ' <span class="pill warn" title="Tanpa BPJS Ketenagakerjaan">BPJS</span>' : ''}</td>
+          <td class="r">${rowMenu('', [{ label: 'Buka pendaftaran', attr: `data-open="${r.submission_id}"` }].concat(isSuper() ? [{ sep: true }, { label: 'Hapus atlet', attr: `data-delath="${r.id}"`, danger: true }] : []))}</td></tr>
+          <tr class="det-row" data-det="${r.id}" hidden><td></td><td colspan="7">${det(r)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">Tidak ada atlet yang cocok.</p>';
+      list.querySelectorAll('tr[data-row]').forEach((tr) => tr.onclick = (ev) => {
+        if (ev.target.closest('.rm, a, button')) return;
+        const d = list.querySelector(`tr[data-det="${tr.dataset.row}"]`);
+        d.hidden = !d.hidden; tr.classList.toggle('open', !d.hidden);
+      });
       list.querySelectorAll('[data-open]').forEach((b) => b.onclick = () => { location.hash = '#/pendaftaran/' + b.dataset.open; });
       list.querySelectorAll('[data-delath]').forEach((b) => b.onclick = async () => {
         const r = rows.find((x) => x.id === b.dataset.delath);
@@ -863,7 +884,7 @@
     const draw = () => {
       const d = CATS.disciplines.find((x) => x.code === disc);
       const list = CATS.categories.filter((c) => c.discipline === disc);
-      v.innerHTML = `<h1>Kategori</h1><p class="muted">Dari Undangan Jabar Open 2026. Angka tahun lahir dihitung dari "usia pada tahun kompetisi" (2026).${isTD() ? ' ' + roMode() + ': hanya baca.' : ''}</p>
+      v.innerHTML = `<h1>Kategori</h1>${isTD() ? `<p class="muted">${roMode()}: hanya baca.</p>` : ''}
         <div class="tabs">${myDiscs().map((k) => `<button data-d="${k}" aria-selected="${k === disc}">${DN[k]}</button>`).join('')}</div>
         ${d ? `<div class="row" style="margin-bottom:12px"><span>Pendaftaran ${DN[disc]}: <strong>${d.registration_open ? 'dibuka' : 'ditutup'}</strong></span>
           ${isSuper() ? `<button class="btn btn-ghost btn-sm" id="dtoggle">${d.registration_open ? 'Tutup pendaftaran disiplin ini' : 'Buka pendaftaran'}</button>` : ''}
@@ -938,7 +959,7 @@
   async function pageStartlist(v) {
     await refreshCats();
     if (!slState.disc) slState.disc = myDiscs()[0];
-    v.innerHTML = `<h1>Start list</h1><p class="muted">Atur sesi, grup, dan urutan tampil untuk atlet yang sudah lunas, lalu publikasikan. Start list yang dipublikasikan tampil di situs dan AIC.</p>
+    v.innerHTML = `<h1>Start list</h1><p class="muted">Hanya atlet lunas.</p>
       <div class="bar"><div class="field"><label class="f" for="sd">Disiplin</label><select id="sd">${myDiscs().map((d) => `<option value="${d}" ${slState.disc === d ? 'selected' : ''}>${DN[d]}</option>`).join('')}</select></div>
         <div id="catslot" style="flex:1;display:flex"></div></div>
       <section class="card" id="sess"></section><div id="sl" style="margin-top:16px"></div>`;
@@ -1018,7 +1039,7 @@
     const juri = ME.role === 'juri', ro = isTD();
     if (ro) scState.mode = 'final';
     v.innerHTML = `<h1>Penilaian</h1>
-      <p class="muted">${juri ? `Masuk sebagai ${esc(ME.name)}${ME.components ? ', komponen ' + ME.components.join('/') : ''}${ME.apparatus ? ', alat ' + ME.apparatus.join('/') : ''}. Nilai tersimpan otomatis saat Anda pindah kolom.` : ro ? roMode() + ': memantau nilai yang masuk dari juri dan pencatat. Hanya baca; muat ulang untuk melihat nilai terbaru.' : 'Nilai juri masuk langsung ke sini. Pencatat bisa mengisi nilai akhir per alat dari lembar juri. Setiap perubahan setelah dikunci tercatat di log koreksi.'}</p>
+      <p class="muted">${juri ? `Masuk sebagai ${esc(ME.name)}${ME.components ? ', komponen ' + ME.components.join('/') : ''}${ME.apparatus ? ', alat ' + ME.apparatus.join('/') : ''}. Tersimpan otomatis.` : ro ? roMode() + ': hanya baca.' : 'Perubahan setelah dikunci tercatat di log koreksi.'}</p>
       <div class="bar">${myDiscs().length > 1 ? `<div class="field"><label class="f" for="nd">Disiplin</label><select id="nd">${myDiscs().map((d) => `<option value="${d}" ${scState.disc === d ? 'selected' : ''}>${DN[d]}</option>`).join('')}</select></div>` : ''}
         <div id="catslot" style="flex:1;display:flex"></div></div><div id="sheet"></div>`;
     const drawCat = () => {
@@ -1108,7 +1129,7 @@
     await refreshCats();
     if (!reState.disc) reState.disc = myDiscs()[0];
     const hp = hashParams(); if (hp.get('c')) { reState.cat = hp.get('c'); const c = CATS.categories.find((x) => x.id === Number(reState.cat)); if (c) reState.disc = c.discipline; }
-    v.innerHTML = `<h1>Hasil & medali</h1><p class="muted">${isTD() ? roMode() + ': hanya baca. ' : ''}Publikasikan hasil per kategori setelah UPP. Publikasi mengunci nilai; sertifikat dan tabel medali di situs ikut diperbarui.</p>
+    v.innerHTML = `<h1>Hasil & medali</h1><p class="muted">${isTD() ? roMode() + ': hanya baca. ' : ''}Publikasi mengunci nilai.</p>
       <div class="tabs"><button data-t="cat" aria-selected="true">Hasil kategori</button>${teamDiscs().length ? '<button data-t="team" aria-selected="false">Beregu</button>' : ''}<button data-t="medal" aria-selected="false">Tabel medali</button></div><div id="rbox"></div>`;
     const rbox = v.querySelector('#rbox');
     v.querySelectorAll('[data-t]').forEach((b) => b.onclick = () => { v.querySelectorAll('[data-t]').forEach((x) => x.setAttribute('aria-selected', String(x === b))); b.dataset.t === 'cat' ? catView() : b.dataset.t === 'team' ? teamView(rbox) : medalView(); });
@@ -1212,7 +1233,7 @@
   async function teamView(rbox) {
     if (!teState.disc) teState.disc = teamDiscs()[0];
     rbox.innerHTML = `<div class="bar"><div class="field"><label class="f" for="td">Disiplin</label><select id="td">${teamDiscs().map((d) => `<option value="${d}" ${teState.disc === d ? 'selected' : ''}>${DN[d]}</option>`).join('')}</select></div></div>
-      <p class="small muted">Nilai tim = jumlah 4 nilai serba bisa terbaik dari anggotanya (hanya tim lunas dan anggota aktif yang lunas). Nilai anggota diambil dari halaman Penilaian kategori masing-masing. Sertifikat Juara Beregu untuk setiap anggota tim peringkat 1–3.</p><div id="tl"></div>`;
+      <p class="small muted">Nilai tim = 4 nilai serba bisa terbaik anggota yang lunas.</p><div id="tl"></div>`;
     rbox.querySelector('#td').onchange = (e) => { teState.disc = e.target.value; load(); };
     const load = async () => {
       const box = rbox.querySelector('#tl'); loading(box);
@@ -1269,7 +1290,7 @@
     let clubs = [];
     try { clubs = (await api('console_clubs')).filter((k) => !k.merged_into); } catch (e) { clubs = []; }
     const r = await dialog({ title: 'Unduh Nominative Form', ok: 'Unduh Excel',
-      body: `<p class="small muted">Format sama dengan lampiran panitia: lembar Gymnasts List (perorangan) dan Team (beregu). Pendaftaran yang dibatalkan tidak ikut.</p>
+      body: `<p class="small muted">Lembar Gymnasts List dan Team. Pendaftaran batal tidak ikut.</p>
         <div class="grid-2"><div class="field"><label class="f" for="nd2">Disiplin</label><select id="nd2">${discs.map((d) => `<option value="${d}">${DN[d]}</option>`).join('')}</select></div>
         <div class="field"><label class="f" for="nc2">Klub</label><select id="nc2"><option value="">Semua klub</option>${clubs.map((k) => `<option value="${k.id}">${esc(k.name)}</option>`).join('')}</select></div></div>`,
       onOk: async (d) => ({ disc: d.querySelector('#nd2').value, club: d.querySelector('#nc2').value || null,
@@ -1397,10 +1418,10 @@
   }
   async function pageLedger(v) {
     const f = { discipline: '', status: '' };
-    v.innerHTML = `<h1>Ledger</h1><p class="muted">Semua tagihan, pembayaran, kode unik, dan verifikator. Impor laporan transaksi GoBiz untuk mencocokkan dana masuk secara otomatis berdasarkan nominal.</p>
+    v.innerHTML = `<h1>Ledger</h1>
       <div id="sum"></div>
       <section class="card" style="margin-top:16px"><h2>Impor mutasi GoBiz / bank</h2>
-        <p class="small muted">Unduh laporan transaksi dari GoBiz (Excel atau CSV), lalu unggah di sini. Mutasi dicocokkan otomatis bila nominalnya sama persis dengan satu tagihan. Impor ulang file yang sama aman: duplikat dilewati.</p>
+        <p class="small muted">Unggah laporan transaksi GoBiz (Excel/CSV). Nominal sama persis dicocokkan otomatis; duplikat dilewati.</p>
         <input type="file" id="mf" accept=".csv,.xlsx,.xls,text/csv"><div id="map"></div></section>
       <div class="bar">${discSelect('ld', '')}<div class="field"><label class="f" for="ls">Status</label><select id="ls"><option value="">Semua</option>${Object.entries(ST).map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></div>
         <button class="btn btn-dark" id="lx">Unduh Excel</button></div>
@@ -1428,7 +1449,7 @@
         const r = await dialog({ title: 'Cocokkan mutasi ' + fmtRp(m.amount), ok: 'Cocokkan',
           body: `<label class="f" for="mc">Kode pendaftaran</label><input id="mc" placeholder="JO26-WAG-0001" list="opencodes">
             <datalist id="opencodes">${D.rows.filter((r) => r.status !== 'dibatalkan').map((r) => `<option value="${esc(r.code)}">${fmtRp(r.total_amount)} ${esc(r.club)}</option>`).join('')}</datalist>
-            <p class="small muted">Mutasi tidak otomatis mengubah status lunas. Setelah dicocokkan, verifikator menandai lunas dari halaman pendaftaran.</p>`,
+            <p class="small muted">Status lunas tetap ditandai dari halaman pendaftaran.</p>`,
           onOk: async (d) => { const code = d.querySelector('#mc').value.trim().toUpperCase(); const row = D.rows.find((x) => x.code === code); if (!row) throw new Error('Kode pendaftaran tidak ditemukan.');
             await api('console_match_mutation', { p_mutation: m.id, p_submission: row.id, p_status: 'manual' }); return true; } });
         if (r) load();
@@ -1478,7 +1499,7 @@
   async function pageClubs(v) {
     const R = window.JO_REGIONS;
     const rows = await api('console_clubs');
-    v.innerHTML = `<h1>Klub</h1><p class="muted">Klub baru dari formulir pendaftaran ditandai "belum diverifikasi". Rapikan nama dan wilayahnya. Bila satu klub terdaftar dengan dua nama (mis. salah ketik), pakai <em>Gabungkan</em> dari menu "…" agar tabel medali per klub akurat. Klub yang belum dipakai pendaftaran bisa dihapus.</p>
+    v.innerHTML = `<h1>Klub</h1><p class="muted">Klub ganda (salah ketik): <em>Gabungkan</em> lewat menu "…".</p>
       <div class="bar"><div class="field" style="flex:1"><label class="f" for="kq">Cari</label><input id="kq" type="search"></div><button class="btn btn-dark" id="kadd">Tambah klub</button></div><div id="kl"></div>`;
     const draw = (q) => {
       const s = (q || '').toLowerCase();
@@ -1534,7 +1555,7 @@
       const n = (st) => D.items.filter((i) => i.status === st).length;
       const noEn = D.items.filter((i) => i.status !== 'arsip' && !i.q_en).length;
       v.innerHTML = `<h1>FAQ situs</h1>
-        <p class="muted">Pertanyaan berstatus <em>Terbit</em> tampil di beranda dan halaman <a href="${esc(siteFaq)}" target="_blank" rel="noopener">FAQ</a>; <em>Draf</em> hanya terlihat di sini. Butir yang tidak dipakai lagi diarsipkan (bisa dipulihkan), tidak dihapus. Bagian FAQ di situs baru muncul setelah ada minimal satu pertanyaan terbit. Pengunjung yang sudah membuka situs melihat menu FAQ setelah membuka tab baru.</p>
+        <p class="muted"><a href="${esc(siteFaq)}" target="_blank" rel="noopener">Lihat FAQ di situs</a></p>
         <div class="kpis">
           <div class="kpi ok"><div><small>Terbit</small><b>${n('terbit')}</b></div><i>${icon('check')}</i></div>
           <div class="kpi warn"><div><small>Draf</small><b>${n('draf')}</b></div><i>${icon('pen')}</i></div>
@@ -1644,7 +1665,7 @@
     }
     const cats = async () => {
       const pr = dialog({ title: 'Kategori FAQ', wide: true, ok: 'Selesai', cancel: '',
-        body: `<p class="small muted">Urutan di sini menjadi urutan tab di situs. Kategori nonaktif beserta pertanyaannya tidak tampil di situs. Kategori tanpa pertanyaan terbit otomatis tidak tampil.</p>
+        body: `<p class="small muted">Urutan di sini = urutan tab di situs.</p>
           <div id="cl"></div>
           <h3 style="font-size:.95rem;margin:16px 0 6px">Tambah kategori</h3>
           <div class="grid-2"><div class="field"><label class="f" for="cni">Nama (Indonesia)</label><input id="cni"></div>
@@ -1729,7 +1750,7 @@
   }
   async function editMyPhone() {
     const r = await dialog({ title: 'Nomor WhatsApp saya', ok: 'Simpan',
-      body: `<p class="small">Nomor ini tampil di halaman Kontak agar sesama panitia dan juri bisa menghubungi Anda lewat WhatsApp. Tidak tampil di situs publik.</p>
+      body: `<p class="small">Tampil di halaman Kontak panitia, tidak di situs publik.</p>
         <div class="field"><label class="f" for="myph">Nomor WhatsApp</label><input id="myph" inputmode="tel" value="${esc(ME.phone || '')}" placeholder="08xx-xxxx-xxxx"></div>`,
       onOk: async (d) => api('console_me_update', { p: { phone: d.querySelector('#myph').value } }) });
     if (r) { ME = Object.assign(ME, { phone: r.phone }); JO.toast('Nomor WhatsApp disimpan.'); pollUnread(); }
@@ -1741,7 +1762,7 @@
     let room = rest && rest[0] ? decodeURIComponent(rest[0]) : '';
     let R = await api('console_chat_rooms');
     let lastId = 0, busy = false;
-    v.innerHTML = `<h1>Chat panitia</h1><p class="muted">Ruang bersama, ruang per disiplin, dan pesan pribadi antarpemegang kode. Untuk masalah teknis yang perlu ditindaklanjuti admin, pakai <a href="#/laporan">Laporan masalah</a> agar statusnya terpantau.</p>
+    v.innerHTML = `<h1>Chat panitia</h1><p class="muted">Masalah teknis: <a href="#/laporan">Laporan masalah</a>.</p>
       <div class="chat ${room ? 'has-room' : ''}" id="chat"><aside class="chat-rooms" id="rooms"></aside><section class="chat-thread" id="thread"></section></div>`;
     const drawRooms = () => {
       const groups = R.rooms.filter((r) => r.kind === 'group'), dms = R.rooms.filter((r) => r.kind === 'dm');
@@ -1812,8 +1833,7 @@
     if (rest && rest[0]) return pageIssue(v, Number(rest[0]));
     const filt = issFilter.f === 'mine' ? { mine: true } : issFilter.f === 'semua' ? {} : { status: 'terbuka' };
     const rows = await api('console_issues', { p_filter: filt });
-    v.innerHTML = `<div class="row" style="justify-content:space-between;align-items:flex-end"><div><h1>Laporan masalah</h1>
-        <p class="muted">Laporkan kendala (mis. tidak bisa input nilai, data atlet salah, dokumen perlu dicek). Admin menindaklanjuti dan mengubah statusnya; Anda mendapat lencana saat ada tanggapan.</p></div>
+    v.innerHTML = `<div class="row" style="justify-content:space-between;align-items:flex-end"><div><h1>Laporan masalah</h1></div>
         <button class="btn btn-primary" id="inew">Laporkan masalah</button></div>
       <div class="tabs" style="margin-top:12px">${[['terbuka', 'Belum selesai'], ['mine', 'Laporan saya'], ['semua', 'Semua']].map(([k, l]) => `<button data-f="${k}" aria-selected="${issFilter.f === k}">${l}</button>`).join('')}</div>
       ${rows.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Masalah</th><th>Pelapor</th><th>Disiplin</th><th>Status</th><th>Diperbarui</th></tr></thead><tbody>
@@ -1884,7 +1904,6 @@
     const n = (k) => (D.counts && D.counts[k]) || 0;
     const list = D.items.filter((x) => !leadState.st || x.status === leadState.st);
     v.innerHTML = `<h1>Calon mitra</h1>
-      <p class="muted">Masuk dari formulir "Calon mitra &amp; sponsor" di beranda. Hubungi lewat WhatsApp, lalu catat statusnya agar tidak ada yang dihubungi dua kali.</p>
       <div class="tabs">${[['', `Semua (${D.items.length})`], ...Object.entries(LEAD_ST).map(([k, [l]]) => [k, `${l} (${n(k)})`])]
         .map(([k, l]) => `<button data-st="${k}" aria-selected="${leadState.st === k}">${l}</button>`).join('')}</div>
       ${list.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Masuk</th><th>Nama &amp; perusahaan</th><th>Kebutuhan</th><th>Status</th><th></th></tr></thead><tbody>
@@ -1911,7 +1930,7 @@
   async function pageContacts(v) {
     const C = await api('console_contacts');
     if (!C.can_registrants) ctState.tab = 'panitia';
-    v.innerHTML = `<h1>Kontak</h1><p class="muted">Hubungi lewat WhatsApp atau kirim pesan di konsol. ${C.can_registrants ? 'Kontak pendaftar (pelatih, manajer, orang tua) hanya terlihat oleh admin ke atas dan TD; gunakan hanya untuk urusan Jabar Open 2026.' : ''}</p>
+    v.innerHTML = `<h1>Kontak</h1>${C.can_registrants ? '<p class="muted">Kontak pendaftar hanya untuk urusan Jabar Open 2026.</p>' : ''}
       ${ME.phone ? '' : '<p class="note warn small">Nomor WhatsApp Anda belum tercatat. <button type="button" class="btn btn-ghost btn-sm" id="setph">Isi sekarang</button></p>'}
       <div class="tabs">${[['panitia', 'Panitia & juri'], C.can_registrants ? ['pendaftar', 'Pendaftar'] : null].filter(Boolean).map(([k, l]) => `<button data-t="${k}" aria-selected="${ctState.tab === k}">${l}</button>`).join('')}</div>
       <div class="bar"><div class="field" style="flex:1"><label class="f" for="cq">Cari</label><input id="cq" type="search" value="${esc(ctState.q)}" placeholder="Nama, klub, disiplin, nomor"></div><span id="cx"></span></div><div id="cl"></div>`;
@@ -1958,7 +1977,7 @@
     const rows = await api('console_jury_list', { p_filter: { status: juState.status, discipline: juState.disc } });
     const link = JO.siteUrl() + 'juri.html';
     v.innerHTML = `<div class="row" style="justify-content:space-between;align-items:flex-end"><div><h1>Pendaftaran juri</h1>
-        <p class="muted">Calon juri mendaftar lewat <a href="${esc(link)}" target="_blank" rel="noopener">formulir juri</a> di situs, atau ditambahkan admin di sini. Menyetujui pendaftar membuat kode akses juri; kirim kodenya secara pribadi lewat WhatsApp.</p></div>
+        <p class="muted">Menyetujui = membuat kode juri. Kirim kodenya secara pribadi.</p></div>
         <span class="rm"><button class="btn btn-ghost" id="jlink">Salin tautan formulir</button><button class="btn btn-primary" id="jadd">Tambah juri</button></span></div>
       <div class="bar"><div class="field"><label class="f" for="jst">Status</label><select id="jst">${[['baru', 'Baru'], ['disetujui', 'Disetujui'], ['ditolak', 'Ditolak'], ['', 'Semua']].map(([k, l]) => `<option value="${k}" ${juState.status === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
         ${ME.discipline ? '' : discSelect('jd', juState.disc)}</div>
@@ -2057,7 +2076,7 @@
   // =====================================================================
   async function pageAccess(v) {
     const rows = await api('console_staff_list');
-    v.innerHTML = `<div class="row page-act" style="justify-content:space-between;align-items:center;gap:12px 20px"><div><h1>Kode akses</h1><p class="muted">Satu kode untuk satu orang. Kode hanya ditampilkan sekali; bila hilang, buat kode baru (kode lama otomatis tidak berlaku).</p></div>
+    v.innerHTML = `<div class="row page-act" style="justify-content:space-between;align-items:center;gap:12px 20px"><div><h1>Kode akses</h1><p class="muted">Kode hanya tampil sekali. Bila hilang, buat kode baru.</p></div>
       <button class="btn btn-primary" id="new">+ Buat kode baru</button></div><div style="height:14px"></div>
       <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nama</th><th>Peran</th><th>Disiplin</th><th>Batasan juri</th><th>Kode</th><th>Terakhir masuk</th><th></th></tr></thead><tbody>
       ${rows.map((s) => `<tr><td>${esc(s.name)}${s.active ? '' : ' <span class="pill bad">nonaktif</span>'}${s.note || s.phone ? `<br><span class="tiny muted">${esc([s.phone, s.note].filter(Boolean).join(' · '))}</span>` : ''}</td>
@@ -2071,7 +2090,7 @@
            s.active ? { label: 'Nonaktifkan', attr: `data-act="${s.id}"`, danger: true } : null,
            s.active || s.id === ME.id ? null : { sep: true },
            s.active || s.id === ME.id ? null : { label: 'Hapus permanen', attr: `data-del="${s.id}"`, danger: true }])}</td></tr>`).join('')}</tbody></table></div>
-      <p class="tiny muted" style="margin-top:10px">Hapus hanya muncul untuk kode nonaktif. Kode yang pernah memverifikasi atau memberi nilai tidak bisa dihapus, agar namanya tetap tercatat di riwayat; cukup biarkan nonaktif.</p>`;
+      <p class="tiny muted" style="margin-top:10px">Kode yang sudah dipakai tidak bisa dihapus, cukup nonaktifkan.</p>`;
     const form = (s) => `<div class="field"><label class="f">Nama pemegang kode</label><input id="sn" value="${esc(s ? s.name : '')}" placeholder="Mis. Vici Ayu"></div>
       ${s ? '' : `<div class="field"><label class="f">Peran</label><select id="sr">
         <option value="admin">Admin / verifikator (verifikasi bayar, dokumen, start list, hasil)</option>
@@ -2159,7 +2178,7 @@
     const live = W.last_poll && (Date.now() - new Date(W.last_poll).getTime() < 30 * 60 * 1000);
     const dn = (c) => (c ? DN[c] || c : 'Semua disiplin');
     card.innerHTML = `<h2>Notifikasi WhatsApp</h2>
-      <p class="small">Setiap ${W.interval_min} menit sistem memeriksa bukti bayar baru. Bila ada, penerima di bawah mendapat ringkasan berisi kode pendaftaran, klub, jumlah atlet, total yang menunggu, dan tautan ke konsol. Tidak ada pesan bila tidak ada yang baru.</p>
+      <p class="small">Ringkasan bukti bayar baru dikirim setiap ${W.interval_min} menit, hanya bila ada yang baru.</p>
       <p class="small">${live ? `<span class="pill ok">Terhubung</span> Terakhir diperiksa ${dt(W.last_poll)}` : '<span class="pill warn">Belum terhubung</span> Isi FONNTE_TOKEN di Apps Script (lihat panduan).'}</p>
       <div class="row" style="gap:10px;align-items:end;flex-wrap:wrap">
         <label class="check" style="margin:0"><input type="checkbox" id="wa_on" ${W.enabled ? 'checked' : ''}><span>Kirim notifikasi</span></label>
@@ -2263,10 +2282,10 @@
           <div class="field"><label class="f">Email kontak publik</label><input data-s="contact_email" value="${esc(val('contact_email'))}"></div></div>
           <label class="check"><input type="checkbox" data-sb="email_guardians" ${S.email_guardians ? 'checked' : ''}>Kirim email AIC juga ke orang tua/wali</label></section>
         <section class="card"><h2>Berkas tak terpakai</h2>
-          <p class="small muted">Dokumen, pas foto, dan bukti bayar yang tidak lagi dipakai data mana pun (mis. dari pendaftaran yang kedaluwarsa 15 menit atau data uji). Penghapusan permanen dan tercatat di Log.</p>
+          <p class="small muted">Berkas yang tidak lagi dipakai data mana pun. Penghapusan permanen.</p>
           <div class="actions"><button type="button" class="btn btn-ghost btn-sm" id="orph">Periksa berkas tak terpakai</button></div><div id="orphres"></div></section>
         <section class="card"><h2>Penanda tangan sertifikat</h2>
-          <p class="small muted">Gambar tanda tangan tampil di atas nama pada semua sertifikat. Pakai PNG berlatar transparan atau putih polos; latar putih dibuat transparan otomatis.</p>
+          <p class="small muted">PNG berlatar transparan atau putih.</p>
           ${[0, 1].map((i) => `<div class="sig-row"><div class="sig-prev" data-sigprev="${i}"></div><div style="flex:1;min-width:0"><div class="grid-2"><div class="field"><label class="f">Nama ${i + 1}</label><input data-sig="${i}" data-f="name" value="${esc(sig[i] ? sig[i].name : '')}"></div>
             <div class="field"><label class="f">Jabatan ${i + 1}</label><input data-sig="${i}" data-f="title" value="${esc(sig[i] ? sig[i].title : '')}"></div></div>
             <div class="row" style="gap:8px"><label class="btn btn-ghost btn-sm" style="position:relative;overflow:hidden">Unggah tanda tangan<input type="file" accept="image/png,image/jpeg" data-sigfile="${i}" style="position:absolute;inset:0;opacity:0;cursor:pointer"></label>
@@ -2285,7 +2304,7 @@
         <section class="card" id="wa-card"></section>
         <section class="card" id="dir-card"></section>
         ${ME.role === 'owner' ? `<section class="card"><h2>Modul proyek</h2>
-          <p class="small">Gantt, Struktur, RAB, dan Pendapatan berjalan sebagai modul terpisah. Bila bermasalah, nonaktifkan di sini: menu modul hilang untuk semua peran selain owner, sementara pendaftaran, verifikasi, dan penilaian tetap berjalan.</p>
+          <p class="small">Bila nonaktif, menu modul hilang untuk semua selain owner.</p>
           <label class="check"><input type="checkbox" id="pm_on" ${ME.pm_enabled !== false ? 'checked' : ''}><span>Modul proyek aktif</span></label></section>` : ''}
       </div></div>`;
     drawWa(v.querySelector('#wa-card'));
@@ -2356,15 +2375,86 @@
   // =====================================================================
   //  LOG
   // =====================================================================
+  // ---- Log: tindakan dan detail dalam kalimat biasa (bukan kode JSON) ----
+  const LOG_ACT = {
+    masuk: 'Masuk konsol', pendaftaran_baru: 'Pendaftaran baru', bukti_bayar_diunggah: 'Bukti bayar diunggah',
+    pembayaran_lunas: 'Ditandai lunas', pembayaran_ditolak: 'Bukti bayar ditolak', pendaftaran_dibatalkan: 'Pendaftaran dibatalkan',
+    pendaftaran_dihapus: 'Pendaftaran dihapus', pendaftaran_kedaluwarsa: 'Kedaluwarsa (tanpa bukti bayar)',
+    dokumen_valid: 'Dokumen valid', dokumen_tidak_valid: 'Dokumen tidak valid', musik_ok: 'Musik bisa dibuka', musik_tidak_bisa: 'Musik tidak bisa dibuka',
+    priangan_disetujui: 'Priangan disetujui', priangan_ditolak: 'Priangan ditolak', data_atlet_diubah: 'Data atlet diubah', atlet_dihapus: 'Atlet dihapus',
+    pindah_kategori: 'Pindah kategori', kirim_ulang_email: 'Email dikirim ulang', impor_mutasi: 'Impor mutasi GoBiz', cocokkan_mutasi: 'Mutasi dicocokkan',
+    kode_dibuat: 'Kode akses dibuat', kode_diubah: 'Data kode diubah', kode_diganti: 'Kode akses diganti', kode_dihapus: 'Kode akses dihapus',
+    klub_disimpan: 'Klub disimpan', klub_digabung: 'Klub digabung', klub_dihapus: 'Klub dihapus',
+    faq_status: 'Status FAQ diubah', faq_diubah: 'FAQ diubah', faq_dibuat: 'FAQ dibuat', faq_kategori_dibuat: 'Kategori FAQ dibuat', faq_kategori_diubah: 'Kategori FAQ diubah',
+    juri_mendaftar: 'Juri mendaftar', juri_disetujui: 'Juri disetujui', juri_ditolak: 'Juri ditolak', juri_ditambah: 'Juri ditambahkan', juri_dihapus: 'Juri dihapus',
+    nilai_dikunci: 'Nilai dikunci', nilai_dibuka: 'Kunci nilai dibuka', nilai_akhir: 'Nilai akhir diisi', input_setelah_kunci: 'Nilai diubah setelah kunci',
+    hasil_dipublikasikan: 'Hasil dipublikasikan', hasil_ditarik: 'Hasil ditarik', hasil_beregu_dipublikasikan: 'Hasil beregu dipublikasikan', hasil_beregu_ditarik: 'Hasil beregu ditarik',
+    start_list_disimpan: 'Start list disimpan', start_list_dipublikasikan: 'Start list dipublikasikan', start_list_ditarik: 'Start list ditarik',
+    sesi_disimpan: 'Sesi disimpan', sesi_dihapus: 'Sesi dihapus', undian_urutan: 'Undian urutan tampil', status_entri: 'Status peserta diubah',
+    kategori_diubah: 'Kategori diubah', disiplin_diubah: 'Disiplin diubah', pengaturan_diubah: 'Pengaturan diubah', secret_email_diganti: 'Secret email diganti',
+    laporan_dibuat: 'Laporan masalah dibuat', laporan_status: 'Status laporan diubah', laporan_dihapus: 'Laporan dihapus', pesan_dihapus: 'Pesan chat dihapus',
+    calon_mitra_masuk: 'Calon mitra masuk', calon_mitra_status: 'Status calon mitra diubah', berkas_dihapus: 'Berkas yatim dihapus', data_uji_dihapus: 'Data uji dihapus',
+    wa_penerima_disimpan: 'Penerima WA disimpan', wa_pengaturan: 'Pengaturan WA diubah', wa_tes: 'Tes WA dikirim',
+    proyek_simpan: 'Data proyek disimpan', proyek_unggah: 'Data proyek diunggah', proyek_arsip: 'Data proyek diarsipkan', proyek_saklar: 'Modul proyek dinyalakan/dimatikan',
+  };
+  const logAction = (a) => LOG_ACT[a] || (a.charAt(0).toUpperCase() + a.slice(1).replace(/_/g, ' '));
+  const LOG_KEY = { code: 'Kode', name: 'Nama', note: 'Keterangan', reason: 'Alasan', amount: 'Nominal', total: 'Total', athletes: 'Atlet', teams: 'Tim',
+    role: 'Peran', discipline: 'Disiplin', disciplines: 'Disiplin', phone: 'WA', slug: 'FAQ', status: 'Status', kab_kota: 'Kota', province: 'Provinsi',
+    submissions: 'Pendaftaran', kind: 'Jenis', country: 'Negara', verified: 'Terverifikasi', category: 'Kategori', from: 'Dari', to: 'Ke', title: 'Judul', count: 'Jumlah', files: 'Berkas', rows: 'Baris' };
+  const LOG_ST = { menunggu_pembayaran: 'menunggu pembayaran', menunggu_verifikasi: 'menunggu verifikasi', lunas: 'lunas', perlu_perbaikan: 'perlu perbaikan', dibatalkan: 'dibatalkan',
+    draf: 'Draf', terbit: 'Terbit', arsip: 'Arsip' };
+  function logVal(k, v) {
+    if (Array.isArray(v)) return v.map((x) => (k.startsWith('discipline') ? DN[x] || x : typeof x === 'object' ? '' : x)).filter(Boolean).join(', ');
+    if (typeof v === 'boolean') return v ? 'ya' : 'tidak';
+    if (['amount', 'total', 'paid_amount'].includes(k) && typeof v === 'number') return fmtRp(v);
+    if (k === 'discipline') return DN[v] || v;
+    if (k === 'role') return ROLE[v] || v;
+    if (typeof v === 'object') return '';
+    return LOG_ST[v] || String(v);
+  }
+  function logDetail(r) {
+    const d = r.detail || {}, c = r.ctx || {};
+    const parts = [];
+    const add = (x) => { if (x !== null && x !== undefined && String(x).trim() !== '') parts.push(String(x)); };
+    const who = c.athlete ? c.athlete + (c.athlete_no ? ` (${c.athlete_no})` : '') : c.athletes && typeof c.athletes === 'string' ? c.athletes : d.name;
+    const where = [c.club, c.code || d.code].filter(Boolean).join(' · ');
+    switch (r.action) {
+      case 'masuk': return '<span class="muted">–</span>';
+      case 'dokumen_valid': case 'dokumen_tidak_valid': case 'musik_ok': case 'musik_tidak_bisa': case 'priangan_disetujui': case 'priangan_ditolak':
+        add(who); add(c.category); add(where); if (d.note) add('Catatan: ' + d.note); break;
+      case 'pembayaran_lunas':
+        add(where); if (d.amount != null) add(fmtRp(d.amount));
+        add(d.mutation_match ? 'cocok dengan mutasi GoBiz' : 'diperiksa manual (belum ada mutasi GoBiz)');
+        if (d.note) add('Catatan verifikator: ' + d.note); break;
+      case 'pendaftaran_baru':
+        add(where); if (d.athletes != null) add(d.athletes + ' atlet'); if (d.teams) add(d.teams + ' tim'); if (d.total != null) add('total ' + fmtRp(d.total)); break;
+      case 'pendaftaran_dibatalkan':
+        add(where); if (d.reason) add('Alasan: ' + d.reason); if (d.was) add('sebelumnya ' + logVal('status', d.was)); break;
+      case 'bukti_bayar_diunggah': add(where); break;
+      case 'kode_dibuat': add(d.name); add(ROLE[d.role] || d.role); if (d.discipline) add(DN[d.discipline] || d.discipline); break;
+      case 'kode_diganti': add('Kode baru untuk ' + (d.name || '-')); break;
+      case 'faq_status': add(d.slug); if (d.from || d.to) add(`${logVal('s', d.from)} → ${logVal('s', d.to)}`); break;
+      default:
+        if (where && !d.code) add(where);
+        if (who && !d.name) add(who);
+        Object.entries(d).forEach(([k, v]) => {
+          if (v === null || v === '' || (Array.isArray(v) && !v.length) || k === 'id' || /_id$/.test(k) || /^[0-9a-f-]{36}$/i.test(String(v))) return;
+          const val = logVal(k, v); if (!val) return;
+          add(k === 'name' || k === 'code' ? val : `${LOG_KEY[k] || k.replace(/_/g, ' ')}: ${val}`);
+        });
+    }
+    return parts.length ? esc(parts.join(' · ')) : '<span class="muted">–</span>';
+  }
+
   async function pageLog(v) {
-    v.innerHTML = `<h1>Log</h1><p class="muted">Semua tindakan panitia tercatat dengan nama pemegang kode. Log koreksi nilai menyimpan nilai lama, nilai baru, dan alasannya.</p>
+    v.innerHTML = `<h1>Log</h1>
       <div class="tabs"><button data-t="a" aria-selected="true">Aktivitas</button><button data-t="s" aria-selected="false">Koreksi nilai</button></div><div id="lb"></div>`;
     const lb = v.querySelector('#lb');
     const act = async () => {
       loading(lb);
       const rows = await api('console_audit', { p_filter: { limit: 500 } });
       lb.innerHTML = `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Waktu</th><th>Oleh</th><th>Tindakan</th><th>Detail</th></tr></thead><tbody>
-        ${rows.map((r) => `<tr><td class="small">${dt(r.at)}</td><td>${esc(r.staff || 'Pendaftar')}</td><td>${esc(r.action.replace(/_/g, ' '))}</td><td class="small muted" style="max-width:420px;word-break:break-word">${esc(JSON.stringify(r.detail))}</td></tr>`).join('')}</tbody></table></div>`;
+        ${rows.map((r) => `<tr><td class="small nowrap">${dt(r.at)}</td><td>${esc(r.staff || 'Pendaftar')}</td><td>${esc(logAction(r.action))}</td><td class="small" style="max-width:520px">${logDetail(r)}</td></tr>`).join('')}</tbody></table></div>`;
     };
     const sco = async () => {
       loading(lb);

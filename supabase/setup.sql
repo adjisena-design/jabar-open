@@ -566,18 +566,35 @@ $$;
 -- Huruf lain dibiarkan seperti diketik, jadi kata yang ditulis kapital penuh
 -- (mis. PPOP, DKI) dan bentuk seperti McDonald tetap. Apostrof tidak memulai
 -- kata baru (Ma'ruf tetap Ma'ruf).
-create or replace function jo.name_case(p text) returns text
+-- huruf kapital di awal setiap kata (setelah spasi, -, (, /, ., ')
+create or replace function jo.cap_words(p text) returns text
 language plpgsql immutable set search_path = '' as $$
 declare s text := regexp_replace(btrim(coalesce(p, '')), '\s+', ' ', 'g'); r text := ''; c text; prev text := ' '; i integer;
 begin
   if p is null then return null; end if;
   for i in 1 .. length(s) loop
     c := substr(s, i, 1);
-    if prev in (' ', '-', '(', '/', '.') and c <> upper(c) then c := upper(c); end if;
+    if prev in (' ', '-', '(', '/', '.', '''') and c <> upper(c) then c := upper(c); end if;
     r := r || c; prev := c;
   end loop;
   return r;
 end $$;
+
+-- nama orang: kata tanpa huruf kecil (mis. PUTU, DANILOVA) diturunkan dulu, lalu huruf awal kapital
+create or replace function jo.name_case(p text) returns text
+language sql immutable set search_path = '' as $$
+  select case when p is null then null else jo.cap_words((
+    select coalesce(string_agg(case when w ~ '[[:lower:]]' then w else lower(w) end, ' ' order by o), '')
+    from regexp_split_to_table(regexp_replace(btrim(p), '\s+', ' ', 'g'), ' ') with ordinality as t(w, o))) end
+$$;
+
+-- nama klub/tim: singkatan dipertahankan; hanya nama yang seluruhnya huruf besar yang diturunkan
+create or replace function jo.org_case(p text) returns text
+language sql immutable set search_path = '' as $$
+  select case when p is null then null
+              when p ~ '[[:lower:]]' then jo.cap_words(p)
+              else jo.cap_words(lower(p)) end
+$$;
 
 create or replace function jo.setting(k text) returns jsonb
 language sql stable set search_path = '' as $$
@@ -1612,7 +1629,7 @@ begin
      limit 1;
     if v_club.id is null then
       insert into jo.clubs (name, kind, kab_kota, province, country, created_via)
-      values (jo.name_case(p->'club'->'new'->>'name'),
+      values (jo.org_case(p->'club'->'new'->>'name'),
               coalesce(nullif(p->'club'->'new'->>'kind',''), 'klub'),
               nullif(trim(coalesce(p->'club'->'new'->>'kab_kota','')),''),
               nullif(trim(coalesce(p->'club'->'new'->>'province','')),''),
@@ -1670,7 +1687,7 @@ begin
         raise exception 'Atlet %: isi provinsi dan kabupaten/kota sesuai alamat di identitas.', i using hint = 'ERR_ATHLETE_ADDRESS';
       end if;
     else
-      v_pm := 'manual';
+      null; -- WNA juga membayar lewat QRIS (patch 1 Nov 2026)
       if length(trim(coalesce(a->>'country',''))) < 2 then
         raise exception 'Atlet %: isi negara asal.', i using hint = 'ERR_ATHLETE_ADDRESS';
       end if;
@@ -1838,7 +1855,7 @@ begin
        or not coalesce(jo.setting('team_levels')->v_disc.code ? v_level, false) then
       raise exception 'Beregu tidak tersedia untuk %.', coalesce(nullif(v_level,''), 'level ini') using hint = 'ERR_TEAM_LEVEL';
     end if;
-    v_tname := jo.name_case(coalesce(v_team->>'name',''));
+    v_tname := jo.org_case(coalesce(v_team->>'name',''));
     if length(v_tname) < 2 then
       raise exception 'Tim %: isi nama tim.', ti using hint = 'ERR_TEAM_NAME';
     end if;
@@ -1931,7 +1948,7 @@ begin
           raise exception 'Anggota %: pilih kewarganegaraan.', i using hint = 'ERR_ATHLETE';
         end if;
         if coalesce(a->>'nationality','WNI') = 'WNA' then
-          v_pm := 'manual';
+          null; -- WNA juga membayar lewat QRIS (patch 1 Nov 2026)
           if length(trim(coalesce(a->>'country',''))) < 2 then
             raise exception 'Anggota %: isi negara asal.', i using hint = 'ERR_ATHLETE_ADDRESS';
           end if;
@@ -3762,12 +3779,12 @@ begin
   if length(trim(coalesce(p->>'name',''))) < 2 then raise exception 'Isi nama klub.'; end if;
   if nullif(p->>'id','') is null then
     insert into jo.clubs (name, kind, kab_kota, province, country, verified, created_via)
-    values (jo.name_case(p->>'name'), coalesce(nullif(p->>'kind',''),'klub'), nullif(trim(coalesce(p->>'kab_kota','')),''),
+    values (jo.org_case(p->>'name'), coalesce(nullif(p->>'kind',''),'klub'), nullif(trim(coalesce(p->>'kab_kota','')),''),
       nullif(trim(coalesce(p->>'province','')),''), coalesce(nullif(trim(coalesce(p->>'country','')),''),'Indonesia'),
       coalesce((p->>'verified')::boolean, true), 'konsol')
     returning id into v_id;
   else
-    update jo.clubs set name = jo.name_case(p->>'name'), kind = coalesce(nullif(p->>'kind',''), kind),
+    update jo.clubs set name = jo.org_case(p->>'name'), kind = coalesce(nullif(p->>'kind',''), kind),
       kab_kota = nullif(trim(coalesce(p->>'kab_kota','')),''), province = nullif(trim(coalesce(p->>'province','')),''),
       country = coalesce(nullif(trim(coalesce(p->>'country','')),''), country),
       verified = coalesce((p->>'verified')::boolean, verified)
@@ -3796,9 +3813,19 @@ language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff;
 begin
   st := jo.require_staff(array['owner','superadmin']);
+  -- ctx: konteks yang mudah dibaca (kode pendaftaran, klub, nama atlet, kategori) untuk kolom Detail di konsol
   return (select coalesce(jsonb_agg(jsonb_build_object('id', l.id, 'at', l.at, 'action', l.action,
       'staff', coalesce((select name from jo.staff where id = l.staff_id), l.detail->>'staff_name'), 'target_type', l.target_type,
-      'target_id', l.target_id, 'detail', l.detail) order by l.id desc), '[]'::jsonb)
+      'target_id', l.target_id, 'detail', l.detail,
+      'ctx', case
+        when l.target_type = 'athlete' then (select jsonb_build_object('athlete', a.full_name, 'athlete_no', a.athlete_no, 'code', s.code, 'club', c.name)
+          from jo.athletes a join jo.submissions s on s.id = a.submission_id left join jo.clubs c on c.id = s.club_id where a.id::text = l.target_id)
+        when l.target_type = 'entry' then (select jsonb_build_object('athletes', (select string_agg(a.full_name, ' & ' order by a.sort) from jo.entry_athletes ea join jo.athletes a on a.id = ea.athlete_id where ea.entry_id = e.id),
+            'category', k.name_id, 'code', s.code, 'club', c.name)
+          from jo.entries e join jo.submissions s on s.id = e.submission_id join jo.categories k on k.id = e.category_id left join jo.clubs c on c.id = s.club_id where e.id::text = l.target_id)
+        when l.target_type = 'submission' then (select jsonb_build_object('code', s.code, 'club', c.name, 'contact', s.contact_name, 'athletes', (select count(*) from jo.athletes a where a.submission_id = s.id))
+          from jo.submissions s left join jo.clubs c on c.id = s.club_id where s.id::text = l.target_id)
+      end) order by l.id desc), '[]'::jsonb)
     from (select * from jo.audit
            where (nullif(p_filter->>'action','') is null or action = p_filter->>'action')
            order by id desc limit coalesce((p_filter->>'limit')::integer, 500)) l);
@@ -4661,7 +4688,7 @@ insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, 
 insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$klub-belum-ada$f$, $f$Klub saya tidak ada di daftar. Bagaimana?$f$, $f$Ketik nama klub di kolom pencarian. Bila tidak ditemukan, pilih "Klub saya belum ada di daftar", lalu isi nama klub, provinsi, dan kabupaten/kota. Panitia akan merapikan datanya.$f$, $f$My club is not in the list. What should I do?$f$, $f$Type the club name in the search box. If it is not found, choose "My club is not listed" and fill in the club name, province and regency/city. The committee will tidy up the record.$f$, 90, 'draf', 'Draf awal') on conflict (slug) do nothing;
 insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$salah-data$f$, $f$Saya salah mengisi data atlet atau kategori. Bagaimana memperbaikinya?$f$, $f$Jangan mendaftar ulang. Kirim email ke [jabaropen2026@gmail.com](mailto:jabaropen2026@gmail.com) dengan menyertakan kode pendaftaran (JO26-…) dan data yang perlu diperbaiki. Panitia memperbaikinya dari sistem.$f$, $f$I entered wrong athlete details or the wrong category. How do I fix it?$f$, $f$Do not register again. Email [jabaropen2026@gmail.com](mailto:jabaropen2026@gmail.com) with the registration code (JO26-…) and what needs correcting. The committee will fix it in the system.$f$, 100, 'draf', 'Draf awal') on conflict (slug) do nothing;
 insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$tautan-status$f$, $f$Tautan halaman status hilang. Bagaimana membukanya lagi?$f$, $f$Buka [Cek status](status.html), masukkan kode pendaftaran dan email penanggung jawab. Tautan baru dikirim ke email tersebut; periksa juga folder spam.$f$, $f$I lost the status page link. How do I open it again?$f$, $f$Go to [Check status](status.html) and enter the registration code and the contact email. A new link is sent to that email; check the spam folder too.$f$, 110, 'draf', 'Draf awal') on conflict (slug) do nothing;
-insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$atlet-asing$f$, $f$Bagaimana pendaftaran untuk atlet warga negara asing?$f$, $f$Atlet WNA mendaftar lewat formulir yang sama dengan mengunggah paspor dan pas foto. Pembayarannya dilakukan terpisah: panitia menghubungi penanggung jawab lewat email untuk instruksi pembayaran. Kategori Ritmik Priangan hanya untuk WNI.$f$, $f$How do foreign athletes register?$f$, $f$Foreign athletes use the same form and upload a passport and a passport photo. Payment is handled separately: the committee emails the contact person with payment instructions. The Rhythmic Priangan level is for Indonesian citizens only.$f$, 120, 'draf', 'Draf awal') on conflict (slug) do nothing;
+insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pendaftaran$f$, $f$atlet-asing$f$, $f$Bagaimana pendaftaran untuk atlet warga negara asing?$f$, $f$Atlet WNA mendaftar lewat formulir yang sama dengan mengunggah paspor dan pas foto. Pembayarannya lewat QRIS seperti atlet WNI. Kategori Ritmik Priangan hanya untuk WNI.$f$, $f$How do foreign athletes register?$f$, $f$Foreign athletes use the same form and upload a passport and a passport photo. Payment is by QRIS, like Indonesian athletes. The Rhythmic Priangan level is for Indonesian citizens only.$f$, 120, 'draf', 'Draf awal') on conflict (slug) do nothing;
 insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pembayaran$f$, $f$cara-bayar$f$, $f$Bagaimana cara membayar?$f$, $f$Pindai kode QRIS Jabar Open 2026 di halaman pembayaran atau halaman status dengan aplikasi bank atau dompet digital apa pun, lalu ketik **nominal persis**, termasuk tiga digit terakhir. Tiga digit itu adalah kode unik yang mencocokkan pembayaran dengan pendaftaran Anda; nominal berbeda akan memperlambat verifikasi.$f$, $f$How do I pay?$f$, $f$Scan the Jabar Open 2026 QRIS code on the payment or status page with any bank or e-wallet app, then type the **exact amount**, including the last three digits. Those digits are a unique code that matches the payment to your registration; a different amount slows down verification.$f$, 10, 'draf', 'Draf awal') on conflict (slug) do nothing;
 insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pembayaran$f$, $f$batas-15-menit$f$, $f$Mengapa bukti bayar harus diunggah dalam 15 menit?$f$, $f$Pendaftaran dengan QRIS yang belum mengunggah bukti bayar dalam 15 menit **dihapus otomatis**, dan Anda perlu mendaftar ulang. Hitung mundurnya tampil di halaman pembayaran dan halaman status. Siapkan pembayaran sebelum mengirim formulir.$f$, $f$Why must the payment proof be uploaded within 15 minutes?$f$, $f$QRIS registrations without a payment proof after 15 minutes are **deleted automatically**, and you will need to register again. The countdown is shown on the payment and status pages. Have your payment ready before submitting the form.$f$, 20, 'draf', 'Draf awal') on conflict (slug) do nothing;
 insert into jo.faq_items (category, slug, q_id, a_id, q_en, a_en, sort, status, updated_by) values ($f$pembayaran$f$, $f$verifikasi-bayar$f$, $f$Saya sudah mengunggah bukti bayar. Apa selanjutnya?$f$, $f$Status berubah menjadi "Menunggu verifikasi". Setelah panitia mencocokkan pembayaran, status menjadi "Lunas" dan email berisi tautan unduh AIC dikirim ke penanggung jawab. Bila bukti perlu diperbaiki, Anda menerima email berisi catatan panitia dan bisa mengunggah bukti lain di halaman status.$f$, $f$I have uploaded the payment proof. What happens next?$f$, $f$The status changes to "Awaiting verification". Once the committee matches the payment, the status becomes "Paid" and an email with the AIC download links is sent to the contact person. If the proof needs attention, you receive an email with the committee's note and can upload another proof on the status page.$f$, 30, 'draf', 'Draf awal') on conflict (slug) do nothing;
@@ -6154,11 +6181,11 @@ update jo.settings set value = '""'::jsonb, updated_at = now()
  where key = 'pm_email' and value = '"adjisena.daffa@gmail.com"'::jsonb;
 
 -- v9 (19/10/2026): nama orang, klub, dan tim memakai huruf kapital di awal setiap kata (jo.name_case)
-update jo.clubs set name = jo.name_case(name) where name is distinct from jo.name_case(name);
+update jo.clubs set name = jo.org_case(name) where name is distinct from jo.org_case(name);
 update jo.athletes set full_name = jo.name_case(full_name) where full_name is distinct from jo.name_case(full_name);
 update jo.athletes set guardian_name = jo.name_case(guardian_name) where guardian_name is not null and guardian_name is distinct from jo.name_case(guardian_name);
 update jo.submissions set contact_name = jo.name_case(contact_name) where contact_name is distinct from jo.name_case(contact_name);
-update jo.teams set name = jo.name_case(name) where name is distinct from jo.name_case(name);
+update jo.teams set name = jo.org_case(name) where name is distinct from jo.org_case(name);
 update jo.jury_applications set full_name = jo.name_case(full_name) where full_name is distinct from jo.name_case(full_name);
 
 -- v10 (21/10/2026): batas pendaftaran diperpanjang ke 27 November 2026 23.59 WIB

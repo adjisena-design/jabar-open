@@ -115,7 +115,7 @@ hapus semua salinan sesuai jadwal penghapusan dokumen (Januari 2027).
     const fBytes = files.reduce((a, f) => a + (Number(f.size) || 0), 0);
     const rows = meta.tables.reduce((a, t) => a + Number(t.rows), 0);
     v.innerHTML = `<h1>Backup darurat</h1>
-      <p class="muted">Hanya owner. Setiap unduhan adalah file baru bertanggal dan berjam, jadi tidak ada yang tertimpa. Disarankan seminggu sekali sampai 4 Desember, lalu setiap hari mulai 5 Desember.</p>
+      <p class="muted">Seminggu sekali sampai 4 Desember, setiap hari mulai 5 Desember.</p>
       <div class="bk-grid">
         <section class="card"><h2>1. Data lengkap</h2>
           <p class="small">${meta.tables.length} tabel, ${rows.toLocaleString('id-ID')} baris. Satu ZIP berisi <b>data.json</b> untuk pemulihan, <b>Excel</b> satu tab per tabel untuk dibaca, <b>TITIK-LANJUT.txt</b> (di mana kerja berhenti), dan <b>CARA-PULIHKAN.txt</b>.</p>

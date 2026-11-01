@@ -295,7 +295,7 @@ begin
      limit 1;
     if v_club.id is null then
       insert into jo.clubs (name, kind, kab_kota, province, country, created_via)
-      values (jo.name_case(p->'club'->'new'->>'name'),
+      values (jo.org_case(p->'club'->'new'->>'name'),
               coalesce(nullif(p->'club'->'new'->>'kind',''), 'klub'),
               nullif(trim(coalesce(p->'club'->'new'->>'kab_kota','')),''),
               nullif(trim(coalesce(p->'club'->'new'->>'province','')),''),
@@ -353,7 +353,7 @@ begin
         raise exception 'Atlet %: isi provinsi dan kabupaten/kota sesuai alamat di identitas.', i using hint = 'ERR_ATHLETE_ADDRESS';
       end if;
     else
-      v_pm := 'manual';
+      null; -- WNA juga membayar lewat QRIS (patch 1 Nov 2026)
       if length(trim(coalesce(a->>'country',''))) < 2 then
         raise exception 'Atlet %: isi negara asal.', i using hint = 'ERR_ATHLETE_ADDRESS';
       end if;
@@ -521,7 +521,7 @@ begin
        or not coalesce(jo.setting('team_levels')->v_disc.code ? v_level, false) then
       raise exception 'Beregu tidak tersedia untuk %.', coalesce(nullif(v_level,''), 'level ini') using hint = 'ERR_TEAM_LEVEL';
     end if;
-    v_tname := jo.name_case(coalesce(v_team->>'name',''));
+    v_tname := jo.org_case(coalesce(v_team->>'name',''));
     if length(v_tname) < 2 then
       raise exception 'Tim %: isi nama tim.', ti using hint = 'ERR_TEAM_NAME';
     end if;
@@ -614,7 +614,7 @@ begin
           raise exception 'Anggota %: pilih kewarganegaraan.', i using hint = 'ERR_ATHLETE';
         end if;
         if coalesce(a->>'nationality','WNI') = 'WNA' then
-          v_pm := 'manual';
+          null; -- WNA juga membayar lewat QRIS (patch 1 Nov 2026)
           if length(trim(coalesce(a->>'country',''))) < 2 then
             raise exception 'Anggota %: isi negara asal.', i using hint = 'ERR_ATHLETE_ADDRESS';
           end if;

@@ -387,22 +387,29 @@
     return doc;
   }
 
-  // Nama orang, klub, tim: huruf pertama tiap kata kapital; huruf lain tetap seperti diketik
-  // (kata kapital penuh seperti PPOP/DKI tidak berubah). Sama dengan jo.name_case di database.
+  // Sama dengan jo.cap_words / jo.name_case / jo.org_case di database.
+  const capWords = (v) => String(v || '').trim().replace(/\s+/g, ' ').replace(/(^|[\s\-(\/.'])(\p{Ll})/gu, (m, a, b) => a + b.toUpperCase());
+  // Nama orang: kata HURUF BESAR SEMUA diturunkan dulu (PUTU ALISA -> Putu Alisa)
   function nameCase(v) {
-    return String(v || '').trim().replace(/\s+/g, ' ').replace(/(^|[\s\-(\/.])(\p{Ll})/gu, (m, a, b) => a + b.toUpperCase());
+    return capWords(String(v || '').trim().split(/\s+/).map((w) => (/\p{Ll}/u.test(w) ? w : w.toLowerCase())).join(' '));
+  }
+  // Nama klub/tim: singkatan (PPOP, DKI) tetap, kecuali seluruh nama diketik huruf besar
+  function orgCase(v) {
+    const s = String(v || '');
+    return capWords(/\p{Ll}/u.test(s) ? s : s.toLowerCase());
   }
   // pasang di formulir: rapikan saat kolom ditinggalkan
-  function autoNameCase(root, sel) {
+  function autoNameCase(root, sel, fn) {
+    const f = fn || nameCase;
     root.addEventListener('focusout', (e) => {
       const el = e.target;
       if (!el.matches || !el.matches(sel)) return;
-      const v = nameCase(el.value);
+      const v = f(el.value);
       if (v !== el.value) { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); }
     });
   }
   window.JO = {
-    nameCase, autoNameCase,
+    nameCase, orgCase, autoNameCase,
     sb, config: C, t, addDict, applyI18n, setLang, onLang, get lang() { return lang; },
     fmtRp, fmtDate, fmtDateTime, esc, statusPill, amountHtml, compAge, isMinor,
     ensureSession, rpc, uploadFile, photoThumb, toast, header, footer, qs, siteUrl, qrSvg, ticketPdf, certificatePdf,
