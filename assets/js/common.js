@@ -102,7 +102,83 @@
     }
     return res.data.user.id;
   }
+   /* ===== Turnstile — ditambahkan 2 November 2026 ===== */
+
+// Fungsi yang dilewatkan Edge Function. Tambah entri di sini untuk melindungi endpoint lain.
+// CATATAN: setiap halaman yang memanggil fungsi di daftar ini WAJIB punya widget Turnstile,
+// kalau tidak fungsi itu akan selalu gagal di halaman tersebut.
+const GUARDED_FN = {
+  public_register: { action: 'register', map: (a) => a },
+};
+
+let joTsToken = null;
+
+window.joTurnstileOk = function (token) {
+  joTsToken = token;
+  document.dispatchEvent(new CustomEvent('jo:turnstile', { detail: { ready: true } }));
+};
+
+window.joTurnstileGone = function () {
+  joTsToken = null;
+  document.dispatchEvent(new CustomEvent('jo:turnstile', { detail: { ready: false } }));
+};
+
+function joTurnstileReset() {
+  joTsToken = null;
+  try { if (window.turnstile) window.turnstile.reset(); } catch (e) {}
+}
+
+async function rpcGuarded(fn, args) {
+  const spec = GUARDED_FN[fn];
+
+  await ensureSession();
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) throw new Error('Sesi browser belum siap. Muat ulang halaman.');
+
+  if (!joTsToken) {
+    throw new Error('Verifikasi keamanan belum selesai. Tunggu sebentar lalu coba lagi.');
+  }
+
+  let res, out;
+  try {
+    res = await fetch(JO_CONFIG.supabaseUrl + '/functions/v1/guarded-submit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + session.access_token,
+        'apikey': JO_CONFIG.supabaseKey,
+      },
+      body: JSON.stringify({
+        action: spec.action,
+        turnstile_token: joTsToken,
+        payload: spec.map(args || {}),
+      }),
+    });
+    out = await res.json();
+  } catch (e) {
+    joTurnstileReset();
+    throw new Error('Gagal menghubungi server. Periksa koneksi lalu coba lagi.');
+  }
+
+  // Token Turnstile sekali pakai: selalu bersihkan setelah dicoba, berhasil atau gagal.
+  joTurnstileReset();
+
+  if (!res.ok) {
+    // Bentuk error dibuat sama persis dengan rpc() asli: message + hint + code,
+    // supaya penanganan error di daftar.js tidak perlu diubah sama sekali.
+    const err = new Error((out && out.message) || 'Permintaan gagal.');
+    if (out && out.hint) err.hint = out.hint;
+    if (out && out.code) err.code = out.code;
+    throw err;
+  }
+  return out;
+}
+
+/* ===== akhir blok Turnstile ===== */
   async function rpc(fn, args) {
+     if (GUARDED_FN[fn]) return await rpcGuarded(fn, args);   // <-- HANYA baris ini yang baru
+  // ...sisa isi fungsi rpc yang sudah ada, JANGAN diubah...
+}
     let res;
     try { res = await sb.rpc(fn, args || {}); }
     catch (e) { throw new Error(t('err_network')); }
