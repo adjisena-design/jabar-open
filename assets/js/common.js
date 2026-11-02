@@ -177,8 +177,6 @@ async function rpcGuarded(fn, args) {
 /* ===== akhir blok Turnstile ===== */
   async function rpc(fn, args) {
      if (GUARDED_FN[fn]) return await rpcGuarded(fn, args);   // <-- HANYA baris ini yang baru
-  // ...sisa isi fungsi rpc yang sudah ada, JANGAN diubah...
-}
     let res;
     try { res = await sb.rpc(fn, args || {}); }
     catch (e) { throw new Error(t('err_network')); }
