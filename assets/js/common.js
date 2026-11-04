@@ -112,9 +112,12 @@ const GUARDED_FN = {
 };
 
 let joTsToken = null;
+let joTsAt = 0;                 // kapan token terakhir diterima (ms)
+const JO_TS_MAX_AGE = 240000;   // token Turnstile berlaku 300 dtk; perbarui bila lebih tua dari 4 menit
 
 window.joTurnstileOk = function (token) {
   joTsToken = token;
+  joTsAt = Date.now();
   document.dispatchEvent(new CustomEvent('jo:turnstile', { detail: { ready: true } }));
 };
 
@@ -128,16 +131,28 @@ function joTurnstileReset() {
   try { if (window.turnstile) window.turnstile.reset(); } catch (e) {}
 }
 
-async function rpcGuarded(fn, args) {
+// 4 Nov 2026: tab di latar belakang / ponsel tidur menahan timer auto-refresh Turnstile, sehingga
+// widget tampil "Berhasil!" padahal tokennya sudah kedaluwarsa (Cloudflare: timeout-or-duplicate).
+// Sebelum kirim: bila token kosong atau tua, minta token baru dan tunggu (maks. 20 dtk).
+function joFreshToken() {
+  if (joTsToken && Date.now() - joTsAt < JO_TS_MAX_AGE) return Promise.resolve(joTsToken);
+  joTurnstileReset();
+  return new Promise((resolve, reject) => {
+    const done = (ok) => { clearTimeout(timer); document.removeEventListener('jo:turnstile', on); ok ? resolve(joTsToken) : reject(new Error('Verifikasi keamanan belum selesai. Tunggu tanda "Berhasil!" di bawah formulir, lalu tekan Kirim lagi. Isian Anda tidak hilang.')); };
+    const on = (e) => { if (e.detail && e.detail.ready && joTsToken) done(true); };
+    const timer = setTimeout(() => done(false), 20000);
+    document.addEventListener('jo:turnstile', on);
+  });
+}
+
+async function rpcGuarded(fn, args, retried) {
   const spec = GUARDED_FN[fn];
 
   await ensureSession();
   const { data: { session } } = await sb.auth.getSession();
   if (!session) throw new Error('Sesi browser belum siap. Muat ulang halaman.');
 
-  if (!joTsToken) {
-    throw new Error('Verifikasi keamanan belum selesai. Tunggu sebentar lalu coba lagi.');
-  }
+  const token = await joFreshToken();
 
   let res, out;
   try {
@@ -150,7 +165,7 @@ async function rpcGuarded(fn, args) {
       },
       body: JSON.stringify({
         action: spec.action,
-        turnstile_token: joTsToken,
+        turnstile_token: token,
         payload: spec.map(args || {}),
       }),
     });
@@ -162,6 +177,9 @@ async function rpcGuarded(fn, args) {
 
   // Token Turnstile sekali pakai: selalu bersihkan setelah dicoba, berhasil atau gagal.
   joTurnstileReset();
+
+  // Token ditolak Cloudflare (kedaluwarsa/ganda): ambil token baru dan coba sekali lagi otomatis.
+  if (res.status === 403 && !retried) return rpcGuarded(fn, args, true);
 
   if (!res.ok) {
     // Bentuk error dibuat sama persis dengan rpc() asli: message + hint + code,

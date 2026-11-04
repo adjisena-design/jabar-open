@@ -1058,6 +1058,8 @@
   // ---------- selesai: tagihan & bayar ----------
   function renderDone() {
     const r = S.result;
+    // Widget Turnstile tidak dipakai lagi setelah terkirim; sembunyikan agar tidak membingungkan.
+    const ts = document.getElementById('jo-turnstile'); if (ts) ts.style.display = 'none';
     const statusUrl = `status.html?k=${encodeURIComponent(r.code)}&t=${encodeURIComponent(r.token)}`;
     const qris = CFG.payment.qris_image_url;
     app.innerHTML = `<section class="card">
