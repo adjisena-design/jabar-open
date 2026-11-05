@@ -54,6 +54,7 @@ begin
   st := jo.require_staff(array['owner','superadmin','bendahara']);
   return jsonb_build_object(
     'can_edit', true,
+    'can_delete', st.role in ('owner','superadmin'),
     'counts', (select coalesce(jsonb_object_agg(status, n), '{}'::jsonb) from (select status, count(*) n from jo.partner_leads group by status) x),
     'items', (select coalesce(jsonb_agg(to_jsonb(l) || jsonb_build_object('updated_by_name', (select name from jo.staff where id = l.updated_by))
                order by l.created_at desc), '[]'::jsonb) from jo.partner_leads l));
@@ -69,5 +70,21 @@ begin
    where id = p_id;
   if not found then raise exception 'Data tidak ditemukan.'; end if;
   perform jo.log(st.id, 'calon_mitra_status', 'partner_lead', p_id::text, jsonb_build_object('status', p_status));
+  return jsonb_build_object('ok', true);
+end $$;
+
+-- Hapus calon mitra (5 Nov 2026): owner & superadmin, alasan opsional, ringkasan tetap di Log.
+-- Tidak ada berkas terkait, jadi cukup hapus barisnya.
+create or replace function public.console_partner_lead_delete(p_id uuid, p_reason text) returns jsonb
+language plpgsql volatile security definer set search_path = '' as $$
+declare st jo.staff; l jo.partner_leads;
+begin
+  st := jo.require_staff(array['owner','superadmin']);
+  select * into l from jo.partner_leads where id = p_id for update;
+  if l.id is null then raise exception 'Data tidak ditemukan.'; end if;
+  delete from jo.partner_leads where id = l.id;
+  perform jo.log(st.id, 'calon_mitra_dihapus', 'partner_lead', l.id::text,
+    jsonb_build_object('perusahaan', l.company, 'nama', l.name, 'phone', l.phone, 'status', l.status,
+                       'reason', nullif(trim(coalesce(p_reason, '')), '')));
   return jsonb_build_object('ok', true);
 end $$;

@@ -1913,7 +1913,7 @@
           <td class="small" style="max-width:360px;white-space:pre-line">${esc(x.inquiry || '–')}${x.note ? `<br><span class="tiny muted">Catatan: ${esc(x.note)}${x.updated_by_name ? ` (${esc(x.updated_by_name)})` : ''}</span>` : ''}</td>
           <td><span class="pill ${LEAD_ST[x.status][1]}">${LEAD_ST[x.status][0]}</span></td>
           <td class="r"><span class="rm"><a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${esc(waText(x.phone, `Halo ${x.name}, terima kasih atas minat ${x.company} untuk bermitra dengan Jabar Open 2026. Kami dari panitia ingin menindaklanjuti.`))}">WhatsApp</a>
-            <button class="btn btn-dark btn-sm" data-lead="${x.id}">Status</button></span></td></tr>`).join('')}</tbody></table></div>`
+            <button class="btn btn-dark btn-sm" data-lead="${x.id}">Status</button>${D.can_delete ? ` <button class="btn btn-bad btn-sm" data-ldel="${x.id}">Hapus</button>` : ''}</span></td></tr>`).join('')}</tbody></table></div>`
         : '<p class="empty">Belum ada calon mitra di daftar ini.</p>'}`;
     labelTables(v);
     v.querySelectorAll('[data-st]').forEach((b) => (b.onclick = () => { leadState.st = b.dataset.st; pageLeads(v); }));
@@ -1924,6 +1924,14 @@
           <div class="field"><label class="f" for="ln">Catatan</label><textarea id="ln" placeholder="Mis. minat paket Gold, kirim MoU minggu depan">${esc(x.note || '')}</textarea></div>`,
         onOk: (d) => api('console_partner_lead_update', { p_id: x.id, p_status: d.querySelector('#ls').value, p_note: d.querySelector('#ln').value }) });
       if (r) { JO.toast('Tersimpan.', 'ok'); pageLeads(v); }
+    }));
+    v.querySelectorAll('[data-ldel]').forEach((b) => (b.onclick = async () => {
+      const x = D.items.find((i) => i.id === b.dataset.ldel);
+      const reason = await askReason('Hapus ' + x.company + '?', 'Alasan (masuk Log)', { required: false, ok: 'Hapus permanen', okClass: 'btn-bad',
+        intro: `Data calon mitra ${esc(x.name)} (${esc(x.company)}) dihapus permanen. Ringkasannya tetap tercatat di Log.` });
+      if (reason === null) return;
+      try { await api('console_partner_lead_delete', { p_id: x.id, p_reason: reason }); JO.toast('Calon mitra dihapus.'); pageLeads(v); }
+      catch (e) { JO.toast(e.message, 'bad'); }
     }));
   }
 
@@ -2393,7 +2401,7 @@
     sesi_disimpan: 'Sesi disimpan', sesi_dihapus: 'Sesi dihapus', undian_urutan: 'Undian urutan tampil', status_entri: 'Status peserta diubah',
     kategori_diubah: 'Kategori diubah', disiplin_diubah: 'Disiplin diubah', pengaturan_diubah: 'Pengaturan diubah', secret_email_diganti: 'Secret email diganti',
     laporan_dibuat: 'Laporan masalah dibuat', laporan_status: 'Status laporan diubah', laporan_dihapus: 'Laporan dihapus', pesan_dihapus: 'Pesan chat dihapus',
-    calon_mitra_masuk: 'Calon mitra masuk', calon_mitra_status: 'Status calon mitra diubah', berkas_dihapus: 'Berkas yatim dihapus', data_uji_dihapus: 'Data uji dihapus',
+    calon_mitra_masuk: 'Calon mitra masuk', calon_mitra_status: 'Status calon mitra diubah', calon_mitra_dihapus: 'Calon mitra dihapus', berkas_dihapus: 'Berkas yatim dihapus', data_uji_dihapus: 'Data uji dihapus',
     wa_penerima_disimpan: 'Penerima WA disimpan', wa_pengaturan: 'Pengaturan WA diubah', wa_tes: 'Tes WA dikirim',
     proyek_simpan: 'Data proyek disimpan', proyek_unggah: 'Data proyek diunggah', proyek_arsip: 'Data proyek diarsipkan', proyek_saklar: 'Modul proyek dinyalakan/dimatikan',
   };
