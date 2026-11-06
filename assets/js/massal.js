@@ -177,7 +177,9 @@
 
   // ---------------- penyimpanan ----------------
   function setSaveLabel() {
-    const el = document.getElementById('ms-save'); if (!el) return;
+    document.querySelectorAll('[data-save]').forEach(setSaveEl);
+  }
+  function setSaveEl(el) {
     el.className = 'ms-save';
     if (saveErr) { el.classList.add('bad'); el.textContent = 'Belum tersimpan: ' + saveErr; return; }
     if (saving) { el.textContent = 'Menyimpan…'; return; }
@@ -461,7 +463,6 @@
   // ---------------- 4. portal ----------------
   function drawMain() {
     app.innerHTML = `<div class="ms-top" id="ms-top"></div>
-      <p class="note warn ms-mobile-note small">Lembar atlet paling nyaman diisi dari laptop atau komputer.</p>
       <div class="ms-tabs" role="tablist">
         <button role="tab" data-tab="sheet">Lembar atlet</button>
         <button role="tab" data-tab="batch">Batch &amp; pembayaran</button>
@@ -486,7 +487,7 @@
     el.innerHTML = `<div class="who"><b>${esc(clubName())}</b><small>${esc(ACC.code_label)} · ${esc(personName())}</small></div>
       <span class="ms-clock ${clockCls}">${ms == null ? '' : ms <= 0 ? 'Masa pengisian berakhir ' + esc(fmtDT(ACC.expires_at)) : 'Sisa waktu pengisian: ' + leftText(ms)}</span>
       <span class="sp"></span>
-      <span class="ms-save" id="ms-save"></span>
+      <span class="ms-save" data-save></span>
       ${askExt ? `<a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${esc(waLink(`Halo Kak Inda, saya ${personName()} dari ${clubName()}. Masa pengisian Pendaftaran Massal kami berakhir ${fmtDT(ACC.expires_at)}. Saat ini ${done} dari ${total} atlet sudah lengkap. Mohon perpanjangan waktu. Terima kasih.`))}">Minta perpanjangan</a>` : ''}
       <a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${esc(waLink(`Halo Kak Inda, saya ${personName()} dari ${clubName()} (Pendaftaran Massal ${ACC.code_label}). Saya butuh bantuan terkait: `))}">Bantuan (WhatsApp Inda)</a>
       <button class="btn btn-ghost btn-sm" id="ms-out">Keluar</button>`;
@@ -521,17 +522,20 @@
     const body = document.getElementById('ms-body');
     const locked = ACC.locked;
     body.innerHTML = `${locked ? '<p class="note warn">Masa pengisian sudah berakhir. Lembar hanya bisa dilihat. Batch yang sudah dikirim tetap bisa dibayar di tab Batch &amp; pembayaran.</p>' : ''}
-      <div class="ms-bar" id="ms-sum"></div>
-      <div class="ms-bar">
-        <input id="ms-q" class="input" style="max-width:240px" placeholder="Cari nama atau no. baris" value="${esc(Q)}">
-        ${locked ? '' : `<button class="btn btn-ghost btn-sm" id="ms-more">Tambah 10 baris</button>
-        <button class="btn btn-ghost btn-sm" id="ms-paste">Cara tempel dari Excel</button>
-        <button class="btn btn-ghost btn-sm" id="ms-docs">Unggah dokumen sekaligus</button>
-        <button class="btn btn-ghost btn-sm" id="ms-save-now">Simpan sekarang</button>
-        <span class="sp" style="flex:1"></span>
-        <button class="btn btn-ghost btn-sm" id="ms-selok">Pilih semua yang siap</button>
-        <button class="btn btn-dark btn-sm" id="ms-send">Kirim batch (<span id="ms-seln">0</span>)</button>`}
-      </div>
+      ${locked ? '' : `<div class="ms-tools">
+        <div class="ms-grp"><span class="ms-lbl">1. Isi data</span><div class="ms-btns">
+          <button class="btn btn-primary btn-sm" id="ms-paste">Tempel dari Excel</button>
+          <button class="btn btn-ghost btn-sm" id="ms-docs">Unggah dokumen sekaligus</button>
+          <button class="btn btn-ghost btn-sm" id="ms-more">+ 10 baris</button></div></div>
+        <div class="ms-grp"><span class="ms-lbl">2. Simpan</span><div class="ms-btns">
+          <button class="btn btn-primary btn-sm" id="ms-save-now">Simpan sekarang</button>
+          <span class="ms-save" data-save></span></div></div>
+        <div class="ms-grp ms-grp-send"><span class="ms-lbl">3. Kirim</span><div class="ms-btns">
+          <button class="btn btn-ghost btn-sm" id="ms-selok">Pilih semua yang siap</button>
+          <button class="btn btn-dark btn-sm" id="ms-send">Kirim batch (<span id="ms-seln">0</span>)</button></div></div>
+      </div>`}
+      <div class="ms-filter"><span class="ms-lbl">Tampilkan</span><div class="ms-bar" id="ms-sum"></div>
+        <input id="ms-q" class="input" placeholder="Cari nama atau no. baris" value="${esc(Q)}"></div>
       <div class="ms-sheet-wrap"><table class="ms-sheet" id="ms-sheet"><thead><tr>
         <th class="stk c-sel"><span class="sr-only">Pilih</span></th><th class="stk c-no">No</th><th class="stk c-name">Nama lengkap</th>
         <th>L/P</th><th>Tanggal lahir</th><th>WNI/WNA</th><th>Provinsi / negara</th><th>Kab/kota</th><th>Disiplin</th><th>Kategori</th>
@@ -542,7 +546,7 @@
     q.oninput = () => { Q = q.value.trim().toLowerCase(); drawRows(); };
     if (!locked) {
       body.querySelector('#ms-more').onclick = () => { EXTRA_ROWS += 10; drawRows(); };
-      body.querySelector('#ms-paste').onclick = pasteHelp;
+      body.querySelector('#ms-paste').onclick = pasteBox;
       body.querySelector('#ms-docs').onclick = bulkDocs;
       body.querySelector('#ms-save-now').onclick = () => flush();
       body.querySelector('#ms-selok').onclick = () => {
@@ -557,7 +561,7 @@
     tb.addEventListener('focusout', onBlur);
     tb.addEventListener('paste', onPaste);
     tb.addEventListener('click', onClick);
-    drawSummary(); drawRows(); updSel();
+    drawSummary(); drawRows(); updSel(); setSaveLabel();
   }
   function drawSummary() {
     const el = document.getElementById('ms-sum'); if (!el) return;
@@ -846,6 +850,13 @@
     const startNo = Number(el.closest('tr').dataset.row);
     const key = { team_name: 'extra', pair_row: 'extra', pair_category: 'extra' }[el.dataset.k] || el.dataset.k;
     const startIdx = PASTE.indexOf(key); if (startIdx < 0) return;
+    pasteLines(lines, startNo, startIdx);
+  }
+  function firstFreeRow() {
+    for (let no = 1; no <= maxAth(); no++) { const r = ROWS.get(no); if (!r || (!r.batch_id && rowEmpty(r.data))) return no; }
+    return null;
+  }
+  function pasteLines(lines, startNo, startIdx) {
     let done = 0, stopped = '';
     for (let i = 0; i < lines.length; i++) {
       const no = startNo + i;
@@ -859,18 +870,31 @@
     validateAll(); drawRows(); refreshStates();
     JO.toast(`${done} baris ditempel.${stopped ? ' ' + stopped : ''} Periksa kolom yang berwarna merah.`, stopped ? 'bad' : undefined);
   }
-  function pasteHelp() {
+  function pasteBox() {
+    const start = firstFreeRow();
     const m = modal(`<h2>Tempel dari Excel atau Google Sheets</h2>
-      <p>Susun kolom di Excel dengan urutan yang sama seperti lembar ini, lalu salin blok selnya (tanpa judul kolom) dan tempel (Ctrl+V / Cmd+V) di sel <b>Nama lengkap</b> baris pertama yang ingin diisi.</p>
+      <p>Di Excel, susun kolom dengan urutan di bawah, blok semua baris atlet <b>tanpa judul kolom</b>, salin (Ctrl+C / Cmd+C), lalu tempel di kotak ini (Ctrl+V / Cmd+V).</p>
+      <textarea id="pbox" class="input" rows="6" style="width:100%;font-family:ui-monospace,monospace;font-size:.8rem" placeholder="Tempel di sini"></textarea>
+      <p class="small" id="pinfo">${start ? `Data akan mengisi mulai baris <b>${pad3(start)}</b> (baris kosong pertama).` : 'Lembar sudah penuh.'}</p>
+      <details class="small"><summary>Urutan kolom</summary>
       <ol class="small" style="line-height:1.7">
         <li>Nama lengkap</li><li>L/P (L atau P)</li><li>Tanggal lahir (tanggal/bulan/tahun, mis. 05/03/2014)</li><li>WNI atau WNA</li>
         <li>Provinsi (WNI) atau negara (WNA)</li><li>Kabupaten/kota</li><li>Disiplin (Ritmik, Artistik Putri, Artistik Putra, Aerobik)</li>
         <li>Kategori (kode, mis. RG-A-KU1112, atau nama persis seperti di daftar)</li><li>Nama tim (Artistik) atau no. baris pasangan (Aerobik)</li>
         <li>Nama orang tua/wali</li><li>Hubungan</li><li>WhatsApp orang tua/wali</li><li>Email orang tua/wali</li><li>Musik 1, Musik 2, Musik 3 (Ritmik)</li>
       </ol>
-      <p class="small muted">Boleh juga menempel mulai dari kolom lain (mis. hanya kolom orang tua/wali): klik sel pertama kolom itu, lalu tempel. Dokumen tidak bisa ditempel; unggah per baris atau lewat "Unggah dokumen sekaligus".</p>
-      <div class="acts"><button class="btn btn-dark" id="ok">Mengerti</button></div>`);
-    m.querySelector('#ok').onclick = () => m.remove();
+      </details>
+      <p class="small muted">Untuk mengisi kolom tertentu saja (mis. hanya orang tua/wali), klik sel pertama kolom itu di lembar lalu tempel langsung di sana. Dokumen tidak bisa ditempel; gunakan "Unggah dokumen sekaligus".</p>
+      <div class="acts"><button class="btn btn-ghost" id="cx">Batal</button><button class="btn btn-dark" id="ok" disabled>Masukkan ke lembar</button></div>`);
+    const ta = m.querySelector('#pbox'), ok = m.querySelector('#ok'), info = m.querySelector('#pinfo');
+    const lines = () => { const l = ta.value.replace(/\r/g, '').split('\n'); while (l.length && !l[l.length - 1].trim()) l.pop(); return l; };
+    ta.oninput = () => {
+      const n = lines().length; ok.disabled = !n || !start;
+      if (start && n) info.innerHTML = `${n} baris akan mengisi baris <b>${pad3(start)}</b> sampai <b>${pad3(Math.min(maxAth(), start + n - 1))}</b>.`;
+    };
+    m.querySelector('#cx').onclick = () => m.remove();
+    ok.onclick = () => { const l = lines(); m.remove(); if (FILTER !== 'all' || Q) { FILTER = 'all'; Q = ''; const q = document.getElementById('ms-q'); if (q) q.value = ''; drawSummary(); } pasteLines(l, start, 0); };
+    setTimeout(() => ta.focus(), 50);
   }
 
   // ---------------- unggah dokumen sekaligus ----------------
