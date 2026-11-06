@@ -6278,7 +6278,7 @@ begin
     owner_email = lower(trim(p->>'email')), owner_role = v_role, collaborators = v_col, updated_at = now()
    where id = b.id returning * into b;
   perform jo.bulk_add_log(b.id, b.owner_name, case when v_first then 'data_pemilik' else 'data_pemilik_diubah' end,
-    jsonb_build_object('collaborators', (select coalesce(jsonb_agg(x->>'name'), '[]'::jsonb) from jsonb_array_elements(v_col) x)));
+    jsonb_build_object('collaborators', (select coalesce(jsonb_agg(c->>'name'), '[]'::jsonb) from jsonb_array_elements(v_col) c)));
   if v_first then perform jo.queue_bulk_email(b.id, 'massal_aktif'); end if;
   return jo.bulk_public_json(b);
 end $$;
