@@ -76,6 +76,13 @@
     return CFG.categories.filter((c) => c.discipline === d.discipline && c.entry_type === 'individual'
       && (String(c.id) === String(d.category_id) || !mism(c, d.gender, d.birth_date)));
   }
+  const DISC_NAME = (code) => ((CFG.disciplines || []).find((x) => x.code === code) || {}).name_id || code;
+  const FAQ_CAT = 'faq.html#kategori-tidak-muncul';
+  function noCatMsg(d) {
+    const y = (d.birth_date || '').slice(0, 4);
+    const g = d.gender === 'M' ? 'putra ' : d.gender === 'F' ? 'putri ' : '';
+    return `Tidak ada kategori ${DISC_NAME(d.discipline)} untuk ${g}kelahiran ${y}`;
+  }
   function pairOptions(d) {
     return CFG.categories.filter((c) => c.discipline === d.discipline && c.entry_type === 'pair'
       && (String(c.id) === String(d.pair_category_id) || !mism(c, null, d.birth_date)));
@@ -114,10 +121,15 @@
       if (!(d.team_name || '').trim()) E.extra = 'Isi nama tim';
     } else {
       const c = catById(d.category_id);
-      if (!c && !(d.discipline === 'AER' && d.pair_category_id)) E.category = 'Pilih kategori';
+      if (!c && !(d.discipline === 'AER' && d.pair_category_id)) {
+        if (!E.birth_date && !catOptions(d).length) {
+          E.category = noCatMsg(d) + '. Periksa tanggal lahir, L/P, atau disiplin.';
+          E.birth_date = `Kelahiran ${d.birth_date.slice(0, 4)} tidak masuk kategori ${DISC_NAME(d.discipline)} mana pun`;
+        } else E.category = 'Pilih kategori';
+      }
       if (c) {
         const m = mism(c, d.gender, d.birth_date);
-        if (m) E.category = 'Kategori ini ' + m;
+        if (m) { E.category = 'Kategori ini ' + m; if (/kelahiran/.test(m)) E.birth_date = 'Tidak sesuai kategori yang dipilih'; }
         else if (c.jabar_only && !priOk(d)) E.category = 'Priangan khusus WNI dengan alamat identitas dan klub di Jawa Barat';
         else if (c.max_per_club && (catCount.get(String(c.id)) || 0) > c.max_per_club) E.category = `Maksimal ${c.max_per_club} atlet per klub di kategori ini`;
         if (d.discipline === 'RG') (c.apparatus || []).forEach((a, i) => {
@@ -173,8 +185,20 @@
     if (lastSaved) { el.classList.add('ok'); el.textContent = 'Tersimpan ' + new Date(lastSaved).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' oleh ' + personName(); return; }
     el.textContent = 'Semua perubahan tersimpan otomatis';
   }
+  function growRows(no) {
+    // isi salah satu dari 5 baris terakhir yang tampil -> tambah 10 baris kosong di bawahnya
+    const tb = document.querySelector('#ms-sheet tbody'); if (!tb || FILTER !== 'all' || Q) return;
+    const trs = tb.querySelectorAll('tr[data-row]'); if (!trs.length) return;
+    const lastShown = Number(trs[trs.length - 1].dataset.row);
+    if (no < lastShown - 4 || lastShown >= maxAth()) return;
+    const upto = Math.min(maxAth(), lastShown + 10);
+    const used = [...ROWS.keys()].filter((k) => !rowEmpty((ROWS.get(k) || {}).data)).sort((a, b) => a - b);
+    EXTRA_ROWS = Math.max(EXTRA_ROWS, upto - ((used.length ? used[used.length - 1] : 0) + 5));
+    let h = ''; for (let i = lastShown + 1; i <= upto; i++) h += rowHtml(i);
+    tb.insertAdjacentHTML('beforeend', h);
+  }
   function markDirty(no) {
-    DIRTY.add(no); setSaveLabel();
+    DIRTY.add(no); setSaveLabel(); growRows(no);
     clearTimeout(saveTimer); saveTimer = setTimeout(flush, 1500);
   }
   function cleanData(d) {
@@ -569,13 +593,27 @@
       if (el) { el.focus(); try { if (pos != null) el.setSelectionRange(pos, pos); } catch (e) { /* select */ } }
     }
   }
+  function errHtml(c, msg, no) {
+    if (!msg) return '';
+    let h = esc(msg);
+    if (c === 'category' && /^Tidak ada kategori/.test(msg)) {
+      const d = (ROWS.get(no) || {}).data || {};
+      const bd = d.birth_date ? d.birth_date.split('-').reverse().join('/') : '';
+      const wa = waLink(`Halo Kak Inda, saya ${personName()} dari ${clubName()} (Pendaftaran Massal ${ACC.code_label || ''}). Atlet baris ${pad3(no)} (${d.full_name || '-'}, ${d.gender === 'M' ? 'L' : d.gender === 'F' ? 'P' : '-'}, lahir ${bd}, ${DISC_NAME(d.discipline)}) tidak menemukan kategori yang sesuai. Mohon bantuannya. Terima kasih.`);
+      h += ` <a href="${FAQ_CAT}" target="_blank" rel="noopener">Lihat aturan kategori</a> · <a href="${esc(wa)}" target="_blank" rel="noopener">Tanya Inda</a>`;
+    }
+    return h;
+  }
   function refreshStates() {
     // perbarui tanda merah dan status tanpa menggambar ulang input (agar ketikan tidak terganggu)
     document.querySelectorAll('#ms-sheet tr[data-row]').forEach((tr) => {
       const r = ROWS.get(Number(tr.dataset.row)); const E = (r && r._E) || {};
       tr.querySelectorAll('td[data-c]').forEach((td) => {
         const msg = E[td.dataset.c] || '';
-        td.classList.toggle('bad-cell', !!msg); td.title = msg;
+        td.classList.toggle('bad-cell', !!msg);
+        const no = Number(tr.dataset.row); let box = td.querySelector('.ms-err');
+        if (!box) { box = document.createElement('div'); box.className = 'ms-err'; td.appendChild(box); }
+        const h = errHtml(td.dataset.c, msg, no); if (box.innerHTML !== h) box.innerHTML = h;
       });
       const st = tr.querySelector('.ms-st'); if (st) st.innerHTML = statusHtml(r, Number(tr.dataset.row));
       const cb = tr.querySelector('[data-sel]'); if (cb) cb.disabled = rowState(r) !== 'ok';
@@ -598,7 +636,7 @@
     const lock = !!r.batch_id || ACC.locked;
     const dis = lock ? 'disabled' : '';
     const st = rowState(r);
-    const td = (c, inner, cls) => `<td data-c="${c}" class="${cls || ''} ${E[c] ? 'bad-cell' : ''}" title="${esc(E[c] || '')}">${inner}</td>`;
+    const td = (c, inner, cls) => `<td data-c="${c}" class="${cls || ''} ${E[c] ? 'bad-cell' : ''}">${inner}<div class="ms-err">${errHtml(c, E[c], no)}</div></td>`;
     const inp = (k, v, extra) => `<input data-row-no="${no}" data-k="${k}" value="${esc(v == null ? '' : v)}" ${dis} ${extra || ''}>`;
     const sel = (k, opts, v, extra) => `<select data-k="${k}" ${dis} ${extra || ''}>${opts.map(([val, lab]) => `<option value="${esc(val)}" ${String(val) === String(v == null ? '' : v) ? 'selected' : ''}>${esc(lab)}</option>`).join('')}</select>`;
     const wna = d.nationality === 'WNA';
@@ -606,7 +644,8 @@
     // kategori
     let catSel = '';
     if (d.discipline) {
-      const opts = [['', 'Pilih kategori']].concat(catOptions(d).map((c) => [String(c.id), c.name_id]));
+      const co = catOptions(d);
+      const opts = [['', co.length || !/^\d{4}-/.test(d.birth_date || '') ? 'Pilih kategori' : 'Tidak ada kategori yang sesuai']].concat(co.map((c) => [String(c.id), c.name_id]));
       if (d.discipline === 'WAG') teamLevels('WAG').forEach((l) => opts.push(['team:' + l, `Khusus beregu – ${l}`]));
       catSel = sel('category', opts, d.team_only ? 'team:' + d.team_level : d.category_id);
     } else catSel = '<select disabled><option>Pilih disiplin dulu</option></select>';
