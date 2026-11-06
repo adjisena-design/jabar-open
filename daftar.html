@@ -12,6 +12,19 @@
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@100..900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/app.css?v=2610x">
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<style>
+.d-bulk{display:grid;grid-template-columns:auto 1fr auto;gap:14px 18px;align-items:center;background:linear-gradient(135deg,#13284a 0%,#1f3a62 100%);color:#fff;border-radius:var(--r);padding:20px 22px;margin:4px 0 18px;box-shadow:0 14px 30px -18px rgba(19,40,74,.7)}
+.d-bulk-ic{width:52px;height:52px;border-radius:14px;background:rgba(228,200,125,.16);color:#e4c87d;display:grid;place-items:center}
+.d-bulk-tag{display:inline-block;background:#e4c87d;color:#13284a;font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:3px 10px;margin-bottom:6px}
+.d-bulk h2{margin:0 0 4px;font-size:1.25rem;color:#fff}
+.d-bulk p{margin:0;color:#d5deec;line-height:1.5}
+.d-bulk-btn{display:inline-flex;gap:8px;align-items:center;background:#e4c87d;color:#13284a;font-weight:700;border-radius:999px;padding:11px 20px;text-decoration:none;white-space:nowrap}
+.d-bulk-btn:hover{background:#f0d792;color:#13284a}
+.d-bulk-btn:focus-visible{outline:3px solid #fff;outline-offset:2px}
+@media (max-width:720px){.d-bulk{grid-template-columns:auto 1fr}.d-bulk-btn{grid-column:1/-1;justify-content:center}}
+.d-or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:.85rem;font-weight:600;margin:0 0 16px}
+.d-or::before,.d-or::after{content:"";flex:1;height:1px;background:var(--line-2)}
+</style>
 </head>
 <body data-page="daftar">
 <main class="wrap" id="main">
@@ -19,9 +32,17 @@
     <h1 data-i18n="d_title">Pendaftaran atlet</h1>
     <p data-i18n="d_lead">Semua atlet didaftarkan lewat klub (klub, sekolah, atau pengkab/pengkot) oleh pemilik, admin, atau pelatih klub. Satu pendaftaran untuk satu disiplin, maksimal 10 atlet. Tim beregu Artistik Putri ditambahkan di pendaftaran yang sama.</p>
   </div>
+  <section class="d-bulk" aria-labelledby="d-bulk-h">
+    <div class="d-bulk-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 19.5c.6-3.3 3-5.3 6-5.3s5.4 2 6 5.3"/><circle cx="17" cy="9" r="2.6"/><path d="M16.3 14.4c2.5.2 4.2 2 4.7 4.6"/></svg></div>
+    <div class="d-bulk-tx">
+      <span class="d-bulk-tag" data-i18n="d_bulk_tag">Khusus klub besar</span>
+      <h2 id="d-bulk-h" data-i18n="d_bulk_h">Pendaftaran massal · portal terpisah</h2>
+      <p data-i18n="d_bulk">30–250 atlet dari satu klub, lembar isian bersama, transfer bank BCA. Bukan formulir di bawah ini.</p>
+    </div>
+    <a class="d-bulk-btn" href="massal.html"><span data-i18n="d_bulk_btn">Buka portal massal</span> <span aria-hidden="true">→</span></a>
+  </section>
+  <div class="d-or"><span data-i18n="d_or">atau daftar biasa (maks. 10 atlet)</span></div>
   <p class="note info d-ready"><b data-i18n="d_ready_t">Siapkan sebelum mendaftar</b><br><span data-i18n="d_ready">Identitas atlet (KTP, akta kelahiran, ijazah, atau paspor), data orang tua/wali untuk atlet di bawah 18 tahun, serta BPJS atau asuransi. Ritmik: tautan folder Google Drive berisi musik tiap atlet.</span></p>
-  <p class="note d-bulk" style="display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between"><span data-i18n="d_bulk">Mendaftarkan 30 atlet atau lebih dari satu klub? Gunakan pendaftaran massal dengan lembar isian dan pembayaran transfer bank.</span>
-    <a class="btn btn-ghost btn-sm" href="massal.html" data-i18n="d_bulk_btn">Pendaftaran massal (minimal 30 atlet)</a></p>
   <div id="closed" class="note warn" hidden></div>
   <div id="app"><div class="empty"><span class="spinner"></span></div></div>
   <!-- sesudah penutup </div> dari <div id="app"> -->
@@ -40,6 +61,6 @@
 <script src="assets/vendor/supabase-2.117.2.js"></script>
 <script src="assets/js/faq-widget.js?v=2610x"></script>
 <script src="/assets/js/common.js?v=0611a"></script>
-<script src="assets/js/daftar.js?v=0611a"></script>
+<script src="assets/js/daftar.js?v=0611b"></script>
 </body>
 </html>
