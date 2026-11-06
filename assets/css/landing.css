@@ -457,6 +457,17 @@ details[open]:not(.closing) > summary .tog::after{transform:rotate(0)}
   .tut-video video{border-radius:22px}
 }
 
+/* tutorial pendaftaran massal (video mendatar, di bawah tutorial utama) */
+.tut-bulk{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(28px,5vw,72px);align-items:center;margin-top:clamp(56px,9vh,96px);padding-top:clamp(40px,6vh,64px);border-top:1px solid rgba(255,255,255,.14)}
+.tut-bulk-h{font-size:clamp(28px,3vw,42px);max-width:16ch}
+.tut-bulk .lead{margin:16px 0 0}
+.tut-bulk-act{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
+.tut-bulk-video{margin:0}
+.tut-bulk-video video{display:block;width:100%;height:auto;aspect-ratio:16/9;border-radius:22px;background:#0d1d38;
+  border:1px solid rgba(255,255,255,.18);box-shadow:0 30px 60px -28px rgba(0,0,0,.6),0 0 0 6px rgba(228,200,125,.10)}
+@media (max-width:900px){.tut-bulk{grid-template-columns:1fr}.tut-bulk-video{order:2}}
+@media (max-width:560px){.tut-bulk-act .btn{width:100%;justify-content:center}.tut-bulk-video video{border-radius:16px}}
+
 /* tautan konsol panitia di dasar halaman */
 .f-console{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border:1px solid var(--line-2);border-radius:999px;color:var(--ink-2);text-decoration:none;font-weight:600;font-size:13.5px;background:#fff;transition:border-color .2s,color .2s}
 .f-console:hover{border-color:var(--ink);color:var(--ink)}
