@@ -784,6 +784,35 @@ begin
   return jo.bulk_console_row(b);
 end $$;
 
+-- hapus kode massal beserta lembar, batch, transfer, dan riwayatnya (mis. data uji).
+-- Ditolak bila sudah ada pendaftaran dari batch kode ini: hapus dulu pendaftarannya di menu Pendaftaran.
+create or replace function public.console_bulk_delete(p_id uuid, p_reason text) returns jsonb
+language plpgsql volatile security definer set search_path = '' as $$
+declare st jo.staff; b jo.bulk_accounts; v_files jsonb; v_subs text;
+begin
+  st := jo.bulk_manager();
+  if length(trim(coalesce(p_reason,''))) < 3 then raise exception 'Tulis alasan penghapusan (masuk Log).'; end if;
+  select * into b from jo.bulk_accounts where id = p_id for update;
+  if b.id is null then raise exception 'Data tidak ditemukan.'; end if;
+  select string_agg(s.code, ', ' order by s.code) into v_subs
+    from jo.submissions s join jo.bulk_batches bt on bt.id = s.bulk_batch_id where bt.bulk_id = b.id;
+  if v_subs is not null then
+    raise exception 'Kode ini sudah punya pendaftaran (%). Hapus dulu pendaftaran tersebut di menu Pendaftaran, lalu hapus kode ini.', v_subs;
+  end if;
+  select coalesce(jsonb_agg(f), '[]'::jsonb) into v_files from (
+    select jsonb_build_object('bucket', 'dokumen', 'path', d.value->>'path') f
+      from jo.bulk_rows r, jsonb_each(coalesce(r.data->'docs', '{}'::jsonb)) d
+     where r.bulk_id = b.id and coalesce(d.value->>'path', '') <> ''
+    union all
+    select jsonb_build_object('bucket', 'bukti', 'path', p.proof_path)
+      from jo.bulk_payments p join jo.bulk_batches bt on bt.id = p.batch_id where bt.bulk_id = b.id
+  ) x;
+  delete from jo.bulk_accounts where id = b.id;
+  perform jo.log(st.id, 'massal_dihapus', 'bulk', b.id::text, jsonb_build_object('code', jo.bulk_code_label(b), 'club', b.label,
+    'owner', b.owner_name, 'files', jsonb_array_length(v_files), 'reason', trim(p_reason)));
+  return jsonb_build_object('ok', true, 'files', v_files);
+end $$;
+
 -- perpanjangan masa pengisian: satu kali, 1–3 hari, tidak melewati batas pendaftaran
 create or replace function public.console_bulk_extend(p_id uuid, p_days integer) returns jsonb
 language plpgsql volatile security definer set search_path = '' as $$

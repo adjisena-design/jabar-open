@@ -301,7 +301,7 @@
   // ---------------- modul terpisah (proyek, backup) ----------------
   // Dimuat hanya saat halamannya dibuka. Galat di modul hanya tampil di halaman itu;
   // pendaftaran, verifikasi, dan penilaian tidak ikut terganggu.
-  const MOD_V = '0611a';
+  const MOD_V = '0611b';
   function loadModule(name) {
     window.JO_MOD = window.JO_MOD || {};
     if (window.JO_MOD[name]) return Promise.resolve(window.JO_MOD[name]);
@@ -840,6 +840,13 @@
     const cp = dlg.querySelector('#cp');
     if (cp) cp.onclick = () => { const c = dlg.querySelector('.code b').textContent; navigator.clipboard && navigator.clipboard.writeText(c); JO.toast('Kode disalin.'); };
   }
+  async function bulkDelete(it, done) {
+    const reason = await askReason(`Hapus ${it.code_label} (${it.club || it.label}) permanen?`, 'Alasan penghapusan (masuk Log)', { min: 3, ok: 'Hapus permanen', okClass: 'btn-bad',
+      intro: `Kode akses, lembar ${it.rows} atlet, batch, bukti transfer, dan semua dokumen yang diunggah lewat kode ini dihapus dan tidak bisa dikembalikan. Bila kode ini sudah menghasilkan pendaftaran, hapus dulu pendaftarannya di menu Pendaftaran.` });
+    if (!reason) return;
+    try { const r = await api('console_bulk_delete', { p_id: it.id, p_reason: reason }); await removeFiles(r.files, it.code_label); JO.toast('Kode massal dihapus.'); done(); }
+    catch (e) { JO.toast(e.message, 'bad'); }
+  }
   async function pageBulk(v, rest) {
     if (rest && rest[0]) return pageBulkDetail(v, rest[0]);
     const L = await api('console_bulk_list');
@@ -849,17 +856,18 @@
     v.innerHTML = `<div class="row page-act" style="justify-content:space-between;align-items:center;gap:12px 20px"><div><h1>Pendaftaran massal</h1>
         <p class="muted">Satu kode untuk satu klub. ${L.manager ? '' : 'Hanya Inda dan owner yang bisa membuat kode dan memverifikasi transfer.'}</p></div>
         ${L.manager ? '<button class="btn btn-primary" id="new">+ Buat kode akses</button>' : ''}</div><div style="height:14px"></div>
-      ${L.items.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Klub</th><th>Pengisi</th><th>Masa pengisian</th><th class="r">Atlet</th><th class="r">Tagihan</th><th>Perlu tindakan</th></tr></thead><tbody>
+      ${L.items.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Klub</th><th>Pengisi</th><th>Masa pengisian</th><th class="r">Atlet</th><th class="r">Tagihan</th><th>Perlu tindakan</th>${L.manager ? '<th></th>' : ''}</tr></thead><tbody>
         ${L.items.map((it) => `<tr class="click" data-id="${it.id}">
           <td><b>${esc(it.club || it.label)}</b><br><span class="tiny muted">${esc(it.code_label)} · kode …${esc(it.code_hint || '')}</span></td>
           <td class="small">${esc(it.owner_name || it.req_name || '–')}${(it.collaborators || []).length ? `<br><span class="tiny muted">+ ${it.collaborators.map((c) => esc(c.name)).join(', ')}</span>` : ''}</td>
           <td>${st(it)}${it.extended_days ? `<br><span class="tiny muted">diperpanjang ${it.extended_days} hari</span>` : ''}</td>
           <td class="r num">${it.rows_sent}/${it.rows}<br><span class="tiny muted">terkirim/diisi</span></td>
           <td class="r num">${fmtRp(it.paid)}<br><span class="tiny muted">dari ${fmtRp(it.billed)}</span></td>
-          <td>${it.to_verify ? `<span class="pill warn">${it.to_verify} transfer perlu diverifikasi</span> ` : ''}${it.overdue ? `<span class="pill bad">${it.overdue} batch lewat batas bayar</span>` : ''}${!it.to_verify && !it.overdue ? '<span class="tiny muted">–</span>' : ''}</td></tr>`).join('')}
+          <td>${it.to_verify ? `<span class="pill warn">${it.to_verify} transfer perlu diverifikasi</span> ` : ''}${it.overdue ? `<span class="pill bad">${it.overdue} batch lewat batas bayar</span>` : ''}${!it.to_verify && !it.overdue ? '<span class="tiny muted">–</span>' : ''}</td>${L.manager ? `<td class="r"><button class="btn btn-ghost btn-sm" data-del="${it.id}" title="Hapus kode dan datanya">Hapus</button></td>` : ''}</tr>`).join('')}
         </tbody></table></div>` : '<p class="empty">Belum ada kode akses. Klub meminta kode lewat WhatsApp Inda dari halaman pendaftaran massal.</p>'}`;
     labelTables(v);
-    v.querySelectorAll('tr[data-id]').forEach((tr) => tr.onclick = () => { location.hash = '#/massal/' + tr.dataset.id; });
+    v.querySelectorAll('tr[data-id]').forEach((tr) => tr.onclick = (e) => { if (e.target.closest('[data-del]')) return; location.hash = '#/massal/' + tr.dataset.id; });
+    v.querySelectorAll('[data-del]').forEach((bt) => bt.onclick = (e) => { e.stopPropagation(); bulkDelete(L.items.find((x) => x.id === bt.dataset.del), () => pageBulk(v)); });
     const nb = v.querySelector('#new');
     if (nb) nb.onclick = async () => {
       const r = await dialog({ title: 'Buat kode akses pendaftaran massal', ok: 'Buat kode',
@@ -910,7 +918,8 @@
           ${M ? `<div class="actions" style="margin-top:10px">
             ${B.opened_at && !B.extended_days ? '<button class="btn btn-ghost btn-sm" id="ext">Perpanjang</button>' : ''}
             <button class="btn btn-ghost btn-sm" id="newcode">Buat kode baru</button>
-            ${B.status === 'aktif' ? '<button class="btn btn-bad btn-sm" id="revoke">Cabut kode</button>' : ''}</div>` : ''}
+            ${B.status === 'aktif' ? '<button class="btn btn-bad btn-sm" id="revoke">Cabut kode</button>' : ''}
+            <button class="btn btn-ghost btn-sm" id="bdel">Hapus</button></div>` : ''}
         </section>
         <section class="card"><h2>Ringkasan</h2>
           <p>Atlet di lembar: <b>${B.rows}</b> · terkirim: <b>${B.rows_sent}</b></p>
@@ -956,6 +965,8 @@
       const it = Object.assign({}, r.item, { req_name: B.owner_name || B.req_name, req_phone: B.owner_phone || B.req_phone });
       const pr = showBulkCode(it, r.code, 'Kode baru'); bulkDlgBind(); await pr; reload();
     };
+    const bd = v.querySelector('#bdel');
+    if (bd) bd.onclick = () => bulkDelete(B, () => { location.hash = '#/massal'; });
     const rv = v.querySelector('#revoke');
     if (rv) rv.onclick = async () => {
       const r = await dialog({ title: 'Cabut kode', ok: 'Cabut', okClass: 'btn-bad', body: '<p>Klub tidak bisa membuka lembar sampai dibuatkan kode baru. Data tetap tersimpan.</p>',
@@ -2557,7 +2568,7 @@
     wa_penerima_disimpan: 'Penerima WA disimpan', wa_pengaturan: 'Pengaturan WA diubah', wa_tes: 'Tes WA dikirim',
     massal_kode_dibuat: 'Kode massal dibuat', massal_kode_diganti: 'Kode massal diganti', massal_kode_dicabut: 'Kode massal dicabut',
     massal_diperpanjang: 'Masa pengisian massal diperpanjang', massal_batas_bayar: 'Batas bayar massal diperpanjang', massal_batch_dikirim: 'Batch massal dikirim',
-    massal_bukti_transfer: 'Bukti transfer massal diunggah', massal_transfer_cocok: 'Transfer massal cocok', massal_transfer_tidak_cocok: 'Transfer massal tidak cocok',
+    massal_bukti_transfer: 'Bukti transfer massal diunggah', massal_transfer_cocok: 'Transfer massal cocok', massal_transfer_tidak_cocok: 'Transfer massal tidak cocok', massal_dihapus: 'Kode massal dihapus',
     proyek_simpan: 'Data proyek disimpan', proyek_unggah: 'Data proyek diunggah', proyek_arsip: 'Data proyek diarsipkan', proyek_saklar: 'Modul proyek dinyalakan/dimatikan',
   };
   const logAction = (a) => LOG_ACT[a] || (a.charAt(0).toUpperCase() + a.slice(1).replace(/_/g, ' '));
