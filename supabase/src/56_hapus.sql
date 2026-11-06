@@ -113,7 +113,9 @@ begin
       and not exists (select 1 from jo.submissions s where s.proof_path = o.name)
       and not exists (select 1 from jo.athletes a where o.name in (a.id_doc_path, a.akte_path, a.ktp_path, a.ijazah_path, a.passport_path, a.bpjs_path, a.photo_path))
       and not exists (select 1 from jo.jury_applications j where o.name in (j.ktp_path, j.photo_path, j.cert_path, j.bpjs_path))
-      and not exists (select 1 from jo.issues i where i.shot_path = o.name));
+      and not exists (select 1 from jo.issues i where i.shot_path = o.name)
+      and not exists (select 1 from jo.bulk_rows r cross join lateral jsonb_each(coalesce(r.data->'docs','{}'::jsonb)) dd where dd.value->>'path' = o.name)
+      and not exists (select 1 from jo.bulk_payments bp where bp.proof_path = o.name));
 end $$;
 
 create or replace function public.console_log_files_removed(p_count integer, p_context text) returns jsonb

@@ -82,7 +82,7 @@ begin
     raise exception '%: pas foto tidak terbaca. Unggah ulang pas foto (JPG atau PNG).', p_label using hint = 'ERR_ATHLETE_PHOTO';
   end if;
   foreach k in array array['akte_path','ktp_path','ijazah_path','passport_path','bpjs_path','photo_path'] loop
-    if coalesce(a->>k,'') <> '' and split_part(a->>k, '/', 1) <> p_uid::text then
+    if p_uid is not null and coalesce(a->>k,'') <> '' and split_part(a->>k, '/', 1) <> p_uid::text then
       raise exception 'Berkas unggahan tidak valid. Unggah ulang dokumen.' using hint = 'ERR_UPLOAD';
     end if;
   end loop;
@@ -161,7 +161,7 @@ declare
   v_lang      text := case when p->>'lang' = 'en' then 'en' else 'id' end;
   v_club      jo.clubs;
   v_club_id   uuid;
-  v_pm        text := 'qris';
+  v_pm        text := case when jo.in_bulk() then 'transfer' else 'qris' end;   -- pendaftaran massal: transfer bank
   v_sub_id    uuid := gen_random_uuid();
   v_code      text;
   v_token     text := lower(jo.rand_code(28, '23456789abcdefghjkmnpqrstuvwxyz'));
@@ -212,7 +212,7 @@ begin
   end if;
   perform jo.expire_unpaid();
 
-  if (select count(*) from jo.rate_events where uid = v_uid and action = 'register' and at > now() - interval '1 hour') >= 12 then
+  if not jo.in_bulk() and (select count(*) from jo.rate_events where uid = v_uid and action = 'register' and at > now() - interval '1 hour') >= 12 then
     raise exception 'Terlalu banyak pendaftaran dari perangkat ini dalam satu jam. Coba lagi nanti.' using hint = 'ERR_RATE';
   end if;
 
@@ -265,7 +265,7 @@ begin
   if v_n_ath < 1 and v_n_teams < 1 then
     raise exception 'Tambahkan minimal satu atlet atau satu tim beregu.' using hint = 'ERR_NO_ATHLETE';
   end if;
-  if v_people > v_max then
+  if v_people > v_max and not jo.in_bulk() then
     raise exception 'Satu pendaftaran maksimal % atlet (termasuk anggota khusus beregu). Kirim sisanya sebagai pendaftaran terpisah.', v_max using hint = 'ERR_MAX_ATHLETES';
   end if;
 
@@ -358,7 +358,7 @@ begin
         raise exception 'Atlet %: isi negara asal.', i using hint = 'ERR_ATHLETE_ADDRESS';
       end if;
     end if;
-    perform jo.check_athlete_docs(a, 'Atlet ' || i, v_uid);
+    perform jo.check_athlete_docs(a, 'Atlet ' || i, case when jo.in_bulk() then null else v_uid end);
     if jo.is_minor((a->>'birth_date')::date) then
       v_any_minor := true;
       if length(trim(coalesce(a->'guardian'->>'name',''))) < 3
@@ -619,7 +619,7 @@ begin
             raise exception 'Anggota %: isi negara asal.', i using hint = 'ERR_ATHLETE_ADDRESS';
           end if;
         end if;
-        perform jo.check_athlete_docs(a, 'Anggota ' || i, v_uid);
+        perform jo.check_athlete_docs(a, 'Anggota ' || i, case when jo.in_bulk() then null else v_uid end);
         v_sortn := v_sortn + 1;
         if jo.is_minor(v_mbirth) then
           v_any_minor := true;
@@ -705,7 +705,7 @@ begin
   insert into jo.rate_events (uid, action) values (v_uid, 'register');
   perform jo.log(null, 'pendaftaran_baru', 'submission', v_sub_id::text,
     jsonb_build_object('code', v_code, 'athletes', v_people, 'teams', v_n_teams, 'total', v_total, 'type', v_type));
-  perform jo.queue_registration_email(v_sub_id);
+  if not jo.in_bulk() then perform jo.queue_registration_email(v_sub_id); end if;   -- massal: email per batch
 
   return jsonb_build_object(
     'code', v_code, 'token', v_token, 'status', 'menunggu_pembayaran', 'payment_method', v_pm,
@@ -1159,6 +1159,7 @@ begin
   insert into jo.settings (key, value) values ('outbox_last_poll', to_jsonb(now()))
     on conflict (key) do update set value = excluded.value, updated_at = now();
   perform jo.expire_unpaid();
+  perform jo.bulk_tick();
   with picked as (
     select id from jo.outbox
      where (status = 'pending')

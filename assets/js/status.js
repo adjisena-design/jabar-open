@@ -181,6 +181,7 @@
     if (d.status === 'menunggu_verifikasi') return t('s_lock_verif', { e: d.contact.email });
     if (d.status === 'perlu_perbaikan') return t('s_lock_fix');
     if (d.payment_method === 'manual') return t('s_lock_manual');
+    if (d.payment_method === 'transfer') return t('s_lock_bulk');
     return t('s_lock_bayar');
   }
   // AIC hanya terbuka bila lunas (ticket_code hanya dikirim server saat lunas)
@@ -197,6 +198,10 @@
   function payCard(d) {
     if (d.payment_method === 'manual') {
       return `<section class="card"><h2>${esc(t('s_pay'))}</h2><p class="note info" style="margin:0">${esc(t('pay_intl', { e: d.contact.email }))}</p></section>`;
+    }
+    if (d.payment_method === 'transfer') {
+      if (d.status === 'lunas' || d.status === 'dibatalkan') return '';
+      return `<section class="card"><h2>${esc(t('s_pay'))}</h2><p class="note info" style="margin:0">${esc(t('pay_bulk'))} <a href="massal.html">${esc(t('pay_bulk_link'))}</a></p></section>`;
     }
     const p = d.payment || {};
     const waiting = d.status === 'menunggu_verifikasi';
@@ -311,9 +316,13 @@
     const want = (JO.qs('aic') || '').trim();
     if (!want) return;
     if (D.status !== 'lunas') { JO.toast(t('s_aic_locked_link'), 'bad'); return; }
-    const list = want === 'all' ? D.athletes.filter((a) => a.ticket_code) : D.athletes.filter((a) => a.id === want && a.ticket_code);
+    // aic=cat:<id kategori>: semua atlet satu kategori (dipakai portal pendaftaran massal)
+    const cat = want.startsWith('cat:') ? want.slice(4) : null;
+    const list = want === 'all' ? D.athletes.filter((a) => a.ticket_code)
+      : cat ? D.athletes.filter((a) => a.ticket_code && D.entries.some((e) => String(e.category_id) === cat && (e.athlete_ids || []).includes(a.id)))
+      : D.athletes.filter((a) => a.id === want && a.ticket_code);
     if (!list.length) return;
-    const target = want === 'all' ? app.querySelector('#aic_all') || app.querySelector('[data-ticket]') : app.querySelector(`[data-ticket="${list[0].id}"]`);
+    const target = (want === 'all' || cat) ? app.querySelector('#aic_all') || app.querySelector('[data-ticket]') : app.querySelector(`[data-ticket="${list[0].id}"]`);
     if (target) target.scrollIntoView({ block: 'center' });
     downloadTickets(target, list);
   }
@@ -350,6 +359,9 @@
       pay_why: ['Tiga digit terakhir adalah kode unik yang mencocokkan pembayaran Anda dengan pendaftaran ini. Transfer dengan nominal berbeda akan memperlambat verifikasi.', 'The last three digits are a unique code that matches your payment to this registration. A different amount slows down verification.'],
       pay_noqris: ['Gambar QRIS sedang disiapkan panitia. Buka halaman ini lagi nanti.', 'The QRIS image is being prepared. Check this page again later.'],
       pay_deadline: ['Batas pembayaran: {d}', 'Payment deadline: {d}'],
+      pay_bulk: ['Pendaftaran massal: transfer dan bukti transfer diunggah di portal pendaftaran massal.', 'Bulk registration: transfers and proofs are handled in the bulk registration portal.'],
+      pay_bulk_link: ['Buka portal', 'Open portal'],
+      s_lock_bulk: ['AIC terbuka setelah semua transfer batch ini diverifikasi panitia.', 'The AIC unlocks once all transfers for this batch are verified.'],
       pay_intl: ['Atlet internasional membayar terpisah. Panitia akan menghubungi {e} dengan instruksi pembayaran.', 'International athletes pay separately. The committee will contact {e} with payment instructions.'],
       sum_fees: ['Biaya pendaftaran', 'Entry fees'], sum_team: ['Biaya beregu', 'Team fee'], sum_pri: ['Kategori Priangan', 'Priangan category'], sum_uc: ['Kode unik', 'Unique code'],
     });

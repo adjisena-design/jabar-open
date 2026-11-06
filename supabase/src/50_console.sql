@@ -123,6 +123,7 @@ begin
       (select string_agg(t.name || ' (' || t.level || ', ' || (select count(*) from jo.team_members m where m.team_id = t.id) || ' pesenam)', '; ' order by t.level, t.name) from jo.teams t where t.submission_id = s.id) as team_name,
       (select count(*) from jo.entries e where e.submission_id = s.id and e.status <> 'dibatalkan' and e.music_status in ('menunggu','belum','tidak_bisa')) as music_pending,
       s.total_amount, s.unique_code, s.status, s.payment_method, s.proof_uploaded_at, s.paid_at,
+      (select b.code from jo.bulk_batches b where b.id = s.bulk_batch_id) as bulk_code,
       case when s.payment_method = 'qris' and s.status = 'menunggu_pembayaran' and s.proof_path is null
            then s.created_at + interval '15 minutes' end as expires_at,
       (select count(*) from jo.athletes a where a.submission_id = s.id and a.doc_status = 'menunggu') as docs_pending,
@@ -216,6 +217,7 @@ begin
   if s.id is null then raise exception 'Pendaftaran tidak ditemukan.'; end if;
   perform jo.check_discipline(st, s.discipline);
   if s.status = 'dibatalkan' then raise exception 'Pendaftaran ini sudah dibatalkan.'; end if;
+  if s.bulk_batch_id is not null then raise exception 'Pendaftaran massal: verifikasi transfer di menu Pendaftaran massal.'; end if;
 
   if p_approve then
     if s.status = 'lunas' then raise exception 'Pendaftaran ini sudah lunas.'; end if;

@@ -301,7 +301,7 @@
   // ---------------- modul terpisah (proyek, backup) ----------------
   // Dimuat hanya saat halamannya dibuka. Galat di modul hanya tampil di halaman itu;
   // pendaftaran, verifikasi, dan penilaian tidak ikut terganggu.
-  const MOD_V = '0111a';
+  const MOD_V = '0611a';
   function loadModule(name) {
     window.JO_MOD = window.JO_MOD || {};
     if (window.JO_MOD[name]) return Promise.resolve(window.JO_MOD[name]);
@@ -330,6 +330,7 @@
     ['kontak', 'Kontak', () => !isViewer(), pageContacts, 'phone', 'Komunikasi'],
     ['faq', 'FAQ situs', () => isAdmin(), pageFaq, 'help', 'Komunikasi'],
     ['pendaftaran', 'Pendaftaran', () => isAdmin(), pageSubmissions, 'inbox', 'Peserta'],
+    ['massal', 'Pendaftaran massal', () => isSuper(), pageBulk, 'list', 'Peserta'],
     ['atlet', 'Data atlet', () => isAdmin(), pageAthletes, 'users', 'Peserta'],
     ['musik', 'Musik Ritmik', () => isAdmin() && (!ME.discipline || ME.discipline === 'RG'), pageMusic, 'music', 'Peserta'],
     ['klub', 'Klub', () => isAdmin(), pageClubs, 'flag', 'Peserta'],
@@ -518,7 +519,7 @@
           <td><span class="code">${esc(r.code)}</span><br><span class="tiny muted">${dt(r.created_at)}</span></td>
           <td>${esc(r.club || '–')}<br><span class="tiny muted">${esc(r.contact_name)}, ${esc(r.region || '')}</span></td>
           <td class="small">${r.team_name ? `<div class="team-l">${r.team_name.split('; ').map((x) => `<span class="pill gold">Tim</span> ${esc(x)}`).join('<br>')}</div>` : ''}${athList(r)}</td>
-          <td class="r num">${fmtRp(r.total_amount)}${r.payment_method === 'manual' ? '<br><span class="pill warn">WNA</span>' : ''}</td>
+          <td class="r num">${fmtRp(r.total_amount)}${r.payment_method === 'manual' ? '<br><span class="pill warn">WNA</span>' : ''}${r.bulk_code ? `<br><span class="pill info" title="Pendaftaran massal">${esc(r.bulk_code)}</span>` : ''}</td>
           <td>${pill(r.status)}</td>
           <td class="small">${r.proof_uploaded_at ? '<span class="pill info">Bukti ada</span> ' : ''}${r.mutation_matched ? '<span class="pill ok">Mutasi cocok</span> ' : ''}
             ${r.expires_at ? `<span class="pill warn">hapus otomatis ${esc(new Date(r.expires_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }))}</span> ` : ''}${r.docs_pending ? `<span class="pill">dokumen ${r.docs_pending} atlet</span> ` : ''}${r.priangan_pending ? `<span class="pill warn">${r.priangan_pending} cek Priangan</span> ` : ''}${r.music_pending ? `<span class="pill warn">${r.music_pending} musik</span>` : ''}</td></tr>`).join('')}
@@ -552,7 +553,7 @@
           <section class="card"><h2>Atlet & kategori</h2>${D.teams.length && !D.athletes.length ? '<p class="small muted">Semua anggota tim didaftarkan perorangan lewat pendaftaran klub sebelumnya; data dan dokumen mereka ada di sana.</p>' : ''}<div id="aths" class="stack"></div></section>
           <section class="card"><h2>Email</h2>
             ${D.emails.length ? `<ul class="small" style="padding-left:18px;margin:0 0 10px">${D.emails.map((e) => `<li>${esc(e.kind)} ke ${esc(e.to)}: <strong>${esc(e.status)}</strong> ${e.sent_at ? dt(e.sent_at) : ''}</li>`).join('')}</ul>` : '<p class="small muted">Belum ada email.</p>'}
-            <div class="actions"><button class="btn btn-ghost btn-sm" data-mail="pendaftaran">Kirim ulang tagihan</button>
+            <div class="actions">${s.bulk_batch_id ? '' : '<button class="btn btn-ghost btn-sm" data-mail="pendaftaran">Kirim ulang tagihan</button>'}
               ${s.status === 'lunas' ? '<button class="btn btn-ghost btn-sm" data-mail="lunas">Kirim ulang AIC</button>' : ''}
               <button class="btn btn-ghost btn-sm" data-mail="tautan">Kirim tautan status</button></div></section>
           <section class="card"><h2>Riwayat</h2>${D.history.length ? `<ul class="small" style="padding-left:18px;margin:0">${D.history.map((h) => `<li>${dt(h.at)}: <strong>${esc(h.action.replace(/_/g, ' '))}</strong>${h.staff ? ' oleh ' + esc(h.staff) : ''}${h.detail && (h.detail.note || h.detail.reason) ? ` <span class="muted">(${esc(h.detail.note || h.detail.reason)})</span>` : ''}</li>`).join('')}</ul>` : '<p class="small muted">Belum ada.</p>'}</section>
@@ -564,6 +565,7 @@
               ${s.team_amount ? `<tr><td>Biaya beregu (${D.teams.length} tim)</td><td>${fmtRp(s.team_amount)}</td></tr>` : ''}
                 <tr><td>Kode unik</td><td>${fmtRp(s.unique_code)}</td></tr>
               <tr class="total"><td>Total</td><td>${fmtRp(s.total_amount)}</td></tr></tbody></table>
+            ${s.bulk_batch_id ? `<p class="note info" style="margin-top:12px">Pendaftaran massal. Transfer bank, diverifikasi per batch di <a href="#/massal">Pendaftaran massal</a>.</p>` : ''}
             ${s.payment_method === 'manual' ? '<p class="note warn" style="margin-top:12px">Atlet internasional: pembayaran terpisah. Hubungi pendaftar, lalu superadmin menandai lunas dengan nominal yang diterima.</p>' : ''}
             ${s.status === 'lunas' ? `<p class="note ok" style="margin-top:12px">Lunas ${fmtRp(s.paid_amount)} pada ${dt(s.paid_at)}${s.verified_by_name ? ', diverifikasi ' + esc(s.verified_by_name) : ''}.${s.verify_note ? '<br>Catatan: ' + esc(s.verify_note) : ''}</p>` : ''}
             ${s.status === 'perlu_perbaikan' ? `<p class="note bad" style="margin-top:12px">Ditolak: ${esc(s.verify_note || '')}</p>` : ''}
@@ -574,8 +576,8 @@
             ${matched.length ? matched.map((m) => `<p class="note ok small">Cocok: ${fmtRp(m.amount)} pada ${dt(m.trx_time)}${m.reference ? ', ref ' + esc(m.reference) : ''}</p>`).join('')
               : D.candidate_mutations.length ? `<p class="note info small">Ada ${D.candidate_mutations.length} mutasi belum dicocokkan dengan nominal yang sama. Cocokkan di Ledger.</p>` : '<p class="small muted">Belum ada mutasi yang cocok. Impor laporan GoBiz di Ledger.</p>'}
             <div class="actions" style="margin-top:14px">
-              ${open ? `<button class="btn btn-ok" id="approve">Tandai lunas</button>` : ''}
-              ${open || (s.status === 'lunas' && isSuper()) ? `<button class="btn btn-bad" id="reject">${s.status === 'lunas' ? 'Batalkan status lunas' : 'Tolak bukti'}</button>` : ''}
+              ${open && !s.bulk_batch_id ? `<button class="btn btn-ok" id="approve">Tandai lunas</button>` : ''}
+              ${!s.bulk_batch_id && (open || (s.status === 'lunas' && isSuper())) ? `<button class="btn btn-bad" id="reject">${s.status === 'lunas' ? 'Batalkan status lunas' : 'Tolak bukti'}</button>` : ''}
               ${s.status !== 'dibatalkan' && (s.status !== 'lunas' || isSuper()) ? `<button class="btn btn-ghost" id="cancel">Batalkan pendaftaran</button>` : ''}
             </div>
             ${s.expires_at ? `<p class="note warn small" style="margin-top:12px">Belum ada bukti bayar. Pendaftaran ini dihapus otomatis pukul ${esc(new Date(s.expires_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }))} bila bukti tidak diunggah.</p>` : ''}
@@ -813,6 +815,155 @@
   // =====================================================================
   //  DATA ATLET
   // =====================================================================
+  // =====================================================================
+  //  PENDAFTARAN MASSAL (kode akses per klub, min. 30 atlet)
+  // =====================================================================
+  const waNum = (p) => { let d = String(p || '').replace(/\D/g, ''); if (d.startsWith('0')) d = '62' + d.slice(1); return d; };
+  const waHref = (p, text) => `https://wa.me/${waNum(p)}?text=${encodeURIComponent(text)}`;
+  const bulkLeft = (iso) => { const ms = new Date(iso) - Date.now(); if (ms <= 0) return 'berakhir'; const h = Math.floor(ms / 36e5), d = Math.floor(h / 24); return d >= 1 ? `sisa ${d} hari ${h % 24} jam` : `sisa ${h} jam`; };
+  const bulkPortal = () => location.origin + '/massal.html';
+  function bulkCodeMsg(it, code) {
+    return `Halo${it.req_name ? ' ' + it.req_name : ''}, berikut kode akses Pendaftaran Massal Jabar Open 2026 untuk ${it.label}:\n\n${code}\n\n`
+      + `Buka ${bulkPortal()} lalu masukkan kode di atas. Kode berlaku 7 hari sejak pertama kali dibuka (paling lambat 27 November 2026), `
+      + 'dipakai bersama pemilik dan maksimal 2 kolaborator. Mohon tidak dibagikan ke pihak lain. Terima kasih.';
+  }
+  async function showBulkCode(it, code, title) {
+    await dialog({ title, ok: 'Selesai', cancel: '',
+      body: `<p>Kode untuk <b>${esc(it.label)}</b> (${esc(it.code_label)}). Kode hanya tampil sekali.</p>
+        <p class="code" style="font-size:1.4rem;letter-spacing:.08em;margin:10px 0"><b>${esc(code)}</b></p>
+        <div class="actions"><button type="button" class="btn btn-ghost btn-sm" id="cp">Salin kode</button>
+        ${it.req_phone ? `<a class="btn btn-ok btn-sm" target="_blank" rel="noopener" href="${esc(waHref(it.req_phone, bulkCodeMsg(it, code)))}">Kirim lewat WhatsApp ke ${esc(it.req_name || it.req_phone)}</a>` : ''}</div>
+        <p class="tiny muted" style="margin-top:10px">Pesan WhatsApp berisi kode, tautan portal, dan masa berlaku.</p>`,
+      onOk: () => true });
+  }
+  function bulkDlgBind() {
+    const cp = dlg.querySelector('#cp');
+    if (cp) cp.onclick = () => { const c = dlg.querySelector('.code b').textContent; navigator.clipboard && navigator.clipboard.writeText(c); JO.toast('Kode disalin.'); };
+  }
+  async function pageBulk(v, rest) {
+    if (rest && rest[0]) return pageBulkDetail(v, rest[0]);
+    const L = await api('console_bulk_list');
+    const st = (it) => it.status === 'dicabut' ? '<span class="pill bad">Kode dicabut</span>'
+      : !it.opened_at ? '<span class="pill">Belum dibuka</span>'
+      : it.locked ? '<span class="pill">Masa pengisian berakhir</span>' : `<span class="pill info">${esc(bulkLeft(it.expires_at))}</span>`;
+    v.innerHTML = `<div class="row page-act" style="justify-content:space-between;align-items:center;gap:12px 20px"><div><h1>Pendaftaran massal</h1>
+        <p class="muted">Satu kode untuk satu klub. ${L.manager ? '' : 'Hanya Inda dan owner yang bisa membuat kode dan memverifikasi transfer.'}</p></div>
+        ${L.manager ? '<button class="btn btn-primary" id="new">+ Buat kode akses</button>' : ''}</div><div style="height:14px"></div>
+      ${L.items.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Klub</th><th>Pengisi</th><th>Masa pengisian</th><th class="r">Atlet</th><th class="r">Tagihan</th><th>Perlu tindakan</th></tr></thead><tbody>
+        ${L.items.map((it) => `<tr class="click" data-id="${it.id}">
+          <td><b>${esc(it.club || it.label)}</b><br><span class="tiny muted">${esc(it.code_label)} · kode …${esc(it.code_hint || '')}</span></td>
+          <td class="small">${esc(it.owner_name || it.req_name || '–')}${(it.collaborators || []).length ? `<br><span class="tiny muted">+ ${it.collaborators.map((c) => esc(c.name)).join(', ')}</span>` : ''}</td>
+          <td>${st(it)}${it.extended_days ? `<br><span class="tiny muted">diperpanjang ${it.extended_days} hari</span>` : ''}</td>
+          <td class="r num">${it.rows_sent}/${it.rows}<br><span class="tiny muted">terkirim/diisi</span></td>
+          <td class="r num">${fmtRp(it.paid)}<br><span class="tiny muted">dari ${fmtRp(it.billed)}</span></td>
+          <td>${it.to_verify ? `<span class="pill warn">${it.to_verify} transfer perlu diverifikasi</span> ` : ''}${it.overdue ? `<span class="pill bad">${it.overdue} batch lewat batas bayar</span>` : ''}${!it.to_verify && !it.overdue ? '<span class="tiny muted">–</span>' : ''}</td></tr>`).join('')}
+        </tbody></table></div>` : '<p class="empty">Belum ada kode akses. Klub meminta kode lewat WhatsApp Inda dari halaman pendaftaran massal.</p>'}`;
+    labelTables(v);
+    v.querySelectorAll('tr[data-id]').forEach((tr) => tr.onclick = () => { location.hash = '#/massal/' + tr.dataset.id; });
+    const nb = v.querySelector('#new');
+    if (nb) nb.onclick = async () => {
+      const r = await dialog({ title: 'Buat kode akses pendaftaran massal', ok: 'Buat kode',
+        body: `<div class="field"><label class="f" for="bl">Nama klub</label><input id="bl" required></div>
+          <div class="field"><label class="f" for="bn">Nama peminta</label><input id="bn"></div>
+          <div class="field"><label class="f" for="bp">WhatsApp peminta</label><input id="bp" inputmode="tel" placeholder="08..."></div>
+          <div class="field"><label class="f" for="bt">Catatan (opsional)</label><input id="bt" placeholder="mis. perkiraan 150 atlet Ritmik"></div>`,
+        onOk: (d) => api('console_bulk_create', { p: { label: d.querySelector('#bl').value, req_name: d.querySelector('#bn').value, req_phone: d.querySelector('#bp').value, note: d.querySelector('#bt').value } }) });
+      if (!r) return;
+      const pr = showBulkCode(r.item, r.code, 'Kode akses dibuat'); bulkDlgBind(); await pr;
+      pageBulk(v);
+    };
+  }
+  async function pageBulkDetail(v, id) {
+    const B = await api('console_bulk', { p_id: id });
+    const M = B.manager;
+    const ownerMsg = (extra) => `Halo ${B.owner_name || ''}, ini Inda dari panitia Jabar Open 2026 terkait Pendaftaran Massal ${B.club || B.label} (${B.code_label}). ${extra || ''}`;
+    const DOCL = { akte: 'Akte', ktp: 'KTP', ijazah: 'Ijazah', bpjs: 'BPJS', passport: 'Paspor', photo: 'Foto' };
+    const sheetRow = (r) => { const d = r.data || {};
+      return `<tr><td class="num">${String(r.row_no).padStart(3, '0')}</td><td>${esc(d.full_name || '–')}</td><td>${d.gender === 'M' ? 'L' : d.gender === 'F' ? 'P' : ''}</td><td class="small">${esc(d.birth_date || '')}</td>
+        <td class="small">${esc(DN[d.discipline] || d.discipline || '')}</td><td class="small">${d.team_only ? 'Khusus beregu ' + esc(d.team_level || '') : (d.category_id ? esc(catName(d.category_id)) : '')}${d.team_name ? `<br><span class="tiny muted">Tim ${esc(d.team_name)}</span>` : ''}</td>
+        <td class="small">${Object.keys(d.docs || {}).map((k) => `<button class="btn-link" data-doc="${esc(d.docs[k].path)}" data-t="${esc(DOCL[k] || k)} ${esc(d.full_name || '')}">${esc(DOCL[k] || k)}</button>`).join(' ') || '–'}</td>
+        <td class="small">${r.batch ? `<span class="pill info">${esc(r.batch.split('-').pop())}</span>` : '<span class="tiny muted">draf</span>'}<br><span class="tiny muted">${esc(r.updated_by || '')}</span></td></tr>`; };
+    const pay = (p, b) => `<tr><td class="num">${fmtRp(p.amount)}</td><td class="small">${esc(p.transfer_date || '')}</td><td class="small">${esc(p.person || '')}<br><span class="tiny muted">${dt(p.uploaded_at)}</span></td>
+      <td><button class="btn btn-ghost btn-sm" data-proof="${esc(p.proof_path)}">Lihat bukti</button></td>
+      <td>${p.status === 'cocok' ? '<span class="pill ok">Cocok</span>' : p.status === 'tidak_cocok' ? `<span class="pill bad">Tidak cocok</span><div class="tiny">${esc(p.note || '')}</div>` : '<span class="pill warn">Menunggu</span>'}</td>
+      <td>${M && b.status === 'menunggu' && p.status !== 'cocok' ? `<button class="btn btn-ok btn-sm" data-ok="${p.id}">Cocok</button> ` : ''}${M && b.status === 'menunggu' && p.status === 'menunggu' ? `<button class="btn btn-bad btn-sm" data-no="${p.id}">Tidak cocok</button>` : ''}</td></tr>`;
+    const batch = (b) => `<section class="card"><div class="row" style="justify-content:space-between;align-items:center;gap:8px"><h2 style="margin:0">${esc(b.code)}</h2>
+        ${b.status === 'lunas' ? '<span class="pill ok">Lunas</span>' : b.status === 'dibatalkan' ? '<span class="pill bad">Dibatalkan</span>' : b.overdue ? '<span class="pill bad">Lewat batas bayar</span>' : '<span class="pill warn">Menunggu pembayaran</span>'}</div>
+      <p class="small muted">${b.athletes} atlet · dikirim ${dt(b.created_at)} oleh ${esc(b.person || '')}${b.status === 'menunggu' ? ` · batas bayar ${dt(b.due_at)}` : ''}</p>
+      <p><b>${fmtRp(b.total)}</b> · terverifikasi ${fmtRp(b.paid_verified)}${b.paid_pending ? ` · menunggu ${fmtRp(b.paid_pending)}` : ''} · sisa ${fmtRp(Math.max(0, b.total - b.paid_verified))}</p>
+      <p class="small">Rencana: ${((b.split || {}).amounts || [b.total]).map((a, i) => `transfer ${i + 1} ${fmtRp(a)}`).join(' · ')}</p>
+      <p class="small">Pendaftaran: ${b.submissions.map((s) => `<a href="#/pendaftaran/${s.id}">${esc(s.code)}</a> (${s.athletes} atlet, ${fmtRp(s.total)})`).join(' · ')}</p>
+      ${b.payments.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nominal</th><th>Tgl transfer</th><th>Diunggah</th><th>Bukti</th><th>Status</th><th></th></tr></thead><tbody>${b.payments.map((p) => pay(p, b)).join('')}</tbody></table></div>` : '<p class="small muted">Belum ada bukti transfer.</p>'}
+      ${M && b.status === 'menunggu' ? `<div class="actions" style="margin-top:10px"><button class="btn btn-ghost btn-sm" data-due="${b.id}" data-h="24">+24 jam batas bayar</button><button class="btn btn-ghost btn-sm" data-due="${b.id}" data-h="48">+48 jam</button>
+        ${B.owner_phone ? `<a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${esc(waHref(B.owner_phone, ownerMsg(`Mengingatkan pembayaran ${b.code} sebesar ${fmtRp(Math.max(0, b.total - b.paid_verified))} ke BCA 1300030431533 a.n. Inda Sopia, paling lambat ${dt(b.due_at)}. Mohon unggah bukti transfer di portal. Terima kasih.`)))}">Ingatkan lewat WhatsApp</a>` : ''}</div>` : ''}</section>`;
+    const people = [[B.owner_name, B.owner_phone, 'Pemilik']].concat((B.collaborators || []).map((c) => [c.name, c.phone, 'Kolaborator'])).filter((x) => x[0]);
+    v.innerHTML = `<p><a href="#/massal">← Pendaftaran massal</a></p>
+      <div class="row page-act" style="justify-content:space-between;align-items:center;gap:12px 20px"><div><h1>${esc(B.club || B.label)}</h1>
+        <p class="muted">${esc(B.code_label)} · kode …${esc(B.code_hint || '')}${B.status === 'dicabut' ? ' · <b>kode dicabut</b>' : ''}</p></div></div>
+      <div class="grid2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;align-items:start">
+        <section class="card"><h2>Klub dan pengisi</h2>
+          ${people.length ? people.map((p) => `<p style="margin:4px 0"><b>${esc(p[0])}</b> <span class="tiny muted">${p[2]}</span>${p[1] ? ` · <a target="_blank" rel="noopener" href="${esc(waHref(p[1], ownerMsg('')))}">${esc(p[1])}</a>` : ''}</p>`).join('') : `<p class="small muted">Belum dibuka. Peminta: ${esc(B.req_name || '–')} ${esc(B.req_phone || '')}</p>`}
+          ${B.owner_email ? `<p class="small">Email: ${esc(B.owner_email)}</p>` : ''}
+          ${B.note ? `<p class="small muted">Catatan: ${esc(B.note)}</p>` : ''}
+          <p class="small">Dibuat ${dt(B.created_at)} oleh ${esc(B.created_by || '')}${B.opened_at ? ` · dibuka ${dt(B.opened_at)}` : ''}</p>
+          <p class="small"><b>Masa pengisian:</b> ${B.expires_at ? `${dt(B.expires_at)} (${esc(bulkLeft(B.expires_at))})` : 'dimulai saat kode pertama dibuka'}${B.extended_days ? `<br>Diperpanjang ${B.extended_days} hari oleh ${esc(B.extended_by || '')}` : ''}</p>
+          ${M ? `<div class="actions" style="margin-top:10px">
+            ${B.opened_at && !B.extended_days ? '<button class="btn btn-ghost btn-sm" id="ext">Perpanjang</button>' : ''}
+            <button class="btn btn-ghost btn-sm" id="newcode">Buat kode baru</button>
+            ${B.status === 'aktif' ? '<button class="btn btn-bad btn-sm" id="revoke">Cabut kode</button>' : ''}</div>` : ''}
+        </section>
+        <section class="card"><h2>Ringkasan</h2>
+          <p>Atlet di lembar: <b>${B.rows}</b> · terkirim: <b>${B.rows_sent}</b></p>
+          <p>Tagihan: <b>${fmtRp(B.billed)}</b> · terverifikasi: <b>${fmtRp(B.paid)}</b></p>
+          ${B.to_verify ? `<p class="note warn small">${B.to_verify} bukti transfer menunggu verifikasi.</p>` : ''}${B.overdue ? `<p class="note bad small">${B.overdue} batch lewat batas bayar.</p>` : ''}
+        </section>
+      </div>
+      <h2 style="margin-top:20px">Batch</h2>
+      ${B.batch_list.length ? B.batch_list.slice().reverse().map(batch).join('') : '<p class="small muted">Belum ada batch yang dikirim.</p>'}
+      <h2 style="margin-top:20px">Lembar atlet (${B.sheet.length})</h2>
+      ${B.sheet.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>No</th><th>Nama</th><th>L/P</th><th>Lahir</th><th>Disiplin</th><th>Kategori</th><th>Dokumen</th><th>Status</th></tr></thead><tbody>${B.sheet.map(sheetRow).join('')}</tbody></table></div>` : '<p class="small muted">Lembar masih kosong.</p>'}
+      <h2 style="margin-top:20px">Riwayat</h2>
+      <div class="card small">${B.log.map((l) => `<div style="padding:5px 0;border-bottom:1px solid var(--line)">${dt(l.at)} · <b>${esc(l.person || 'Sistem')}</b> · ${esc(l.action.replace(/_/g, ' '))}${l.detail && (l.detail.code || l.detail.amount || l.detail.days) ? ' · ' + esc([l.detail.code, l.detail.amount ? fmtRp(l.detail.amount) : '', l.detail.days ? l.detail.days + ' hari' : '', l.detail.note || ''].filter(Boolean).join(' · ')) : ''}</div>`).join('') || '<p class="muted">Belum ada.</p>'}</div>`;
+    labelTables(v);
+    const reload = () => pageBulkDetail(v, id);
+    v.querySelectorAll('[data-proof]').forEach((b) => b.onclick = () => preview('bukti', b.dataset.proof, 'Bukti transfer'));
+    v.querySelectorAll('[data-doc]').forEach((b) => b.onclick = () => preview('dokumen', b.dataset.doc, b.dataset.t));
+    v.querySelectorAll('[data-ok]').forEach((b) => b.onclick = async () => {
+      const r = await dialog({ title: 'Transfer cocok?', ok: 'Ya, cocok', okClass: 'btn-ok', body: '<p>Nominal dan rekening tujuan sudah dicek di mutasi BCA. Bila total yang cocok sudah sama dengan tagihan, batch otomatis lunas dan AIC dikirim.</p>',
+        onOk: () => api('console_bulk_verify', { p_payment: Number(b.dataset.ok), p_ok: true, p_note: null }) });
+      if (r) { JO.toast('Tersimpan.'); reload(); }
+    });
+    v.querySelectorAll('[data-no]').forEach((b) => b.onclick = async () => {
+      const note = await askReason('Transfer tidak cocok', 'Alasan (dikirim ke klub lewat email)', { ok: 'Simpan' });
+      if (!note) return;
+      try { await api('console_bulk_verify', { p_payment: Number(b.dataset.no), p_ok: false, p_note: note }); JO.toast('Tersimpan dan email dikirim.'); reload(); } catch (e) { JO.toast(e.message, 'bad'); }
+    });
+    v.querySelectorAll('[data-due]').forEach((b) => b.onclick = async () => {
+      try { await api('console_bulk_due', { p_batch: b.dataset.due, p_hours: Number(b.dataset.h) }); JO.toast('Batas bayar diperpanjang.'); reload(); } catch (e) { JO.toast(e.message, 'bad'); }
+    });
+    const ext = v.querySelector('#ext');
+    if (ext) ext.onclick = async () => {
+      const r = await dialog({ title: 'Perpanjang masa pengisian', ok: 'Perpanjang',
+        body: `<p>Hanya bisa sekali, 1 sampai 3 hari, dan tidak melewati batas pendaftaran.</p><div class="field"><label class="f" for="dd">Tambahan</label><select id="dd"><option value="1">1 hari</option><option value="2">2 hari</option><option value="3">3 hari</option></select></div>`,
+        onOk: (d) => api('console_bulk_extend', { p_id: id, p_days: Number(d.querySelector('#dd').value) }) });
+      if (r) { JO.toast('Diperpanjang sampai ' + dt(r.expires_at) + '.'); reload(); }
+    };
+    const nc = v.querySelector('#newcode');
+    if (nc) nc.onclick = async () => {
+      const r = await dialog({ title: 'Buat kode baru', ok: 'Buat kode baru', okClass: 'btn-bad', body: '<p>Kode lama langsung tidak berlaku. Lembar dan data atlet tetap utuh. Kirim kode baru ke pemilik klub.</p>',
+        onOk: () => api('console_bulk_new_code', { p_id: id }) });
+      if (!r) return;
+      const it = Object.assign({}, r.item, { req_name: B.owner_name || B.req_name, req_phone: B.owner_phone || B.req_phone });
+      const pr = showBulkCode(it, r.code, 'Kode baru'); bulkDlgBind(); await pr; reload();
+    };
+    const rv = v.querySelector('#revoke');
+    if (rv) rv.onclick = async () => {
+      const r = await dialog({ title: 'Cabut kode', ok: 'Cabut', okClass: 'btn-bad', body: '<p>Klub tidak bisa membuka lembar sampai dibuatkan kode baru. Data tetap tersimpan.</p>',
+        onOk: () => api('console_bulk_revoke', { p_id: id }) });
+      if (r) { JO.toast('Kode dicabut.'); reload(); }
+    };
+  }
+
   async function pageAthletes(v) {
     const f = { discipline: '', status: '', q: '' };
     v.innerHTML = `<h1>Data atlet</h1>
@@ -1741,6 +1892,7 @@
     try { u = await api('console_unread'); } catch (e) { return; }
     const set = (k, n) => { const b = root.querySelector(`[data-badge="${k}"]`); if (b) { b.hidden = !n; b.textContent = n > 99 ? '99+' : String(n || ''); } };
     set('chat', Number(u.chat)); set('laporan', Number(u.issues)); set('juri', Number(u.jury));
+    if (isSuper()) api('console_bulk_summary').then((b) => set('massal', Number(b.to_verify) + Number(b.overdue))).catch(() => {});
     const me = root.querySelector('.topline .me');
     let nag = root.querySelector('#phone-nag');
     if (u.phone_missing && me && !nag) {
@@ -2403,6 +2555,9 @@
     laporan_dibuat: 'Laporan masalah dibuat', laporan_status: 'Status laporan diubah', laporan_dihapus: 'Laporan dihapus', pesan_dihapus: 'Pesan chat dihapus',
     calon_mitra_masuk: 'Calon mitra masuk', calon_mitra_status: 'Status calon mitra diubah', calon_mitra_dihapus: 'Calon mitra dihapus', berkas_dihapus: 'Berkas yatim dihapus', data_uji_dihapus: 'Data uji dihapus',
     wa_penerima_disimpan: 'Penerima WA disimpan', wa_pengaturan: 'Pengaturan WA diubah', wa_tes: 'Tes WA dikirim',
+    massal_kode_dibuat: 'Kode massal dibuat', massal_kode_diganti: 'Kode massal diganti', massal_kode_dicabut: 'Kode massal dicabut',
+    massal_diperpanjang: 'Masa pengisian massal diperpanjang', massal_batas_bayar: 'Batas bayar massal diperpanjang', massal_batch_dikirim: 'Batch massal dikirim',
+    massal_bukti_transfer: 'Bukti transfer massal diunggah', massal_transfer_cocok: 'Transfer massal cocok', massal_transfer_tidak_cocok: 'Transfer massal tidak cocok',
     proyek_simpan: 'Data proyek disimpan', proyek_unggah: 'Data proyek diunggah', proyek_arsip: 'Data proyek diarsipkan', proyek_saklar: 'Modul proyek dinyalakan/dimatikan',
   };
   const logAction = (a) => LOG_ACT[a] || (a.charAt(0).toUpperCase() + a.slice(1).replace(/_/g, ' '));
