@@ -36,7 +36,8 @@ begin
     raise exception 'Ini satu-satunya atlet di pendaftaran %. Hapus pendaftarannya.', s.code;
   end if;
   select coalesce(jsonb_agg(distinct jsonb_build_object('bucket', 'dokumen', 'path', x)), '[]'::jsonb) into v_files
-    from unnest(array[a.id_doc_path, a.akte_path, a.ktp_path, a.ijazah_path, a.passport_path, a.bpjs_path, a.photo_path]) x where x is not null;
+    from (select unnest(array[a.id_doc_path, a.akte_path, a.ktp_path, a.ijazah_path, a.passport_path, a.bpjs_path, a.photo_path]) x
+          union all select unnest(array[l.old_path, l.new_path]) from jo.athlete_file_log l where l.athlete_id = a.id) y where x is not null;
   -- nomor yang melibatkan atlet ini (termasuk pasangan) ikut dihapus
   v_e := array(select ea.entry_id from jo.entry_athletes ea where ea.athlete_id = a.id);
   delete from jo.score_log where entry_id in (select unnest(v_e));
@@ -113,6 +114,7 @@ begin
       and not exists (select 1 from jo.submissions s where s.proof_path = o.name)
       and not exists (select 1 from jo.athletes a where o.name in (a.id_doc_path, a.akte_path, a.ktp_path, a.ijazah_path, a.passport_path, a.bpjs_path, a.photo_path))
       and not exists (select 1 from jo.jury_applications j where o.name in (j.ktp_path, j.photo_path, j.cert_path, j.bpjs_path))
+      and not exists (select 1 from jo.athlete_file_log l where o.name in (l.old_path, l.new_path))
       and not exists (select 1 from jo.issues i where i.shot_path = o.name)
       and not exists (select 1 from jo.bulk_rows r cross join lateral jsonb_each(coalesce(r.data->'docs','{}'::jsonb)) dd where dd.value->>'path' = o.name)
       and not exists (select 1 from jo.bulk_payments bp where bp.proof_path = o.name));

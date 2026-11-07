@@ -411,6 +411,13 @@ async function rpcGuarded(fn, args, retried) {
       doc.setFontSize(7); doc.setTextColor(120, 132, 155);
       doc.text('Didaftarkan oleh: ' + t_.registered_by, 12, 206);
     }
+    if (t_.reissued_at) {
+      // AIC diterbitkan ulang setelah panitia mengganti pas foto/berkas; kode QR tetap sama
+      const d = new Date(t_.reissued_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta' });
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(154, 98, 0);
+      doc.text('Diterbitkan ulang ' + d, W - 12, 206, { align: 'right' });
+      doc.setFont('helvetica', 'normal');
+    }
     return doc;
   }
 

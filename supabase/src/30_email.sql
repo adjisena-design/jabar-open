@@ -181,16 +181,24 @@ end $$;
 
 create or replace function jo.queue_paid_email(p_sub uuid) returns void
 language plpgsql volatile set search_path = '' as $$
-declare s jo.submissions; l text; body text; cc text;
+declare s jo.submissions; l text; body text; cc text; v_upd text;
 begin
   select * into s from jo.submissions where id = p_sub;
   l := s.lang;
+  -- 7 Nov 2026: atlet yang berkas AIC-nya diganti panitia sejak email AIC terakhir
+  select string_agg(jo.h(a.full_name) || coalesce(' (' || jo.h(a.athlete_no) || ')', ''), ', ' order by a.sort) into v_upd
+    from jo.athletes a where a.submission_id = s.id and a.aic_update_pending;
   if coalesce(jo.setting_bool('email_guardians'), true) then
     select string_agg(distinct lower(a.guardian_email), ',') into cc
       from jo.athletes a where a.submission_id = s.id and a.guardian_email is not null
        and lower(a.guardian_email) <> lower(s.contact_email);
   end if;
   body := '<p>' || jo.tr(l,'Halo ','Hello ') || jo.h(s.contact_name) || ',</p>'
+    || case when v_upd is not null then
+         '<p style="background:#fbf4e1;border-left:4px solid #e4c87d;padding:10px 14px"><b>' || jo.tr(l,'AIC diperbarui','AIC updated') || '</b> '
+         || jo.tr(l,'untuk: ','for: ') || v_upd || '.<br>'
+         || jo.tr(l,'Gunakan AIC terbaru dari tautan di bawah dan hapus versi lama. Kode QR tidak berubah.',
+                    'Use the latest AIC from the links below and delete the old version. The QR code is unchanged.') || '</p>' else '' end
     || '<p>' || jo.tr(l,'Pembayaran untuk pendaftaran ','Payment for registration ') || '<b>' || jo.h(s.code) || '</b> '
     || jo.tr(l,'sudah kami verifikasi. Status: <b style="color:#1b8a4b">LUNAS</b>.','has been verified. Status: <b style="color:#1b8a4b">PAID</b>.') || '</p>'
     || jo.email_roster(s.id, l) || coalesce(jo.email_team(s.id, l), '')
@@ -203,8 +211,10 @@ begin
     || '<p style="font-size:13px;color:#5b6b88">' || jo.tr(l,'Tautan ini juga bisa dibuka lagi kapan saja. Halaman status: ','You can open these links again at any time. Status page: ')
     || '<a href="' || jo.h(jo.status_link(s.code, s.token)) || '" style="color:#2c4c7b">' || jo.tr(l,'buka','open') || '</a>.</p>';
   perform jo.queue_email(s.id, 'lunas', s.contact_email, cc,
-    jo.tr(l,'Pembayaran lunas — Athlete Identification Card (AIC) ','Payment confirmed — Athlete Identification Cards (AIC) ') || s.code,
-    jo.email_layout(jo.tr(l,'Pembayaran lunas','Payment confirmed'), body, l));
+    case when v_upd is not null then jo.tr(l,'AIC diperbarui — ','AIC updated — ')
+         else jo.tr(l,'Pembayaran lunas — Athlete Identification Card (AIC) ','Payment confirmed — Athlete Identification Cards (AIC) ') end || s.code,
+    jo.email_layout(case when v_upd is not null then jo.tr(l,'AIC diperbarui','AIC updated') else jo.tr(l,'Pembayaran lunas','Payment confirmed') end, body, l));
+  update jo.athletes set aic_update_pending = false where submission_id = s.id and aic_update_pending;
 end $$;
 
 create or replace function jo.queue_fix_email(p_sub uuid) returns void

@@ -553,6 +553,7 @@
           <section class="card"><h2>Atlet & kategori</h2>${D.teams.length && !D.athletes.length ? '<p class="small muted">Semua anggota tim didaftarkan perorangan lewat pendaftaran klub sebelumnya; data dan dokumen mereka ada di sana.</p>' : ''}<div id="aths" class="stack"></div></section>
           <section class="card"><h2>Email</h2>
             ${D.emails.length ? `<ul class="small" style="padding-left:18px;margin:0 0 10px">${D.emails.map((e) => `<li>${esc(e.kind)} ke ${esc(e.to)}: <strong>${esc(e.status)}</strong> ${e.sent_at ? dt(e.sent_at) : ''}</li>`).join('')}</ul>` : '<p class="small muted">Belum ada email.</p>'}
+            ${s.status === 'lunas' && D.athletes.some((a) => a.aic_update_pending) ? `<p class="note warn small">AIC diperbarui untuk ${esc(D.athletes.filter((a) => a.aic_update_pending).map((a) => a.full_name).join(', '))}. Tekan Kirim ulang AIC${s.bulk_batch_id ? ' (atau kirim per batch dari menu Pendaftaran massal)' : ''}; emailnya menyebut atlet yang diperbarui.</p>` : ''}
             <div class="actions">${s.bulk_batch_id ? '' : '<button class="btn btn-ghost btn-sm" data-mail="pendaftaran">Kirim ulang tagihan</button>'}
               ${s.status === 'lunas' ? '<button class="btn btn-ghost btn-sm" data-mail="lunas">Kirim ulang AIC</button>' : ''}
               <button class="btn btn-ghost btn-sm" data-mail="tautan">Kirim tautan status</button></div></section>
@@ -635,7 +636,10 @@
       const ents = D.entries.filter((e) => e.athletes.some((x) => x.id === a.id));
       const el = document.createElement('div'); el.className = 'ath';
       el.innerHTML = `<div class="ath-head"><span class="bib">${esc(a.athlete_no || '')}</span><strong>${esc(a.full_name)}</strong><span class="spacer"></span>
+          <button class="btn btn-ghost btn-sm" data-files aria-expanded="${FP_OPEN.has(a.id)}">Kelola berkas</button>
           ${isSuper() && D.athletes.length > 1 ? rowMenu('<button class="btn btn-ghost btn-sm" data-edit>Ubah data</button>', [{ label: 'Hapus atlet', attr: 'data-delath', danger: true }]) : '<button class="btn btn-ghost btn-sm" data-edit>Ubah data</button>'}</div>
+        ${a.aic_update_pending ? '<p class="note warn small" style="margin:8px 0 0">AIC atlet ini sudah diperbarui tetapi belum dikirim ulang.</p>' : ''}
+        <div class="fp-wrap" data-fpbox ${FP_OPEN.has(a.id) ? '' : 'hidden'}></div>
         <div class="ath-body">
           <dl class="kv"><dt>Jenis kelamin</dt><dd>${a.gender === 'M' ? 'Putra' : 'Putri'}</dd>
             <dt>Tanggal lahir</dt><dd>${JO.fmtDate(a.birth_date)} <span class="muted">(usia 2026: ${a.age})</span></dd>
@@ -685,6 +689,13 @@
         act('console_verify_doc', { p_athlete: a.id, p_valid: ok, p_note: note }, ok ? 'Dokumen ditandai valid.' : 'Dokumen ditandai tidak valid.');
       });
       q('[data-edit]').onclick = () => editAthlete(a, reload);
+      const fpb = q('[data-fpbox]'), fpt = q('[data-files]');
+      const openFp = () => filePanel(fpb, a.id, () => reload());
+      if (FP_OPEN.has(a.id)) openFp();
+      fpt.onclick = () => {
+        fpb.hidden = !fpb.hidden; fpt.setAttribute('aria-expanded', String(!fpb.hidden));
+        if (fpb.hidden) FP_OPEN.delete(a.id); else { FP_OPEN.add(a.id); openFp(); }
+      };
       el.querySelectorAll('[data-entry]').forEach((ee) => {
         const e = ents.find((x) => x.id === ee.dataset.entry);
         ee.querySelectorAll('[data-pri]').forEach((b) => b.onclick = async () => {
@@ -901,6 +912,8 @@
       <p><b>${fmtRp(b.total)}</b> · terverifikasi ${fmtRp(b.paid_verified)}${b.paid_pending ? ` · menunggu ${fmtRp(b.paid_pending)}` : ''} · sisa ${fmtRp(Math.max(0, b.total - b.paid_verified))}</p>
       <p class="small">Rencana: ${((b.split || {}).amounts || [b.total]).map((a, i) => `transfer ${i + 1} ${fmtRp(a)}`).join(' · ')}</p>
       <p class="small">Pendaftaran: ${b.submissions.map((s) => `<a href="#/pendaftaran/${s.id}">${esc(s.code)}</a> (${s.athletes} atlet, ${fmtRp(s.total)})`).join(' · ')}</p>
+      ${b.status === 'lunas' ? `<div class="actions" style="margin:6px 0 10px">${b.aic_pending ? `<span class="pill warn">AIC ${b.aic_pending} atlet diperbarui, belum dikirim ulang</span>` : ''}
+        <button class="btn btn-ghost btn-sm" data-aicb="${b.id}">Kirim ulang AIC batch (1 email)</button></div>` : ''}
       ${b.payments.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nominal</th><th>Tgl transfer</th><th>Diunggah</th><th>Bukti</th><th>Status</th><th></th></tr></thead><tbody>${b.payments.map((p) => pay(p, b)).join('')}</tbody></table></div>` : '<p class="small muted">Belum ada bukti transfer.</p>'}
       ${M && b.status === 'menunggu' ? `<div class="actions" style="margin-top:10px"><button class="btn btn-ghost btn-sm" data-due="${b.id}" data-h="24">+24 jam batas bayar</button><button class="btn btn-ghost btn-sm" data-due="${b.id}" data-h="48">+48 jam</button>
         ${B.owner_phone ? `<a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${esc(waHref(B.owner_phone, ownerMsg(`Mengingatkan pembayaran ${b.code} sebesar ${fmtRp(Math.max(0, b.total - b.paid_verified))} ke BCA 1300030431533 a.n. Inda Sopia, paling lambat ${dt(b.due_at)}. Mohon unggah bukti transfer di portal. Terima kasih.`)))}">Ingatkan lewat WhatsApp</a>` : ''}</div>` : ''}</section>`;
@@ -947,6 +960,14 @@
       if (!note) return;
       try { await api('console_bulk_verify', { p_payment: Number(b.dataset.no), p_ok: false, p_note: note }); JO.toast('Tersimpan dan email dikirim.'); reload(); } catch (e) { JO.toast(e.message, 'bad'); }
     });
+    v.querySelectorAll('[data-aicb]').forEach((b) => b.onclick = async () => {
+      const bt = B.batch_list.find((x) => x.id === b.dataset.aicb);
+      const r = await dialog({ title: 'Kirim ulang AIC ' + bt.code, ok: 'Kirim',
+        body: `<p>Satu email berisi tautan AIC semua atlet batch ini dikirim ke <b>${esc(B.owner_email || 'pemilik')}</b>.</p>
+          ${bt.aic_pending ? `<p class="small">Email menyebut ${bt.aic_pending} atlet yang AIC-nya diperbarui; orang tua/wali atlet tersebut ikut ditembuskan.</p>` : '<p class="small muted">Tidak ada AIC yang diperbarui sejak email terakhir.</p>'}`,
+        onOk: () => api('console_bulk_resend_aic', { p_batch: bt.id }) });
+      if (r) { JO.toast('Email AIC masuk antrean.'); reload(); }
+    });
     v.querySelectorAll('[data-due]').forEach((b) => b.onclick = async () => {
       try { await api('console_bulk_due', { p_batch: b.dataset.due, p_hours: Number(b.dataset.h) }); JO.toast('Batas bayar diperpanjang.'); reload(); } catch (e) { JO.toast(e.message, 'bad'); }
     });
@@ -973,6 +994,93 @@
         onOk: () => api('console_bulk_revoke', { p_id: id }) });
       if (r) { JO.toast('Kode dicabut.'); reload(); }
     };
+  }
+
+  // ---------------------------------------------------------------------
+  //  Berkas atlet (7 Nov 2026): lihat, ganti, tambah, hapus per berkas.
+  //  Alasan wajib; berkas lama tetap tersimpan di riwayat. Status dokumen
+  //  tidak berubah. Pas foto atlet lunas → AIC diterbitkan ulang (QR sama),
+  //  lalu dikirim ulang manual.
+  // ---------------------------------------------------------------------
+  const FP_OPEN = new Set(); // panel berkas yang sedang terbuka di halaman pendaftaran
+  const FSLOT = { akte: 'Akte Kelahiran', ktp: 'KTP', ijazah: 'Ijazah', passport: 'Paspor', bpjs: 'BPJS Ketenagakerjaan', photo: 'Pas foto' };
+  const FACT = { ganti: 'diganti', tambah: 'ditambahkan', hapus: 'dihapus' };
+  async function filePanel(box, athleteId, onChange) {
+    let F;
+    try { loading(box); F = await api('console_athlete_files', { p_athlete: athleteId }); }
+    catch (e) { box.innerHTML = `<p class="note bad small">${esc(e.message)}</p>`; return; }
+    const draw = () => {
+      const slots = F.nationality === 'WNA' ? ['passport', 'photo'] : ['akte', 'ktp', 'ijazah', 'bpjs', 'photo'];
+      const resendBtn = F.bulk_batch_id && isSuper() ? '<button class="btn btn-primary btn-sm" data-rs="batch">Kirim ulang AIC batch</button>'
+        : '<button class="btn btn-primary btn-sm" data-rs="sub">Kirim ulang AIC</button>';
+      box.innerHTML = `<div class="fp">
+        ${F.aic_update_pending ? `<div class="note warn small fp-note"><span>AIC atlet ini sudah diperbarui tetapi belum dikirim ulang.</span>${resendBtn}</div>`
+          : F.aic_reissued_at ? `<p class="small muted" style="margin:0 0 8px">AIC diterbitkan ulang ${dt(F.aic_reissued_at)}.</p>` : ''}
+        <div class="fp-grid">${slots.map((k) => {
+          const has = !!F.files[k];
+          return `<div class="fp-slot${has ? '' : ' fp-none'}">
+            ${k === 'photo' && F.photo_thumb ? `<img class="ath-thumb" src="${esc(F.photo_thumb)}" alt="Pas foto ${esc(F.full_name)}" width="60" height="80">` : ''}
+            <div class="fp-info"><b>${FSLOT[k]}</b><span class="tiny muted">${has ? (/\.pdf$/i.test(F.files[k]) ? 'PDF' : 'Gambar') : 'Belum ada'}</span>
+              <div class="fp-act">${has ? `<button class="btn-link" data-fv="${k}">Lihat</button>` : ''}
+                <button class="btn-link" data-fr="${k}">${has ? 'Ganti' : 'Tambah'}</button>
+                ${has ? `<button class="btn-link fp-del" data-fd="${k}">Hapus</button>` : ''}</div></div></div>`;
+        }).join('')}
+          ${F.id_doc_path ? `<div class="fp-slot"><div class="fp-info"><b>Dokumen identitas</b><span class="tiny muted">format lama</span><div class="fp-act"><button class="btn-link" data-fold="${esc(F.id_doc_path)}">Lihat</button></div></div></div>` : ''}
+        </div>
+        ${F.history.length ? `<details class="fp-hist"><summary class="small">Riwayat berkas (${F.history.length})</summary><ul class="small">
+          ${F.history.map((h) => `<li>${dt(h.at)} · <b>${esc(h.label)}</b> ${FACT[h.action] || h.action}${h.staff ? ' oleh ' + esc(h.staff) : ''} <span class="muted">(${esc(h.reason)})</span>
+            ${h.old_path ? ` <button class="btn-link" data-fold="${esc(h.old_path)}" data-t="${esc(h.label)} lama">Berkas lama</button>` : ''}</li>`).join('')}</ul></details>` : ''}
+        <input type="file" data-fin hidden accept="image/jpeg,image/png,image/webp,application/pdf,.heic">
+      </div>`;
+      const fin = box.querySelector('[data-fin]');
+      box.querySelectorAll('[data-fv]').forEach((b) => b.onclick = () => preview('dokumen', F.files[b.dataset.fv], FSLOT[b.dataset.fv] + ' ' + F.full_name));
+      box.querySelectorAll('[data-fold]').forEach((b) => b.onclick = () => preview('dokumen', b.dataset.fold, (b.dataset.t || 'Dokumen identitas') + ' ' + F.full_name));
+      box.querySelectorAll('[data-fr]').forEach((b) => b.onclick = () => {
+        const k = b.dataset.fr;
+        fin.accept = k === 'photo' ? 'image/jpeg,image/png,image/webp,.heic' : 'image/jpeg,image/png,image/webp,application/pdf,.heic';
+        fin.value = ''; fin.onchange = () => { if (fin.files[0]) replaceFile(k, fin.files[0]); };
+        fin.click();
+      });
+      box.querySelectorAll('[data-fd]').forEach((b) => b.onclick = async () => {
+        const k = b.dataset.fd;
+        const reason = await askReason('Hapus ' + FSLOT[k] + ' ' + F.full_name + '?', 'Alasan (masuk riwayat dan Log)', { ok: 'Hapus berkas', okClass: 'btn-bad',
+          intro: `Berkas dilepas dari data atlet; salinannya tetap tersimpan di riwayat.${k === 'photo' && F.has_aic ? ' AIC akan tampil tanpa pas foto sampai foto baru ditambahkan.' : ''}` });
+        if (!reason) return;
+        try { F = await api('console_athlete_file', { p_athlete: F.id, p_slot: k, p_path: null, p_thumb: null, p_reason: reason }); JO.toast(FSLOT[k] + ' dihapus.'); draw(); if (onChange) onChange(F); }
+        catch (e) { JO.toast(e.message, 'bad'); }
+      });
+      box.querySelectorAll('[data-rs]').forEach((b) => b.onclick = async () => {
+        b.disabled = true;
+        try {
+          if (b.dataset.rs === 'batch') await api('console_bulk_resend_aic', { p_batch: F.bulk_batch_id });
+          else await api('console_resend_email', { p_id: F.submission_id, p_kind: 'lunas' });
+          JO.toast('Email AIC masuk antrean.');
+          F = await api('console_athlete_files', { p_athlete: F.id }); draw(); if (onChange) onChange(F);
+        } catch (e) { JO.toast(e.message, 'bad'); b.disabled = false; }
+      });
+    };
+    const replaceFile = async (k, file) => {
+      const isImg = /^image\//.test(file.type) || /\.(jpe?g|png|webp|heic)$/i.test(file.name);
+      if (k === 'photo' && !isImg) return JO.toast('Pas foto harus gambar (JPG, PNG, atau WEBP).', 'bad');
+      const url = isImg ? URL.createObjectURL(file) : null;
+      const has = !!F.files[k];
+      const r = await dialog({ title: (has ? 'Ganti ' : 'Tambah ') + FSLOT[k], ok: has ? 'Ganti berkas' : 'Tambah berkas',
+        body: `<p><b>${esc(F.full_name)}</b> <span class="muted">${esc(F.athlete_no || '')} · ${esc(F.submission_code)}</span></p>
+          <div class="fp-new">${url ? `<img src="${url}" alt="Berkas baru">` : `<p class="small">${esc(file.name)} (PDF)</p>`}</div>
+          ${has ? '<p class="small muted">Berkas lama tetap tersimpan di riwayat.</p>' : ''}
+          ${k === 'photo' && F.has_aic ? '<p class="note info small">AIC atlet ini akan memakai foto baru dan ditandai "Diterbitkan ulang". Kode QR tidak berubah. Setelah selesai, tekan Kirim ulang AIC.</p>' : ''}
+          <label class="f" for="rsn" style="margin-top:10px">Alasan (masuk riwayat dan Log)</label><textarea id="rsn" required placeholder="Mis. foto tertukar dengan atlet lain, laporan orang tua 7 Nov"></textarea>`,
+        onOk: async (d) => {
+          const reason = d.querySelector('#rsn').value.trim();
+          if (reason.length < 3) throw new Error('Tulis alasan yang jelas.');
+          const up = await JO.uploadFile('dokumen', file);
+          const thumb = k === 'photo' ? await JO.photoThumb(file) : null;
+          return api('console_athlete_file', { p_athlete: F.id, p_slot: k, p_path: up.path, p_thumb: thumb, p_reason: reason });
+        } });
+      if (url) URL.revokeObjectURL(url);
+      if (r) { F = r; JO.toast(FSLOT[k] + (has ? ' diganti.' : ' ditambahkan.')); draw(); if (onChange) onChange(F); }
+    };
+    draw();
   }
 
   async function pageAthletes(v) {
@@ -1005,13 +1113,23 @@
           <td><b class="nm">${esc(r.full_name)}</b><span class="sub">${r.gender === 'M' ? 'L' : 'P'} · ${r.age} th${r.nationality === 'WNA' ? ' · WNA' : ''}</span></td>
           <td>${esc(r.club)}<span class="sub">${esc(r.nationality === 'WNA' ? r.country : r.kab_kota || '')}</span></td>
           <td class="catc">${esc(r.categories || '')}</td>
-          <td>${pill(r.payment_status)}</td><td class="nowrap">${esc(r.doc_status)}${r.nationality === 'WNI' && !r.has_bpjs ? ' <span class="pill warn" title="Tanpa BPJS Ketenagakerjaan">BPJS</span>' : ''}</td>
+          <td>${pill(r.payment_status)}</td><td class="nowrap">${esc(r.doc_status)}${r.nationality === 'WNI' && !r.has_bpjs ? ' <span class="pill warn" title="Tanpa BPJS Ketenagakerjaan">BPJS</span>' : ''}${r.aic_update_pending ? ' <span class="pill info" data-aicp title="AIC sudah diperbarui, belum dikirim ulang">AIC baru</span>' : ''}</td>
           <td class="r">${rowMenu('', [{ label: 'Buka pendaftaran', attr: `data-open="${r.submission_id}"` }].concat(isSuper() ? [{ sep: true }, { label: 'Hapus atlet', attr: `data-delath="${r.id}"`, danger: true }] : []))}</td></tr>
-          <tr class="det-row" data-det="${r.id}" hidden><td></td><td colspan="7">${det(r)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">Tidak ada atlet yang cocok.</p>';
+          <tr class="det-row" data-det="${r.id}" hidden><td></td><td colspan="7">${det(r)}<h3 class="fp-title">Berkas</h3><div data-fp="${r.id}"></div></td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">Tidak ada atlet yang cocok.</p>';
       list.querySelectorAll('tr[data-row]').forEach((tr) => tr.onclick = (ev) => {
         if (ev.target.closest('.rm, a, button')) return;
         const d = list.querySelector(`tr[data-det="${tr.dataset.row}"]`);
         d.hidden = !d.hidden; tr.classList.toggle('open', !d.hidden);
+        const fp = d.querySelector('[data-fp]');
+        if (!d.hidden && !fp.dataset.loaded) {
+          fp.dataset.loaded = '1';
+          filePanel(fp, tr.dataset.row, (F) => {
+            const r = rows.find((x) => x.id === F.id); if (r) r.aic_update_pending = F.aic_update_pending;
+            const cell = tr.querySelector('td.nowrap'); const p = cell.querySelector('[data-aicp]');
+            if (F.aic_update_pending && !p) cell.insertAdjacentHTML('beforeend', ' <span class="pill info" data-aicp title="AIC sudah diperbarui, belum dikirim ulang">AIC baru</span>');
+            if (!F.aic_update_pending && p) p.remove();
+          });
+        }
       });
       list.querySelectorAll('[data-open]').forEach((b) => b.onclick = () => { location.hash = '#/pendaftaran/' + b.dataset.open; });
       list.querySelectorAll('[data-delath]').forEach((b) => b.onclick = async () => {
@@ -2552,7 +2670,7 @@
     pembayaran_lunas: 'Ditandai lunas', pembayaran_ditolak: 'Bukti bayar ditolak', pendaftaran_dibatalkan: 'Pendaftaran dibatalkan',
     pendaftaran_dihapus: 'Pendaftaran dihapus', pendaftaran_kedaluwarsa: 'Kedaluwarsa (tanpa bukti bayar)',
     dokumen_valid: 'Dokumen valid', dokumen_tidak_valid: 'Dokumen tidak valid', musik_ok: 'Musik bisa dibuka', musik_tidak_bisa: 'Musik tidak bisa dibuka',
-    priangan_disetujui: 'Priangan disetujui', priangan_ditolak: 'Priangan ditolak', data_atlet_diubah: 'Data atlet diubah', atlet_dihapus: 'Atlet dihapus',
+    priangan_disetujui: 'Priangan disetujui', priangan_ditolak: 'Priangan ditolak', data_atlet_diubah: 'Data atlet diubah', berkas_atlet_diubah: 'Berkas atlet diubah', atlet_dihapus: 'Atlet dihapus',
     pindah_kategori: 'Pindah kategori', kirim_ulang_email: 'Email dikirim ulang', impor_mutasi: 'Impor mutasi GoBiz', cocokkan_mutasi: 'Mutasi dicocokkan',
     kode_dibuat: 'Kode akses dibuat', kode_diubah: 'Data kode diubah', kode_diganti: 'Kode akses diganti', kode_dihapus: 'Kode akses dihapus',
     klub_disimpan: 'Klub disimpan', klub_digabung: 'Klub digabung', klub_dihapus: 'Klub dihapus',
@@ -2605,6 +2723,9 @@
       case 'pendaftaran_dibatalkan':
         add(where); if (d.reason) add('Alasan: ' + d.reason); if (d.was) add('sebelumnya ' + logVal('status', d.was)); break;
       case 'bukti_bayar_diunggah': add(where); break;
+      case 'berkas_atlet_diubah':
+        add((d.athlete || '') + (d.athlete_no ? ` (${d.athlete_no})` : '')); add(d.code); add(`${d.file} ${FACT[d.action] || d.action}`);
+        if (d.reason) add('Alasan: ' + d.reason); if (d.aic) add('AIC diterbitkan ulang'); break;
       case 'kode_dibuat': add(d.name); add(ROLE[d.role] || d.role); if (d.discipline) add(DN[d.discipline] || d.discipline); break;
       case 'kode_diganti': add('Kode baru untuk ' + (d.name || '-')); break;
       case 'faq_status': add(d.slug); if (d.from || d.to) add(`${logVal('s', d.from)} → ${logVal('s', d.to)}`); break;

@@ -351,3 +351,19 @@ body[data-page="panitia"] .ath-tbl .bib{white-space:nowrap}
 .topline .tl-logo{display:none;height:28px;width:auto}
 .topline .ttl{min-width:0}.topline .ttl b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:900px){.topline .tl-logo{display:block}}
+
+/* Berkas atlet (7 Nov 2026) */
+.fp-title{font-size:.8rem;margin:14px 0 6px;color:var(--ink-2)}
+.fp-wrap{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.fp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.fp-slot{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fff}
+.fp-slot.fp-none{background:#f7f8fb;border-style:dashed}
+.fp-info{display:flex;flex-direction:column;gap:2px;min-width:0}
+.fp-info b{font-size:.84rem;font-weight:600}
+.fp-act{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;font-size:.82rem}
+.fp-del{color:var(--bad)}
+.fp-note{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:0 0 10px}
+.fp-hist{margin-top:10px}
+.fp-hist ul{padding-left:18px;margin:6px 0 0}
+.fp-hist li{margin:3px 0}
+.fp-new img{max-width:100%;max-height:240px;border-radius:8px;border:1px solid var(--line);display:block}

@@ -295,7 +295,7 @@
         bpjs_missing: a.nationality === 'WNI' && !a.has_bpjs,
         photo: a.photo_thumb, registered_by: regBy(),
         start: ents.map((e) => startText(e.start)).filter(Boolean).join(' / '),
-        ticket_code: a.ticket_code, submission_code: D.code,
+        ticket_code: a.ticket_code, submission_code: D.code, reissued_at: a.aic_reissued_at,
       };
   }
   async function downloadTickets(btn, list) {

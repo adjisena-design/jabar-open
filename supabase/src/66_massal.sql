@@ -388,6 +388,7 @@ language sql stable set search_path = '' as $$
       'id', bt.id, 'no', bt.no, 'code', bt.code, 'person', bt.person, 'athletes', bt.athletes, 'total', bt.total,
       'split', bt.split, 'due_at', bt.due_at, 'status', bt.status, 'paid_at', bt.paid_at, 'created_at', bt.created_at,
       'overdue', bt.status = 'menunggu' and now() > bt.due_at,
+      'aic_pending', (select count(*) from jo.athletes a join jo.submissions s on s.id = a.submission_id where s.bulk_batch_id = bt.id and a.aic_update_pending),
       'paid_verified', (select coalesce(sum(amount),0) from jo.bulk_payments p where p.batch_id = bt.id and p.status = 'cocok'),
       'paid_pending', (select coalesce(sum(amount),0) from jo.bulk_payments p where p.batch_id = bt.id and p.status = 'menunggu'),
       'payments', (select coalesce(jsonb_agg(jsonb_build_object('id', p.id, 'amount', p.amount, 'transfer_date', p.transfer_date,

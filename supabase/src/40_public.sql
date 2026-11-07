@@ -131,6 +131,10 @@ begin
     select jsonb_build_object('bucket', 'dokumen', 'path', x) from jo.athletes a
       cross join lateral unnest(array[a.id_doc_path, a.akte_path, a.ktp_path, a.ijazah_path, a.passport_path, a.bpjs_path, a.photo_path]) x
      where a.submission_id = p_id and x is not null
+    union all
+    select jsonb_build_object('bucket', 'dokumen', 'path', x) from jo.athlete_file_log l join jo.athletes a on a.id = l.athlete_id
+      cross join lateral unnest(array[l.old_path, l.new_path]) x
+     where a.submission_id = p_id and x is not null
   ) z;
   delete from jo.score_log where entry_id in (select id from jo.entries where submission_id = p_id);
   delete from jo.scores where entry_id in (select id from jo.entries where submission_id = p_id);
@@ -782,6 +786,7 @@ language sql stable set search_path = '' as $$
         'id', a.id, 'athlete_no', a.athlete_no, 'full_name', a.full_name, 'gender', a.gender,
         'birth_date', a.birth_date, 'nationality', a.nationality, 'province', a.province, 'kab_kota', a.kab_kota,
         'doc_status', a.doc_status, 'has_bpjs', a.bpjs_path is not null, 'photo_thumb', a.photo_thumb,
+        'aic_reissued_at', a.aic_reissued_at,
         'docs', jsonb_build_object('akte', a.akte_path is not null, 'ktp', a.ktp_path is not null, 'ijazah', a.ijazah_path is not null,
                                    'passport', a.passport_path is not null, 'bpjs', a.bpjs_path is not null),
         'ticket_code', case when s.status = 'lunas' then a.ticket_code end

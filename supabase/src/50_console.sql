@@ -430,7 +430,7 @@ begin
          from jo.entry_athletes ea join jo.entries e on e.id = ea.entry_id join jo.categories cat on cat.id = e.category_id
         where ea.athlete_id = a.id and e.status <> 'dibatalkan') as categories,
       a.id_doc_path, a.photo_path, a.akte_path, a.ktp_path, a.ijazah_path, a.passport_path, a.bpjs_path,
-      a.bpjs_path is not null as has_bpjs
+      a.bpjs_path is not null as has_bpjs, a.aic_update_pending, a.aic_reissued_at
     from jo.athletes a join jo.submissions s on s.id = a.submission_id
     left join jo.clubs c on c.id = s.club_id
     where (d is null or s.discipline = d)
