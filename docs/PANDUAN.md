@@ -212,3 +212,10 @@ Setelah demo dan sebelum peluncuran: jalankan `supabase/reset-data-uji.sql` di S
 Tidak pernah diekspor: kode akses / hash, secret email, token Fonnte, kunci API. Ringkasan owner menampilkan "Backup terakhir", merah bila lebih dari 7 hari (mulai 5 Desember: lebih dari 1 hari). Simpan ZIP di folder terenkripsi; isinya data pribadi anak (UU PDP), hapus sesuai jadwal Januari 2027.
 
 **Pemulihan** (skrip `supabase/tools/restore.mjs`, sudah diuji ke database kosong): proyek Supabase baru → jalankan `setup.sql` → `node restore.mjs data.json` (DATABASE_URL proyek baru) → `node restore.mjs --files folder-berkas` (service key hanya diketik di Terminal sendiri) → ubah `assets/js/config.js` → buat ulang kode akses → lanjutkan dari TITIK-LANJUT.txt. Kode lama dipulihkan nonaktif agar riwayat tetap tersambung; kode owner dari setup baru yang berlaku.
+
+## Berkas atlet & kirim ulang AIC (7 November 2026)
+
+- Owner, superadmin, dan admin (disiplinnya) bisa melihat, mengganti, menambah, atau menghapus setiap berkas atlet dari **Data atlet** (klik baris → Berkas) atau halaman pendaftaran (**Kelola berkas**). Alasan wajib; berkas lama tetap tersimpan di *Riwayat berkas*; status dokumen tidak berubah.
+- Pas foto atlet lunas diganti → AIC memakai foto baru, bertulisan "Diterbitkan ulang [tanggal]", **kode QR tetap sama** (AIC lama tetap terbaca dan menampilkan foto terbaru saat dipindai).
+- Kirim ulang manual: **Kirim ulang AIC** per pendaftaran, atau **Kirim ulang AIC batch (1 email)** di Pendaftaran massal. Email menyebut atlet yang AIC-nya diperbarui.
+- Patch: `supabase/patch_2026-11-07_berkas_atlet.sql` (sumber `supabase/src/67_berkas.sql`).
