@@ -341,6 +341,11 @@ begin
     guardian_email = case when p_patch ? 'guardian_email' then nullif(lower(trim(p_patch->>'guardian_email')),'') else guardian_email end,
     guardian_relation = case when p_patch ? 'guardian_relation' then nullif(trim(p_patch->>'guardian_relation'),'') else guardian_relation end
   where id = a.id;
+  -- v12: nama, tanggal lahir, jenis kelamin, asal tampil di AIC -> tandai untuk dikirim ulang (bila sudah lunas)
+  if exists (select 1 from jo.athletes n where n.id = a.id and (n.full_name, n.birth_date, n.gender, n.nationality, n.country, n.province, n.kab_kota)
+                 is distinct from (a.full_name, a.birth_date, a.gender, a.nationality, a.country, a.province, a.kab_kota)) then
+    perform jo.mark_aic(a.id);
+  end if;
   perform jo.log(st.id, 'data_atlet_diubah', 'athlete', a.id::text,
     jsonb_build_object('reason', p_reason, 'before', (select jsonb_object_agg(x.key, b->x.key) from jsonb_object_keys(p_patch) x(key)), 'after', p_patch));
   return public.console_submission(s.id);
@@ -364,14 +369,29 @@ begin
     raise exception 'Tidak bisa memindahkan antara nomor perorangan dan pasangan.';
   end if;
   if length(trim(coalesce(p_reason,''))) < 3 then raise exception 'Tulis alasan pemindahan (mis. penggabungan kategori).'; end if;
+  -- v12: kategori yang sudah punya nilai tidak dipindah; anggota tim tidak pindah level; biaya mengikuti kategori baru
+  if exists (select 1 from jo.scores sc where sc.entry_id = e.id) then
+    raise exception 'Entri ini sudah punya nilai, tidak bisa dipindah.';
+  end if;
+  if c_new.level <> c_old.level and exists (select 1 from jo.team_members m where m.entry_id = e.id) then
+    raise exception 'Atlet ini anggota tim beregu %. Keluarkan dari tim dulu sebelum pindah level.', c_old.level;
+  end if;
+  if exists (select 1 from jo.entry_athletes ea join jo.entry_athletes eb on eb.athlete_id = ea.athlete_id and eb.entry_id <> ea.entry_id
+              join jo.entries e2 on e2.id = eb.entry_id where ea.entry_id = e.id and e2.category_id = c_new.id) then
+    raise exception 'Atlet ini sudah terdaftar di kategori tujuan.';
+  end if;
+  update jo.entries set fee = case when e.team_only then 0 else c_new.fee end where id = e.id;
   update jo.entries set category_id = c_new.id, session_id = null, group_no = null, start_order = null,
     priangan_requested = c_new.jabar_only,
     priangan_status = case when not c_new.jabar_only then 'tidak' when c_old.jabar_only then priangan_status else 'menunggu' end,
     music_status = case when c_new.discipline = 'RG' and exists (select 1 from unnest(c_new.apparatus) x where coalesce(e.music->>x,'') = '')
                         then 'belum' else music_status end
    where id = e.id;
+  perform jo.mark_aic(ea.athlete_id) from jo.entry_athletes ea where ea.entry_id = e.id;
+  if not e.team_only and c_new.fee <> e.fee then perform jo.recalc_bill(s.id); end if;
   perform jo.log(st.id, 'pindah_kategori', 'entry', e.id::text,
-    jsonb_build_object('from', c_old.name_id, 'to', c_new.name_id, 'reason', p_reason));
+    jsonb_build_object('from', c_old.name_id, 'to', c_new.name_id, 'reason', p_reason,
+                       'old_fee', e.fee, 'new_fee', case when e.team_only then 0 else c_new.fee end));
   return public.console_submission(s.id);
 end $$;
 

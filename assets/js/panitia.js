@@ -548,9 +548,10 @@
             <dt>WhatsApp</dt><dd><a href="${wa(s.contact_phone)}" target="_blank" rel="noopener">${esc(s.contact_phone)}</a></dd>
             <dt>Email</dt><dd><a href="mailto:${esc(s.contact_email)}">${esc(s.contact_email)}</a></dd>
             <dt>Klub</dt><dd>${club}</dd>
-            <dt>Bahasa</dt><dd>${s.lang === 'en' ? 'English' : 'Indonesia'}</dd></dl></section>
+            <dt>Bahasa</dt><dd>${s.lang === 'en' ? 'English' : 'Indonesia'}</dd></dl>${isSuper() ? '<div class="actions"><button class="btn btn-ghost btn-sm" id="ed-contact">Ubah penanggung jawab</button><button class="btn btn-ghost btn-sm" id="ed-club">Ganti klub</button></div>' : ''}</section>
           ${D.teams.map((T) => teamCardConsole(T, s)).join('')}
-          <section class="card"><h2>Atlet & kategori</h2>${D.teams.length && !D.athletes.length ? '<p class="small muted">Semua anggota tim didaftarkan perorangan lewat pendaftaran klub sebelumnya; data dan dokumen mereka ada di sana.</p>' : ''}<div id="aths" class="stack"></div></section>
+          ${isSuper() && teamLevels(s.discipline).length && s.status !== 'dibatalkan' ? '<div class="actions" style="margin:0 0 14px"><button class="btn btn-ghost btn-sm" id="team-new">Tambah tim beregu</button></div>' : ''}
+          <section class="card"><h2>Atlet & kategori</h2>${isSuper() && s.status !== 'dibatalkan' ? '<div class="actions" style="margin:0 0 10px"><button class="btn btn-ghost btn-sm" id="ath-new">Tambah atlet</button></div>' : ''}${D.teams.length && !D.athletes.length ? '<p class="small muted">Semua anggota tim didaftarkan perorangan lewat pendaftaran klub sebelumnya; data dan dokumen mereka ada di sana.</p>' : ''}<div id="aths" class="stack"></div></section>
           <section class="card"><h2>Email</h2>
             ${D.emails.length ? `<ul class="small" style="padding-left:18px;margin:0 0 10px">${D.emails.map((e) => `<li>${esc(e.kind)} ke ${esc(e.to)}: <strong>${esc(e.status)}</strong> ${e.sent_at ? dt(e.sent_at) : ''}</li>`).join('')}</ul>` : '<p class="small muted">Belum ada email.</p>'}
             ${s.status === 'lunas' && D.athletes.some((a) => a.aic_update_pending) ? `<p class="note warn small">AIC diperbarui untuk ${esc(D.athletes.filter((a) => a.aic_update_pending).map((a) => a.full_name).join(', '))}. Tekan Kirim ulang AIC${s.bulk_batch_id ? ' (atau kirim per batch dari menu Pendaftaran massal)' : ''}; emailnya menyebut atlet yang diperbarui.</p>` : ''}
@@ -569,6 +570,7 @@
             ${s.bulk_batch_id ? `<p class="note info" style="margin-top:12px">Pendaftaran massal. Transfer bank, diverifikasi per batch di <a href="#/massal">Pendaftaran massal</a>.</p>` : ''}
             ${s.payment_method === 'manual' ? '<p class="note warn" style="margin-top:12px">Atlet internasional: pembayaran terpisah. Hubungi pendaftar, lalu superadmin menandai lunas dengan nominal yang diterima.</p>' : ''}
             ${s.status === 'lunas' ? `<p class="note ok" style="margin-top:12px">Lunas ${fmtRp(s.paid_amount)} pada ${dt(s.paid_at)}${s.verified_by_name ? ', diverifikasi ' + esc(s.verified_by_name) : ''}.${s.verify_note ? '<br>Catatan: ' + esc(s.verify_note) : ''}</p>` : ''}
+            ${s.status === 'lunas' && s.paid_amount != null && s.total_amount !== s.paid_amount ? `<p class="note warn" style="margin-top:12px">Tagihan berubah setelah lunas: <strong>${s.total_amount > s.paid_amount ? 'kurang bayar ' + fmtRp(s.total_amount - s.paid_amount) : 'lebih bayar ' + fmtRp(s.paid_amount - s.total_amount)}</strong>. Tidak ada tagihan otomatis; selesaikan langsung dengan klub.</p>` : ''}
             ${s.status === 'perlu_perbaikan' ? `<p class="note bad" style="margin-top:12px">Ditolak: ${esc(s.verify_note || '')}</p>` : ''}
             ${s.status === 'dibatalkan' ? `<p class="note bad" style="margin-top:12px">Dibatalkan: ${esc(s.cancel_reason || '')}</p>` : ''}
             <h3 style="margin-top:16px">Bukti bayar</h3>
@@ -594,6 +596,21 @@
     }
     const reload = () => pageSubmission(v, id);
     const act = async (fn, args, msg) => { try { await api(fn, args); JO.toast(msg); reload(); } catch (e) { JO.toast(e.message, 'bad'); } };
+    // v12: ubah isi pendaftaran (owner & superadmin)
+    const on = (sel, fn) => { const b = v.querySelector(sel); if (b) b.onclick = fn; };
+    on('#ed-contact', () => editContact(s, reload));
+    on('#ed-club', () => changeClub(s, reload));
+    on('#team-new', () => teamDialog(s, null, reload));
+    on('#ath-new', () => addAthlete(D, s, null, reload));
+    v.querySelectorAll('[data-team]').forEach((card) => {
+      const T = D.teams.find((x) => x.id === card.dataset.team); if (!T) return;
+      const tb = (sel, fn) => card.querySelectorAll(sel).forEach((b) => (b.onclick = () => fn(b)));
+      tb('[data-tedit]', () => teamDialog(s, T, reload));
+      tb('[data-tdel]', () => teamDelete(T, reload));
+      tb('[data-tadd]', () => teamAddMember(T, reload));
+      tb('[data-taddonly]', () => addAthlete(D, s, T, reload));
+      tb('[data-tout]', (b) => teamRemoveMember(T, T.members.find((m) => m.athlete_id === b.dataset.tout), reload));
+    });
     const ap = v.querySelector('#approve');
     if (ap) ap.onclick = async () => {
       const manual = s.payment_method === 'manual';
@@ -669,8 +686,9 @@
               ${e.priangan_status !== 'disetujui' ? ' <button class="btn btn-ok btn-sm" data-pri="1">Memenuhi</button>' : ''}${e.priangan_status !== 'ditolak' ? ' <button class="btn btn-bad btn-sm" data-pri="0">Tidak memenuhi</button>' : ''}
               <div class="tiny muted">Syarat: WNI, alamat pada identitas di Jawa Barat, klub di Jawa Barat. Bila tidak memenuhi, pindahkan ke kategori Amatir.</div></div>` : ''}
             <div class="actions"><button class="btn btn-ghost btn-sm" data-move>Pindah kategori</button>
-              ${e.status === 'aktif' ? '<button class="btn btn-ghost btn-sm" data-est="dns">Tidak tampil (DNS)</button>' : '<button class="btn btn-ghost btn-sm" data-est="aktif">Aktifkan lagi</button>'}</div>
+              ${e.status === 'aktif' ? '<button class="btn btn-ghost btn-sm" data-est="dns">Tidak tampil (DNS)</button>' : '<button class="btn btn-ghost btn-sm" data-est="aktif">Aktifkan lagi</button>'}${isSuper() && e.discipline === 'RG' ? '<button class="btn btn-ghost btn-sm" data-emusic>Ubah tautan musik</button>' : ''}${isSuper() && !e.team_only ? '<button class="btn btn-ghost btn-sm" data-edel>Hapus kategori</button>' : ''}</div>
           </div>`).join('')}
+          ${isSuper() && s.discipline === 'AER' && s.status !== 'dibatalkan' ? '<div class="actions"><button class="btn btn-ghost btn-sm" data-eadd>Tambah nomor</button></div>' : ''}
         </div>`;
       const q = (sel) => el.querySelector(sel);
       el.querySelectorAll('[data-docp]').forEach((b) => b.onclick = () => preview('dokumen', a[b.dataset.docp], b.textContent + ' ' + a.full_name));
@@ -689,6 +707,7 @@
         act('console_verify_doc', { p_athlete: a.id, p_valid: ok, p_note: note }, ok ? 'Dokumen ditandai valid.' : 'Dokumen ditandai tidak valid.');
       });
       q('[data-edit]').onclick = () => editAthlete(a, reload);
+      const ea = q('[data-eadd]'); if (ea) ea.onclick = () => addEntry(a, D, s, reload);
       const fpb = q('[data-fpbox]'), fpt = q('[data-files]');
       const openFp = () => filePanel(fpb, a.id, () => reload());
       if (FP_OPEN.has(a.id)) openFp();
@@ -703,7 +722,9 @@
           if (!ok) { note = await askReason('Tidak memenuhi syarat Priangan', 'Alasan (mis. alamat di akte luar Jawa Barat)'); if (!note) return; }
           act('console_set_priangan', { p_entry: e.id, p_approve: ok, p_note: note }, ok ? 'Syarat Priangan terpenuhi.' : 'Ditandai tidak memenuhi syarat Priangan.');
         });
-        ee.querySelector('[data-move]').onclick = () => moveEntry(e, s.discipline, reload);
+        ee.querySelector('[data-move]').onclick = () => moveEntry(e, s.discipline, reload, D.athletes);
+        const ed = ee.querySelector('[data-edel]'); if (ed) ed.onclick = () => removeEntry(e, reload);
+        const em = ee.querySelector('[data-emusic]'); if (em) em.onclick = () => editMusic(e, reload);
         ee.querySelectorAll('[data-mc]').forEach((b) => b.onclick = () => musicCheck(e, b.dataset.mc === '1', reload));
         ee.querySelectorAll('[data-est]').forEach((b) => b.onclick = async () => {
           const r = await askReason(b.dataset.est === 'dns' ? 'Tandai tidak tampil' : 'Aktifkan lagi', 'Alasan');
@@ -715,7 +736,7 @@
   }
   const MUSIC_ST = { belum: ['Belum ada tautan', 'warn'], menunggu: ['Menunggu diperiksa', 'info'], ok: ['Bisa dibuka', 'ok'], tidak_bisa: ['Tidak bisa dibuka', 'bad'], tidak_perlu: ['Tidak perlu', ''] };
   const musicPill = (st) => { const m = MUSIC_ST[st] || [st, '']; return `<span class="pill ${m[1]}">${esc(m[0])}</span>`; };
-  const MUSIC_ACT = { daftar: 'diisi saat daftar', isi: 'diisi', ganti: 'diganti (jatah terpakai)', perbaiki: 'diperbaiki', ok: 'ditandai bisa dibuka', tidak_bisa: 'ditandai tidak bisa dibuka' };
+  const MUSIC_ACT = { daftar: 'diisi saat daftar', isi: 'diisi', ganti: 'diganti (jatah terpakai)', perbaiki: 'diperbaiki', panitia: 'diubah panitia', ok: 'ditandai bisa dibuka', tidak_bisa: 'ditandai tidak bisa dibuka' };
   function musicLinks(e) {
     const m = e.music || {};
     return (e.apparatus || Object.keys(m)).map((ap) => `<div class="small"><strong>${esc(appName('RG', ap))}:</strong> ${m[ap] ? `<a class="mono-link" href="${esc(m[ap])}" target="_blank" rel="noopener">${esc(m[ap])}</a>` : '<span class="muted">belum ada</span>'}</div>`).join('');
@@ -741,12 +762,14 @@
     catch (err) { JO.toast(err.message, 'bad'); }
   }
   function teamCardConsole(T, s) {
-    return `<section class="card"><h2>Tim ${esc(T.name)}</h2><p class="small muted" style="margin-top:-6px">${esc(s.discipline_name)} ${esc(T.level)}, ${T.members.length} pesenam. Peringkat dan publikasi di Hasil &amp; medali, tab Beregu.</p>
+    return `<section class="card" data-team="${T.id}"><h2>Tim ${esc(T.name)}</h2><p class="small muted" style="margin-top:-6px">${esc(s.discipline_name)} ${esc(T.level)}, ${T.members.length} pesenam. Peringkat dan publikasi di Hasil &amp; medali, tab Beregu.</p>
       <div class="tbl-wrap"><table class="tbl"><tbody>${T.members.map((m) => `<tr>
         <td><span class="bib">${esc(m.athlete_no || '')}</span> <strong>${esc(m.name)}</strong><br><span class="small muted">${esc(m.category)}</span></td>
         <td>${m.team_only ? '<span class="pill gold">khusus beregu</span>' : '<span class="pill info">juga perorangan</span>'}${m.entry_status !== 'aktif' ? ` <span class="pill bad">${esc(m.entry_status)}</span>` : ''}</td>
-        <td class="small">${m.submission_id !== s.id ? `<a href="#/pendaftaran/${m.submission_id}">${esc(m.submission_code)}</a><br>${pill(m.submission_status)}` : '<span class="muted">pendaftaran ini</span>'}</td></tr>`).join('')}
-      </tbody></table></div></section>`;
+        <td class="small">${m.submission_id !== s.id ? `<a href="#/pendaftaran/${m.submission_id}">${esc(m.submission_code)}</a><br>${pill(m.submission_status)}` : '<span class="muted">pendaftaran ini</span>'}</td>
+        ${isSuper() ? `<td class="r">${m.team_only ? '<span class="tiny muted">hapus lewat Hapus atlet</span>' : `<button class="btn btn-ghost btn-sm" data-tout="${m.athlete_id}">Keluarkan</button>`}</td>` : ''}</tr>`).join('')}
+      </tbody></table></div>
+      ${isSuper() && s.status !== 'dibatalkan' ? `<div class="actions"><button class="btn btn-ghost btn-sm" data-tadd>Tambah anggota</button><button class="btn btn-ghost btn-sm" data-taddonly>Tambah anggota khusus beregu</button><button class="btn btn-ghost btn-sm" data-tedit>Ubah tim</button><button class="btn btn-bad btn-sm" data-tdel>Hapus tim</button></div>` : ''}</section>`;
   }
 
   // =====================================================================
@@ -788,6 +811,197 @@
     await load();
   }
 
+  // =====================================================================
+  //  v12: ubah isi pendaftaran (owner & superadmin)
+  //  Penanggung jawab, klub, kategori, atlet, tim beregu, tautan musik.
+  // =====================================================================
+  const WHY = '<label class="f" for="why" style="margin-top:10px">Alasan perubahan (tercatat di Log)</label><textarea id="why"></textarea>';
+  const whyOf = (d) => d.querySelector('#why').value.trim();
+  const teamLevels = (disc) => ((CATS && CATS.team_levels) || {})[disc] || [];
+  const catMismatch = (c, a) => {
+    const y = Number(String(a.birth_date || '').slice(0, 4));
+    if ((c.gender === 'M' || c.gender === 'F') && a.gender && c.gender !== a.gender) return c.gender === 'M' ? 'khusus putra' : 'khusus putri';
+    if (y && c.birth_year_min != null && y < c.birth_year_min) return `kelahiran ${c.birth_year_min} ke atas`;
+    if (y && c.birth_year_max != null && y > c.birth_year_max) return `kelahiran ${c.birth_year_max} ke bawah`;
+    return '';
+  };
+  const catOpt = (c, a) => { const mm = a ? catMismatch(c, a) : ''; return `<option value="${c.id}" data-mm="${esc(mm)}" data-type="${esc(c.entry_type)}">${esc(c.name_id)}, ${fmtRp(c.fee)}${mm ? ' (tidak sesuai: ' + esc(mm) + ')' : ''}</option>`; };
+  const CONFIRM_MM = '<div id="mmbox" hidden style="margin-top:8px"><label class="check small"><input type="checkbox" id="mmok"> Tetap daftarkan walau tidak sesuai usia atau jenis kelamin kategori</label></div>';
+
+  async function editContact(s, done) {
+    const r = await dialog({ title: 'Ubah penanggung jawab', ok: 'Simpan perubahan',
+      body: `<div class="grid-2">
+        <div class="field"><label class="f">Nama</label><input data-k="contact_name" value="${esc(s.contact_name)}"></div>
+        <div class="field"><label class="f">Peran di klub</label><select data-k="contact_role">${['pemilik', 'admin', 'pelatih', 'manajer', 'lainnya'].map((k) => `<option value="${k}" ${s.contact_role === k ? 'selected' : ''}>${esc(ROLE_CLUB[k])}</option>`).join('')}</select></div>
+        <div class="field"><label class="f">Email</label><input data-k="contact_email" type="email" value="${esc(s.contact_email)}"></div>
+        <div class="field"><label class="f">WhatsApp</label><input data-k="contact_phone" value="${esc(s.contact_phone)}"></div></div>
+        <p class="small muted">Bila email berubah, tautan halaman status dikirim otomatis ke alamat baru.</p>${WHY}`,
+      onOk: async (d) => {
+        const patch = {};
+        d.querySelectorAll('[data-k]').forEach((i) => { const old = s[i.dataset.k] == null ? '' : String(s[i.dataset.k]); if (i.value.trim() !== old) patch[i.dataset.k] = i.value.trim(); });
+        if (!Object.keys(patch).length) return true;
+        await api('console_update_contact', { p_id: s.id, p_patch: patch, p_reason: whyOf(d) });
+        return true;
+      } });
+    if (r) { JO.toast('Penanggung jawab disimpan.'); done(); }
+  }
+
+  async function changeClub(s, done) {
+    let clubs = [];
+    try { clubs = (await api('console_clubs')).filter((k) => !k.merged_into && k.id !== s.club_id); } catch (e) { JO.toast(e.message, 'bad'); return; }
+    clubs.sort((x, y) => x.name.localeCompare(y.name));
+    let warn = [];
+    const r = await dialog({ title: 'Ganti klub', ok: 'Pindahkan',
+      body: `<p class="small">Pendaftaran ${esc(s.code)} dipindah ke klub lain. Klub yang belum ada ditambahkan dulu di menu Klub.</p>
+        <label class="f" for="nc">Klub tujuan</label><select id="nc">${clubs.map((k) => `<option value="${k.id}">${esc(k.name)}${k.kab_kota || k.province ? ' (' + esc([k.kab_kota, k.province].filter(Boolean).join(', ')) + ')' : ''}</option>`).join('')}</select>
+        <p class="note warn small" style="margin-top:10px">Syarat Ritmik Priangan diperiksa ulang, dan batas peserta per klub dihitung terhadap klub baru.</p>${WHY}`,
+      onOk: async (d) => { const R = await api('console_change_club', { p_id: s.id, p_club: d.querySelector('#nc').value, p_reason: whyOf(d) }); warn = R.warnings || []; return true; } });
+    if (!r) return;
+    JO.toast('Klub diganti.');
+    if (warn.length) await dialog({ title: 'Perlu diperiksa', ok: 'Mengerti', cancel: 'Tutup', body: `<ul class="small" style="padding-left:18px">${warn.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>`, onOk: async () => true });
+    done();
+  }
+
+  // pilihan kategori + pasangan + konfirmasi ketidaksesuaian, dipakai Tambah nomor dan Tambah atlet
+  function wireCatPicker(d, athletesFor) {
+    const sel = d.querySelector('#nc'), pb = d.querySelector('#pbox'), mb = d.querySelector('#mmbox');
+    const upd = () => {
+      const o = sel.selectedOptions[0]; if (!o) return;
+      if (pb) pb.hidden = o.dataset.type !== 'pair';
+      const a = athletesFor ? athletesFor() : null;
+      let mm = o.dataset.mm;
+      if (a) { const c = CATS.categories.find((x) => x.id === Number(sel.value)); mm = c ? catMismatch(c, a) : ''; }
+      if (mb) { mb.hidden = !mm; mb.dataset.mm = mm || ''; }
+    };
+    sel.addEventListener('change', upd); upd(); return upd;
+  }
+  const needMmOk = (d) => { const mb = d.querySelector('#mmbox'); if (mb && !mb.hidden && !d.querySelector('#mmok').checked) throw new Error('Kategori ini tidak sesuai (' + mb.dataset.mm + '). Centang konfirmasi bila tetap ingin mendaftarkan.'); };
+
+  async function addEntry(a, D, s, done) {
+    const mine = D.entries.filter((e) => e.status !== 'dibatalkan' && e.athletes.some((x) => x.id === a.id));
+    const list = CATS.categories.filter((c) => c.discipline === s.discipline && c.active && !mine.some((e) => e.category_id === c.id || e.entry_type === c.entry_type));
+    if (!list.length) { JO.toast(a.full_name + ' sudah punya satu nomor perorangan dan satu nomor pasangan.', 'bad'); return; }
+    const others = D.athletes.filter((x) => x.id !== a.id);
+    const pr = dialog({ title: 'Tambah nomor untuk ' + a.full_name, ok: 'Tambahkan',
+      body: `<label class="f" for="nc">Kategori</label><select id="nc">${list.map((c) => catOpt(c, a)).join('')}</select>
+        <div id="pbox" hidden><label class="f" for="np" style="margin-top:10px">Pasangan</label><select id="np">${others.map((x) => `<option value="${x.id}">${esc(x.full_name)}</option>`).join('')}</select></div>
+        ${CONFIRM_MM}
+        <p class="small muted" style="margin-top:10px">Biaya nomor ditambahkan ke tagihan. Bila pendaftaran sudah lunas, selisihnya tampil di kotak Pembayaran.</p>${WHY}`,
+      onOk: async (d) => {
+        needMmOk(d);
+        const pair = d.querySelector('#nc').selectedOptions[0].dataset.type === 'pair';
+        if (pair && !others.length) throw new Error('Nomor pasangan butuh atlet kedua di pendaftaran ini. Tambahkan atletnya dulu.');
+        await api('console_add_entry', { p_id: s.id, p_category: Number(d.querySelector('#nc').value), p_athletes: pair ? [a.id, d.querySelector('#np').value] : [a.id], p_reason: whyOf(d) });
+        return true;
+      } });
+    wireCatPicker(dlg, null);   // dialog() sudah menampilkan isinya saat kembali
+    const r = await pr;
+    if (r) { JO.toast('Nomor ditambahkan.'); await refreshCats(); done(); }
+  }
+
+  async function removeEntry(e, done) {
+    const reason = await askReason('Hapus kategori ' + e.category + '?', 'Alasan (masuk Log)', { min: 3, ok: 'Hapus kategori', okClass: 'btn-bad',
+      intro: 'Nomor ini dihapus dari pendaftaran dan tagihan dihitung ulang. Untuk atlet yang batal tampil pada hari-H, gunakan Tidak tampil (DNS).' });
+    if (!reason) return;
+    try { await api('console_remove_entry', { p_entry: e.id, p_reason: reason }); JO.toast('Kategori dihapus.'); await refreshCats(); done(); }
+    catch (err) { JO.toast(err.message, 'bad'); }
+  }
+
+  async function addAthlete(D, s, team, done) {
+    const R = window.JO_REGIONS;
+    const cats = CATS.categories.filter((c) => c.discipline === s.discipline && c.active);
+    const form = () => ({ gender: (dlg.querySelector('[data-k="gender"]') || {}).value, birth_date: (dlg.querySelector('[data-k="birth_date"]') || {}).value });
+    let R2 = null;
+    const pr = dialog({ title: team ? 'Tambah anggota khusus beregu: ' + team.name : 'Tambah atlet ke ' + s.code, ok: 'Tambahkan', wide: true,
+      body: `${team ? `<p class="small">Anggota khusus beregu tidak diperingkat perorangan dan biayanya sudah termasuk biaya tim. Kelompok usianya ditentukan dari tanggal lahir di ${esc(team.level)}.</p>` : ''}
+        <div class="grid-2">
+        <div class="field"><label class="f">Nama lengkap sesuai identitas</label><input data-k="full_name"></div>
+        <div class="field"><label class="f">Tanggal lahir</label><input data-k="birth_date" type="date"></div>
+        ${team ? '' : '<div class="field"><label class="f">Jenis kelamin</label><select data-k="gender"><option value="F">Putri</option><option value="M">Putra</option></select></div>'}
+        <div class="field"><label class="f">Kewarganegaraan</label><select data-k="nationality"><option>WNI</option><option>WNA</option></select></div>
+        <div class="field"><label class="f">Provinsi</label><select data-k="province"><option value=""></option>${R.provinces.map((p) => `<option>${esc(p)}</option>`).join('')}</select></div>
+        <div class="field"><label class="f">Kabupaten/kota</label><input data-k="kab_kota" list="kabs2"><datalist id="kabs2">${R.jabar.map((k) => `<option>${esc(k)}</option>`).join('')}</datalist></div>
+        <div class="field"><label class="f">Negara (untuk WNA)</label><input data-k="country"></div>
+        <div class="field"><label class="f">Nama orang tua/wali</label><input data-g="name"></div>
+        <div class="field"><label class="f">WhatsApp orang tua/wali</label><input data-g="phone"></div>
+        <div class="field"><label class="f">Email orang tua/wali</label><input data-g="email" type="email"></div></div>
+        ${team ? '' : `<label class="f" for="nc" style="margin-top:10px">Kategori</label><select id="nc">${cats.map((c) => catOpt(c, null)).join('')}</select>
+          <div id="pbox" hidden><label class="f" for="np" style="margin-top:10px">Pasangan</label><select id="np">${D.athletes.map((x) => `<option value="${x.id}">${esc(x.full_name)}</option>`).join('')}</select></div>${CONFIRM_MM}`}
+        <p class="note info small" style="margin-top:10px">Berkas (Akte, pas foto, BPJS) diunggah setelah ini lewat <strong>Kelola berkas</strong> pada atletnya. Email orang tua/wali dipakai sebagai tembusan AIC.</p>${WHY}`,
+      onOk: async (d) => {
+        const p = { guardian: {} };
+        d.querySelectorAll('[data-k]').forEach((i) => { if (i.value.trim()) p[i.dataset.k] = i.value.trim(); });
+        d.querySelectorAll('[data-g]').forEach((i) => { if (i.value.trim()) p.guardian[i.dataset.g] = i.value.trim(); });
+        if (!p.full_name || !p.birth_date) throw new Error('Isi nama lengkap dan tanggal lahir.');
+        if (team) p.team_id = team.id;
+        else {
+          needMmOk(d);
+          p.category_id = Number(d.querySelector('#nc').value);
+          if (d.querySelector('#nc').selectedOptions[0].dataset.type === 'pair') {
+            if (!D.athletes.length) throw new Error('Nomor pasangan butuh atlet kedua di pendaftaran ini.');
+            p.partner = d.querySelector('#np').value;
+          }
+        }
+        R2 = await api('console_add_athlete', { p_id: s.id, p: p, p_reason: whyOf(d) });
+        return true;
+      } });
+    if (!team) {
+      const upd = wireCatPicker(dlg, form);
+      dlg.querySelectorAll('[data-k="gender"],[data-k="birth_date"]').forEach((i) => i.addEventListener('change', upd));
+    }
+    const r = await pr;
+    if (r) { if (R2 && R2.new_athlete) FP_OPEN.add(R2.new_athlete); JO.toast('Atlet ditambahkan. Unggah berkasnya lewat Kelola berkas.'); await refreshCats(); done(); }
+  }
+
+  async function teamDialog(s, T, done) {
+    const lv = teamLevels(s.discipline);
+    const r = await dialog({ title: T ? 'Ubah tim ' + T.name : 'Tambah tim beregu', ok: T ? 'Simpan perubahan' : 'Buat tim',
+      body: `<div class="grid-2"><div class="field"><label class="f">Nama tim</label><input id="tn" value="${esc(T ? T.name : '')}"></div>
+        <div class="field"><label class="f">Level</label><select id="tl">${lv.map((l) => `<option ${T && T.level === l ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div></div>
+        <p class="small muted">${T ? 'Level hanya bisa diubah saat tim belum punya anggota.' : 'Biaya beregu ditambahkan ke tagihan. Setelah tim dibuat, tambahkan anggotanya dari kartu tim.'}</p>${WHY}`,
+      onOk: async (d) => { await api('console_team_save', { p_id: s.id, p_team: T ? T.id : null, p_name: d.querySelector('#tn').value.trim(), p_level: d.querySelector('#tl').value, p_reason: whyOf(d) }); return true; } });
+    if (r) { JO.toast(T ? 'Tim disimpan.' : 'Tim dibuat.'); done(); }
+  }
+  async function teamAddMember(T, done) {
+    let cand = [];
+    try { cand = await api('console_team_candidates', { p_team: T.id }); } catch (e) { JO.toast(e.message, 'bad'); return; }
+    if (!cand.length) { JO.toast('Tidak ada atlet klub ini di ' + T.level + ' yang belum masuk tim. Tambahkan anggota khusus beregu, atau pindahkan kategori atletnya dulu.', 'bad'); return; }
+    const r = await dialog({ title: 'Tambah anggota tim ' + T.name, ok: 'Tambahkan',
+      body: `<p class="small">Atlet klub ini dengan nomor perorangan di ${esc(T.level)} yang belum masuk tim.</p>
+        <label class="f" for="tm">Atlet</label><select id="tm">${cand.map((c) => `<option value="${c.athlete_id}">${esc(c.name)} (${esc(c.athlete_no || '')}, ${esc(c.category)}${c.same_submission ? '' : ', ' + esc(c.code)})</option>`).join('')}</select>${WHY}`,
+      onOk: async (d) => { await api('console_team_member', { p_team: T.id, p_athlete: d.querySelector('#tm').value, p_add: true, p_reason: whyOf(d) }); return true; } });
+    if (r) { JO.toast('Anggota ditambahkan.'); done(); }
+  }
+  async function teamRemoveMember(T, m, done) {
+    const reason = await askReason('Keluarkan ' + m.name + ' dari tim ' + T.name + '?', 'Alasan (masuk Log)', { min: 3, ok: 'Keluarkan', okClass: 'btn-bad',
+      intro: 'Atlet tetap terdaftar di nomor perorangannya; hanya keanggotaan timnya yang dilepas.' });
+    if (!reason) return;
+    try { await api('console_team_member', { p_team: T.id, p_athlete: m.athlete_id, p_add: false, p_reason: reason }); JO.toast('Anggota dikeluarkan.'); done(); }
+    catch (e) { JO.toast(e.message, 'bad'); }
+  }
+  async function teamDelete(T, done) {
+    const reason = await askReason('Hapus tim ' + T.name + '?', 'Alasan (masuk Log)', { min: 3, ok: 'Hapus tim', okClass: 'btn-bad',
+      intro: 'Tim dan keanggotaannya dihapus, biaya beregu dikurangi dari tagihan. Atletnya tetap terdaftar di nomor perorangan.' });
+    if (!reason) return;
+    try { await api('console_team_delete', { p_team: T.id, p_reason: reason }); JO.toast('Tim dihapus.'); done(); }
+    catch (e) { JO.toast(e.message, 'bad'); }
+  }
+
+  async function editMusic(e, done) {
+    const m = e.music || {};
+    const r = await dialog({ title: 'Ubah tautan musik', ok: 'Simpan tautan', wide: true,
+      body: `<p class="small">${esc(e.category)}. Perubahan oleh panitia tidak memakai jatah ganti musik klub. Kosongkan kolom untuk menghapus tautan.</p>
+        ${(e.apparatus || []).map((ap) => `<div class="field"><label class="f">${esc(appName('RG', ap))}</label><input data-ap="${esc(ap)}" value="${esc(m[ap] || '')}" placeholder="https://drive.google.com/..."></div>`).join('')}${WHY}`,
+      onOk: async (d) => {
+        const patch = {};
+        d.querySelectorAll('[data-ap]').forEach((i) => { if (i.value.trim() !== (m[i.dataset.ap] || '')) patch[i.dataset.ap] = i.value.trim(); });
+        if (!Object.keys(patch).length) return true;
+        await api('console_set_music', { p_entry: e.id, p_music: patch, p_reason: whyOf(d) });
+        return true;
+      } });
+    if (r) { JO.toast('Tautan musik disimpan.'); done(); }
+  }
+
   async function editAthlete(a, done) {
     const R = window.JO_REGIONS;
     const r = await dialog({ title: 'Ubah data ' + a.full_name, ok: 'Simpan perubahan',
@@ -812,12 +1026,13 @@
       } });
     if (r) { JO.toast('Data atlet disimpan.'); done(); }
   }
-  async function moveEntry(e, disc, done) {
+  async function moveEntry(e, disc, done, aths) {
     const cur = CATS.categories.find((c) => c.id === e.category_id);
     const list = CATS.categories.filter((c) => c.discipline === disc && c.entry_type === cur.entry_type && c.id !== cur.id);
     const r = await dialog({ title: 'Pindah kategori', ok: 'Pindahkan',
       body: `<p class="small">Dari <strong>${esc(cur.name_id)}</strong>. Gunakan untuk penggabungan kategori dengan kurang dari 3 peserta, atau koreksi kesalahan pilih kategori.</p>
-        <label class="f" for="tc">Ke kategori</label><select id="tc">${list.map((c) => `<option value="${c.id}">${esc(c.name_id)} (${c.registered} terdaftar)</option>`).join('')}</select>
+        <label class="f" for="tc">Ke kategori</label><select id="tc">${list.map((c) => { const mm = (aths || []).filter((a) => e.athletes.some((x) => x.id === a.id)).map((a) => catMismatch(c, a)).filter(Boolean)[0]; return `<option value="${c.id}">${esc(c.name_id)} (${c.registered} terdaftar${c.fee !== cur.fee && !e.team_only ? ', biaya ' + fmtRp(c.fee) : ''})${mm ? ' · tidak sesuai: ' + esc(mm) : ''}</option>`; }).join('')}</select>
+        <p class="small muted">Biaya mengikuti kategori baru. Kategori bertanda "tidak sesuai" tetap bisa dipilih, mis. untuk penggabungan.</p>
         <label class="f" for="why" style="margin-top:10px">Alasan</label><textarea id="why" placeholder="Mis. digabung karena peserta kurang dari 3"></textarea>`,
       onOk: async (d) => { await api('console_move_entry', { p_entry: e.id, p_category: Number(d.querySelector('#tc').value), p_reason: d.querySelector('#why').value.trim() }); return true; } });
     if (r) { JO.toast('Entri dipindahkan.'); await refreshCats(); done(); }
@@ -2671,7 +2886,7 @@
     pendaftaran_dihapus: 'Pendaftaran dihapus', pendaftaran_kedaluwarsa: 'Kedaluwarsa (tanpa bukti bayar)',
     dokumen_valid: 'Dokumen valid', dokumen_tidak_valid: 'Dokumen tidak valid', musik_ok: 'Musik bisa dibuka', musik_tidak_bisa: 'Musik tidak bisa dibuka',
     priangan_disetujui: 'Priangan disetujui', priangan_ditolak: 'Priangan ditolak', data_atlet_diubah: 'Data atlet diubah', berkas_atlet_diubah: 'Berkas atlet diubah', atlet_dihapus: 'Atlet dihapus',
-    pindah_kategori: 'Pindah kategori', kirim_ulang_email: 'Email dikirim ulang', impor_mutasi: 'Impor mutasi GoBiz', cocokkan_mutasi: 'Mutasi dicocokkan',
+    pindah_kategori: 'Pindah kategori', penanggung_jawab_diubah: 'Penanggung jawab diubah', klub_diubah: 'Klub pendaftaran diganti', kategori_ditambah: 'Kategori ditambah', kategori_dihapus: 'Kategori dihapus', atlet_ditambah: 'Atlet ditambah', tim_dibuat: 'Tim beregu dibuat', tim_diubah: 'Tim beregu diubah', tim_dihapus: 'Tim beregu dihapus', anggota_tim_ditambah: 'Anggota tim ditambah', anggota_tim_dikeluarkan: 'Anggota tim dikeluarkan', musik_diubah_panitia: 'Tautan musik diubah panitia', kirim_ulang_email: 'Email dikirim ulang', impor_mutasi: 'Impor mutasi GoBiz', cocokkan_mutasi: 'Mutasi dicocokkan',
     kode_dibuat: 'Kode akses dibuat', kode_diubah: 'Data kode diubah', kode_diganti: 'Kode akses diganti', kode_dihapus: 'Kode akses dihapus',
     klub_disimpan: 'Klub disimpan', klub_digabung: 'Klub digabung', klub_dihapus: 'Klub dihapus',
     faq_status: 'Status FAQ diubah', faq_diubah: 'FAQ diubah', faq_dibuat: 'FAQ dibuat', faq_kategori_dibuat: 'Kategori FAQ dibuat', faq_kategori_diubah: 'Kategori FAQ diubah',
