@@ -20,7 +20,7 @@
   const DOCS = { akte: 'Akte', ktp: 'KTP', ijazah: 'Ijazah', bpjs: 'BPJS', passport: 'Paspor', photo: 'Foto' };
   const ROLES = [['pemilik', 'Pemilik klub'], ['admin', 'Admin klub'], ['pelatih', 'Pelatih'], ['manajer', 'Manajer / official'], ['lainnya', 'Lainnya']];
   const PASTE = ['full_name', 'gender', 'birth_date', 'nationality', 'region', 'kab_kota', 'discipline', 'category', 'extra',
-    'g_name', 'g_relation', 'g_phone', 'g_email', 'music1', 'music2', 'music3'];
+    'g_name', 'g_relation', 'g_phone', 'g_email', 'music1', 'music2', 'music3', 'music4'];   // Junior Ritmik: 4 alat (Simpai, Bola, Gada, Pita)
   const DRIVE = /^https:\/\/(drive|docs)\.google\.com\/\S+$/i;
   const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -540,7 +540,7 @@
         <th class="stk c-sel"><span class="sr-only">Pilih</span></th><th class="stk c-no">No</th><th class="stk c-name">Nama lengkap</th>
         <th>L/P</th><th>Tanggal lahir</th><th>WNI/WNA</th><th>Provinsi / negara</th><th>Kab/kota</th><th>Disiplin</th><th>Kategori</th>
         <th>Tim (Artistik) / Pasangan (Aerobik)</th><th>Orang tua/wali</th><th>Hubungan</th><th>WA orang tua/wali</th><th>Email orang tua/wali</th>
-        <th>Musik 1 (Ritmik)</th><th>Musik 2</th><th>Musik 3</th><th>Dokumen</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+        <th>Musik 1 (Ritmik)</th><th>Musik 2</th><th>Musik 3</th><th>Musik 4 (Junior)</th><th>Dokumen</th><th>Status</th></tr></thead><tbody></tbody></table></div>
       <p class="small muted" style="margin-top:8px">Kolom orang tua/wali wajib untuk atlet di bawah 18 tahun. Nama file dokumen untuk unggah sekaligus: <code>012-akte.pdf</code>, <code>012-foto.jpg</code>, <code>012-ktp.jpg</code>, <code>012-bpjs.pdf</code>, <code>012-paspor.pdf</code>, <code>012-ijazah.pdf</code> (012 = nomor baris).</p>`;
     const q = body.querySelector('#ms-q');
     q.oninput = () => { Q = q.value.trim().toLowerCase(); drawRows(); };
@@ -662,7 +662,7 @@
     // musik
     const c = catById(d.category_id);
     const apps = d.discipline === 'RG' && c ? (c.apparatus || []) : [];
-    const mus = [0, 1, 2].map((i) => apps[i] ? inp('music' + (i + 1), (d.music || [])[i], `placeholder="${esc(appName('RG', apps[i]))}: https://drive.google.com/..."`) : '<input disabled placeholder="–">');
+    const mus = [0, 1, 2, 3].map((i) => apps[i] ? inp('music' + (i + 1), (d.music || [])[i], `placeholder="${esc(appName('RG', apps[i]))}: https://drive.google.com/..."`) : '<input disabled placeholder="–">');
     // dokumen
     const keys = wna ? ['passport', 'photo'] : ['akte', 'ktp', 'ijazah', 'bpjs', 'photo'];
     const req = wna ? ['passport', 'photo'] : ['akte', 'photo'];
@@ -686,7 +686,7 @@
       ${td('g_relation', minor ? inp('g_relation', d.g_relation, 'placeholder="Ibu/Ayah"') : '<input disabled>', 'w-gr')}
       ${td('g_phone', minor ? inp('g_phone', d.g_phone, 'inputmode="tel" placeholder="08..."') : '<input disabled>', 'w-gp')}
       ${td('g_email', minor ? inp('g_email', d.g_email, 'type="email" placeholder="email"') : '<input disabled>', 'w-ge')}
-      ${td('music1', mus[0], 'w-m')}${td('music2', mus[1], 'w-m')}${td('music3', mus[2], 'w-m')}
+      ${td('music1', mus[0], 'w-m')}${td('music2', mus[1], 'w-m')}${td('music3', mus[2], 'w-m')}${td('music4', mus[3], 'w-m')}
       ${td('docs', `<div class="ms-docs">${docs}</div>`)}
       <td class="ms-st">${statusHtml(r, no)}</td></tr>`;
   }
@@ -713,7 +713,7 @@
         return true;
       case 'pair_category': d.pair_category_id = v ? Number(v) : null; return false;
       case 'pair_row': d.pair_row = digits(v) ? Number(digits(v)) : null; return false;
-      case 'music1': case 'music2': case 'music3': { const i = Number(k.slice(5)) - 1; d.music = (d.music || []).slice(); d.music[i] = v.trim(); return false; }
+      case 'music1': case 'music2': case 'music3': case 'music4': { const i = Number(k.slice(5)) - 1; d.music = (d.music || []).slice(); d.music[i] = v.trim(); return false; }
       case 'gender': case 'birth_date': d[k] = v; return true;
       default: d[k] = v; return false;
     }
@@ -837,7 +837,7 @@
         break;
       case 'g_name': d.g_name = JO.nameCase(v); break;
       case 'g_email': d.g_email = cleanEmail(v); break;
-      case 'music1': case 'music2': case 'music3': setVal(d, slot, v); break;
+      case 'music1': case 'music2': case 'music3': case 'music4': setVal(d, slot, v); break;
       default: d[slot] = v;
     }
   }
@@ -881,7 +881,7 @@
         <li>Nama lengkap</li><li>L/P (L atau P)</li><li>Tanggal lahir (tanggal/bulan/tahun, mis. 05/03/2014)</li><li>WNI atau WNA</li>
         <li>Provinsi (WNI) atau negara (WNA)</li><li>Kabupaten/kota</li><li>Disiplin (Ritmik, Artistik Putri, Artistik Putra, Aerobik)</li>
         <li>Kategori (kode, mis. RG-A-KU1112, atau nama persis seperti di daftar)</li><li>Nama tim (Artistik) atau no. baris pasangan (Aerobik)</li>
-        <li>Nama orang tua/wali</li><li>Hubungan</li><li>WhatsApp orang tua/wali</li><li>Email orang tua/wali</li><li>Musik 1, Musik 2, Musik 3 (Ritmik)</li>
+        <li>Nama orang tua/wali</li><li>Hubungan</li><li>WhatsApp orang tua/wali</li><li>Email orang tua/wali</li><li>Musik 1, Musik 2, Musik 3, Musik 4 (Ritmik; Musik 4 hanya Junior)</li>
       </ol>
       </details>
       <p class="small muted">Untuk mengisi kolom tertentu saja (mis. hanya orang tua/wali), klik sel pertama kolom itu di lembar lalu tempel langsung di sana. Dokumen tidak bisa ditempel; gunakan "Unggah dokumen sekaligus".</p>
