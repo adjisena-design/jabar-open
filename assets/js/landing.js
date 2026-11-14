@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const EN = {
-    n_sched: 'Agenda', n_fee: 'Fees', n_startlist: 'Schedule', n_athletes: 'Athletes', n_results: 'Results', n_merch: 'Merch',
+    n_sched: 'Agenda', n_fee: 'Fees', n_startlist: 'Schedule', n_athletes: 'Athletes', n_results: 'Results', n_merch: 'Merch', n_venue: 'Venue', n_venue_ft: '3D venue model',
     n_contact: 'Contact', n_faq: 'FAQ', n_partner: 'Partners',
     fq_eyebrow: 'Frequently asked', fq_title: 'Common questions, <em>answered here.</em>', fq_lead: 'Search by keyword or pick a category.', fq_all: 'Open the FAQ page', n_status: 'Check status', n_register: 'Register', n_verify: 'Verify a certificate', n_jury: 'Judge application',
     h_t1: 'One arena.', h_t2: 'Four disciplines.', h_t3: 'Hundreds of dreams.',

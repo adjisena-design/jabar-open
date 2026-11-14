@@ -12,6 +12,7 @@ Gymnasium Arcamanik, Bandung, 12–20 Desember 2026.
 | `startlist.html` | Start list resmi (sesi, grup, urutan) |
 | `hasil.html` | Hasil per kategori dan tabel medali (umum dan Priangan; per klub dan per kab/kota) |
 | `verifikasi.html` | Verifikasi QR e-ticket dan sertifikat |
+| `venue.html` | Model 3D Gymnasium Arcamanik (desktop saja): sudut pandang, atap/dinding, pintu masuk |
 
 ## Konsol panitia
 `panitia/` — masuk dengan kode akses pribadi. Peran: owner, superadmin, admin (verifikator), juri.

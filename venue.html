@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Venue · Jabar Open 2026</title>
+<meta name="description" content="Model 3D Gymnasium Arcamanik, venue Jabar Open 2026: putar, zoom, lihat dari tribun, buka atap dan dinding, dan temukan pintu masuk serta keluar.">
+<meta name="theme-color" content="#13284a">
+<link rel="icon" href="assets/img/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+<style>
+:root{
+  --ink:#13284a; --ink-2:#34476a; --muted:#5b6b88;
+  --blue:#2c4c7b; --blue-lt:#e9eff8; --gold:#e4c87d; --gold-d:#8a6a1f;
+  --paper:#ffffff; --mist:#f4f6fa; --line:#e2e8f1; --closed:#5f6873;
+  --sans:'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--mist);color:var(--ink-2);font-family:var(--sans);font-size:14.5px;line-height:1.5;display:flex;flex-direction:column}
+h1,h2{color:var(--ink);margin:0;letter-spacing:-.02em}
+button{font-family:inherit}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px;border-radius:6px}
+
+header{display:flex;align-items:center;gap:16px;padding:10px 18px;background:var(--ink);color:#fff;flex:none}
+header .logos{display:flex;align-items:center;gap:12px;text-decoration:none}
+header .logos img{height:34px;width:auto;display:block}
+header .logos .div{width:1px;height:28px;background:rgba(255,255,255,.35)}
+header .t{display:flex;flex-direction:column;min-width:0}
+header h1{color:#fff;font-size:17px;font-weight:800}
+header .sub{font-size:12.5px;color:rgba(255,255,255,.72)}
+header .right{margin-left:auto;display:flex;align-items:center;gap:14px}
+header .date{font-size:12.5px;color:var(--gold);font-weight:600;white-space:nowrap}
+header .home{color:#fff;font-size:13px;font-weight:600;text-decoration:none;border:1px solid rgba(255,255,255,.35);border-radius:8px;padding:5px 10px;white-space:nowrap}
+header .home:hover{background:rgba(255,255,255,.1)}
+.lang{display:flex;border:1px solid rgba(255,255,255,.35);border-radius:8px;overflow:hidden}
+.lang button{border:0;background:transparent;color:rgba(255,255,255,.8);font-size:12px;font-weight:700;padding:5px 9px;cursor:pointer}
+.lang button[aria-pressed="true"]{background:var(--gold);color:var(--ink)}
+
+main{flex:1;display:flex;min-height:0}
+#stage{position:relative;flex:1;min-height:0;background:#cfd9e6;overflow:hidden}
+#stage canvas{display:block;width:100%;height:100%;touch-action:none}
+#labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(19,40,74,.88);color:#fff;font-size:11.5px;font-weight:600;padding:3px 8px;border-radius:5px;white-space:nowrap;pointer-events:none;text-align:center;line-height:1.3}
+.lbl small{display:block;font-size:10px;font-weight:500;opacity:.78}
+.lbl.door{font-size:13px;font-weight:800;padding:5px 11px;border-radius:7px;box-shadow:0 6px 16px -8px rgba(0,0,0,.5)}
+.lbl.door small{font-size:11px}
+.lbl.pub{background:var(--blue);border:2px solid var(--gold)}
+.lbl.com{background:var(--ink);border:2px solid rgba(255,255,255,.7)}
+.lbl.no{background:var(--closed);border:2px dashed rgba(255,255,255,.75)}
+
+.bar{position:absolute;left:12px;right:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;pointer-events:none}
+.bar>*{pointer-events:auto}
+.bar.top{top:12px}
+.bar.bottom{bottom:12px}
+.seg{display:flex;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px;box-shadow:0 6px 18px -10px rgba(19,40,74,.45)}
+.seg button{border:0;background:transparent;color:var(--ink-2);font-size:13px;font-weight:600;padding:7px 11px;border-radius:7px;cursor:pointer;white-space:nowrap}
+.seg button:hover{background:var(--blue-lt)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.seg button .d{display:block;font-size:10.5px;font-weight:500;opacity:.75}
+.seg.tog button[aria-pressed="true"]{background:var(--blue)}
+.compass{margin-left:auto;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.94);border:1px solid var(--line);display:grid;place-items:center}
+.compass svg{width:30px;height:30px}
+.hint{font-size:12px;color:var(--ink-2);background:rgba(255,255,255,.9);border-radius:8px;padding:6px 10px;border:1px solid var(--line)}
+
+.doors{position:absolute;left:12px;top:72px;width:270px;background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:12px;padding:10px;box-shadow:0 10px 26px -14px rgba(19,40,74,.5);z-index:2}
+.doors .dh{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 2px 4px 4px}
+.doors h2{font-size:13px;font-weight:800}
+.doors .dh button{width:auto;display:inline-block;flex:none;border:0;background:var(--mist);border-radius:6px;font-size:11px;font-weight:700;color:var(--ink-2);padding:3px 8px;cursor:pointer}
+.doors.collapsed{width:auto}
+.doors.collapsed .dl{display:none}
+.doors.collapsed .dh{padding-bottom:0}
+.doors button{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;border:0;background:transparent;border-radius:8px;padding:7px 6px;cursor:pointer;color:var(--ink-2)}
+.doors button:hover{background:var(--blue-lt)}
+.doors .dot{flex:none;width:14px;height:14px;border-radius:50%;margin-top:3px}
+.doors .pub .dot{background:var(--blue);box-shadow:0 0 0 2px var(--gold)}
+.doors .com .dot{background:var(--ink)}
+.doors .no .dot{background:#fff;border:2px dashed var(--closed)}
+.doors b{display:block;color:var(--ink);font-size:13px;line-height:1.3}
+.doors span{display:block;font-size:12px;line-height:1.35;color:var(--muted)}
+.doors .go{font-size:11px;color:var(--blue);font-weight:700;margin-top:2px}
+
+.zoom{display:flex;flex-direction:column;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.zoom button{border:0;background:transparent;width:40px;height:36px;font-size:20px;font-weight:700;color:var(--ink);cursor:pointer}
+.zoom button+button{border-top:1px solid var(--line)}
+.zoom button:hover{background:var(--blue-lt)}
+.rstack{position:absolute;right:12px;top:72px;display:flex;flex-direction:column;gap:8px;align-items:flex-end;z-index:2}
+#resetBtn{border:1px solid var(--line);background:rgba(255,255,255,.94);color:var(--ink);font-weight:700;font-size:12px;padding:6px 10px;border-radius:8px;cursor:pointer}
+#fsBtn{border:1px solid var(--ink);background:var(--ink);color:#fff;font-weight:700;font-size:12px;padding:6px 10px;border-radius:8px;cursor:pointer}
+#loading{position:absolute;inset:0;display:grid;place-items:center;background:#cfd9e6;color:var(--ink);font-weight:700;z-index:3}
+#err{display:none;position:absolute;inset:0;place-items:center;padding:24px;text-align:center;background:#cfd9e6;color:var(--ink);z-index:4}
+body.fs header{display:none}
+
+#mobile{display:none;flex:1;align-items:center;justify-content:center;padding:32px 22px;text-align:center}
+#mobile .box{max-width:420px;display:flex;flex-direction:column;gap:12px;align-items:center}
+#mobile h2{font-size:22px;font-weight:800}
+#mobile p{margin:0;color:var(--muted)}
+#mobile a{display:inline-block;margin-top:6px;background:var(--ink);color:#fff;text-decoration:none;font-weight:700;padding:11px 20px;border-radius:10px}
+body.no3d main{display:none}
+body.no3d #mobile{display:flex}
+body.no3d header .date,body.no3d header .sub{display:none}
+@media (max-width:640px){header .logos .div,header .logos img:last-child{display:none}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <a class="logos" href="index.html" aria-label="Jabar Open 2026, beranda"><img src="assets/img/brand/jabar-open-white.webp" alt="Jabar Open" width="360" height="246"><span class="div"></span><img src="assets/img/brand/gi-jabar-white.webp" alt="Gimnastik Indonesia Jawa Barat" width="520" height="248"></a>
+  <div class="t"><h1 data-en="Gymnasium Arcamanik venue">Venue Gymnasium Arcamanik</h1><span class="sub" data-en="3D model · Jl. Pacuan Kuda, Bandung">Model 3D · Jl. Pacuan Kuda, Bandung</span></div>
+  <div class="right">
+    <span class="date" data-en="12–20 December 2026">12–20 Desember 2026</span>
+    <span class="lang" role="group" aria-label="Bahasa / Language"><button type="button" data-lang="id">ID</button><button type="button" data-lang="en">EN</button></span>
+    <a class="home" href="index.html" data-en="Home">Beranda</a>
+  </div>
+</header>
+<main>
+  <section id="stage" aria-label="Model 3D venue">
+    <div id="loading" data-en="Loading model…">Memuat model…</div>
+    <div id="err"><div><strong data-en="The 3D model could not load.">Model 3D tidak bisa dimuat.</strong><br><span data-en="This browser may be blocking WebGL. Try the latest Chrome, Edge or Safari.">Browser ini mungkin memblokir WebGL. Coba Chrome, Edge atau Safari versi terbaru.</span></div></div>
+    <div id="labels"></div>
+    <div class="bar top">
+      <div class="seg" id="phases" role="group" aria-label="Tata letak per disiplin"></div>
+      <div class="compass" title="Utara / North"><svg viewBox="0 0 30 30"><g id="needle"><path d="M15 3 L19 15 L15 13 L11 15Z" fill="#b5462f"/><path d="M15 27 L19 15 L15 17 L11 15Z" fill="#9aa6ba"/></g></svg></div>
+    </div>
+    <div class="doors" aria-label="Pintu masuk">
+      <div class="dh"><h2 data-en="Entrances">Pintu masuk</h2><button type="button" id="doorsToggle" aria-expanded="true" data-en="Hide">Sembunyikan</button></div>
+      <div class="dl">
+      <button type="button" class="pub" data-spot="pub"><i class="dot"></i><div><b data-en="Public entrance &amp; exit">Pintu masuk &amp; keluar umum</b><span data-en="West (right) wing, beside Padepokan Pencak Silat. Athletes, club officials, guests and spectators.">Sayap barat (kanan), sebelah Padepokan Pencak Silat. Atlet, ofisial klub, tamu dan penonton.</span><span class="go" data-en="Show on the model">Lihat di model</span></div></button>
+      <button type="button" class="com" data-spot="com"><i class="dot"></i><div><b data-en="Committee entrance">Pintu panitia</b><span data-en="East (left) wing. Committee only, not for the public.">Sayap timur (kiri). Khusus panitia, bukan untuk umum.</span><span class="go" data-en="Show on the model">Lihat di model</span></div></button>
+      <button type="button" class="no" data-spot="no"><i class="dot"></i><div><b data-en="Front middle door: closed">Pintu tengah depan: tertutup</b><span data-en="DISPORA office. Not an entrance or exit.">Kantor DISPORA. Bukan pintu masuk atau keluar.</span><span class="go" data-en="Show on the model">Lihat di model</span></div></button>
+      </div>
+    </div>
+    <div class="bar bottom">
+      <div class="seg" id="views" role="group" aria-label="Sudut pandang"></div>
+      <div class="seg tog" id="toggles" role="group" aria-label="Tampilan"></div>
+      <span class="hint" id="hint"></span>
+    </div>
+    <div class="rstack">
+      <button id="resetBtn" type="button">Reset kamera</button>
+      <button id="fsBtn" type="button" aria-pressed="false">Layar penuh</button>
+      <div class="zoom"><button id="zIn" type="button" aria-label="Perbesar / Zoom in">+</button><button id="zOut" type="button" aria-label="Perkecil / Zoom out">−</button></div>
+    </div>
+  </section>
+</main>
+<section id="mobile">
+  <div class="box">
+    <h2 data-en="Open on a computer">Buka di komputer</h2>
+    <p data-en="The 3D venue model is only available on a desktop or laptop browser.">Model 3D venue hanya tersedia di browser komputer atau laptop.</p>
+    <p data-en="Public entrance and exit: the west (right) wing, beside Padepokan Pencak Silat. The east wing is for the committee only, and the front middle door is the DISPORA office, not an entrance.">Pintu masuk dan keluar umum ada di sayap barat (kanan), sebelah Padepokan Pencak Silat. Sayap timur khusus panitia, dan pintu tengah depan adalah kantor DISPORA, bukan pintu masuk.</p>
+    <a href="index.html" data-en="Back to home">Kembali ke beranda</a>
+  </div>
+</section>
+<script>
+(function () {
+  var lang = 'id';
+  try { lang = localStorage.getItem('jo26-lang') === 'en' ? 'en' : 'id'; } catch (e) {}
+  window.VENUE_LANG = lang;
+  document.documentElement.lang = lang;
+  if (lang === 'en') document.querySelectorAll('[data-en]').forEach(function (el) { el.textContent = el.getAttribute('data-en'); });
+  document.querySelectorAll('.lang button').forEach(function (b) {
+    b.setAttribute('aria-pressed', String(b.dataset.lang === lang));
+    b.addEventListener('click', function () {
+      if (b.dataset.lang === lang) return;
+      try { localStorage.setItem('jo26-lang', b.dataset.lang); } catch (e) {}
+      location.reload();
+    });
+  });
+  var dt = document.getElementById('doorsToggle');
+  dt.addEventListener('click', function () {
+    var c = document.querySelector('.doors').classList.toggle('collapsed');
+    dt.setAttribute('aria-expanded', String(!c));
+    dt.textContent = lang === 'en' ? (c ? 'Show' : 'Hide') : (c ? 'Tampilkan' : 'Sembunyikan');
+  });
+  // desktop only: phones and tablets never download the model
+  var desktop = window.matchMedia('(min-width: 1024px) and (pointer: fine)').matches;
+  if (!desktop) { document.body.classList.add('no3d'); return; }
+  var fail = function () { var l = document.getElementById('loading'); if (l) l.remove(); document.getElementById('err').style.display = 'grid'; };
+  var a = document.createElement('script');
+  a.src = 'assets/js/venue-assets.js?v=1411a';
+  a.onerror = fail;
+  a.onload = function () {
+    var m = document.createElement('script');
+    m.type = 'module';
+    m.src = 'assets/js/venue.js?v=1411a';
+    m.onerror = fail;
+    document.body.appendChild(m);
+  };
+  document.body.appendChild(a);
+})();
+</script>
+</body>
+</html>
