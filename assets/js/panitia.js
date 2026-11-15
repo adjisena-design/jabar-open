@@ -330,7 +330,7 @@
     ['kontak', 'Kontak', () => !isViewer(), pageContacts, 'phone', 'Komunikasi'],
     ['faq', 'FAQ situs', () => isAdmin(), pageFaq, 'help', 'Komunikasi'],
     ['pendaftaran', 'Pendaftaran', () => isAdmin(), pageSubmissions, 'inbox', 'Peserta'],
-    ['massal', 'Pendaftaran massal', () => isSuper(), pageBulk, 'list', 'Peserta'],
+    ['massal', 'Pendaftaran massal', () => isAdmin(), pageBulk, 'list', 'Peserta'],
     ['buka-tutup', 'Buka/tutup & teks beranda', () => isSuper(), pageSiteControl, 'clock', 'Peserta'],
     ['atlet', 'Data atlet', () => isAdmin(), pageAthletes, 'users', 'Peserta'],
     ['musik', 'Musik Ritmik', () => isAdmin() && (!ME.discipline || ME.discipline === 'RG'), pageMusic, 'music', 'Peserta'],
@@ -1219,26 +1219,65 @@
     try { const r = await api('console_bulk_delete', { p_id: it.id, p_reason: reason }); await removeFiles(r.files, it.code_label); JO.toast('Kode massal dihapus.'); done(); }
     catch (e) { JO.toast(e.message, 'bad'); }
   }
+  let BULK_TAB = 'proses';
+  // Tandai selesai (label saja): tampilkan yang masih terbuka sebagai peringatan, tetap boleh ditandai.
+  async function bulkComplete(it, done, after) {
+    if (!it) return;
+    const name = esc(it.club || it.label);
+    if (!done) {
+      const r = await dialog({ title: 'Batalkan tanda selesai?', ok: 'Kembalikan ke Dalam proses',
+        body: `<p><b>${name}</b> dipindah kembali ke tab Dalam proses.</p>`, onOk: () => api('console_bulk_complete', { p_id: it.id, p_done: false, p_note: null }) });
+      if (r) { JO.toast('Dikembalikan ke Dalam proses.'); after && after(); }
+      return;
+    }
+    const open = [];
+    if (!it.opened_at) open.push('Kode belum pernah dibuka klub');
+    if (it.rows - it.rows_sent > 0) open.push(`${it.rows - it.rows_sent} atlet di lembar belum dikirim`);
+    if (it.to_verify) open.push(`${it.to_verify} bukti transfer menunggu verifikasi`);
+    if (it.unpaid_batches) open.push(`${it.unpaid_batches} batch belum lunas`);
+    if (it.docs_pending) open.push(`${it.docs_pending} atlet dokumennya belum diperiksa`);
+    const r = await dialog({ title: 'Tandai selesai: ' + (it.club || it.label), ok: 'Tandai selesai', okClass: 'btn-ok',
+      body: `${open.length ? `<div class="note warn small"><b>Masih ada yang terbuka:</b><ul style="margin:6px 0 0 18px;padding:0">${open.map((x) => `<li>${esc(x)}</li>`).join('')}</ul><p style="margin:6px 0 0">Tetap bisa ditandai selesai.</p></div>`
+          : '<p class="note ok small">Semua batch lunas, tidak ada transfer yang menunggu, dan dokumen sudah diperiksa.</p>'}
+        <p class="small">Hanya label: kode akses klub tetap bisa dipakai untuk membayar, mengunggah bukti, dan dokumen.</p>
+        <div class="field"><label class="f" for="bcn">Catatan (opsional)</label><input id="bcn" maxlength="200" placeholder="mis. dicek bersama Inda, semua lengkap"></div>`,
+      onOk: (d) => api('console_bulk_complete', { p_id: it.id, p_done: true, p_note: d.querySelector('#bcn').value }) });
+    if (r) { JO.toast('Ditandai selesai.'); after && after(); }
+  }
   async function pageBulk(v, rest) {
     if (rest && rest[0]) return pageBulkDetail(v, rest[0]);
     const L = await api('console_bulk_list');
+    const done = L.items.filter((x) => x.completed_at), proc = L.items.filter((x) => !x.completed_at);
+    const tab = BULK_TAB === 'selesai' ? 'selesai' : 'proses';
+    const items = tab === 'selesai' ? done : proc;
     const st = (it) => it.status === 'dicabut' ? '<span class="pill bad">Kode dicabut</span>'
       : !it.opened_at ? '<span class="pill">Belum dibuka</span>'
       : it.locked ? '<span class="pill">Masa pengisian berakhir</span>' : `<span class="pill info">${esc(bulkLeft(it.expires_at))}</span>`;
     v.innerHTML = `<div class="row page-act" style="justify-content:space-between;align-items:center;gap:12px 20px"><div><h1>Pendaftaran massal</h1>
         <p class="muted">Satu kode untuk satu klub. ${L.manager ? '' : 'Hanya Inda dan owner yang bisa membuat kode dan memverifikasi transfer.'}</p></div>
         ${L.manager ? '<button class="btn btn-primary" id="new">+ Buat kode akses</button>' : ''}</div><div style="height:14px"></div>
-      ${L.items.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Klub</th><th>Pengisi</th><th>Masa pengisian</th><th class="r">Atlet</th><th class="r">Tagihan</th><th>Perlu tindakan</th>${L.manager ? '<th></th>' : ''}</tr></thead><tbody>
-        ${L.items.map((it) => `<tr class="click" data-id="${it.id}">
-          <td><b>${esc(it.club || it.label)}</b><br><span class="tiny muted">${esc(it.code_label)} · kode …${esc(it.code_hint || '')}</span></td>
+      ${L.items.length ? `<div class="ms-tabs" role="tablist" aria-label="Status pendaftaran massal">
+          <button role="tab" data-tab="proses" aria-selected="${tab === 'proses'}">Dalam proses <b>${proc.length}</b></button>
+          <button role="tab" data-tab="selesai" aria-selected="${tab === 'selesai'}"><span class="ms-dot" aria-hidden="true"></span>Selesai <b>${done.length}</b></button>
+        </div>` : ''}
+      ${!L.items.length ? '' : !items.length ? `<p class="empty ms-empty">${tab === 'selesai' ? 'Belum ada pendaftaran massal yang ditandai selesai. Tandai dari tab Dalam proses setelah semua batch lunas dan dokumen diperiksa.' : 'Semua pendaftaran massal sudah ditandai selesai.'}</p>`
+        : `<div class="tbl-wrap ms-tblw ${tab === 'selesai' ? 'is-done' : ''}"><table class="tbl"><thead><tr><th>Klub</th><th>Pengisi</th><th>Masa pengisian</th><th class="r">Atlet</th><th class="r">Tagihan</th><th>Perlu tindakan</th><th></th></tr></thead><tbody>
+        ${items.map((it) => `<tr class="click ${it.completed_at ? 'ms-done' : ''}" data-id="${it.id}">
+          <td><b>${esc(it.club || it.label)}</b><br><span class="tiny muted">${esc(it.code_label)} · kode …${esc(it.code_hint || '')}</span>
+            ${it.completed_at ? `<br><span class="pill ok">Selesai</span> <span class="tiny muted">${dt(it.completed_at)}${it.completed_by ? ' · ' + esc(it.completed_by) : ''}</span>` : ''}</td>
           <td class="small">${esc(it.owner_name || it.req_name || '–')}${(it.collaborators || []).length ? `<br><span class="tiny muted">+ ${it.collaborators.map((c) => esc(c.name)).join(', ')}</span>` : ''}</td>
           <td>${st(it)}${it.extended_days ? `<br><span class="tiny muted">diperpanjang ${it.extended_days} hari</span>` : ''}</td>
           <td class="r num">${it.rows_sent}/${it.rows}<br><span class="tiny muted">terkirim/diisi</span></td>
           <td class="r num">${fmtRp(it.paid)}<br><span class="tiny muted">dari ${fmtRp(it.billed)}</span></td>
-          <td>${it.to_verify ? `<span class="pill warn">${it.to_verify} transfer perlu diverifikasi</span> ` : ''}${it.overdue ? `<span class="pill bad">${it.overdue} batch lewat batas bayar</span>` : ''}${!it.to_verify && !it.overdue ? '<span class="tiny muted">–</span>' : ''}</td>${L.manager ? `<td class="r"><button class="btn btn-ghost btn-sm" data-del="${it.id}" title="Hapus kode dan datanya">Hapus</button></td>` : ''}</tr>`).join('')}
-        </tbody></table></div>` : '<p class="empty">Belum ada kode akses. Klub meminta kode lewat WhatsApp Inda dari halaman pendaftaran massal.</p>'}`;
+          <td>${it.to_verify ? `<span class="pill warn">${it.to_verify} transfer perlu diverifikasi</span> ` : ''}${it.overdue ? `<span class="pill bad">${it.overdue} batch lewat batas bayar</span>` : ''}${!it.to_verify && !it.overdue ? '<span class="tiny muted">–</span>' : ''}</td>
+          <td class="r ms-acts">${it.completed_at ? `<button class="btn btn-ghost btn-sm" data-undone="${it.id}">Batalkan selesai</button>` : `<button class="btn btn-ok btn-sm" data-done="${it.id}">Tandai selesai</button>`}${L.manager ? ` <button class="btn btn-ghost btn-sm" data-del="${it.id}" title="Hapus kode dan datanya">Hapus</button>` : ''}</td></tr>`).join('')}
+        </tbody></table></div>`}
+      ${L.items.length ? '' : '<p class="empty">Belum ada kode akses. Klub meminta kode lewat WhatsApp Inda dari halaman pendaftaran massal.</p>'}`;
     labelTables(v);
-    v.querySelectorAll('tr[data-id]').forEach((tr) => tr.onclick = (e) => { if (e.target.closest('[data-del]')) return; location.hash = '#/massal/' + tr.dataset.id; });
+    v.querySelectorAll('tr[data-id]').forEach((tr) => tr.onclick = (e) => { if (e.target.closest('[data-del],[data-done],[data-undone]')) return; location.hash = '#/massal/' + tr.dataset.id; });
+    v.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { BULK_TAB = b.dataset.tab; pageBulk(v); });
+    v.querySelectorAll('[data-done]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); bulkComplete(L.items.find((x) => x.id === b.dataset.done), true, () => pageBulk(v)); });
+    v.querySelectorAll('[data-undone]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); bulkComplete(L.items.find((x) => x.id === b.dataset.undone), false, () => pageBulk(v)); });
     v.querySelectorAll('[data-del]').forEach((bt) => bt.onclick = (e) => { e.stopPropagation(); bulkDelete(L.items.find((x) => x.id === bt.dataset.del), () => pageBulk(v)); });
     const nb = v.querySelector('#new');
     if (nb) nb.onclick = async () => {
@@ -1274,7 +1313,7 @@
       <p class="small">Rencana: ${((b.split || {}).amounts || [b.total]).map((a, i) => `transfer ${i + 1} ${fmtRp(a)}`).join(' · ')}</p>
       <p class="small">Pendaftaran: ${b.submissions.map((s) => `<a href="#/pendaftaran/${s.id}">${esc(s.code)}</a> (${s.athletes} atlet, ${fmtRp(s.total)})`).join(' · ')}</p>
       ${b.status === 'lunas' ? `<div class="actions" style="margin:6px 0 10px">${b.aic_pending ? `<span class="pill warn">AIC ${b.aic_pending} atlet diperbarui, belum dikirim ulang</span>` : ''}
-        <button class="btn btn-ghost btn-sm" data-aicb="${b.id}">Kirim ulang AIC batch (1 email)</button></div>` : ''}
+        ${isSuper() ? `<button class="btn btn-ghost btn-sm" data-aicb="${b.id}">Kirim ulang AIC batch (1 email)</button>` : ''}</div>` : ''}
       ${b.payments.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nominal</th><th>Tgl transfer</th><th>Diunggah</th><th>Bukti</th><th>Status</th><th></th></tr></thead><tbody>${b.payments.map((p) => pay(p, b)).join('')}</tbody></table></div>` : '<p class="small muted">Belum ada bukti transfer.</p>'}
       ${M && b.status === 'menunggu' ? `<div class="actions" style="margin-top:10px"><button class="btn btn-ghost btn-sm" data-due="${b.id}" data-h="24">+24 jam batas bayar</button><button class="btn btn-ghost btn-sm" data-due="${b.id}" data-h="48">+48 jam</button>
         ${B.owner_phone ? `<a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${esc(waHref(B.owner_phone, ownerMsg(`Mengingatkan pembayaran ${b.code} sebesar ${fmtRp(Math.max(0, b.total - b.paid_verified))} ke BCA 1300030431533 a.n. Inda Sopia, paling lambat ${dt(b.due_at)}. Mohon unggah bukti transfer di portal. Terima kasih.`)))}">Ingatkan lewat WhatsApp</a>` : ''}</div>` : ''}</section>`;
@@ -1296,6 +1335,9 @@
             <button class="btn btn-ghost btn-sm" id="bdel">Hapus</button></div>` : ''}
         </section>
         <section class="card"><h2>Ringkasan</h2>
+          <div class="ms-state ${B.completed_at ? 'done' : ''}">${B.completed_at
+            ? `<span class="pill ok">Selesai</span><span class="small">ditandai ${dt(B.completed_at)}${B.completed_by ? ' oleh ' + esc(B.completed_by) : ''}${B.completed_note ? `<br><span class="muted">${esc(B.completed_note)}</span>` : ''}</span><button class="btn btn-ghost btn-sm" id="bundone">Batalkan selesai</button>`
+            : `<span class="pill info">Dalam proses</span><span></span><button class="btn btn-ok btn-sm" id="bdone">Tandai selesai</button>`}</div>
           <p>Atlet di lembar: <b>${B.rows}</b> · terkirim: <b>${B.rows_sent}</b></p>
           <p>Tagihan: <b>${fmtRp(B.billed)}</b> · terverifikasi: <b>${fmtRp(B.paid)}</b></p>
           ${B.to_verify ? `<p class="note warn small">${B.to_verify} bukti transfer menunggu verifikasi.</p>` : ''}${B.overdue ? `<p class="note bad small">${B.overdue} batch lewat batas bayar.</p>` : ''}
@@ -1309,6 +1351,8 @@
       <div class="card small">${B.log.map((l) => `<div style="padding:5px 0;border-bottom:1px solid var(--line)">${dt(l.at)} · <b>${esc(l.person || 'Sistem')}</b> · ${esc(l.action.replace(/_/g, ' '))}${l.detail && (l.detail.code || l.detail.amount || l.detail.days) ? ' · ' + esc([l.detail.code, l.detail.amount ? fmtRp(l.detail.amount) : '', l.detail.days ? l.detail.days + ' hari' : '', l.detail.note || ''].filter(Boolean).join(' · ')) : ''}</div>`).join('') || '<p class="muted">Belum ada.</p>'}</div>`;
     labelTables(v);
     const reload = () => pageBulkDetail(v, id);
+    const bd1 = v.querySelector('#bdone'); if (bd1) bd1.onclick = () => bulkComplete(B, true, reload);
+    const bd2 = v.querySelector('#bundone'); if (bd2) bd2.onclick = () => bulkComplete(B, false, reload);
     v.querySelectorAll('[data-proof]').forEach((b) => b.onclick = () => preview('bukti', b.dataset.proof, 'Bukti transfer'));
     v.querySelectorAll('[data-doc]').forEach((b) => b.onclick = () => preview('dokumen', b.dataset.doc, b.dataset.t));
     v.querySelectorAll('[data-ok]').forEach((b) => b.onclick = async () => {

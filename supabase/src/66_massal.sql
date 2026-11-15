@@ -44,6 +44,9 @@ create table if not exists jo.bulk_accounts (
   club_new       jsonb,                         -- klub baru (dibuat saat batch pertama)
   collaborators  jsonb not null default '[]'::jsonb,  -- [{id:'k1',name,phone}]
   reminded_at    timestamptz,
+  completed_at   timestamptz,                   -- ditandai selesai oleh verifikator (label saja, kode tetap berfungsi)
+  completed_by   uuid references jo.staff(id),
+  completed_note text,
   updated_at     timestamptz not null default now()
 );
 
@@ -700,14 +703,19 @@ language sql stable set search_path = '' as $$
     'paid', (select coalesce(sum(p.amount),0) from jo.bulk_payments p join jo.bulk_batches bt on bt.id = p.batch_id where bt.bulk_id = b.id and p.status = 'cocok' and bt.status <> 'dibatalkan'),
     'to_verify', (select count(*) from jo.bulk_payments p join jo.bulk_batches bt on bt.id = p.batch_id where bt.bulk_id = b.id and p.status = 'menunggu'),
     'overdue', (select count(*) from jo.bulk_batches bt where bt.bulk_id = b.id and bt.status = 'menunggu' and now() > bt.due_at),
-    'last_activity', (select max(at) from jo.bulk_log l where l.bulk_id = b.id))
+    'last_activity', (select max(at) from jo.bulk_log l where l.bulk_id = b.id),
+    'completed_at', b.completed_at, 'completed_by', (select name from jo.staff where id = b.completed_by), 'completed_note', b.completed_note,
+    'unpaid_batches', (select count(*) from jo.bulk_batches bt where bt.bulk_id = b.id and bt.status = 'menunggu'),
+    'docs_pending', (select count(*) from jo.athletes a join jo.submissions s on s.id = a.submission_id
+                      join jo.bulk_batches bt on bt.id = s.bulk_batch_id
+                     where bt.bulk_id = b.id and s.status <> 'dibatalkan' and a.doc_status = 'menunggu'))
 $$;
 
 create or replace function public.console_bulk_list() returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff;
 begin
-  st := jo.require_staff(array['owner','superadmin']);
+  st := jo.require_staff(array['owner','superadmin','admin']);
   return jsonb_build_object('manager', jo.bulk_is_manager(st), 'wa', jo.setting_text('bulk_wa'),
     'items', (select coalesce(jsonb_agg(jo.bulk_console_row(b) order by b.created_at desc), '[]'::jsonb) from jo.bulk_accounts b));
 end $$;
@@ -716,7 +724,7 @@ create or replace function public.console_bulk_summary() returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff;
 begin
-  st := jo.require_staff(array['owner','superadmin']);
+  st := jo.require_staff(array['owner','superadmin','admin']);
   return jsonb_build_object(
     'active', (select count(*) from jo.bulk_accounts where status = 'aktif' and (expires_at is null or now() <= expires_at)),
     'to_verify', (select count(*) from jo.bulk_payments where status = 'menunggu'),
@@ -727,7 +735,7 @@ create or replace function public.console_bulk(p_id uuid) returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare st jo.staff; b jo.bulk_accounts;
 begin
-  st := jo.require_staff(array['owner','superadmin']);
+  st := jo.require_staff(array['owner','superadmin','admin']);
   select * into b from jo.bulk_accounts where id = p_id;
   if b.id is null then raise exception 'Data tidak ditemukan.'; end if;
   return jo.bulk_console_row(b) || jsonb_build_object(
@@ -887,3 +895,26 @@ begin
   end if;
   return public.console_bulk(bt.bulk_id);
 end $$;
+
+
+-- Verifikator menandai pendaftaran massal selesai / belum selesai (label saja; kode, pembayaran, dan dokumen tetap berjalan).
+create or replace function public.console_bulk_complete(p_id uuid, p_done boolean, p_note text default null) returns jsonb
+language plpgsql volatile security definer set search_path = '' as $$
+declare st jo.staff; b jo.bulk_accounts;
+begin
+  st := jo.require_staff(array['owner','superadmin','admin']);
+  update jo.bulk_accounts
+     set completed_at = case when p_done then now() end,
+         completed_by = case when p_done then st.id end,
+         completed_note = case when p_done then nullif(btrim(coalesce(p_note, '')), '') end,
+         updated_at = now()
+   where id = p_id returning * into b;
+  if b.id is null then raise exception 'Data tidak ditemukan.'; end if;
+  perform jo.bulk_add_log(b.id, st.name, case when p_done then 'ditandai_selesai' else 'tanda_selesai_dibatalkan' end,
+                          case when nullif(btrim(coalesce(p_note, '')), '') is not null then jsonb_build_object('note', btrim(p_note)) else '{}'::jsonb end);
+  perform jo.log(st.id, case when p_done then 'massal_ditandai_selesai' else 'massal_tanda_selesai_dibatalkan' end, 'bulk', b.id::text,
+                 jsonb_build_object('code', jo.bulk_code_label(b), 'club', b.label, 'note', p_note));
+  return jo.bulk_console_row(b);
+end $$;
+revoke all on function public.console_bulk_complete(uuid, boolean, text) from public, anon;
+grant execute on function public.console_bulk_complete(uuid, boolean, text) to authenticated;

@@ -416,3 +416,17 @@ body[data-page="panitia"] .ath-tbl .bib{white-space:nowrap}
 @keyframes tkrun{to{transform:translateX(-100%)}}
 @media (max-width:600px){.sc-state{grid-template-columns:auto 1fr}.sc-state .btn{grid-column:1/-1}}
 @media (prefers-reduced-motion:reduce){.tk-run{animation:none;padding-left:12px}}
+
+/* Pendaftaran massal: tab Dalam proses | Selesai */
+.ms-tabs{display:inline-flex;gap:4px;padding:4px;background:var(--paper);border:1px solid var(--line);border-radius:12px;margin:0 0 10px}
+.ms-tabs button{display:inline-flex;align-items:center;gap:8px;border:0;background:transparent;font:inherit;font-weight:600;font-size:.9rem;color:var(--muted);padding:8px 14px;border-radius:9px;cursor:pointer}
+.ms-tabs button b{font-variant-numeric:tabular-nums;background:var(--line);color:var(--ink-2);border-radius:999px;padding:1px 8px;font-size:.78rem}
+.ms-tabs button[aria-selected="true"]{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(19,40,74,.12)}
+.ms-tabs button[data-tab="selesai"][aria-selected="true"] b{background:var(--ok-lt);color:var(--ok)}
+.ms-dot{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.ms-tblw.is-done{border-top:3px solid var(--ok);border-radius:12px}
+.ms-done td:first-child{box-shadow:inset 3px 0 0 var(--ok)}
+.ms-acts{white-space:nowrap}
+.ms-empty{margin-top:4px}
+.ms-state{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin:0 0 12px;background:var(--paper)}
+.ms-state.done{background:var(--ok-lt);border-color:#bfe3cc}
