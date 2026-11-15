@@ -525,6 +525,7 @@
       ${locked ? '' : `<div class="ms-tools">
         <div class="ms-grp"><span class="ms-lbl">1. Isi data</span><div class="ms-btns">
           <button class="btn btn-primary btn-sm" id="ms-paste">Tempel dari Excel</button>
+          <button class="btn btn-ghost btn-sm" id="ms-xlsx">Unggah file Excel</button>
           <button class="btn btn-ghost btn-sm" id="ms-docs">Unggah dokumen sekaligus</button>
           <button class="btn btn-ghost btn-sm" id="ms-more">+ 10 baris</button></div></div>
         <div class="ms-grp"><span class="ms-lbl">2. Simpan</span><div class="ms-btns">
@@ -547,6 +548,7 @@
     if (!locked) {
       body.querySelector('#ms-more').onclick = () => { EXTRA_ROWS += 10; drawRows(); };
       body.querySelector('#ms-paste').onclick = pasteBox;
+      body.querySelector('#ms-xlsx').onclick = xlsxBox;
       body.querySelector('#ms-docs').onclick = bulkDocs;
       body.querySelector('#ms-save-now').onclick = () => flush();
       body.querySelector('#ms-selok').onclick = () => {
@@ -895,6 +897,86 @@
     m.querySelector('#cx').onclick = () => m.remove();
     ok.onclick = () => { const l = lines(); m.remove(); if (FILTER !== 'all' || Q) { FILTER = 'all'; Q = ''; const q = document.getElementById('ms-q'); if (q) q.value = ''; drawSummary(); } pasteLines(l, start, 0); };
     setTimeout(() => ta.focus(), 50);
+  }
+
+  // ---------------- unggah file Excel (templat panitia) ----------------
+  let xlsxLib = null;
+  function loadXlsx() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    if (xlsxLib) return xlsxLib;
+    xlsxLib = new Promise((ok, no) => {
+      const sc = document.createElement('script'); sc.src = 'assets/vendor/xlsx-0.18.5.full.min.js';
+      sc.onload = () => ok(window.XLSX); sc.onerror = () => { xlsxLib = null; no(new Error('Pembaca Excel gagal dimuat. Periksa koneksi lalu coba lagi.')); };
+      document.head.appendChild(sc);
+    });
+    return xlsxLib;
+  }
+  // Baca lembar "Data Atlet" (atau lembar pertama) -> [{src, cells[17]}]; kolom A–Q sesuai urutan tempel.
+  function readSheet(XLSX, buf) {
+    const wb = XLSX.read(buf, { type: 'array' });
+    const name = wb.SheetNames.find((n) => normTxt(n) === 'data atlet') || wb.SheetNames.find((n) => !/petunjuk|kategori|estimasi|daftar/i.test(n)) || wb.SheetNames[0];
+    const ws = wb.Sheets[name]; if (!ws || !ws['!ref']) return { name, rows: [] };
+    const rg = XLSX.utils.decode_range(ws['!ref']); const rows = [];
+    for (let R = rg.s.r; R <= rg.e.r; R++) {
+      const cells = [];
+      for (let C = 0; C < 17; C++) {
+        const c = ws[XLSX.utils.encode_cell({ r: R, c: C })]; let v = '';
+        if (c && c.v != null && c.v !== '') {
+          if (C === 2 && c.t === 'n') v = String(Math.round(c.v));            // tanggal Excel -> angka seri
+          else if (c.t === 'n' && C !== 2) v = c.w != null && !/E\+/i.test(c.w) ? String(c.w) : String(c.v);
+          else if (c.t === 'd') v = c.v.toISOString().slice(0, 10);
+          else v = String(c.w != null && c.t !== 's' ? c.w : c.v);
+        }
+        cells.push(v.replace(/[\t\r\n]+/g, ' ').trim());
+      }
+      if (!cells.some(Boolean)) continue;
+      if (R === rg.s.r && /nama/i.test(cells[0]) && /l\s*\/\s*p|jenis/i.test(cells[1])) continue;   // baris judul
+      if (C_OK(cells)) rows.push({ src: R + 1, cells });
+    }
+    return { name, rows };
+    function C_OK(c) { return c[0] || c[6] || c[7]; }
+  }
+  function xlsxBox() {
+    const start = firstFreeRow();
+    const m = modal(`<h2>Unggah file Excel</h2>
+      <p>Pilih file templat pendaftaran massal Jabar Open 2026 (.xlsx) yang sudah diisi. Data dibaca dari lembar <b>Data Atlet</b>, kolom A sampai Q.</p>
+      <div class="ms-drop" id="xdrop">Seret file ke sini atau <button class="btn-link" id="xpick">pilih file</button></div>
+      <input type="file" id="xfile" accept=".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" hidden>
+      <div id="xres" class="small" style="margin-top:10px">${start ? `Data akan mengisi mulai baris <b>${pad3(start)}</b> (baris kosong pertama).` : 'Lembar sudah penuh.'}</div>
+      <p class="small muted">Belum punya templatnya? <a href="assets/files/Templat-Pendaftaran-Massal-Jabar-Open-2026.xlsx" download>Unduh templat Excel</a>. Dokumen tetap diunggah lewat "Unggah dokumen sekaligus".</p>
+      <div class="acts"><button class="btn btn-ghost" id="cx">Batal</button><button class="btn btn-dark" id="ok" disabled>Masukkan ke lembar</button></div>`);
+    const res = m.querySelector('#xres'), ok = m.querySelector('#ok'), inp = m.querySelector('#xfile'), drop = m.querySelector('#xdrop');
+    let lines = [];
+    m.querySelector('#cx').onclick = () => m.remove();
+    m.querySelector('#xpick').onclick = (e) => { e.preventDefault(); inp.click(); };
+    drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('over'); };
+    drop.ondragleave = () => drop.classList.remove('over');
+    drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over'); if (e.dataTransfer.files[0]) take(e.dataTransfer.files[0]); };
+    inp.onchange = () => { if (inp.files[0]) take(inp.files[0]); };
+    async function take(f) {
+      ok.disabled = true; lines = [];
+      if (!start) { res.innerHTML = 'Lembar sudah penuh.'; return; }
+      if (!/\.(xlsx|xlsm|xls)$/i.test(f.name)) { res.innerHTML = '<span style="color:var(--bad)">File harus berformat Excel (.xlsx).</span>'; return; }
+      if (f.size > 10 * 1024 * 1024) { res.innerHTML = '<span style="color:var(--bad)">File terlalu besar (maks. 10 MB).</span>'; return; }
+      res.textContent = 'Membaca file…';
+      try {
+        const XLSX = await loadXlsx();
+        const { name, rows } = readSheet(XLSX, new Uint8Array(await f.arrayBuffer()));
+        if (!rows.length) { res.innerHTML = `<span style="color:var(--bad)">Tidak ada data atlet di lembar "${esc(name)}".</span>`; return; }
+        const room = maxAth() - start + 1; const use = rows.slice(0, room);
+        // No. baris pasangan Aerobik di templat = baris Excel - 1; terjemahkan ke nomor baris portal.
+        const map = new Map(use.map((r, i) => [r.src - 1, start + i]));
+        lines = use.map((r) => {
+          const c = r.cells.slice();
+          if (parseDisc(c[6]) === 'AER' && /^\d+$/.test(c[8])) { const to = map.get(Number(c[8])); c[8] = to ? String(to) : ''; }
+          return c.join('\t');
+        });
+        res.innerHTML = `<b>${esc(f.name)}</b>: ${rows.length} atlet ditemukan di lembar "${esc(name)}". Akan mengisi baris <b>${pad3(start)}</b> sampai <b>${pad3(start + use.length - 1)}</b>.`
+          + (rows.length > use.length ? ` <span style="color:var(--bad)">${rows.length - use.length} atlet tidak muat (maks. ${maxAth()} baris).</span>` : '');
+        ok.disabled = false;
+      } catch (e) { res.innerHTML = `<span style="color:var(--bad)">${esc(errMsg(e) === 'Terjadi kesalahan. Coba lagi.' ? 'File tidak bisa dibaca. Pastikan file Excel (.xlsx) dan tidak diberi kata sandi.' : errMsg(e))}</span>`; }
+    }
+    ok.onclick = () => { m.remove(); if (FILTER !== 'all' || Q) { FILTER = 'all'; Q = ''; const q = document.getElementById('ms-q'); if (q) q.value = ''; drawSummary(); } pasteLines(lines, start, 0); };
   }
 
   // ---------------- unggah dokumen sekaligus ----------------
