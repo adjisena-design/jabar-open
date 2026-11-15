@@ -483,11 +483,36 @@
       const more = cc.querySelector('#cl-more');
       if (more) more.onclick = () => { const all = cc.classList.toggle('all'); more.textContent = all ? 'Tampilkan 12 teratas' : more.dataset.l; };
       cc.querySelectorAll('[data-club]:not([data-club=""])').forEach((el) => el.onclick = () => { location.hash = '#/pendaftaran?q=' + encodeURIComponent(el.dataset.club); });
+      const tt = cc.querySelector('#cl-tt'); let cur = -1;
+      const place = (e) => {
+        const b = cc.getBoundingClientRect(); const w = tt.offsetWidth, h = tt.offsetHeight;
+        let x = e.clientX - b.left + 14, y = e.clientY - b.top + 14;
+        if (x + w > b.width - 8) x = e.clientX - b.left - w - 14;
+        if (e.clientY + 14 + h > window.innerHeight - 8) y = e.clientY - b.top - h - 14;
+        tt.style.left = Math.max(8, x) + 'px'; tt.style.top = y + 'px';
+      };
+      cc.querySelectorAll('.cl-row').forEach((el) => {
+        el.addEventListener('pointermove', (e) => {
+          const i = Number(el.dataset.i);
+          if (i !== cur) { cur = i; tt.innerHTML = clubTip(CL_DATA.rows[i]); tt.hidden = false; }
+          place(e);
+        });
+        el.addEventListener('pointerleave', () => { cur = -1; tt.hidden = true; });
+      });
     }
   }
 
   // Grafik asal klub: batang mendatar per klub, dipecah per disiplin (warna tetap per disiplin).
   const CL_SLOT = { WAG: 1, MAG: 2, RG: 3, AER: 4 };
+  let CL_DATA = null;
+  const pct = (n, t) => { const v = t ? n / t * 100 : 0; return (v > 0 && v < 1 ? '<1' : v.toFixed(v < 10 && v % 1 ? 1 : 0).replace('.', ',')) + '%'; };
+  function clubTip(r) {
+    const { order, name, total } = CL_DATA; const t = Number(r.athletes) || 0;
+    const bd = (c) => Number((r.by_discipline || {})[c]) || 0;
+    return `<b class="cl-tt-h">${esc(r.club)}</b>${r.region ? `<span class="cl-tt-s">${esc(r.region)}</span>` : ''}
+      <span class="cl-tt-s">${t} atlet · ${pct(t, total)} dari semua atlet · ${r.paid} lunas</span>
+      <table>${order.filter((c) => bd(c)).map((c) => `<tr><td><i class="s${CL_SLOT[c]}"></i>${esc(name[c])}</td><td class="r">${bd(c)}</td><td class="r">${pct(bd(c), t)}</td></tr>`).join('')}</table>`;
+  }
   function clubChart(rows, discs) {
     const order = discs.map((x) => x.code).filter((c) => CL_SLOT[c]);
     const name = Object.fromEntries(discs.map((x) => [x.code, x.name]));
@@ -497,7 +522,8 @@
     const TOP = 12;
     const bd = (r, c) => Number((r.by_discipline || {})[c]) || 0;
     const tip = (r) => `${r.club}${r.region ? ' (' + r.region + ')' : ''}: ${r.athletes} atlet, ${r.paid} lunas · ` + order.filter((c) => bd(r, c)).map((c) => `${name[c]} ${bd(r, c)}`).join(', ');
-    const row = (r, i) => `<div class="cl-row ${i >= TOP ? 'extra' : ''}" data-club="${esc(r.club_id ? r.club : '')}" title="${esc(tip(r))}" role="listitem">
+    CL_DATA = { rows, order, name, total };
+    const row = (r, i) => `<div class="cl-row ${i >= TOP ? 'extra' : ''}" data-i="${i}" data-club="${esc(r.club_id ? r.club : '')}" aria-label="${esc(tip(r))}" role="listitem">
         <span class="cl-name">${esc(r.club)}</span>
         <span class="cl-track"><span class="cl-bar" style="width:${(Number(r.athletes) / max * 100).toFixed(2)}%">${order.filter((c) => bd(r, c)).map((c) => `<span class="cl-seg s${CL_SLOT[c]}" style="flex:${bd(r, c)} 1 0" aria-label="${esc(name[c])} ${bd(r, c)}"></span>`).join('')}</span></span>
         <span class="cl-val"><b>${r.athletes}</b><small>${Number(r.paid) === Number(r.athletes) ? 'lunas semua' : r.paid + ' lunas'}</small></span></div>`;
@@ -506,6 +532,7 @@
       <p class="small muted">${rows.length} klub, ${total} atlet terdaftar (${paid} lunas). Pendaftaran yang dibatalkan tidak dihitung. Klik klub untuk melihat pendaftarannya.</p>
       ${order.length > 1 ? `<div class="cl-legend">${order.map((c) => `<span><i class="s${CL_SLOT[c]}"></i>${esc(name[c])}</span>`).join('')}</div>` : ''}
       <div class="cl-chart" role="list">${rows.map(row).join('')}</div>
+      <div class="cl-tt" id="cl-tt" role="tooltip" hidden></div>
       ${rows.length > TOP ? `<button class="btn btn-ghost btn-sm" id="cl-more" data-l="Tampilkan semua ${rows.length} klub">Tampilkan semua ${rows.length} klub</button>` : ''}
       <details class="cl-tbl"><summary class="small">Lihat sebagai tabel</summary>
         <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Klub</th>${order.map((c) => `<th class="r">${esc(name[c])}</th>`).join('')}<th class="r">Total</th><th class="r">Lunas</th></tr></thead><tbody>

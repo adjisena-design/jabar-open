@@ -369,7 +369,7 @@ body[data-page="panitia"] .ath-tbl .bib{white-space:nowrap}
 .fp-new img{max-width:100%;max-height:240px;border-radius:8px;border:1px solid var(--line);display:block}
 
 /* Grafik asal klub */
-.cl-card{--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100}
+.cl-card{position:relative;--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100}
 .cl-legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.8rem;color:var(--ink-2);margin:4px 0 10px}
 .cl-legend span{display:inline-flex;align-items:center;gap:6px}
 .cl-legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
@@ -390,3 +390,12 @@ body[data-page="panitia"] .ath-tbl .bib{white-space:nowrap}
 #cl-more{margin-top:8px}
 .cl-tbl{margin-top:10px} .cl-tbl summary{cursor:pointer;color:var(--blue)}
 @media (max-width:600px){.cl-row{grid-template-columns:110px 1fr 70px;gap:8px}}
+
+.cl-tt{position:absolute;z-index:20;pointer-events:none;background:#fff;border:1px solid var(--line-2);border-radius:10px;box-shadow:0 8px 24px rgba(19,40,74,.14);padding:10px 12px;min-width:200px;max-width:280px;font-size:.8rem;color:var(--ink)}
+.cl-tt-h{display:block;font-size:.86rem;margin-bottom:2px}
+.cl-tt-s{display:block;color:var(--muted);font-size:.74rem}
+.cl-tt table{width:100%;border-collapse:collapse;margin-top:6px;font-variant-numeric:tabular-nums}
+.cl-tt td{padding:3px 0;border-top:1px solid var(--line)}
+.cl-tt td.r{text-align:right;padding-left:10px}
+.cl-tt td:last-child{color:var(--muted)}
+.cl-tt i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:-1px}
