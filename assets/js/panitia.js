@@ -411,6 +411,7 @@
     const emailOk = d.email && d.email.last_poll && (Date.now() - new Date(d.email.last_poll).getTime() < 30 * 60 * 1000);
     const sum = (k) => d.by_discipline.reduce((a, x) => a + (Number(x[k]) || 0), 0);
     const A = await api('console_actions').catch(() => null);
+    const CL = await api('console_club_stats').catch(() => null);
     // owner: pengingat backup darurat (merah bila lewat 7 hari; mulai 5 Des lewat 1 hari)
     let bk = '';
     if (isOwner()) {
@@ -466,6 +467,7 @@
           <div class="small muted">${d.email.last_poll ? 'Terakhir aktif ' + dt(d.email.last_poll) : 'Pengirim email belum pernah terhubung'}</div>
           <ul><li><span>Antre</span><strong>${d.email.pending}</strong></li><li><span>Terkirim</span><strong>${d.email.sent}</strong></li><li><span>Gagal</span><strong>${d.email.error}</strong></li></ul></div>` : ''}
       </div>
+      ${CL && CL.length ? clubChart(CL, d.by_discipline) : ''}
       ${d.low_categories.length ? `<section class="card" style="margin-top:16px"><h2>Kategori dengan peserta kurang dari 3</h2>
         <p class="small muted">Kategori artistik dengan kurang dari 3 peserta digabung. Pindahkan peserta dari detail pendaftaran.</p>
         <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Kategori</th><th class="r">Terdaftar</th><th class="r">Lunas</th></tr></thead><tbody>
@@ -476,6 +478,40 @@
           <td>${esc(r.club || r.contact_name)}<br><span class="tiny muted">${r.n_athletes} atlet</span></td>
           <td class="r num">${fmtRp(r.total_amount)}</td><td>${pill(r.status)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">Belum ada pendaftaran.</p>'}</section>`;
     v.querySelectorAll('tr[data-id]').forEach((tr) => tr.onclick = () => { location.hash = '#/pendaftaran/' + tr.dataset.id; });
+    const cc = v.querySelector('#cl-card');
+    if (cc) {
+      const more = cc.querySelector('#cl-more');
+      if (more) more.onclick = () => { const all = cc.classList.toggle('all'); more.textContent = all ? 'Tampilkan 12 teratas' : more.dataset.l; };
+      cc.querySelectorAll('[data-club]:not([data-club=""])').forEach((el) => el.onclick = () => { location.hash = '#/pendaftaran?q=' + encodeURIComponent(el.dataset.club); });
+    }
+  }
+
+  // Grafik asal klub: batang mendatar per klub, dipecah per disiplin (warna tetap per disiplin).
+  const CL_SLOT = { WAG: 1, MAG: 2, RG: 3, AER: 4 };
+  function clubChart(rows, discs) {
+    const order = discs.map((x) => x.code).filter((c) => CL_SLOT[c]);
+    const name = Object.fromEntries(discs.map((x) => [x.code, x.name]));
+    const max = Math.max(...rows.map((r) => Number(r.athletes) || 0), 1);
+    const total = rows.reduce((a, r) => a + (Number(r.athletes) || 0), 0);
+    const paid = rows.reduce((a, r) => a + (Number(r.paid) || 0), 0);
+    const TOP = 12;
+    const bd = (r, c) => Number((r.by_discipline || {})[c]) || 0;
+    const tip = (r) => `${r.club}${r.region ? ' (' + r.region + ')' : ''}: ${r.athletes} atlet, ${r.paid} lunas · ` + order.filter((c) => bd(r, c)).map((c) => `${name[c]} ${bd(r, c)}`).join(', ');
+    const row = (r, i) => `<div class="cl-row ${i >= TOP ? 'extra' : ''}" data-club="${esc(r.club_id ? r.club : '')}" title="${esc(tip(r))}" role="listitem">
+        <span class="cl-name">${esc(r.club)}</span>
+        <span class="cl-track"><span class="cl-bar" style="width:${(Number(r.athletes) / max * 100).toFixed(2)}%">${order.filter((c) => bd(r, c)).map((c) => `<span class="cl-seg s${CL_SLOT[c]}" style="flex:${bd(r, c)} 1 0" aria-label="${esc(name[c])} ${bd(r, c)}"></span>`).join('')}</span></span>
+        <span class="cl-val"><b>${r.athletes}</b><small>${Number(r.paid) === Number(r.athletes) ? 'lunas semua' : r.paid + ' lunas'}</small></span></div>`;
+    return `<section class="card cl-card" id="cl-card" style="margin-top:16px">
+      <h2>Asal klub</h2>
+      <p class="small muted">${rows.length} klub, ${total} atlet terdaftar (${paid} lunas). Pendaftaran yang dibatalkan tidak dihitung. Klik klub untuk melihat pendaftarannya.</p>
+      ${order.length > 1 ? `<div class="cl-legend">${order.map((c) => `<span><i class="s${CL_SLOT[c]}"></i>${esc(name[c])}</span>`).join('')}</div>` : ''}
+      <div class="cl-chart" role="list">${rows.map(row).join('')}</div>
+      ${rows.length > TOP ? `<button class="btn btn-ghost btn-sm" id="cl-more" data-l="Tampilkan semua ${rows.length} klub">Tampilkan semua ${rows.length} klub</button>` : ''}
+      <details class="cl-tbl"><summary class="small">Lihat sebagai tabel</summary>
+        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Klub</th>${order.map((c) => `<th class="r">${esc(name[c])}</th>`).join('')}<th class="r">Total</th><th class="r">Lunas</th></tr></thead><tbody>
+        ${rows.map((r) => `<tr><td>${esc(r.club)}${r.region ? `<br><span class="tiny muted">${esc(r.region)}</span>` : ''}</td>${order.map((c) => `<td class="r num">${bd(r, c) || '–'}</td>`).join('')}<td class="r num"><b>${r.athletes}</b></td><td class="r num">${r.paid}</td></tr>`).join('')}
+        </tbody></table></div></details>
+    </section>`;
   }
 
   // =====================================================================
@@ -498,6 +534,7 @@
     if (id) return pageSubmission(v, id);
     const hp = hashParams();
     if (hp.has('d') || hp.has('s') || hp.has('f')) { subFilter.discipline = hp.get('d') || ''; subFilter.status = hp.get('s') || ''; subFilter.flag = hp.get('f') || ''; }
+    if (hp.has('q')) { subFilter.q = hp.get('q') || ''; if (!hp.has('d') && !hp.has('s') && !hp.has('f')) { subFilter.discipline = ''; subFilter.status = ''; subFilter.flag = ''; } }
     v.innerHTML = `<h1>Pendaftaran</h1><p class="muted">Tanpa bukti bayar, pendaftaran terhapus otomatis setelah 15 menit.</p>
       <div class="bar">${discSelect('fd', subFilter.discipline)}
         <div class="field"><label class="f" for="fs">Status</label><select id="fs"><option value="">Semua status</option>
