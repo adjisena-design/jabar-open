@@ -16,9 +16,10 @@ begin
       'pm_email', jo.setting_text('pm_email'),
       'instagram', jo.setting_text('instagram')),
     'registration', jsonb_build_object(
-      'open', coalesce(jo.setting_bool('registration_open'), false)
+      'open', jo.reg_is_open()
               and now() <= coalesce((jo.setting_text('registration_deadline'))::timestamptz, now()),
       'deadline', jo.setting_text('registration_deadline'),
+      'reopen_at', jo.reg_reopen_at(),
       'deadline_label', jo.setting_text('payment_deadline_label'),
       'max_athletes', coalesce(jo.setting_int('max_athletes'), 10),
       'form_version', 8,
@@ -221,7 +222,7 @@ begin
   end if;
 
   -- Status pendaftaran
-  if not coalesce(jo.setting_bool('registration_open'), false)
+  if not jo.reg_is_open()
      or now() > coalesce((jo.setting_text('registration_deadline'))::timestamptz, now()) then
     raise exception 'Pendaftaran sedang ditutup.' using hint = 'ERR_CLOSED';
   end if;

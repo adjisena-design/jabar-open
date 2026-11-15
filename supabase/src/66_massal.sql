@@ -282,7 +282,7 @@ language sql stable security definer set search_path = '' as $$
   select jsonb_build_object(
     'min', coalesce(jo.setting_int('bulk_min'), 30), 'max', coalesce(jo.setting_int('bulk_max'), 250),
     'days', coalesce(jo.setting_int('bulk_days'), 7), 'wa', jo.setting_text('bulk_wa'), 'bank', jo.setting('bulk_bank'),
-    'deadline', jo.bulk_deadline(), 'open', coalesce(jo.setting_bool('registration_open'), false) and now() <= jo.bulk_deadline())
+    'deadline', jo.bulk_deadline(), 'open', jo.reg_is_open() and now() <= jo.bulk_deadline())
 $$;
 
 create or replace function jo.bulk_public_json(b jo.bulk_accounts) returns jsonb
@@ -587,7 +587,7 @@ begin
   if coalesce(p_confirm,'') <> 'SAYA SETUJU' then
     raise exception 'Centang pernyataan transfer sebelum mengirim.' using hint = 'ERR_CONSENT';
   end if;
-  if not coalesce(jo.setting_bool('registration_open'), false) then
+  if not jo.reg_is_open() then
     raise exception 'Pendaftaran sedang ditutup.' using hint = 'ERR_CLOSED';
   end if;
   p_rows := (select array_agg(distinct x order by x) from unnest(coalesce(p_rows, '{}')) x);

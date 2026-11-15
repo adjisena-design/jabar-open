@@ -399,3 +399,20 @@ body[data-page="panitia"] .ath-tbl .bib{white-space:nowrap}
 .cl-tt td.r{text-align:right;padding-left:10px}
 .cl-tt td:last-child{color:var(--muted)}
 .cl-tt i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+
+/* Buka/tutup & teks beranda */
+.sc-state{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:14px;margin:6px 0 18px}
+.sc-state.on{background:var(--ok-lt);border-color:#bfe3cc} .sc-state.off{background:var(--bad-lt);border-color:#f2c1bb}
+.sc-state b{display:block;font-size:1.05rem} .sc-state small{display:block;font-size:.82rem;margin-top:2px}
+.sc-dot{width:12px;height:12px;border-radius:50%;background:var(--bad)} .sc-state.on .sc-dot{background:var(--ok)}
+.sc-h{font-size:.95rem;margin:4px 0 2px}
+.sc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0 16px;margin-top:10px}
+.sc-grid small{display:block;margin-top:4px}
+.acts-l{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.sc-card textarea,.sc-card input[type=text],.sc-card input[type=datetime-local]{width:100%}
+.ok-t{color:var(--ok);font-weight:600}
+.tk-prev{overflow:hidden;background:var(--ink);color:#fff;border-radius:8px;margin:0 0 12px;font-size:.86rem;height:34px;display:flex;align-items:center}
+.tk-run{white-space:nowrap;padding-left:100%;animation:tkrun 14s linear infinite}
+@keyframes tkrun{to{transform:translateX(-100%)}}
+@media (max-width:600px){.sc-state{grid-template-columns:auto 1fr}.sc-state .btn{grid-column:1/-1}}
+@media (prefers-reduced-motion:reduce){.tk-run{animation:none;padding-left:12px}}

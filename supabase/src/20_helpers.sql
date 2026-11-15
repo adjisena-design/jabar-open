@@ -503,3 +503,26 @@ begin new.updated_at := now(); return new; end $$;
 drop trigger if exists submissions_touch on jo.submissions;
 create trigger submissions_touch before update on jo.submissions
   for each row execute function jo.touch_updated_at();
+
+-- Status buka/tutup pendaftaran yang berlaku sekarang.
+-- Sakelar manual (setting registration_open) adalah dasar. Jadwal reg_close_at / reg_reopen_at
+-- yang sudah lewat dan lebih baru dari perubahan sakelar terakhir menimpa sakelar (yang terakhir menang).
+-- Batas pendaftaran (registration_deadline) dicek terpisah oleh pemanggil.
+create or replace function jo.reg_is_open() returns boolean
+language sql stable set search_path = '' as $$
+  with s as (
+    select coalesce((select (value #>> '{}')::boolean from jo.settings where key = 'registration_open'), false) as man,
+           coalesce((select updated_at from jo.settings where key = 'registration_open'), '-infinity'::timestamptz) as at,
+           (select nullif(value #>> '{}', '')::timestamptz from jo.settings where key = 'reg_close_at') as c,
+           (select nullif(value #>> '{}', '')::timestamptz from jo.settings where key = 'reg_reopen_at') as o)
+  select coalesce((select e.v from (values (s.c, false), (s.o, true)) e(t, v)
+                    where e.t is not null and e.t <= now() and e.t > s.at order by e.t desc limit 1), s.man)
+    from s
+$$;
+
+-- Waktu pendaftaran dibuka kembali (hanya bila sekarang tertutup dan jadwal buka masih di depan).
+create or replace function jo.reg_reopen_at() returns timestamptz
+language sql stable set search_path = '' as $$
+  select case when not jo.reg_is_open() and o > now() then o end
+    from (select (select nullif(value #>> '{}', '')::timestamptz from jo.settings where key = 'reg_reopen_at') as o) x
+$$;

@@ -331,6 +331,7 @@
     ['faq', 'FAQ situs', () => isAdmin(), pageFaq, 'help', 'Komunikasi'],
     ['pendaftaran', 'Pendaftaran', () => isAdmin(), pageSubmissions, 'inbox', 'Peserta'],
     ['massal', 'Pendaftaran massal', () => isSuper(), pageBulk, 'list', 'Peserta'],
+    ['buka-tutup', 'Buka/tutup & teks beranda', () => isSuper(), pageSiteControl, 'clock', 'Peserta'],
     ['atlet', 'Data atlet', () => isAdmin(), pageAthletes, 'users', 'Peserta'],
     ['musik', 'Musik Ritmik', () => isAdmin() && (!ME.discipline || ME.discipline === 'RG'), pageMusic, 'music', 'Peserta'],
     ['klub', 'Klub', () => isAdmin(), pageClubs, 'flag', 'Peserta'],
@@ -500,6 +501,87 @@
         el.addEventListener('pointerleave', () => { cur = -1; tt.hidden = true; });
       });
     }
+  }
+
+  // =====================================================================
+  //  BUKA/TUTUP PENDAFTARAN & TEKS BERJALAN BERANDA (owner & superadmin)
+  // =====================================================================
+  const wibIn = (iso) => { if (!iso) return ''; const d = new Date(iso); if (isNaN(d)) return ''; const w = new Date(d.getTime() + 7 * 3600000); return w.toISOString().slice(0, 16); };
+  const wibOut = (v) => (v ? v + ':00+07:00' : '');
+  const wibTxt = (iso) => { if (!iso) return ''; const d = new Date(iso); return d.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' WIB'; };
+  async function pageSiteControl(v) {
+    let C = await api('console_reg_control');
+    const save = async (patch, msg) => {
+      try { C = await api('console_reg_control_save', { p: patch }); JO.toast(msg); draw(); }
+      catch (e) { JO.toast(e.message, 'bad'); }
+    };
+    function draw() {
+      const now = Date.now();
+      const future = (x) => x && new Date(x).getTime() > now;
+      const T = C.ticker || {};
+      const why = C.past_deadline ? `Batas pendaftaran (${wibTxt(C.deadline)}) sudah lewat. Ubah batasnya di Pengaturan untuk membuka lagi.`
+        : C.open ? 'Formulir perorangan, langkah beregu, dan pengiriman batch pendaftaran massal menerima pendaftaran baru.'
+        : 'Pendaftaran baru ditolak. Pembayaran, unggah bukti transfer, halaman status, dan tautan musik tetap berjalan.';
+      v.innerHTML = `<h1>Buka/tutup & teks beranda</h1>
+        <section class="card sc-card">
+          <h2>Pendaftaran</h2>
+          <div class="sc-state ${C.open ? 'on' : 'off'}"><span class="sc-dot" aria-hidden="true"></span>
+            <div><b>${C.open ? 'Sedang dibuka' : 'Sedang ditutup'}</b><small>${esc(why)}</small>
+            ${C.manual_at ? `<small class="muted">Sakelar terakhir diubah ${dt(C.manual_at)}${C.manual_by ? ' oleh ' + esc(C.manual_by) : ''}.</small>` : ''}</div>
+            ${C.past_deadline ? '' : `<button class="btn ${C.open ? 'btn-bad' : 'btn-dark'}" id="sc-toggle">${C.open ? 'Tutup pendaftaran sekarang' : 'Buka pendaftaran sekarang'}</button>`}
+          </div>
+          <h3 class="sc-h">Jadwal otomatis (WIB)</h3>
+          <p class="small muted">Kosongkan bila tidak perlu. Jadwal yang lebih akhir menang; tombol di atas selalu bisa menimpa jadwal yang sudah lewat.</p>
+          <div class="sc-grid">
+            <div class="field"><label class="f" for="sc-close">Tutup otomatis pada</label>
+              <input type="datetime-local" id="sc-close" value="${future(C.close_at) ? wibIn(C.close_at) : ''}">
+              <small class="muted">${future(C.close_at) ? esc(wibTxt(C.close_at)) : C.close_at ? 'Terakhir berlaku ' + esc(wibTxt(C.close_at)) : 'Belum dijadwalkan'}</small></div>
+            <div class="field"><label class="f" for="sc-open">Buka kembali pada</label>
+              <input type="datetime-local" id="sc-open" value="${future(C.reopen_at) ? wibIn(C.reopen_at) : ''}">
+              <small class="muted">${future(C.reopen_at) ? esc(wibTxt(C.reopen_at)) : C.reopen_at ? 'Terakhir berlaku ' + esc(wibTxt(C.reopen_at)) : 'Belum dijadwalkan'}</small></div>
+          </div>
+          <div class="acts-l"><button class="btn btn-dark btn-sm" id="sc-sched">Simpan jadwal</button>
+            <button class="btn btn-ghost btn-sm" id="sc-clear">Hapus jadwal</button></div>
+          <p class="small muted" style="margin-top:10px">Batas akhir pendaftaran tetap ${esc(wibTxt(C.deadline) || '-')}; setelah itu pendaftaran tertutup walau sakelar dibuka.</p>
+        </section>
+        <section class="card sc-card" style="margin-top:16px">
+          <h2>Teks berjalan di beranda</h2>
+          <p class="small muted">Tampil sebagai pita bergerak di atas halaman utama gimnastikjabaropen2026.com. Berhenti saat disentuh atau disorot.</p>
+          <div class="field"><label class="f" for="tk-text">Teks <span class="muted small" id="tk-n"></span></label>
+            <textarea id="tk-text" rows="3" maxlength="300" placeholder="Mis. Pendaftaran ditutup 27 November 2026 pukul 23.59 WIB. Pembayaran tetap bisa diunggah.">${esc(T.text || '')}</textarea></div>
+          <div class="field"><label class="f" for="tk-link">Tautan (opsional)</label>
+            <input id="tk-link" type="text" value="${esc(T.link || '')}" placeholder="daftar.html atau https://...">
+            <small class="muted">Bila diisi, teks bisa diklik.</small></div>
+          <div class="tk-prev" aria-hidden="true"><div class="tk-run"><span id="tk-pv"></span></div></div>
+          <div class="acts-l">
+            <button class="btn btn-dark btn-sm" id="tk-on">${T.enabled ? 'Simpan & tetap tayang' : 'Tayangkan'}</button>
+            ${T.enabled ? '<button class="btn btn-ghost btn-sm" id="tk-off">Hentikan tayangan</button>' : ''}
+            <span class="small ${T.enabled ? 'ok-t' : 'muted'}">${T.enabled ? 'Sedang tayang' : 'Tidak tayang'}${C.ticker_at ? ' · diubah ' + dt(C.ticker_at) + (C.ticker_by ? ' oleh ' + esc(C.ticker_by) : '') : ''}</span>
+          </div>
+        </section>`;
+      const tg = v.querySelector('#sc-toggle');
+      if (tg) tg.onclick = async () => {
+        const to = !C.open;
+        if (!(await dialog({ title: to ? 'Buka pendaftaran sekarang?' : 'Tutup pendaftaran sekarang?', ok: to ? 'Buka' : 'Tutup', okClass: to ? 'btn-dark' : 'btn-bad',
+          body: to ? '<p>Formulir dan pendaftaran massal langsung menerima pendaftaran baru.</p>' : '<p>Pendaftaran baru langsung ditolak. Transaksi yang sedang berjalan tetap bisa dibayar dan diunggah buktinya.</p>' }))) return;
+        const patch = { open: to };
+        if (C.close_at && !future(C.close_at)) patch.close_at = '';
+        if (C.reopen_at && !future(C.reopen_at)) patch.reopen_at = '';
+        save(patch, to ? 'Pendaftaran dibuka.' : 'Pendaftaran ditutup.');
+      };
+      v.querySelector('#sc-sched').onclick = () => {
+        const c = v.querySelector('#sc-close').value, o = v.querySelector('#sc-open').value;
+        save({ close_at: wibOut(c), reopen_at: wibOut(o) }, 'Jadwal disimpan.');
+      };
+      v.querySelector('#sc-clear').onclick = () => save({ close_at: '', reopen_at: '' }, 'Jadwal dihapus.');
+      const tx = v.querySelector('#tk-text'), pv = v.querySelector('#tk-pv'), n = v.querySelector('#tk-n');
+      const upd = () => { pv.textContent = tx.value.trim() || 'Pratinjau teks berjalan'; n.textContent = `${tx.value.length}/300`; };
+      tx.oninput = upd; upd();
+      const tk = (enabled) => ({ ticker: { enabled, text: tx.value, link: v.querySelector('#tk-link').value } });
+      v.querySelector('#tk-on').onclick = () => save(tk(true), 'Teks berjalan tayang di beranda.');
+      const off = v.querySelector('#tk-off'); if (off) off.onclick = () => save(tk(false), 'Teks berjalan dihentikan.');
+    }
+    draw();
   }
 
   // Grafik asal klub: batang mendatar per klub, dipecah per disiplin (warna tetap per disiplin).

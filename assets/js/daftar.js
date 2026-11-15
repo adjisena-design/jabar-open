@@ -1149,6 +1149,8 @@
     }
     if (!CFG.registration.open) {
       const c = document.getElementById('closed'); c.hidden = false; c.textContent = t('closed');
+      const ro = CFG.registration.reopen_at && new Date(CFG.registration.reopen_at);
+      if (ro && !isNaN(ro)) c.textContent += ' ' + (JO.lang === 'en' ? 'Registration reopens ' : 'Pendaftaran dibuka kembali ') + ro.toLocaleString(JO.lang === 'en' ? 'en-GB' : 'id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' WIB.';
       app.innerHTML = ''; return;
     }
     const pre = JO.qs('disiplin');
