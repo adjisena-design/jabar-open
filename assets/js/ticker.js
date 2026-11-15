@@ -1,14 +1,14 @@
 // Teks berjalan beranda: diatur dari konsol (Buka/tutup & teks beranda), dibaca lewat public_site_notice.
 (function () {
   const C = window.JO_CONFIG; if (!C) return;
-  const css = `.jo-tk{background:#13284a;color:#fff;font-size:14px;line-height:1.3;position:relative;z-index:61;overflow:hidden}
+  const css = `.jo-tk{background:var(--blue,#2c4c7b);font-family:inherit;color:#fff;font-size:14px;line-height:1.3;position:relative;z-index:61;overflow:hidden}
 .jo-tk a,.jo-tk span.jo-tk-t{color:#fff;text-decoration:none;display:block}
 .jo-tk a:hover .jo-tk-msg,.jo-tk a:focus-visible .jo-tk-msg{text-decoration:underline}
 .jo-tk-vp{overflow:hidden;padding:9px 0}
 .jo-tk-run{display:inline-flex;white-space:nowrap;will-change:transform;animation:jo-tk var(--d,30s) linear infinite}
 .jo-tk:hover .jo-tk-run,.jo-tk:focus-within .jo-tk-run{animation-play-state:paused}
 .jo-tk-msg{padding:0 48px 0 0}
-.jo-tk-msg::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#f5b70a;margin:0 12px 1px 0;vertical-align:middle}
+.jo-tk-msg::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--gold,#e4c87d);margin:0 12px 1px 0;vertical-align:middle}
 @keyframes jo-tk{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){.jo-tk-run{animation:none;white-space:normal;display:block;padding:0 16px}.jo-tk-run .jo-tk-msg+.jo-tk-msg{display:none}}`;
   fetch(C.supabaseUrl + '/rest/v1/rpc/public_site_notice', {
