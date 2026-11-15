@@ -411,7 +411,7 @@ body[data-page="panitia"] .ath-tbl .bib{white-space:nowrap}
 .acts-l{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .sc-card textarea,.sc-card input[type=text],.sc-card input[type=datetime-local]{width:100%}
 .ok-t{color:var(--ok);font-weight:600}
-.tk-prev{overflow:hidden;background:var(--ink);color:#fff;border-radius:8px;margin:0 0 12px;font-size:.86rem;height:34px;display:flex;align-items:center}
+.tk-prev{overflow:hidden;background:var(--blue);color:#fff;border-radius:8px;margin:0 0 12px;font-size:.86rem;height:34px;display:flex;align-items:center}
 .tk-run{white-space:nowrap;padding-left:100%;animation:tkrun 14s linear infinite}
 @keyframes tkrun{to{transform:translateX(-100%)}}
 @media (max-width:600px){.sc-state{grid-template-columns:auto 1fr}.sc-state .btn{grid-column:1/-1}}
