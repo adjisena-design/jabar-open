@@ -541,3 +541,23 @@ code.kill{background:var(--bad-lt);color:var(--bad);padding:1px 6px;border-radiu
 .topline .dsw button[aria-pressed=true]{background:#e9543c;color:#fff}
 .topline .dsw button:disabled{opacity:.6}
 @media (max-width:760px){.topline .dsw button{padding:6px 8px;font-size:.72rem}.topline .who{display:none}}
+/* lembar nilai (form kertas): isian bermasker, Rerata & Nilai Akhir otomatis (abu-abu), manual ditandai */
+.sf-wrap{overflow-x:auto;margin:4px -4px 0;padding:4px}
+.sf{border-collapse:separate;border-spacing:6px 6px}
+.sf th{font-size:.74rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:center;padding:0 2px;white-space:nowrap}
+.sf th.au{color:var(--faint)}
+.sf th.rn{text-transform:none;letter-spacing:0;font-size:.8rem;color:var(--ink-2);text-align:left;padding-right:6px}
+.sf td{padding:0}
+.sf input.mk{width:74px;font:inherit;font-size:1.3rem;font-weight:700;text-align:center;padding:8px 4px;border:1.5px solid var(--line-2);border-radius:10px;font-variant-numeric:tabular-nums;background:#fff;color:var(--ink)}
+.sf input.mk:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-lt)}
+.sf input.mk.auto{background:var(--paper);border-style:dashed;width:88px}
+.sf input.mk.auto::placeholder{color:#9b8f8a;opacity:1;font-weight:600}
+.sf input.mk.man{background:#fff4ec;border:2px solid #e9543c;color:#b8371f}
+.sf input.mk:disabled{background:var(--paper);color:var(--ink)}
+.sf td.avg{min-width:96px;text-align:center;font-size:1.3rem;font-weight:800;color:var(--faint);font-variant-numeric:tabular-nums;background:var(--paper);border-radius:10px;border:1.5px dashed var(--line-2)}
+.sf-flags{font-size:.8rem;color:#b8371f;margin-top:6px;min-height:0}
+.sf-flags:empty{display:none}
+.jq-card .sf input.mk{width:66px;font-size:1.05rem;padding:6px 2px}
+.jq-card .sf input.mk.auto{width:76px}
+.jq-card .sf td.avg{min-width:76px;font-size:1.05rem}
+.jq{grid-template-columns:repeat(auto-fill,minmax(min(100%,780px),1fr))}

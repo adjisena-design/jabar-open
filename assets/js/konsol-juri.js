@@ -24,13 +24,97 @@
     if (a.length >= 4) return Math.round(((s - Math.min(...a) - Math.max(...a)) / (a.length - 2)) * 1000) / 1000;
     return Math.round((s / a.length) * 1000) / 1000;
   }
+  const sfx = (r) => (r === 1 ? '' : '@' + r);
+  const r3 = (x) => Math.round(x * 1000) / 1000;
+  // sama dengan jo.calc_slots di database (lembar standar & lembar artistik, 1–3 lompatan)
   function calc(panel, slots) {
-    const g = { D: [], E: [], A: [], PEN: [] }; let have = 0;
-    (panel.slots || []).forEach((sl) => { const v = num(slots[sl.key]); if (v == null || Number.isNaN(v)) return; have++; g[sl.comp].push(v); });
-    let e = tmean(g.E); if (e != null && panel.e_mode === 'deduction') e = Math.round((Number(panel.e_base || 10) - e) * 1000) / 1000;
-    const d = tmean(g.D), a = tmean(g.A), pen = Math.round(g.PEN.reduce((x, y) => x + y, 0) * 1000) / 1000;
-    const total = have ? Math.round(((d || 0) + (e || 0) + (a || 0) - pen) * 1000) / 1000 : null;
-    return { d, e, a, pen, total, have };
+    const runs = Math.max(1, panel.runs || 1); const art = panel.sheet === 'artistik';
+    const out = { runs: [], flags: [] }; let nr = 0, sd = 0, se = 0, sa = 0, sp = 0, st = 0, anyD = false, anyE = false, anyA = false;
+    for (let r = 1; r <= runs; r++) {
+      const g = { D: [], E: [], A: [], PEN: [] }; let have = 0;
+      (panel.slots || []).forEach((sl) => { const v = num(slots[sl.key + sfx(r)]); if (v == null || Number.isNaN(v)) return; have++; g[sl.comp].push(v); });
+      const d = tmean(g.D), a = tmean(g.A); let eAuto = tmean(g.E);
+      if (eAuto != null && panel.e_mode === 'deduction') eAuto = r3(Number(panel.e_base || 10) - eAuto);
+      const pen = r3(g.PEN.reduce((x, y) => x + y, 0));
+      let e = eAuto;
+      if (art) { const ov = num(slots['RERATA' + sfx(r)]); if (ov != null && !Number.isNaN(ov)) { e = ov; have++; out.flags.push({ field: 'RERATA', run: r, auto: eAuto, manual: ov }); } }
+      const akAuto = have ? r3((d || 0) + (e || 0) + (a || 0) - pen) : null;
+      let ak = akAuto;
+      if (art) { const ov = num(slots['AKHIR' + sfx(r)]); if (ov != null && !Number.isNaN(ov)) { ak = ov; out.flags.push({ field: 'AKHIR', run: r, auto: akAuto, manual: ov }); } }
+      out.runs.push({ run: r, d, a, pen, e_auto: eAuto, e, akhir_auto: akAuto, akhir: ak });
+      if (ak != null) { nr++; st += ak; sp += pen; if (d != null) { anyD = true; sd += d; } if (e != null) { anyE = true; se += e; } if (a != null) { anyA = true; sa += a; } }
+    }
+    out.d = anyD ? r3(sd / nr) : null; out.e = anyE ? r3(se / nr) : null; out.a = anyA ? r3(sa / nr) : null;
+    out.pen = nr ? r3(sp / nr) : 0; out.total = nr === runs ? r3(st / nr) : null; out.partial = nr ? r3(st / nr) : null;
+    return out;
+  }
+  const FLD = { RERATA: 'Rerata', AKHIR: 'Nilai Akhir' };
+  const flagText = (f, runs) => `${runs > 1 ? 'Lompatan ' + f.run + ' · ' : ''}${FLD[f.field]}: otomatis ${f3(f.auto)} → manual ${f3(f.manual)}`;
+
+  // ---------- isian bermasker: angka saja, titik desimal otomatis & tidak bisa dihapus ----------
+  const decOf = (k) => (/^(RERATA|AKHIR)/.test(k) ? 3 : 2);
+  const toDg = (v, dec) => (v == null || v === '' || Number.isNaN(Number(v)) ? '' : String(Math.round(Number(v) * 10 ** dec)));
+  const fmtDg = (dg, dec) => { if (!dg) return ''; const p = dg.padStart(dec + 1, '0'); return p.slice(0, -dec).replace(/^0+(?=\d)/, '') + '.' + p.slice(-dec); };
+  function formHtml(panel, slots, editable, esc) {
+    const art = panel.sheet === 'artistik'; const runs = Math.max(1, panel.runs || 1);
+    const main = (panel.slots || []).filter((x) => x.comp !== 'PEN'); const pens = (panel.slots || []).filter((x) => x.comp === 'PEN');
+    const lbl = (sl) => (art && sl.comp === 'D' && /^D$/i.test(sl.label) ? 'D1/D2' : art && sl.comp === 'PEN' && /^Pen$/i.test(sl.label) ? 'Pinalti' : sl.label);
+    const inp = (k, label, cls) => { const dec = decOf(k); return `<input class="mk ${cls || ''}" data-k="${esc(k)}" data-dec="${dec}" data-dg="${toDg(slots[k], dec)}" value="${fmtDg(toDg(slots[k], dec), dec)}" inputmode="numeric" autocomplete="off" aria-label="${esc(label)}" ${editable ? '' : 'disabled'}>`; };
+    let h = `<div class="sf-wrap"><table class="sf"><thead><tr>${runs > 1 ? '<th></th>' : ''}${main.map((x) => `<th>${esc(lbl(x))}</th>`).join('')}${art ? '<th class="au">Rerata</th>' : ''}${pens.map((x) => `<th>${esc(lbl(x))}</th>`).join('')}${art ? '<th class="au">Nilai Akhir</th>' : ''}${runs > 1 ? '<th class="au">Average</th>' : ''}</tr></thead><tbody>`;
+    for (let r = 1; r <= runs; r++) {
+      h += `<tr>${runs > 1 ? `<th class="rn">Lompatan ${r}</th>` : ''}${main.map((x) => `<td>${inp(x.key + sfx(r), lbl(x))}</td>`).join('')}
+        ${art ? `<td>${inp('RERATA' + sfx(r), 'Rerata', 'auto')}</td>` : ''}${pens.map((x) => `<td>${inp(x.key + sfx(r), lbl(x))}</td>`).join('')}
+        ${art ? `<td>${inp('AKHIR' + sfx(r), 'Nilai Akhir', 'auto')}</td>` : ''}${runs > 1 && r === 1 ? `<td rowspan="${runs}" class="avg" data-avg></td>` : ''}</tr>`;
+    }
+    return h + '</tbody></table></div><div class="sf-flags" data-flags></div><div class="calc" data-calc></div>';
+  }
+  function bindForm(root, panel, opts) {
+    const art = panel.sheet === 'artistik'; const runs = Math.max(1, panel.runs || 1);
+    const inputs = [...root.querySelectorAll('input.mk')];
+    const nav = inputs.filter((x) => !x.classList.contains('auto'));
+    const read = () => { const o = {}; inputs.forEach((x) => { if (x.dataset.dg) o[x.dataset.k] = fmtDg(x.dataset.dg, Number(x.dataset.dec)); }); return o; };
+    const update = () => {
+      const r = calc(panel, read());
+      if (art) r.runs.forEach((x) => {
+        const re = root.querySelector(`input[data-k="RERATA${sfx(x.run)}"]`); const ak = root.querySelector(`input[data-k="AKHIR${sfx(x.run)}"]`);
+        if (re) { re.placeholder = x.e_auto == null ? '' : f3(x.e_auto); re.classList.toggle('man', !!re.dataset.dg); }
+        if (ak) { ak.placeholder = x.akhir_auto == null ? '' : f3(x.akhir_auto); ak.classList.toggle('man', !!ak.dataset.dg); }
+      });
+      const avg = root.querySelector('[data-avg]'); if (avg) avg.textContent = r.total != null ? f3(r.total) : r.partial != null ? f3(r.partial) + ' *' : '';
+      const fl = root.querySelector('[data-flags]');
+      if (fl) fl.innerHTML = r.flags.length ? `<span class="pill warn">Diubah manual</span> ${r.flags.map((f) => opts.esc(flagText(f, runs))).join(' · ')}` : '';
+      const c = root.querySelector('[data-calc]');
+      if (c) c.innerHTML = `<span>D <b>${f3(r.d)}</b></span><span>${art ? 'Rerata' : 'E'} <b>${f3(r.e)}</b></span>${hasA(panel) ? `<span>A <b>${f3(r.a)}</b></span>` : ''}<span>Pen <b>${r.pen ? '-' + f3(r.pen) : '0'}</b></span>${runs > 1 && r.total == null && r.partial != null ? '<span class="muted small">* lompatan belum lengkap</span>' : ''}<span class="tot">Total <b>${f3(r.total)}</b></span>`;
+      if (opts.onChange) opts.onChange(r);
+      return r;
+    };
+    inputs.forEach((el) => {
+      const dec = Number(el.dataset.dec); const max = dec === 3 ? 5 : 4;
+      const set = (dg) => { el.dataset.dg = dg.replace(/^0+(?=\d)/, '').slice(0, max); if (el.dataset.dg === '0' && !dg.length) el.dataset.dg = ''; el.value = fmtDg(el.dataset.dg, dec); try { el.setSelectionRange(el.value.length, el.value.length); } catch (e) {} update(); };
+      el.addEventListener('beforeinput', (ev) => {
+        ev.preventDefault();
+        const all = el.value && el.selectionStart === 0 && el.selectionEnd === el.value.length;
+        let dg = all ? '' : (el.dataset.dg || '');
+        const t = ev.inputType || '';
+        if (t.startsWith('insert')) {
+          const txt = ev.data != null ? ev.data : ev.dataTransfer ? ev.dataTransfer.getData('text') : '';
+          const add = String(txt || '').replace(/\D/g, '');
+          if (t === 'insertFromPaste' && /[.,]/.test(txt)) { const n = num(txt); if (n != null && !Number.isNaN(n)) return set(toDg(n, dec)); }
+          if (!add) return;
+          if (dg.length >= max && !all) return;
+          set(dg + add);
+        } else if (t.startsWith('delete')) set(all ? '' : dg.slice(0, -1));
+      });
+      el.addEventListener('focus', () => { if (el.value) setTimeout(() => el.select(), 0); });
+      el.addEventListener('keydown', (ev) => {
+        if (ev.key !== 'Enter') return; ev.preventDefault();
+        const i = nav.indexOf(el); const nxt = i >= 0 ? nav[i + 1] : nav.find((x) => inputs.indexOf(x) > inputs.indexOf(el));
+        if (nxt) { nxt.focus(); return; }
+        if (opts.onEnterLast) opts.onEnterLast();
+      });
+    });
+    update();
+    return { read, update, inputs, nav, calc: () => calc(panel, read()) };
   }
   const hasA = (panel) => (panel.slots || []).some((x) => x.comp === 'A');
 
@@ -81,19 +165,20 @@
       const withA = hasA(panel);
       const rows = D.entries;
       if (!rows.length) { sheetBox.innerHTML = `<p class="empty">Belum ada atlet lunas di kategori ini.${JC.mode === 'dummy' ? '' : ''}</p>`; return; }
+      const runs = Math.max(1, panel.runs || 1); const art = panel.sheet === 'artistik';
       sheetBox.innerHTML = `<div class="tbl-wrap"><table class="tbl jsheet"><thead><tr><th class="c">#</th><th>Atlet</th>
-          ${panel.slots.map((s) => `<th class="r">${esc(s.label)}</th>`).join('')}
-          <th class="r">D</th><th class="r">E</th>${withA ? '<th class="r">A</th>' : ''}<th class="r">Pen</th><th class="r">Total</th><th>Status</th></tr></thead><tbody>
-        ${rows.map((e, i) => { const sc = e.scores[S.app]; const sl = sc ? sc.slots : {};
+          ${runs > 1 ? Array.from({ length: runs }, (_, k) => `<th class="r">Lompatan ${k + 1}</th>`).join('') : ''}
+          <th class="r">D</th><th class="r">${art ? 'Rerata' : 'E'}</th>${withA ? '<th class="r">A</th>' : ''}<th class="r">Pen</th><th class="r">${runs > 1 ? 'Average' : art ? 'Nilai Akhir' : 'Total'}</th><th>Status</th></tr></thead><tbody>
+        ${rows.map((e, i) => { const sc = e.scores[S.app]; const cr = sc ? calc(panel, sc.slots || {}) : null; const fl = sc && sc.flags && sc.flags.length;
           return `<tr class="${e.status === 'aktif' ? 'click' : 'muted'}" data-e="${e.entry_id}">
             <td class="c">${e.start_order || i + 1}</td>
             <td><strong>${esc(e.name)}</strong>${e.status === 'dns' ? ' <span class="pill bad">DNS</span>' : ''}<br><span class="tiny muted">${esc(e.club || '')}</span></td>
-            ${panel.slots.map((s) => `<td class="r num">${sl[s.key] != null ? f1(sl[s.key]) : ''}</td>`).join('')}
+            ${runs > 1 ? Array.from({ length: runs }, (_, k) => `<td class="r num">${cr && cr.runs[k] && cr.runs[k].akhir != null ? f3(cr.runs[k].akhir) : ''}</td>`).join('') : ''}
             <td class="r num">${sc ? f3(sc.d) : ''}</td><td class="r num">${sc ? f3(sc.e) : ''}</td>${withA ? `<td class="r num">${sc ? f3(sc.a) : ''}</td>` : ''}
-            <td class="r num">${sc && sc.pen ? '-' + f3(sc.pen) : ''}</td><td class="r num"><strong>${sc ? f3(sc.total) : ''}</strong></td>
-            <td>${pill(sc && sc.status)}${sc && sc.status === 'returned' && sc.note ? `<br><span class="tiny" style="color:var(--bad)">${esc(sc.note)}</span>` : ''}</td></tr>`; }).join('')}
+            <td class="r num">${sc && Number(sc.pen) ? '-' + f3(sc.pen) : ''}</td><td class="r num"><strong>${sc ? f3(sc.total) : ''}</strong></td>
+            <td>${pill(sc && sc.status)}${fl ? ' <span class="pill warn" title="Rerata / Nilai Akhir diketik manual">Manual</span>' : ''}${sc && sc.status === 'returned' && sc.note ? `<br><span class="tiny" style="color:var(--bad)">${esc(sc.note)}</span>` : ''}</td></tr>`; }).join('')}
         </tbody></table></div>
-        <p class="tiny muted" style="margin-top:8px">Panel ${esc(S.app)}: ${panel.slots.map((s) => esc(s.label)).join(', ')}. D, E, A = rata-rata isian (4 isian atau lebih: tertinggi dan terendah dibuang)${panel.e_mode === 'deduction' ? `; E = ${panel.e_base} − rata-rata pengurangan` : ''}; Pen = jumlah.</p>`;
+        <p class="tiny muted" style="margin-top:8px">Panel ${esc(S.app)}: ${panel.slots.map((x) => esc(x.label)).join(', ')}${runs > 1 ? ` · ${runs} lompatan, nilai alat = rata-rata Nilai Akhir` : ''}. ${art ? 'Rerata' : 'D, E, A'} = rata-rata isian (4 isian atau lebih: tertinggi dan terendah dibuang)${panel.e_mode === 'deduction' ? `; E = ${panel.e_base} − rata-rata pengurangan` : ''}; Pen = jumlah.</p>`;
       sheetBox.querySelectorAll('tr[data-e]').forEach((tr) => tr.onclick = () => {
         const e = D.entries.find((x) => x.entry_id === tr.dataset.e);
         if (e.status !== 'aktif') return;
@@ -101,7 +186,7 @@
       });
     };
     // ---------- editor satu atlet x satu alat ----------
-    const openEditor = (e) => {
+    const openEditor = (e, draft) => {
       const panel = D.panels[S.app] || { slots: [] };
       const sc = e.scores[S.app] || null;
       const st = sc ? sc.status : null;
@@ -120,51 +205,43 @@
         if (canVer && st === 'verified') { btns.push(['unverify', 'Batalkan verifikasi', 'btn-ghost']); btns.push(['correct', 'Simpan koreksi', 'btn-primary']); }
         if (sc && (canVer || (canEnter && st !== 'submitted'))) btns.push(['clear', 'Hapus nilai', 'btn-bad']);
       }
-      const groups = ['D', 'E', 'A', 'PEN'].map((c) => [c, panel.slots.filter((s) => s.comp === c)]).filter((x) => x[1].length);
-      dlg.style.maxWidth = 'min(720px, calc(100% - 24px))';
+      const cur = draft || (sc ? sc.slots : {});
+      dlg.style.maxWidth = 'min(860px, calc(100% - 24px))';
       dlg.innerHTML = `<form method="dialog" novalidate class="jed"><div class="dlg-head"><h2 style="margin:0;font-size:1.15rem">${esc(e.name)}</h2>
           <div class="small muted">${esc(e.club || '')} · ${esc(appName)} · ${pill(st)}</div></div>
         <div class="dlg-body">
           ${st === 'returned' && sc.note ? `<p class="note bad small">Dikembalikan verifikator: ${esc(sc.note)}</p>` : ''}
           ${sc && sc.verified_by ? `<p class="small muted">Diverifikasi ${esc(sc.verified_by)} ${ctx.dt(sc.verified_at)}${sc.entered_by ? ` · diisi ${esc(sc.entered_by)}` : ''}</p>` : sc && sc.entered_by ? `<p class="small muted">Diisi ${esc(sc.entered_by)} ${ctx.dt(sc.updated_at)}</p>` : ''}
-          <div class="slot-grid">${groups.map(([c, list]) => `<div class="slot-grp">${list.length > 1 || (c === 'E' && panel.e_mode === 'deduction') ? `<span class="slot-h">${COMP_LBL[c]}${c === 'E' && panel.e_mode === 'deduction' ? ' (pengurangan)' : ''}</span>` : ''}
-            <div class="slot-row">${list.map((s) => `<label class="slot"><span>${esc(s.label)}</span><input inputmode="decimal" autocomplete="off" data-k="${esc(s.key)}" value="${sc && sc.slots[s.key] != null ? sc.slots[s.key] : ''}" ${editable ? '' : 'disabled'}></label>`).join('')}</div></div>`).join('')}</div>
-          <div class="calc" id="calc"></div>
+          ${formHtml(panel, cur, editable, esc)}
           <div data-err></div>
         </div>
         <div class="dlg-foot jfoot"><button type="button" class="btn btn-ghost" data-x>Tutup</button>${btns.map(([a, l, c]) => `<button type="button" class="btn ${c}" data-act="${a}">${l}</button>`).join('')}</div></form>`;
       dlg.showModal();
-      const inputs = [...dlg.querySelectorAll('input[data-k]')];
-      const read = () => { const o = {}; inputs.forEach((i) => { if (i.value.trim() !== '') o[i.dataset.k] = i.value.trim().replace(',', '.'); }); return o; };
-      const showCalc = () => {
-        const bad = inputs.find((i) => { const n = num(i.value); return n != null && (Number.isNaN(n) || n < 0 || n > 40); });
-        inputs.forEach((i) => { const n = num(i.value); i.classList.toggle('bad', n != null && (Number.isNaN(n) || n < 0 || n > 40)); });
-        const r = calc(panel, read());
-        dlg.querySelector('#calc').innerHTML = `<span>D <b>${f3(r.d)}</b></span><span>E <b>${f3(r.e)}</b></span>${hasA(panel) ? `<span>A <b>${f3(r.a)}</b></span>` : ''}<span>Pen <b>${r.pen ? '-' + f3(r.pen) : '0'}</b></span><span class="tot">Total <b>${f3(r.total)}</b></span>${bad ? '<span class="bad">Nilai 0–40</span>' : ''}`;
-      };
-      inputs.forEach((inp, i) => {
-        inp.addEventListener('input', showCalc);
-        inp.addEventListener('keydown', (ev) => {
-          if (ev.key !== 'Enter') return; ev.preventDefault();
-          if (i < inputs.length - 1) { inputs[i + 1].focus(); inputs[i + 1].select(); return; }
-          const def = dlg.querySelector('[data-act=submit]') || dlg.querySelector('[data-act=verify]') || dlg.querySelector('[data-act=correct]');
-          if (def) def.click();
-        });
-      });
-      showCalc();
-      const firstEmpty = inputs.find((i) => !i.value) || inputs[0];
-      if (firstEmpty && editable) setTimeout(() => { firstEmpty.focus(); firstEmpty.select(); }, 30);
+      const F = bindForm(dlg, panel, { esc, onEnterLast: () => { const def = dlg.querySelector('[data-act=submit]') || dlg.querySelector('[data-act=verify]') || dlg.querySelector('[data-act=correct]'); if (def) def.click(); } });
+      const read = F.read;
+      const firstEmpty = F.nav.find((i) => !i.value) || F.nav[0];
+      if (firstEmpty && editable) setTimeout(() => { firstEmpty.focus(); }, 30);
       dlg.querySelector('[data-x]').onclick = () => dlg.close();
       dlg.querySelectorAll('[data-act]').forEach((b) => b.onclick = async () => {
-        const act = b.dataset.act; let note = null;
+        const act = b.dataset.act; let note = null; let closed = false;
         const slots = ['unsubmit', 'return', 'unverify', 'clear'].includes(act) ? null : read();
         const needNote = ['return', 'unverify', 'correct'].includes(act) || (act === 'clear' && st === 'verified');
+        if (['submit', 'verify'].includes(act) && slots) {
+          const fl = calc(panel, slots).flags;
+          if (fl.length) {
+            dlg.close(); await new Promise((r) => setTimeout(r, 40));
+            const ok = await ctx.dialog({ title: 'Ada nilai yang diubah manual', ok: act === 'submit' ? 'Tetap kirim ke verifikator' : 'Tetap verifikasi',
+              body: `<p>Rerata / Nilai Akhir berikut diketik manual, bukan hitungan otomatis. Tercatat di log dan terlihat oleh verifikator dan TD di konsol juri (tidak tampil di live view, situs, atau PDF resmi).</p><ul>${fl.map((f) => `<li>${esc(flagText(f, panel.runs || 1))}</li>`).join('')}</ul>` });
+            if (!ok) return openEditor(e, slots);
+            closed = true;
+          }
+        }
         if (needNote) {
-          dlg.close();
+          dlg.close(); closed = true; await new Promise((r) => setTimeout(r, 40));
           note = await ctx.askReason(act === 'return' ? 'Kembalikan ke asisten juri' : act === 'unverify' ? 'Batalkan verifikasi' : act === 'correct' ? 'Alasan koreksi' : 'Hapus nilai terverifikasi',
             act === 'return' ? 'Catatan (mis. E2 salah ketik, cek lembar juri)' : 'Alasan', { min: act === 'return' ? 2 : 3 });
-          if (note == null) return openEditor(e);
-        } else {
+          if (note == null) return openEditor(e, slots || undefined);
+        } else if (!closed) {
           dlg.querySelectorAll('[data-act]').forEach((x) => { x.disabled = true; });
         }
         try {
@@ -180,7 +257,7 @@
             if (nx) openEditor(nx);
           }
         } catch (err) {
-          if (needNote) { ctx.toast(err.message, 'bad'); return openEditor(e); }
+          if (closed) { ctx.toast(err.message, 'bad'); return openEditor(e, slots || undefined); }
           dlg.querySelector('[data-err]').innerHTML = `<p class="note bad" style="margin-top:12px">${esc(err.message)}</p>`;
           dlg.querySelectorAll('[data-act]').forEach((x) => { x.disabled = false; });
         }
@@ -209,19 +286,18 @@
         return `<article class="jq-card ${q.status}" data-i="${i}">
           <header><div><strong>${esc(q.name)}</strong><br><span class="small muted">${esc(q.category)} · ${esc(q.apparatus)} · ${esc(q.club || '')}</span></div>${pill(q.status)}</header>
           ${q.status === 'returned' ? `<p class="small" style="color:var(--bad);margin:6px 0 0">Catatan: ${esc(q.note || '')}</p>` : ''}
-          <div class="jq-slots">${p.slots.map((s) => `<label class="slot"><span>${esc(s.label)}</span><input inputmode="decimal" data-k="${esc(s.key)}" value="${q.slots[s.key] != null ? q.slots[s.key] : ''}" ${q.status === 'returned' ? 'disabled' : ''}></label>`).join('')}</div>
-          <div class="calc" data-calc></div>
+          ${formHtml(p, q.slots || {}, q.status !== 'returned', esc)}<div data-chg></div>
           <footer><span class="tiny muted">${q.entered_by ? 'Diisi ' + esc(q.entered_by) + ' · ' : ''}${ctx.dt(q.submitted_at || q.updated_at)}</span>
             ${q.status === 'submitted' ? '<span class="acts"><button class="btn btn-ghost btn-sm" data-a="return">Kembalikan</button><button class="btn btn-ok btn-sm" data-a="verify">Verifikasi</button></span>' : ''}</footer>
         </article>`; }).join('')}</div>`;
       vb.querySelectorAll('.jq-card').forEach((card) => {
         const q = Q[Number(card.dataset.i)]; const p = q.panel || { slots: [] };
-        const ins = [...card.querySelectorAll('input[data-k]')];
-        const read = () => { const o = {}; ins.forEach((i) => { if (i.value.trim() !== '') o[i.dataset.k] = i.value.trim().replace(',', '.'); }); return o; };
-        const show = () => { const r = calc(p, read()); const changed = ins.some((i) => String(q.slots[i.dataset.k] == null ? '' : q.slots[i.dataset.k]) !== i.value.trim());
-          card.querySelector('[data-calc]').innerHTML = `<span>D <b>${f3(r.d)}</b></span><span>E <b>${f3(r.e)}</b></span>${hasA(p) ? `<span>A <b>${f3(r.a)}</b></span>` : ''}<span>Pen <b>${r.pen ? '-' + f3(r.pen) : '0'}</b></span><span class="tot">Total <b>${f3(r.total)}</b></span>${changed ? '<span class="pill warn">diubah verifikator</span>' : ''}`; };
-        ins.forEach((i) => { i.addEventListener('input', show); i.addEventListener('focus', () => { busy = true; }); i.addEventListener('blur', () => { busy = false; }); });
-        show();
+        const norm = (o) => JSON.stringify(Object.keys(o).sort().map((k) => [k, Number(o[k])]));
+        let F = null;
+        F = bindForm(card, p, { esc, onChange: () => { if (!F) return; card.querySelector('[data-chg]').innerHTML = norm(F.read()) !== norm(q.slots || {}) ? '<span class="pill warn">diubah verifikator</span>' : ''; } });
+        const read = F.read;
+        F.inputs.forEach((i) => { i.addEventListener('focus', () => { busy = true; }); i.addEventListener('blur', () => { busy = false; }); });
+        F.update();
         card.querySelectorAll('[data-a]').forEach((b) => b.onclick = async () => {
           let note = null;
           if (b.dataset.a === 'return') { note = await ctx.askReason('Kembalikan ke asisten juri', 'Catatan (mis. E2 salah ketik)', { min: 2 }); if (note == null) return; }
@@ -259,7 +335,7 @@
       <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Berlaku untuk</th><th>Isian</th><th>E</th><th></th></tr></thead><tbody>
       ${P.map((p, i) => `<tr><td><strong>${esc(discName(p.discipline))}</strong><br><span class="small muted">${p.category ? esc(p.category) : 'Semua kategori'} · ${p.apparatus ? esc(p.apparatus) : 'semua alat'}</span></td>
         <td class="small">${p.slots.map((s) => `<span class="pill">${esc(s.label)} <span class="muted">${s.comp}</span></span>`).join(' ')}</td>
-        <td class="small">${p.e_mode === 'deduction' ? `${p.e_base} − pengurangan` : 'nilai E langsung'}</td>
+        <td class="small">${p.e_mode === 'deduction' ? `${p.e_base} − pengurangan` : 'nilai E langsung'}${p.sheet === 'artistik' ? '<br>Lembar artistik' : ''}${(p.runs || 1) > 1 ? `<br>${p.runs} lompatan` : ''}</td>
         <td class="r"><button class="btn btn-ghost btn-sm" data-pe="${i}">Ubah</button></td></tr>`).join('')}</tbody></table></div>`;
     const edit = async (p) => {
       const cats = JC.categories;
@@ -273,7 +349,9 @@
           <div class="field"><label class="f">Kategori</label><select id="pc" ${p ? 'disabled' : ''}><option value="">Semua kategori</option>${cats.map((c) => `<option value="${c.id}" data-d="${c.discipline}" ${p && p.category_id === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div></div>
           <div class="grid-2"><div class="field"><label class="f">Alat (kosong = semua)</label><input id="pa" value="${esc(p && p.apparatus ? p.apparatus : '')}" placeholder="mis. VT" ${p ? 'disabled' : ''}></div>
           <div class="field"><label class="f">Cara isi E</label><select id="pm"><option value="score" ${!p || p.e_mode !== 'deduction' ? 'selected' : ''}>Nilai E langsung (rata-rata)</option><option value="deduction" ${p && p.e_mode === 'deduction' ? 'selected' : ''}>Pengurangan (E = dasar − rata-rata)</option></select></div></div>
-          <div class="field"><label class="f">Nilai dasar E (mode pengurangan)</label><input id="pb" value="${p ? p.e_base : 10}" style="width:100px"></div>
+          <div class="grid-3"><div class="field"><label class="f">Nilai dasar E (mode pengurangan)</label><input id="pb" value="${p ? p.e_base : 10}" style="width:100px"></div>
+          <div class="field"><label class="f">Format lembar</label><select id="psh"><option value="standar" ${!p || p.sheet !== 'artistik' ? 'selected' : ''}>Standar</option><option value="artistik" ${p && p.sheet === 'artistik' ? 'selected' : ''}>Artistik (Rerata & Nilai Akhir otomatis, bisa diubah manual)</option></select></div>
+          <div class="field"><label class="f">Lompatan / percobaan</label><select id="pr">${[1, 2, 3].map((n) => `<option value="${n}" ${(p ? p.runs || 1 : 1) === n ? 'selected' : ''}>${n}${n > 1 ? ' (nilai = rata-rata)' : ''}</option>`).join('')}</select></div></div>
           <span class="f">Isian</span><div id="pslots">${rowsHtml()}</div>
           <div class="acts-l" style="margin-top:8px"><button type="button" class="btn btn-ghost btn-sm" data-add="E">+ E</button><button type="button" class="btn btn-ghost btn-sm" data-add="D">+ D</button><button type="button" class="btn btn-ghost btn-sm" data-add="A">+ A</button><button type="button" class="btn btn-ghost btn-sm" data-add="PEN">+ Pen</button></div>
           <p class="tiny muted">D, E, A = rata-rata isian komponennya (4 isian atau lebih: tertinggi & terendah dibuang). Pen = jumlah semua isian Pen.</p>
@@ -282,7 +360,7 @@
           slots = [...d.querySelectorAll('.pslot')].map((r) => ({ key: r.querySelector('[data-f=key]').value, comp: r.querySelector('[data-f=comp]').value, label: r.querySelector('[data-f=label]').value }));
           const del = d.querySelector('#pdel') && d.querySelector('#pdel').checked;
           await api('console_j_panel_save', { p: { discipline: p ? p.discipline : d.querySelector('#pd').value, category_id: p ? p.category_id : d.querySelector('#pc').value,
-            apparatus: p ? p.apparatus : d.querySelector('#pa').value, slots, e_mode: d.querySelector('#pm').value, e_base: d.querySelector('#pb').value, delete: del ? 'true' : 'false' } });
+            apparatus: p ? p.apparatus : d.querySelector('#pa').value, slots, e_mode: d.querySelector('#pm').value, e_base: d.querySelector('#pb').value, sheet: d.querySelector('#psh').value, runs: d.querySelector('#pr').value, delete: del ? 'true' : 'false' } });
           return true;
         } });
       if (res) { ctx.toast('Panel juri disimpan.'); panelPage(v, ctx); }
@@ -408,7 +486,7 @@
         ${ties.length ? `<p class="note warn small">Nilai seri: ${ties.map((r) => esc(r.athletes.map((a) => a.name).join(' & ')) + ' (per. ' + r.rank + ')').join(', ')}. Periksa aturan pemisah nilai sebelum konfirmasi.</p>` : ''}
         <div class="tbl-wrap"><table class="tbl"><thead><tr><th class="c">Per.</th><th>Atlet</th><th>Klub</th>${apps.map((a) => `<th class="r">${esc(a.code)}<br><span class="tiny muted">D / E / Pen</span></th>`).join('')}<th class="r">Total</th><th>Medali</th></tr></thead><tbody>
         ${R.results.map((r) => `<tr><td class="c"><span class="rank">${r.rank || '–'}</span></td><td>${r.athletes.map((a) => esc(a.name)).join('<br>')}</td><td class="small">${esc(r.club)}<br><span class="muted">${esc(r.region || '')}</span></td>
-          ${apps.map((a) => { const d = R.detail[r.entry_id + ':' + a.code]; return `<td class="r num">${f3(r.scores[a.code])}${d ? `<br><span class="tiny muted">${f3(d.d)} / ${f3(d.e)} / ${d.pen ? '-' + f3(d.pen) : '0'}</span>${d.status !== 'verified' ? ` <span class="pill warn">${ST_LBL[d.status]}</span>` : ''}` : ''}</td>`; }).join('')}
+          ${apps.map((a) => { const d = R.detail[r.entry_id + ':' + a.code]; return `<td class="r num">${f3(r.scores[a.code])}${d ? `<br><span class="tiny muted">${f3(d.d)} / ${f3(d.e)} / ${d.pen ? '-' + f3(d.pen) : '0'}</span>${d.status !== 'verified' ? ` <span class="pill warn">${ST_LBL[d.status]}</span>` : ''}${d.flags && d.flags.length ? ' <span class="pill warn" title="Rerata / Nilai Akhir diketik manual">Manual</span>' : ''}` : ''}</td>`; }).join('')}
           <td class="r num"><strong>${f3(r.total)}</strong></td><td>${r.medal ? `<span class="medal ${r.medal}"></span>` : r.mini ? `<span class="pill">Mini ${r.award_rank}</span>` : ''}</td></tr>`).join('')}</tbody></table></div>
         <ol class="td-steps">
           <li class="${c.td_pdf_at ? 'done' : ''}"><b>PDF hasil lengkap</b> <span class="small muted">${c.td_pdf_at ? 'dibuat ' + ctx.dt(c.td_pdf_at) : 'belum dibuat'}</span><br><button class="btn btn-dark btn-sm" id="pdf">Unduh PDF hasil</button></li>
@@ -559,7 +637,7 @@
             <td class="tiny muted">${esc([r.detail && r.detail.disiplin ? ctx.DGN[r.detail.disiplin] : '', r.detail && r.detail.alasan, r.detail && r.detail.name, r.target_type === 'category' ? 'kategori #' + r.target_id : ''].filter(Boolean).join(' · '))}</td></tr>`).join('')}</tbody></table></div>`
         : `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Waktu</th><th>Atlet</th><th>Alat</th><th>Tindakan</th><th class="r">Sebelum</th><th class="r">Sesudah</th><th>Oleh</th><th>Alasan / catatan</th></tr></thead><tbody>
           ${R.map((r) => `<tr><td class="small nowrap">${ctx.dt(r.at)}</td><td><strong>${esc(r.name)}</strong><br><span class="tiny muted">${esc(r.category)}</span></td><td>${esc(r.apparatus)}</td>
-            <td>${esc(ACT[r.action] || r.action)}</td><td class="r num">${r.old != null ? f3(r.old) : '–'}</td><td class="r num">${r.new != null ? f3(r.new) : '–'}</td>
+            <td>${esc(ACT[r.action] || r.action)}${r.flags && r.flags.length ? ` <span class="pill warn" title="${esc(r.flags.map((f) => flagText(f, 2)).join('; '))}">Manual</span>` : ''}</td><td class="r num">${r.old != null ? f3(r.old) : '–'}</td><td class="r num">${r.new != null ? f3(r.new) : '–'}</td>
             <td class="small">${esc(r.by || '')}${r.role ? `<br><span class="tiny muted">${esc(ctx.ROLE[r.role] || r.role)}</span>` : ''}</td><td class="small">${esc(r.reason || '')}</td></tr>`).join('')}</tbody></table></div>`;
     };
     const load = async () => {

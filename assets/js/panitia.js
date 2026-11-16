@@ -366,7 +366,7 @@
   // ---------------- modul terpisah (proyek, backup) ----------------
   // Dimuat hanya saat halamannya dibuka. Galat di modul hanya tampil di halaman itu;
   // pendaftaran, verifikasi, dan penilaian tidak ikut terganggu.
-  const MOD_V = '1611n';
+  const MOD_V = '1611p';
   function loadModule(name) {
     window.JO_MOD = window.JO_MOD || {};
     if (window.JO_MOD[name]) return Promise.resolve(window.JO_MOD[name]);

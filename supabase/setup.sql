@@ -8255,6 +8255,12 @@ create table if not exists jo.judge_panels (
   updated_at  timestamptz not null default now(),
   updated_by  uuid
 );
+alter table jo.judge_panels add column if not exists runs integer not null default 1;
+alter table jo.judge_panels add column if not exists sheet text not null default 'standar';
+alter table jo.judge_panels drop constraint if exists judge_panels_runs_check;
+alter table jo.judge_panels add constraint judge_panels_runs_check check (runs between 1 and 3);
+alter table jo.judge_panels drop constraint if exists judge_panels_sheet_check;
+alter table jo.judge_panels add constraint judge_panels_sheet_check check (sheet in ('standar','artistik'));
 create unique index if not exists judge_panels_uq on jo.judge_panels (discipline, coalesce(category_id, 0), coalesce(apparatus, ''));
 
 insert into jo.judge_panels (discipline, slots)
@@ -8291,6 +8297,15 @@ create table if not exists jo.jscores (
   unique (mode, entry_id, apparatus)
 );
 create index if not exists jscores_status_idx on jo.jscores (mode, status);
+alter table jo.jscores add column if not exists flags jsonb not null default '[]'::jsonb;
+
+-- Lembar Artistik (form kertas): D1/D2, E1–E3, Rerata (otomatis), Pinalti, Nilai Akhir (otomatis);
+-- Meja Lompat: 2 lompatan, nilai alat = rata-rata Nilai Akhir kedua lompatan
+update jo.judge_panels set sheet = 'artistik' where discipline in ('MAG','WAG') and sheet = 'standar' and category_id is null and apparatus is null;
+insert into jo.judge_panels (discipline, apparatus, slots, runs, sheet)
+select p.discipline, 'VT', p.slots, 2, 'artistik' from jo.judge_panels p
+ where p.discipline in ('MAG','WAG') and p.category_id is null and p.apparatus is null
+   and not exists (select 1 from jo.judge_panels x where x.discipline = p.discipline and x.category_id is null and x.apparatus = 'VT');
 
 create table if not exists jo.jscore_log (
   id        bigserial primary key,
@@ -8397,28 +8412,80 @@ $$;
 -- PEN = jumlah. Mode 'deduction': E = e_base - rata-rata pengurangan.
 create or replace function jo.calc_slots(p jo.judge_panels, s jsonb) returns jsonb
 language plpgsql stable set search_path = '' as $$
-declare dv numeric[]; ev numeric[]; av numeric[]; pv numeric[]; sl jsonb; v numeric;
-  d numeric; e numeric; a numeric; pen numeric; n_need integer := 0; n_have integer := 0;
+-- D, E, A = rata-rata isian komponennya (>=4 isian: tertinggi & terendah dibuang); PEN = jumlah.
+-- Mode 'deduction': E = e_base - rata-rata pengurangan.
+-- Lembar 'artistik': E disebut Rerata dan Nilai Akhir = D + Rerata - Pinalti; keduanya otomatis tetapi boleh
+-- diisi manual (kunci RERATA / AKHIR) dan setiap isian manual dicatat sebagai flag.
+-- runs > 1 (Meja Lompat): kunci lompatan ke-2 diberi akhiran @2; nilai alat = rata-rata Nilai Akhir semua lompatan.
+declare r integer; nruns integer := greatest(coalesce(p.runs, 1), 1); sfx text; sl jsonb; v numeric; ov numeric;
+  dv numeric[]; ev numeric[]; av numeric[]; pv numeric[]; have_r integer;
+  d numeric; e_auto numeric; e numeric; a numeric; pen numeric; ak_auto numeric; ak numeric;
+  runs jsonb := '[]'::jsonb; flags jsonb := '[]'::jsonb; n_have integer := 0; n_need integer := 0;
+  sd numeric := 0; se numeric := 0; sa numeric := 0; sp numeric := 0; st numeric := 0; nr integer := 0;
+  any_a boolean := false; any_d boolean := false; any_e boolean := false;
 begin
-  for sl in select * from jsonb_array_elements(coalesce(p.slots, '[]'::jsonb)) loop
-    n_need := n_need + 1;
-    v := nullif(s->>(sl->>'key'), '')::numeric;
-    if v is null then continue; end if;
-    n_have := n_have + 1;
-    case sl->>'comp'
-      when 'D' then dv := dv || v; when 'E' then ev := ev || v;
-      when 'A' then av := av || v; when 'PEN' then pv := pv || v; else null;
-    end case;
+  for r in 1..nruns loop
+    sfx := case when r = 1 then '' else '@' || r end;
+    dv := null; ev := null; av := null; pv := null; have_r := 0;
+    for sl in select * from jsonb_array_elements(coalesce(p.slots, '[]'::jsonb)) loop
+      if sl->>'comp' <> 'PEN' then n_need := n_need + 1; end if;
+      v := nullif(s->>((sl->>'key') || sfx), '')::numeric;
+      if v is null then continue; end if;
+      n_have := n_have + 1; have_r := have_r + 1;
+      case sl->>'comp'
+        when 'D' then dv := dv || v; when 'E' then ev := ev || v;
+        when 'A' then av := av || v; when 'PEN' then pv := pv || v; else null;
+      end case;
+    end loop;
+    d := jo.trimmed_mean(dv); a := jo.trimmed_mean(av); e_auto := jo.trimmed_mean(ev);
+    if e_auto is not null and p.e_mode = 'deduction' then e_auto := round(p.e_base - e_auto, 3); end if;
+    pen := coalesce((select round(sum(x), 3) from unnest(pv) x), 0);
+    e := e_auto;
+    if p.sheet = 'artistik' then
+      ov := nullif(s->>('RERATA' || sfx), '')::numeric;
+      if ov is not null then
+        e := ov; have_r := have_r + 1;
+        flags := flags || jsonb_build_object('field', 'RERATA', 'run', r, 'auto', e_auto, 'manual', ov);
+      end if;
+    end if;
+    ak_auto := case when have_r = 0 then null else round(coalesce(d,0) + coalesce(e,0) + coalesce(a,0) - pen, 3) end;
+    ak := ak_auto;
+    if p.sheet = 'artistik' then
+      ov := nullif(s->>('AKHIR' || sfx), '')::numeric;
+      if ov is not null then
+        ak := ov;
+        flags := flags || jsonb_build_object('field', 'AKHIR', 'run', r, 'auto', ak_auto, 'manual', ov);
+      end if;
+    end if;
+    runs := runs || jsonb_build_object('run', r, 'd', d, 'e_auto', e_auto, 'e', e, 'a', a, 'pen', pen, 'akhir_auto', ak_auto, 'akhir', ak);
+    if ak is not null then
+      nr := nr + 1; st := st + ak; sp := sp + pen;
+      if d is not null then any_d := true; sd := sd + d; end if;
+      if e is not null then any_e := true; se := se + e; end if;
+      if a is not null then any_a := true; sa := sa + a; end if;
+    end if;
   end loop;
-  d := jo.trimmed_mean(dv); a := jo.trimmed_mean(av);
-  e := jo.trimmed_mean(ev);
-  if e is not null and p.e_mode = 'deduction' then e := round(p.e_base - e, 3); end if;
-  pen := (select round(sum(x), 3) from unnest(pv) x);
-  return jsonb_build_object('d', d, 'e', e, 'a', a, 'pen', coalesce(pen, 0),
-    'total', case when n_have = 0 then null else round(coalesce(d,0) + coalesce(e,0) + coalesce(a,0) - coalesce(pen,0), 3) end,
-    'complete', n_have >= n_need - coalesce((select count(*) from jsonb_array_elements(p.slots) x where x->>'comp' = 'PEN'), 0),
-    'filled', n_have, 'slots_total', n_need);
+  return jsonb_build_object(
+    'd', case when any_d then round(sd / nr, 3) end,
+    'e', case when any_e then round(se / nr, 3) end,
+    'a', case when any_a then round(sa / nr, 3) end,
+    'pen', case when nr > 0 then round(sp / nr, 3) else 0 end,
+    'total', case when nr = nruns then round(st / nr, 3) end,
+    'partial', case when nr > 0 then round(st / nr, 3) end,
+    'runs', runs, 'flags', flags, 'filled', n_have, 'slots_total', n_need * nruns);
 end $$;
+
+-- Kunci isian yang sah untuk satu panel (termasuk lompatan ke-2 dan isian manual Rerata / Nilai Akhir)
+create or replace function jo.panel_keys(p jo.judge_panels) returns text[]
+language sql stable set search_path = '' as $$
+  select array_agg(k) from (
+    select (sl->>'key') || case when r = 1 then '' else '@' || r end as k
+      from generate_series(1, greatest(coalesce(p.runs,1),1)) r cross join jsonb_array_elements(coalesce(p.slots,'[]'::jsonb)) sl
+    union all
+    select f || case when r = 1 then '' else '@' || r end
+      from generate_series(1, greatest(coalesce(p.runs,1),1)) r cross join unnest(array['RERATA','AKHIR']) f where p.sheet = 'artistik'
+  ) q
+$$;
 
 -- ---------------------------------------------------------------------
 -- Simulasi: aktivitas & penghapusan otomatis
@@ -8615,7 +8682,7 @@ begin
         'start_order', case when v_mode = 'dummy' then so.start_order else e.start_order end,
         'status', e.status,
         'scores', (select coalesce(jsonb_object_agg(j.apparatus, jsonb_build_object(
-              'id', j.id, 'slots', j.slots, 'd', j.d, 'e', j.e, 'a', j.a, 'pen', j.pen, 'total', j.total,
+              'id', j.id, 'slots', j.slots, 'flags', j.flags, 'd', j.d, 'e', j.e, 'a', j.a, 'pen', j.pen, 'total', j.total,
               'status', j.status, 'note', j.note, 'updated_at', j.updated_at,
               'entered_by', (select name from jo.staff where id = j.entered_by),
               'verified_by', (select name from jo.staff where id = j.verified_by), 'verified_at', j.verified_at)), '{}'::jsonb)
@@ -8654,14 +8721,14 @@ begin
   pnl := jo.panel_for(c.id, v_app);
 
   select * into j from jo.jscores where mode = v_mode and entry_id = e.id and apparatus = v_app for update;
-  old := case when j.id is null then null else jsonb_build_object('slots', j.slots, 'total', j.total, 'status', j.status) end;
+  old := case when j.id is null then null else jsonb_build_object('slots', j.slots, 'total', j.total, 'status', j.status, 'flags', j.flags) end;
 
   -- bersihkan slot: hanya kunci di panel, angka 0..40
   v_slots := coalesce(j.slots, '{}'::jsonb);
   if p_slots is not null and jsonb_typeof(p_slots) = 'object' then
     v_slots := '{}'::jsonb;
     for k, vv in select key, value #>> '{}' from jsonb_each(p_slots) loop
-      if not exists (select 1 from jsonb_array_elements(pnl.slots) x where x->>'key' = k) then continue; end if;
+      if not (k = any(jo.panel_keys(pnl))) then continue; end if;
       vv := replace(trim(coalesce(vv,'')), ',', '.');
       if vv = '' then continue; end if;
       begin n := vv::numeric; exception when others then raise exception 'Nilai % tidak valid: %', k, vv; end;
@@ -8678,14 +8745,16 @@ begin
       raise exception 'Nilai ini sudah % ke verifikator. Tarik kembali dulu untuk mengubah.', case v_status when 'verified' then 'diverifikasi' else 'dikirim' end;
     end if;
     if v_status = 'verified' then raise exception 'Nilai sudah diverifikasi. Gunakan Koreksi.'; end if;
-    if v_act = 'submit' and (calc->>'total') is null then raise exception 'Isi nilai dulu sebelum mengirim.'; end if;
+    if v_act = 'submit' and (calc->>'total') is null then
+      raise exception '%', case when (calc->>'partial') is not null then 'Isi semua lompatan sebelum mengirim.' else 'Isi nilai dulu sebelum mengirim.' end;
+    end if;
     v_status := case when v_act = 'submit' then 'submitted' else case when v_status = 'returned' then 'returned' else 'draft' end end;
   elsif v_act = 'unsubmit' then
     if v_status <> 'submitted' then raise exception 'Nilai tidak sedang menunggu verifikasi.'; end if;
     v_status := 'draft'; v_slots := j.slots; calc := jo.calc_slots(pnl, v_slots);
   elsif v_act in ('verify','correct') then
     if not is_ver then raise exception 'Hanya verifikator nilai yang bisa memverifikasi.' using hint = 'ERR_FORBIDDEN'; end if;
-    if (calc->>'total') is null then raise exception 'Nilai masih kosong.'; end if;
+    if (calc->>'total') is null then raise exception '%', case when (calc->>'partial') is not null then 'Isi semua lompatan sebelum verifikasi.' else 'Nilai masih kosong.' end; end if;
     if v_act = 'correct' and v_status = 'verified' and length(trim(coalesce(p_note,''))) < 3 then
       raise exception 'Tulis alasan koreksi.';
     end if;
@@ -8717,7 +8786,7 @@ begin
   end if;
   update jo.jscores set
     slots = v_slots, d = (calc->>'d')::numeric, e = (calc->>'e')::numeric, a = (calc->>'a')::numeric,
-    pen = (calc->>'pen')::numeric, total = (calc->>'total')::numeric, status = v_status,
+    pen = (calc->>'pen')::numeric, total = (calc->>'total')::numeric, status = v_status, flags = coalesce(calc->'flags', '[]'::jsonb),
     note = case when v_act = 'return' then trim(p_note) when v_act in ('submit','verify','correct') then null else note end,
     entered_by = case when v_act in ('draft','submit') then st.id else entered_by end,
     entered_at = case when v_act in ('draft','submit') then now() else entered_at end,
@@ -8731,7 +8800,7 @@ begin
   values (v_mode, j.id, e.id, v_app,
     case v_act when 'draft' then 'simpan' when 'submit' then 'kirim' when 'unsubmit' then 'tarik' when 'verify' then 'verifikasi'
                when 'correct' then 'koreksi' when 'return' then 'kembalikan' when 'unverify' then 'batal_verifikasi' end,
-    old, jsonb_build_object('slots', j.slots, 'total', j.total, 'status', j.status), st.id, nullif(trim(coalesce(p_note,'')),''));
+    old, jsonb_build_object('slots', j.slots, 'total', j.total, 'status', j.status, 'flags', j.flags), st.id, nullif(trim(coalesce(p_note,'')),''));
 
   -- mode real: nilai terverifikasi menjadi nilai akhir alat (dipakai hasil resmi)
   if v_mode = 'real' then
@@ -8750,7 +8819,7 @@ begin
   end if;
   if j.status = 'verified' or (old is not null and old->>'status' = 'verified') then perform jo.live_ping(v_mode); end if;
 
-  return jsonb_build_object('ok', true, 'score', jsonb_build_object('id', j.id, 'slots', j.slots, 'd', j.d, 'e', j.e, 'a', j.a,
+  return jsonb_build_object('ok', true, 'score', jsonb_build_object('id', j.id, 'slots', j.slots, 'flags', j.flags, 'd', j.d, 'e', j.e, 'a', j.a,
     'pen', j.pen, 'total', j.total, 'status', j.status, 'note', j.note, 'updated_at', j.updated_at,
     'verified_by', (select name from jo.staff where id = j.verified_by), 'verified_at', j.verified_at,
     'entered_by', (select name from jo.staff where id = j.entered_by)));
@@ -8765,7 +8834,7 @@ begin
   select disc_group into g from jo.staff_sessions where uid = auth.uid();
   v_mode := jo.mode_of(st);
   return (select coalesce(jsonb_agg(jsonb_build_object(
-      'id', j.id, 'entry_id', j.entry_id, 'apparatus', j.apparatus, 'slots', j.slots,
+      'id', j.id, 'entry_id', j.entry_id, 'apparatus', j.apparatus, 'slots', j.slots, 'flags', j.flags,
       'd', j.d, 'e', j.e, 'a', j.a, 'pen', j.pen, 'total', j.total, 'status', j.status, 'note', j.note,
       'submitted_at', j.submitted_at, 'updated_at', j.updated_at,
       'entered_by', (select name from jo.staff where id = j.entered_by),
@@ -8832,10 +8901,12 @@ begin
     keys := keys || k;
     out := out || jsonb_build_object('key', k, 'comp', sl->>'comp', 'label', coalesce(nullif(trim(sl->>'label'),''), k));
   end loop;
-  insert into jo.judge_panels (discipline, category_id, apparatus, slots, e_mode, e_base, updated_at, updated_by)
-  values (v_disc, v_cat, v_app, out, coalesce(nullif(p->>'e_mode',''), 'score'), coalesce(nullif(p->>'e_base','')::numeric, 10), now(), st.id)
+  insert into jo.judge_panels (discipline, category_id, apparatus, slots, e_mode, e_base, runs, sheet, updated_at, updated_by)
+  values (v_disc, v_cat, v_app, out, coalesce(nullif(p->>'e_mode',''), 'score'), coalesce(nullif(p->>'e_base','')::numeric, 10),
+          least(greatest(coalesce(nullif(p->>'runs','')::integer, 1), 1), 3), coalesce(nullif(p->>'sheet',''), 'standar'), now(), st.id)
   on conflict (discipline, coalesce(category_id, 0), coalesce(apparatus, ''))
-  do update set slots = excluded.slots, e_mode = excluded.e_mode, e_base = excluded.e_base, updated_at = now(), updated_by = st.id;
+  do update set slots = excluded.slots, e_mode = excluded.e_mode, e_base = excluded.e_base, runs = excluded.runs, sheet = excluded.sheet,
+    updated_at = now(), updated_by = st.id;
   perform jo.log(st.id, 'panel_juri_diubah', 'panel', v_disc || ':' || coalesce(v_cat::text,'*') || ':' || coalesce(v_app,'*'), p);
   return public.console_j_panels();
 end $$;
@@ -9031,7 +9102,7 @@ begin
                    where d.code = c.discipline and (x->>'code') = any(c.apparatus)),
     'results', jo.category_results(c.id),
     'detail', (select coalesce(jsonb_object_agg(j.entry_id::text || ':' || j.apparatus,
-                 jsonb_build_object('d', j.d, 'e', j.e, 'a', j.a, 'pen', j.pen, 'total', j.total, 'status', j.status)), '{}'::jsonb)
+                 jsonb_build_object('d', j.d, 'e', j.e, 'a', j.a, 'pen', j.pen, 'total', j.total, 'status', j.status, 'flags', j.flags)), '{}'::jsonb)
                from jo.jscores j join jo.entries e on e.id = j.entry_id where e.category_id = c.id and j.mode = 'real'),
     'pending', (select count(*) from jo.jscores j join jo.entries e on e.id = j.entry_id
                  where e.category_id = c.id and j.mode = 'real' and j.status <> 'verified'),
@@ -9265,7 +9336,7 @@ begin
     return (select coalesce(jsonb_agg(x order by (x->>'at') desc), '[]'::jsonb) from (
       select jsonb_build_object('at', l.at, 'action', l.action, 'apparatus', l.apparatus, 'mode', l.mode,
         'name', jo.entry_name_mode(l.entry_id, l.mode), 'category', c.name_id,
-        'old', l.old_val->>'total', 'new', l.new_val->>'total', 'status', l.new_val->>'status',
+        'old', l.old_val->>'total', 'new', l.new_val->>'total', 'status', l.new_val->>'status', 'flags', l.new_val->'flags',
         'by', s.name, 'role', s.role, 'reason', l.reason) x
       from jo.jscore_log l join jo.entries e on e.id = l.entry_id join jo.categories c on c.id = e.category_id
       left join jo.staff s on s.id = l.by_staff
