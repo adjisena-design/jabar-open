@@ -476,3 +476,23 @@ body[data-page="panitia"] .ath-tbl .bib{white-space:nowrap}
 .scr footer{display:flex;gap:6px;flex-wrap:wrap}
 .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 @media (max-width:640px){.grid-3{grid-template-columns:1fr}.slot input{width:76px}}
+
+/* Login konsol juri: gambar & gaya sama dengan konsol panitia, warna utama red-orange Jabar Open
+   (pola banner venue: satu bidang warna, tekstur titik halftone, lingkaran lembut lebih terang/gelap) */
+.login.jlogin{background:#b8371f}
+.jlogin .lg-hero{background:
+  radial-gradient(rgba(255,255,255,.16) 1.6px,transparent 2px) 0 0/22px 22px,
+  radial-gradient(circle at 74% 14%,#ef6e4e 0 27%,transparent 27.2%),
+  radial-gradient(circle at 6% 104%,#d9442c 0 30%,transparent 30.2%),
+  #e9543c}
+.jlogin .lg-title em{color:#ffe1d6}
+.jlogin .lg-eyebrow{color:#fff}
+.jlogin .lg-sub{color:rgba(255,255,255,.88)}
+.jlogin .lg-sub,.jlogin .lg-title{text-shadow:0 2px 18px rgba(120,30,10,.35)}
+.jlogin .lg-panel{background:radial-gradient(rgba(255,255,255,.08) 1.4px,transparent 1.8px) 0 0/22px 22px,linear-gradient(180deg,#d9442c,#b8371f)}
+.jlogin .lg-badge{background:#fdeae4;color:#b8371f}
+.jlogin .lg-badge::before{background:#e9543c}
+.login.jlogin .card .btn.btn-primary{background:#e9543c;border-color:#e9543c;color:#fff}
+.login.jlogin .card .btn.btn-primary:hover{background:#d9442c;border-color:#d9442c}
+.jlogin .jgrp button[aria-selected=true]{background:#e9543c;color:#fff;box-shadow:0 6px 14px -8px rgba(217,68,44,.7)}
+.jlogin input.codein:focus{border-color:#e9543c;box-shadow:0 0 0 3px #fdeae4}

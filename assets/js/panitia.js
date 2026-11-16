@@ -218,12 +218,17 @@
     root.innerHTML = `<div class="login jlogin">
       <section class="lg-hero" aria-hidden="false">
         <img class="lg-star s1" src="../assets/img/deco/star-red.webp" alt="" width="420" height="420">
+        <img class="lg-star s2" src="../assets/img/deco/star-white.webp" alt="" width="420" height="420">
         <img class="lg-star s3" src="../assets/img/deco/star-gold.webp" alt="" width="420" height="420">
         <div class="lg-brand"><img src="../assets/img/brand/jabar-open-white.webp" alt="Jabar Open 2026" width="600" height="409"><span class="lg-div"></span><img class="gi" src="../assets/img/brand/gi-jabar-white.webp" alt="Gimnastik Indonesia Jawa Barat" width="700" height="335"></div>
         <div class="lg-text">
           <p class="lg-eyebrow">Asisten juri · Verifikator nilai · TD</p>
           <h1 class="lg-title">Konsol <em>Juri</em></h1>
           <p class="lg-sub"><span>Jabar Open 2026 · Gymnasium Arcamanik</span><span class="lg-date">12–20 Desember 2026</span></p>
+        </div>
+        <div class="lg-stage">
+          <img class="lg-athletes" src="../assets/img/hero/athletes.webp" srcset="../assets/img/hero/athletes-800.webp 800w, ../assets/img/hero/athletes.webp 1570w" sizes="(max-width:900px) 110vw, 50vw" alt="" width="1570" height="1290">
+          <img class="lg-strip" src="../assets/img/hero/strip.webp" srcset="../assets/img/hero/strip-1280.webp 1280w, ../assets/img/hero/strip.webp 2560w" sizes="(max-width:900px) 160vw, 60vw" alt="" width="2560" height="455">
         </div>
       </section>
       <section class="lg-panel"><div class="card">
