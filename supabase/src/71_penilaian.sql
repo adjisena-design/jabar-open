@@ -239,7 +239,9 @@ begin
       ov := nullif(s->>('RERATA' || sfx), '')::numeric;
       if ov is not null then
         e := ov; have_r := have_r + 1;
-        flags := flags || jsonb_build_object('field', 'RERATA', 'run', r, 'auto', e_auto, 'manual', ov);
+        if ov is distinct from e_auto then
+          flags := flags || jsonb_build_object('field', 'RERATA', 'run', r, 'auto', e_auto, 'manual', ov);
+        end if;
       end if;
     end if;
     ak_auto := case when have_r = 0 then null else round(coalesce(d,0) + coalesce(e,0) + coalesce(a,0) - pen, 3) end;
@@ -248,7 +250,9 @@ begin
       ov := nullif(s->>('AKHIR' || sfx), '')::numeric;
       if ov is not null then
         ak := ov;
-        flags := flags || jsonb_build_object('field', 'AKHIR', 'run', r, 'auto', ak_auto, 'manual', ov);
+        if ov is distinct from ak_auto then
+          flags := flags || jsonb_build_object('field', 'AKHIR', 'run', r, 'auto', ak_auto, 'manual', ov);
+        end if;
       end if;
     end if;
     runs := runs || jsonb_build_object('run', r, 'd', d, 'e_auto', e_auto, 'e', e, 'a', a, 'pen', pen, 'akhir_auto', ak_auto, 'akhir', ak);

@@ -37,10 +37,10 @@
       if (eAuto != null && panel.e_mode === 'deduction') eAuto = r3(Number(panel.e_base || 10) - eAuto);
       const pen = r3(g.PEN.reduce((x, y) => x + y, 0));
       let e = eAuto;
-      if (art) { const ov = num(slots['RERATA' + sfx(r)]); if (ov != null && !Number.isNaN(ov)) { e = ov; have++; out.flags.push({ field: 'RERATA', run: r, auto: eAuto, manual: ov }); } }
+      if (art) { const ov = num(slots['RERATA' + sfx(r)]); if (ov != null && !Number.isNaN(ov)) { e = ov; have++; if (eAuto == null || r3(ov) !== r3(eAuto)) out.flags.push({ field: 'RERATA', run: r, auto: eAuto, manual: ov }); } }
       const akAuto = have ? r3((d || 0) + (e || 0) + (a || 0) - pen) : null;
       let ak = akAuto;
-      if (art) { const ov = num(slots['AKHIR' + sfx(r)]); if (ov != null && !Number.isNaN(ov)) { ak = ov; out.flags.push({ field: 'AKHIR', run: r, auto: akAuto, manual: ov }); } }
+      if (art) { const ov = num(slots['AKHIR' + sfx(r)]); if (ov != null && !Number.isNaN(ov)) { ak = ov; if (akAuto == null || r3(ov) !== r3(akAuto)) out.flags.push({ field: 'AKHIR', run: r, auto: akAuto, manual: ov }); } }
       out.runs.push({ run: r, d, a, pen, e_auto: eAuto, e, akhir_auto: akAuto, akhir: ak });
       if (ak != null) { nr++; st += ak; sp += pen; if (d != null) { anyD = true; sd += d; } if (e != null) { anyE = true; se += e; } if (a != null) { anyA = true; sa += a; } }
     }
