@@ -496,3 +496,11 @@ body[data-page="panitia"] .ath-tbl .bib{white-space:nowrap}
 .login.jlogin .card .btn.btn-primary:hover{background:#d9442c;border-color:#d9442c}
 .jlogin .jgrp button[aria-selected=true]{background:#e9543c;color:#fff;box-shadow:0 6px 14px -8px rgba(217,68,44,.7)}
 .jlogin input.codein:focus{border-color:#e9543c;box-shadow:0 0 0 3px #fdeae4}
+
+/* Login konsol panitia: pola banner navy (bidang navy, titik halftone, lingkaran lembut) */
+.login:not(.jlogin) .lg-hero{background:
+  radial-gradient(rgba(255,255,255,.13) 1.6px,transparent 2px) 0 0/22px 22px,
+  radial-gradient(circle at 74% 14%,#2c4c7b 0 27%,transparent 27.2%),
+  radial-gradient(circle at 6% 104%,#1f3a65 0 30%,transparent 30.2%),
+  #142849}
+.login:not(.jlogin) .lg-panel{background:radial-gradient(rgba(255,255,255,.06) 1.4px,transparent 1.8px) 0 0/22px 22px,linear-gradient(180deg,#13284a,#0f2140)}
