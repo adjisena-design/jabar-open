@@ -33,6 +33,7 @@
   const isAsjur = () => ME && ME.role === 'asjur';
   const isVerif = () => ME && ME.role === 'verifikator';
   const isDummy = () => ME && ME.is_dummy;
+  const canSwitch = () => ME && ['owner', 'superadmin', 'td'].includes(ME.role) && !ME.discipline && !ME.disc_group && !ME.is_dummy;
   // Tabel di ponsel tampil sebagai kartu: setiap sel diberi label dari judul kolomnya,
   // isinya dibungkus agar label dan nilai bisa berdampingan. Node dipindahkan (bukan
   // disalin) sehingga pendengar klik tetap menempel.
@@ -365,7 +366,7 @@
   // ---------------- modul terpisah (proyek, backup) ----------------
   // Dimuat hanya saat halamannya dibuka. Galat di modul hanya tampil di halaman itu;
   // pendaftaran, verifikasi, dan penilaian tidak ikut terganggu.
-  const MOD_V = '1611j';
+  const MOD_V = '1611n';
   function loadModule(name) {
     window.JO_MOD = window.JO_MOD || {};
     if (window.JO_MOD[name]) return Promise.resolve(window.JO_MOD[name]);
@@ -425,6 +426,7 @@
     ['hasil-resmi', 'Konfirmasi hasil (TD)', () => !isDummy() && (isSuper() || ME.role === 'td'), jmod('td'), 'trophy', 'Pertandingan'],
     ['hasil', 'Hasil & medali', () => !isDummy() && (isSuper() || isTD()), pageResults, 'trophy', 'Pertandingan'],
     ['layar', 'Layar live', () => true, jmod('layar'), 'tv', 'Live'],
+    ['log', 'Log', () => isSuper() && !isDummy(), jmod('log'), 'log', 'Admin'],
   ];
   async function startApp() {
     if (!JURI && (ME.role === 'asjur' || ME.role === 'verifikator')) { location.href = '../juri/'; return; }
@@ -445,6 +447,7 @@
         <header class="topline">
           <button type="button" class="btn btn-ghost btn-sm menu-tg" id="menu-tg" aria-label="Menu">${icon('menu')}</button>
           <img class="tl-logo" src="../assets/img/brand/jabar-open.webp" alt="Jabar Open 2026" width="360" height="246"><div class="ttl"><b>Gymnasium Arcamanik</b><small>12–20 Desember 2026</small></div>
+          ${JURI && canSwitch() ? `<div class="dsw" role="group" aria-label="Ganti disiplin">${Object.entries(GROUPS).map(([k, g]) => `<button type="button" data-sw="${k}" aria-pressed="${ME.group === k}">${esc(g.name)}</button>`).join('')}</div>` : ''}
           <div class="me"><button type="button" class="avatar" id="mebtn" title="Nomor WhatsApp saya">${esc(initials)}</button><span class="who"><b>${esc(ME.name)}</b><small>${ROLE[ME.role]}${JURI && ME.group ? ' · ' + DGN[ME.group] : ME.discipline ? ' ' + DN[ME.discipline] : ''}${isDummy() ? ' · DUMMY' : ''}</small></span>
             <button class="btn btn-ghost btn-sm" id="logout" type="button" title="Keluar">${icon('out')}<span>Keluar</span></button></div>
         </header>
@@ -477,6 +480,16 @@
       }
       clearInterval(window.__joUnread); clearInterval(pageTimer); try { await rpc('console_logout'); } catch (e) {} ME = null; location.hash = ''; showLogin('Anda sudah keluar.'); };
     root.querySelector('#mebtn').onclick = () => (JURI ? null : editMyPhone());
+    root.querySelectorAll('[data-sw]').forEach((b) => b.onclick = async () => {
+      if (b.dataset.sw === ME.group) return;
+      root.querySelectorAll('[data-sw]').forEach((x) => { x.disabled = true; });
+      try {
+        ME = await rpc('console_juri_switch', { p_group: b.dataset.sw });
+        try { localStorage.setItem('jo_juri_group', ME.group); } catch (e) {}
+        clearInterval(pageTimer); await startApp();
+        JO.toast('Konsol ' + DGN[ME.group]);
+      } catch (e) { JO.toast(e.message, 'bad'); root.querySelectorAll('[data-sw]').forEach((x) => { x.disabled = false; }); }
+    });
     window.onhashchange = route;
     if (!JURI) { pollUnread(); clearInterval(window.__joUnread); window.__joUnread = setInterval(pollUnread, 30000); }
     if (JURI && (!location.hash || location.hash === '#/' || location.hash === '#')) location.hash = isAsjur() ? '#/nilai' : isVerif() ? '#/verifikasi' : ME.role === 'td' ? '#/pantau' : isTD() ? '#/pantau' : '#/nilai';

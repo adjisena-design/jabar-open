@@ -534,6 +534,44 @@
     draw();
   }
 
+  // =====================================================================
+  //  LOG (owner, superadmin): riwayat nilai & aktivitas konsol juri
+  // =====================================================================
+  const ACT = { simpan: 'Simpan draf', kirim: 'Kirim ke verifikator', tarik: 'Tarik kembali', verifikasi: 'Verifikasi', koreksi: 'Koreksi',
+    kembalikan: 'Kembalikan', batal_verifikasi: 'Batal verifikasi', hapus: 'Hapus nilai',
+    masuk_konsol_juri: 'Masuk konsol juri', ganti_disiplin_konsol_juri: 'Ganti disiplin', panel_juri_diubah: 'Panel juri diubah', panel_juri_dihapus: 'Panel khusus dihapus',
+    layar_diubah: 'Layar diubah', simulasi_dihapus: 'Data simulasi dihapus', simulasi_tayang: 'Simulasi ditayangkan', simulasi_disembunyikan: 'Simulasi disembunyikan',
+    live_publik_dibuka: 'Tayangan publik dibuka', live_publik_dijeda: 'Tayangan publik dijeda', td_pdf_hasil: 'PDF hasil dibuat (TD)', td_konfirmasi_hasil: 'Hasil resmi dikonfirmasi (TD)', td_hasil_ditarik: 'Hasil resmi ditarik' };
+  async function logPage(v, ctx) {
+    const { esc, api } = ctx;
+    let tab = 'nilai';
+    v.innerHTML = `<h1>Log konsol juri</h1><p class="muted">Semua perubahan nilai dan aktivitas di konsol juri ${esc(ctx.DGN[ctx.ME.group] || '')}. Hanya owner dan superadmin.</p>
+      <div class="tabs"><button data-t="nilai" aria-selected="true">Nilai</button><button data-t="sim" aria-selected="false">Nilai simulasi</button><button data-t="akt" aria-selected="false">Aktivitas</button></div>
+      <div class="bar"><input id="lq" type="search" placeholder="Cari nama atlet, kategori, pemegang kode, alasan" style="flex:1;min-width:220px"></div><div id="lb"></div>`;
+    const lb = v.querySelector('#lb'); let rows = [];
+    const draw = () => {
+      const q = v.querySelector('#lq').value.trim().toLowerCase();
+      const R = rows.filter((r) => !q || JSON.stringify(r).toLowerCase().includes(q));
+      if (!R.length) { lb.innerHTML = '<p class="empty">Belum ada catatan.</p>'; return; }
+      lb.innerHTML = tab === 'akt'
+        ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Waktu</th><th>Aktivitas</th><th>Oleh</th><th>Rincian</th></tr></thead><tbody>
+          ${R.map((r) => `<tr><td class="small nowrap">${ctx.dt(r.at)}</td><td>${esc(ACT[r.action] || r.action)}</td><td>${esc(r.by || 'Sistem')}${r.role ? ` <span class="tiny muted">${esc(ctx.ROLE[r.role] || r.role)}${r.dummy ? ' · DUMMY' : ''}</span>` : ''}</td>
+            <td class="tiny muted">${esc([r.detail && r.detail.disiplin ? ctx.DGN[r.detail.disiplin] : '', r.detail && r.detail.alasan, r.detail && r.detail.name, r.target_type === 'category' ? 'kategori #' + r.target_id : ''].filter(Boolean).join(' · '))}</td></tr>`).join('')}</tbody></table></div>`
+        : `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Waktu</th><th>Atlet</th><th>Alat</th><th>Tindakan</th><th class="r">Sebelum</th><th class="r">Sesudah</th><th>Oleh</th><th>Alasan / catatan</th></tr></thead><tbody>
+          ${R.map((r) => `<tr><td class="small nowrap">${ctx.dt(r.at)}</td><td><strong>${esc(r.name)}</strong><br><span class="tiny muted">${esc(r.category)}</span></td><td>${esc(r.apparatus)}</td>
+            <td>${esc(ACT[r.action] || r.action)}</td><td class="r num">${r.old != null ? f3(r.old) : '–'}</td><td class="r num">${r.new != null ? f3(r.new) : '–'}</td>
+            <td class="small">${esc(r.by || '')}${r.role ? `<br><span class="tiny muted">${esc(ctx.ROLE[r.role] || r.role)}</span>` : ''}</td><td class="small">${esc(r.reason || '')}</td></tr>`).join('')}</tbody></table></div>`;
+    };
+    const load = async () => {
+      ctx.loading(lb);
+      rows = await api('console_j_audit', { p_kind: tab === 'akt' ? 'aktivitas' : 'nilai', p_mode: tab === 'sim' ? 'dummy' : 'real', p_limit: 500 });
+      draw();
+    };
+    v.querySelectorAll('[data-t]').forEach((b) => b.onclick = () => { v.querySelectorAll('[data-t]').forEach((x) => x.setAttribute('aria-selected', String(x === b))); tab = b.dataset.t; load(); });
+    v.querySelector('#lq').oninput = draw;
+    await load();
+  }
+
   window.JO_MOD = window.JO_MOD || {};
   window.JO_MOD['konsol-juri'] = {
     penilaian: (v, ctx) => sheetPage(v, ctx, 'asjur'),
@@ -543,5 +581,6 @@
     simstart: (v, ctx) => simStartPage(v, ctx),
     td: (v, ctx) => tdPage(v, ctx),
     layar: (v, ctx) => layarPage(v, ctx),
+    log: (v, ctx) => logPage(v, ctx),
   };
 })();
