@@ -8,7 +8,11 @@
   const DN = { MAG: 'Artistik Putra', WAG: 'Artistik Putri', RG: 'Ritmik', AER: 'Aerobik' };
   const DISCS = ['MAG', 'WAG', 'RG', 'AER'];
   const ROLE_CLUB = { pemilik: 'pemilik klub', admin: 'admin klub', pelatih: 'pelatih', manajer: 'manajer/official', lainnya: 'lainnya', atlet: 'atlet', ortu: 'orang tua/wali' };
-  const ROLE = { owner: 'Owner', superadmin: 'Superadmin', admin: 'Admin', td: 'TD', juri: 'Juri', pemantau: 'Pemantau', bendahara: 'Bendahara' };
+  const ROLE = { owner: 'Owner', superadmin: 'Superadmin', admin: 'Admin', td: 'TD', juri: 'Juri', pemantau: 'Pemantau', bendahara: 'Bendahara', asjur: 'Asisten Juri', verifikator: 'Verifikator Nilai' };
+  // Konsol juri (/juri/): halaman pertandingan saja, masuk per kotak disiplin (ART, RG, AER)
+  const JURI = document.body.dataset.console === 'juri';
+  const GROUPS = { ART: { name: 'Artistik', discs: ['MAG', 'WAG'] }, RG: { name: 'Ritmik', discs: ['RG'] }, AER: { name: 'Aerobik', discs: ['AER'] } };
+  const DGN = { ART: 'Artistik', RG: 'Ritmik', AER: 'Aerobik' };
   const ST = { menunggu_pembayaran: 'Menunggu pembayaran', menunggu_verifikasi: 'Menunggu verifikasi', lunas: 'Lunas', perlu_perbaikan: 'Perlu perbaikan', dibatalkan: 'Dibatalkan' };
   let ME = null, CATS = null;
   const isSuper = () => ME && (ME.role === 'owner' || ME.role === 'superadmin');
@@ -25,7 +29,10 @@
   const roMode = () => (ME && ME.role === 'pemantau' ? 'Mode pemantau' : 'Mode TD');
   let pageTimer = null;                        // polling halaman aktif (chat), dihentikan saat pindah halaman
   const setPageTimer = (fn, ms) => { clearInterval(pageTimer); pageTimer = setInterval(fn, ms); };
-  const myDiscs = () => (ME && ME.discipline ? [ME.discipline] : DISCS);
+  const myDiscs = () => (ME && ME.discipline ? [ME.discipline] : JURI && ME && ME.group ? GROUPS[ME.group].discs : DISCS);
+  const isAsjur = () => ME && ME.role === 'asjur';
+  const isVerif = () => ME && ME.role === 'verifikator';
+  const isDummy = () => ME && ME.is_dummy;
   // Tabel di ponsel tampil sebagai kartu: setiap sel diberi label dari judul kolomnya,
   // isinya dibungkus agar label dan nilai bisa berdampingan. Node dipindahkan (bukan
   // disalin) sehingga pendengar klik tetap menempel.
@@ -159,6 +166,7 @@
 
   // ---------------- masuk ----------------
   function showLogin(msg) {
+    if (JURI) return showJuriLogin(msg);
     root.innerHTML = `<div class="login">
       <section class="lg-hero" aria-hidden="false">
         <img class="lg-star s1" src="../assets/img/deco/star-red.webp" alt="" width="420" height="420">
@@ -203,6 +211,56 @@
     };
   }
 
+  // Masuk konsol juri: tiga kotak disiplin dalam satu halaman
+  function showJuriLogin(msg) {
+    let grp = (localStorage && (() => { try { return localStorage.getItem('jo_juri_group'); } catch (e) { return null; } })()) || 'ART';
+    if (!GROUPS[grp]) grp = 'ART';
+    root.innerHTML = `<div class="login jlogin">
+      <section class="lg-hero" aria-hidden="false">
+        <img class="lg-star s1" src="../assets/img/deco/star-red.webp" alt="" width="420" height="420">
+        <img class="lg-star s3" src="../assets/img/deco/star-gold.webp" alt="" width="420" height="420">
+        <div class="lg-brand"><img src="../assets/img/brand/jabar-open-white.webp" alt="Jabar Open 2026" width="600" height="409"><span class="lg-div"></span><img class="gi" src="../assets/img/brand/gi-jabar-white.webp" alt="Gimnastik Indonesia Jawa Barat" width="700" height="335"></div>
+        <div class="lg-text">
+          <p class="lg-eyebrow">Asisten juri · Verifikator nilai · TD</p>
+          <h1 class="lg-title">Konsol <em>Juri</em></h1>
+          <p class="lg-sub"><span>Jabar Open 2026 · Gymnasium Arcamanik</span><span class="lg-date">12–20 Desember 2026</span></p>
+        </div>
+      </section>
+      <section class="lg-panel"><div class="card">
+      <span class="lg-badge">Penilaian & live score</span>
+      <h2 style="font-size:1.45rem;margin:14px 0 10px">Masuk</h2>
+      <div class="jgrp" role="tablist">${Object.entries(GROUPS).map(([k, g]) => `<button type="button" role="tab" data-g="${k}" aria-selected="${k === grp}">${esc(g.name)}</button>`).join('')}</div>
+      ${msg ? `<p class="note warn">${esc(msg)}</p>` : ''}
+      <form id="lf" novalidate><label class="f" for="code">Kode akses <span id="gname">${esc(GROUPS[grp].name)}</span></label>
+        <input id="code" class="codein" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="JO-XXXX-XXXX" required>
+        <button class="btn btn-primary" style="width:100%;margin-top:12px" type="submit">Masuk konsol ${esc(GROUPS[grp].name)}</button></form>
+      <div id="lmsg" style="margin-top:12px"></div>
+      <p class="tiny muted" style="margin-top:18px">Kode dibuat owner atau superadmin di konsol panitia. Kode dummy untuk simulasi: semua yang diisi tidak masuk nilai resmi.</p></div>
+      <a class="lg-public" href="../live.html">Lihat Public Live View</a></section></div>`;
+    const f = root.querySelector('#lf');
+    root.querySelectorAll('[data-g]').forEach((b) => b.onclick = () => {
+      grp = b.dataset.g; try { localStorage.setItem('jo_juri_group', grp); } catch (e) {}
+      root.querySelectorAll('[data-g]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+      root.querySelector('#gname').textContent = GROUPS[grp].name;
+      f.querySelector('button').textContent = 'Masuk konsol ' + GROUPS[grp].name;
+      f.querySelector('#code').focus();
+    });
+    f.querySelector('#code').focus();
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const code = f.querySelector('#code').value.trim();
+      if (!code) return;
+      const btn = f.querySelector('button'); const lbl = btn.textContent; btn.disabled = true; btn.textContent = 'Memeriksa…';
+      try {
+        await JO.ensureSession();
+        const r = await rpc('console_juri_login', { p_code: code, p_group: grp });
+        if (!r.ok) { root.querySelector('#lmsg').innerHTML = `<p class="note bad">${esc(r.message)}</p>`; return; }
+        ME = await rpc('console_juri_me'); await startApp();
+      } catch (err) { root.querySelector('#lmsg').innerHTML = `<p class="note bad">${esc(err.message)}</p>`; }
+      finally { btn.disabled = false; btn.textContent = lbl; }
+    };
+  }
+
   // ---------------- kerangka ----------------
   // ikon garis sederhana (24x24)
   const IC = {
@@ -232,6 +290,7 @@
     phone: '<path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2z"/>',
     whistle: '<circle cx="8" cy="14" r="5"/><path d="M12 11l9-4v5l-8 1"/><path d="M8 4v3M4.5 5.5l1.5 2"/>',
     help: '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.8M12 17v.5"/>',
+    tv: '<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/>',
     check: '<path d="M4 12l5 5L20 6"/>', clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', alert: '<path d="M12 3l10 18H2z"/><path d="M12 10v4M12 17.5v.5"/>',
   };
   const icon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${IC[k] || ''}</svg>`;
@@ -301,7 +360,7 @@
   // ---------------- modul terpisah (proyek, backup) ----------------
   // Dimuat hanya saat halamannya dibuka. Galat di modul hanya tampil di halaman itu;
   // pendaftaran, verifikasi, dan penilaian tidak ikut terganggu.
-  const MOD_V = '0611b';
+  const MOD_V = '1611j';
   function loadModule(name) {
     window.JO_MOD = window.JO_MOD || {};
     if (window.JO_MOD[name]) return Promise.resolve(window.JO_MOD[name]);
@@ -314,7 +373,7 @@
     });
   }
   const modCtx = () => ({ api, dialog, esc, fmtRp, dt, icon, ME, DN, ROLE, loading, fail, labelTables, rowMenu, signed, removeFiles,
-    toast: JO.toast, root, version: MOD_V });
+    toast: JO.toast, root, version: MOD_V, CATS, myDiscs, num3, askReason, setPageTimer, hashParams, GROUPS, DGN, refreshCats });
   const modPage = (mod, fn) => async (v, rest) => {
     loading(v);
     try { const M = await loadModule(mod); await M[fn](v, modCtx(), rest); }
@@ -336,10 +395,8 @@
     ['musik', 'Musik Ritmik', () => isAdmin() && (!ME.discipline || ME.discipline === 'RG'), pageMusic, 'music', 'Peserta'],
     ['klub', 'Klub', () => isAdmin(), pageClubs, 'flag', 'Peserta'],
     ['kategori', 'Kategori', () => canSee(), pageCategories, 'tag', 'Pertandingan'],
-    ['startlist', 'Start list', () => canSee(), pageStartlist, 'list', 'Pertandingan'],
-    ['nilai', 'Penilaian', () => !isBendahara(), pageScoring, 'pen', 'Pertandingan'],
-    ['hasil', 'Hasil & medali', () => canSee(), pageResults, 'trophy', 'Pertandingan'],
     ['juri', 'Pendaftaran juri', () => isAdmin(), pageJury, 'whistle', 'Pertandingan'],
+    ['konsol-juri', 'Konsol juri ↗', () => isSuper() || isTD(), (v) => { location.href = '../juri/'; v.innerHTML = '<p class="empty">Membuka konsol juri…</p>'; }, 'pen', 'Pertandingan'],
     ['mitra', 'Calon mitra', () => ME && ['owner', 'superadmin', 'bendahara'].includes(ME.role), pageLeads, 'users', 'Proyek'],
     ['gantt', 'Gantt', () => pmView(), modPage('proyek', 'gantt'), 'gantt', 'Proyek'],
     ['struktur', 'Struktur', () => pmView(), modPage('proyek', 'struktur'), 'org', 'Proyek'],
@@ -351,7 +408,22 @@
     ['log', 'Log', () => isSuper(), pageLog, 'log', 'Sistem'],
     ['backup', 'Backup darurat', () => isOwner(), modPage('backup', 'page'), 'shield', 'Sistem'],
   ];
+  // Konsol juri: halaman pertandingan (start list, penilaian, verifikasi, hasil, layar live)
+  const jmod = (fn) => modPage('konsol-juri', fn);
+  const JPAGES = [
+    ['nilai', 'Penilaian', () => isAsjur() || isSuper(), jmod('penilaian'), 'pen', 'Penilaian'],
+    ['verifikasi', 'Verifikasi nilai', () => isVerif() || isSuper(), jmod('verifikasi'), 'check', 'Penilaian'],
+    ['pantau', 'Pantau nilai', () => isTD(), jmod('pantau'), 'log', 'Penilaian'],
+    ['panel', 'Panel juri', () => (isVerif() || isSuper() || ME.role === 'td') && !isDummy(), jmod('panel'), 'gear', 'Penilaian'],
+    ['startlist', 'Start list', () => !isDummy() && (isSuper() || isTD()), pageStartlist, 'list', 'Pertandingan'],
+    ['sim-startlist', 'Start list simulasi', () => isDummy() || isSuper(), jmod('simstart'), 'list', 'Pertandingan'],
+    ['hasil-resmi', 'Konfirmasi hasil (TD)', () => !isDummy() && (isSuper() || ME.role === 'td'), jmod('td'), 'trophy', 'Pertandingan'],
+    ['hasil', 'Hasil & medali', () => !isDummy() && (isSuper() || isTD()), pageResults, 'trophy', 'Pertandingan'],
+    ['layar', 'Layar live', () => true, jmod('layar'), 'tv', 'Live'],
+  ];
   async function startApp() {
+    if (!JURI && (ME.role === 'asjur' || ME.role === 'verifikator')) { location.href = '../juri/'; return; }
+    if (JURI) { const T = PAGES.length; PAGES.splice(0, T, ...JPAGES); }
     if (isBendahara()) CATS = CATS || []; else await refreshCats();   // bendahara tidak membuka halaman pertandingan
     let grp = '';
     const nav = PAGES.filter((p) => p[2]()).map(([k, l, , , ic, g]) => {
@@ -360,7 +432,7 @@
     }).join('');
     const initials = ME.name.split(/\s+/).map((x) => x[0]).slice(0, 2).join('').toUpperCase();
     root.innerHTML = `<div class="shell"><aside class="side" id="side">
-        <div class="brandbox"><img src="../assets/img/brand/jabar-open.webp" alt="" width="360" height="246"><div><small>Konsol panitia</small><b>Jabar Open 2026</b></div></div>
+        <div class="brandbox"><img src="../assets/img/brand/jabar-open.webp" alt="" width="360" height="246"><div><small>${JURI ? 'Konsol juri' + (ME.group ? ' · ' + DGN[ME.group] : '') : 'Konsol panitia'}</small><b>Jabar Open 2026</b></div></div>
         <nav id="nav">${nav}</nav>
         <div class="foot">Setiap tindakan tercatat atas nama Anda</div>
       </aside>
@@ -368,9 +440,10 @@
         <header class="topline">
           <button type="button" class="btn btn-ghost btn-sm menu-tg" id="menu-tg" aria-label="Menu">${icon('menu')}</button>
           <img class="tl-logo" src="../assets/img/brand/jabar-open.webp" alt="Jabar Open 2026" width="360" height="246"><div class="ttl"><b>Gymnasium Arcamanik</b><small>12–20 Desember 2026</small></div>
-          <div class="me"><button type="button" class="avatar" id="mebtn" title="Nomor WhatsApp saya">${esc(initials)}</button><span class="who"><b>${esc(ME.name)}</b><small>${ROLE[ME.role]}${ME.discipline ? ' ' + DN[ME.discipline] : ''}</small></span>
+          <div class="me"><button type="button" class="avatar" id="mebtn" title="Nomor WhatsApp saya">${esc(initials)}</button><span class="who"><b>${esc(ME.name)}</b><small>${ROLE[ME.role]}${JURI && ME.group ? ' · ' + DGN[ME.group] : ME.discipline ? ' ' + DN[ME.discipline] : ''}${isDummy() ? ' · DUMMY' : ''}</small></span>
             <button class="btn btn-ghost btn-sm" id="logout" type="button" title="Keluar">${icon('out')}<span>Keluar</span></button></div>
         </header>
+        ${JURI && isDummy() ? '<div class="sim-band">MODE SIMULASI (DUMMY): semua nilai dan start list di sini tidak tercatat sebagai data resmi dan dihapus saat keluar atau setelah 2 jam tanpa aktivitas.</div>' : ''}
         <main class="main" id="view"></main></div></div>`;
     const side = root.querySelector('#side');
     // tinggi logo di sidebar mengikuti tinggi baris atas agar garis bawahnya sejajar
@@ -383,11 +456,26 @@
       const sc = document.createElement('div'); sc.className = 'scrim'; sc.onclick = closeSide; document.body.appendChild(sc);
     };
     side.querySelectorAll('nav a').forEach((a) => a.addEventListener('click', closeSide));
-    root.querySelector('#logout').onclick = async () => { clearInterval(window.__joUnread); clearInterval(pageTimer); try { await rpc('console_logout'); } catch (e) {} ME = null; location.hash = ''; showLogin('Anda sudah keluar.'); };
-    root.querySelector('#mebtn').onclick = () => editMyPhone();
+    root.querySelector('#logout').onclick = async () => {
+      if (JURI) {
+        let wipe = false;
+        if (isDummy() || isSuper()) {
+          const r = await dialog({ title: 'Keluar dari konsol juri', ok: 'Keluar', okClass: 'btn-primary',
+            body: `<label class="check"><input type="checkbox" id="wipe" ${isDummy() ? 'checked' : ''}><span>Hapus semua data simulasi (nilai dummy, start list simulasi, layar dummy) untuk semua pemegang kode dummy</span></label>
+              <p class="small muted">Data simulasi juga terhapus otomatis setelah 2 jam tanpa aktivitas.</p>`,
+            onOk: (d) => ({ wipe: d.querySelector('#wipe').checked }) });
+          if (!r) return; wipe = r.wipe;
+        }
+        clearInterval(pageTimer); if (window.__joLive) { try { window.__joLive(); } catch (e) {} }
+        try { await rpc('console_juri_logout', { p_wipe: wipe }); } catch (e) {}
+        ME = null; location.hash = ''; showLogin(wipe ? 'Anda sudah keluar. Data simulasi dihapus.' : 'Anda sudah keluar.'); return;
+      }
+      clearInterval(window.__joUnread); clearInterval(pageTimer); try { await rpc('console_logout'); } catch (e) {} ME = null; location.hash = ''; showLogin('Anda sudah keluar.'); };
+    root.querySelector('#mebtn').onclick = () => (JURI ? null : editMyPhone());
     window.onhashchange = route;
-    pollUnread(); clearInterval(window.__joUnread); window.__joUnread = setInterval(pollUnread, 30000);
-    if (!location.hash || location.hash === '#/' || location.hash === '#') location.hash = isAdmin() ? '#/ringkasan' : isBendahara() ? (pmOn() ? '#/gantt' : '#/ringkasan') : isTD() ? '#/hasil' : '#/nilai';
+    if (!JURI) { pollUnread(); clearInterval(window.__joUnread); window.__joUnread = setInterval(pollUnread, 30000); }
+    if (JURI && (!location.hash || location.hash === '#/' || location.hash === '#')) location.hash = isAsjur() ? '#/nilai' : isVerif() ? '#/verifikasi' : ME.role === 'td' ? '#/pantau' : isTD() ? '#/pantau' : '#/nilai';
+    else if (!location.hash || location.hash === '#/' || location.hash === '#') location.hash = isAdmin() ? '#/ringkasan' : isBendahara() ? (pmOn() ? '#/gantt' : '#/ringkasan') : isTD() ? '#/kategori' : '#/chat';
     else route();
   }
   function route() {
@@ -2774,7 +2862,7 @@
       <button class="btn btn-primary" id="new">+ Buat kode baru</button></div><div style="height:14px"></div>
       <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nama</th><th>Peran</th><th>Disiplin</th><th>Batasan juri</th><th>Kode</th><th>Terakhir masuk</th><th></th></tr></thead><tbody>
       ${rows.map((s) => `<tr><td>${esc(s.name)}${s.active ? '' : ' <span class="pill bad">nonaktif</span>'}${s.note || s.phone ? `<br><span class="tiny muted">${esc([s.phone, s.note].filter(Boolean).join(' · '))}</span>` : ''}</td>
-        <td>${ROLE[s.role]}</td><td>${s.discipline ? DN[s.discipline] : 'Semua'}</td>
+        <td>${ROLE[s.role]}${s.is_dummy ? ' <span class="pill warn">DUMMY</span>' : ''}</td><td>${s.disc_group ? DGN[s.disc_group] : s.discipline ? DN[s.discipline] : 'Semua'}</td>
         <td class="small">${s.role === 'juri' ? `${s.apparatus ? 'Alat: ' + s.apparatus.join(', ') : 'Semua alat'}<br>${s.components ? 'Komponen: ' + s.components.join(', ') : 'Semua komponen'}${winSummary(s)}` : ''}</td>
         <td class="code small">…${esc(s.code_hint || '')}</td><td class="small">${s.last_login_at ? dt(s.last_login_at) : 'Belum pernah'}</td>
         <td class="r">${s.role === 'owner' || (s.role === 'superadmin' && ME.role !== 'owner') ? '' : rowMenu(
@@ -2791,26 +2879,33 @@
         <option value="td">TD / Technical Director (pantau kategori, start list, nilai, hasil; hanya baca)</option>
         <option value="juri">Juri (input nilai saja; bisa dibatasi jam tugas)</option>
         <option value="pemantau">Pemantau (hanya lihat: kategori, start list, nilai, hasil)</option>
+        <option value="asjur">Asisten Juri (konsol juri: ketik nilai dari lembar juri)</option>
+        <option value="verifikator">Verifikator Nilai (konsol juri: verifikasi nilai, tayang live)</option>
+        <option value="asjur-dummy">DUMMY Asisten Juri (simulasi, tidak tercatat)</option>
+        <option value="verifikator-dummy">DUMMY Verifikator Nilai (simulasi, tidak tercatat)</option>
         <option value="bendahara">Bendahara (hanya lihat & unduh: Gantt, Struktur, RAB, Pendapatan)</option>
         ${ME.role === 'owner' ? '<option value="superadmin">Superadmin (semua, termasuk ledger)</option>' : ''}</select></div>`}
-      <div class="field"><label class="f">Disiplin</label><select id="sd"><option value="">Semua disiplin</option>${DISCS.map((d) => `<option value="${d}" ${s && s.discipline === d ? 'selected' : ''}>${DN[d]}</option>`).join('')}</select></div>
+      <div class="field" id="sdw" ${s && (s.role === 'asjur' || s.role === 'verifikator') ? 'hidden' : ''}><label class="f">Disiplin</label><select id="sd"><option value="">Semua disiplin</option>${DISCS.map((d) => `<option value="${d}" ${s && s.discipline === d ? 'selected' : ''}>${DN[d]}</option>`).join('')}</select></div>
+      <div class="field" id="sgw" ${s && (s.role === 'asjur' || s.role === 'verifikator') ? '' : 'hidden'}><label class="f">Disiplin konsol juri</label><select id="sg">${Object.entries(DGN).map(([k, n]) => `<option value="${k}" ${s && s.disc_group === k ? 'selected' : ''}>${n}</option>`).join('')}</select>
+        <div class="f-hint">Masuk di ${esc(JO.siteUrl())}juri/ lewat kotak disiplin ini.</div></div>
       <div id="jopt" ${!s || s.role !== 'juri' ? 'hidden' : ''}><div class="field"><span class="f">Batasi komponen (juri)</span><div class="row">${['D', 'E', 'A', 'PEN'].map((c) => `<label class="check" style="padding:2px 10px 2px 0"><input type="checkbox" data-comp="${c}" ${s && s.components && s.components.includes(c) ? 'checked' : ''}>${c}</label>`).join('')}</div><div class="f-hint">Kosongkan untuk semua komponen.</div></div>
         <div class="field"><label class="f">Batasi alat (juri, pisahkan dengan koma)</label><input id="sa" placeholder="Mis. VT, UB" value="${esc(s && s.apparatus ? s.apparatus.join(', ') : '')}"><div class="f-hint">Kode alat: MAG FX PH SR VT PB HB; WAG VT UB BB FX; Ritmik FH ROPE HOOP BALL CLUBS RIBBON; Aerobik RTN. Kosongkan untuk semua alat.</div></div>${winEditor(s ? s.access_windows : [])}</div>
       <div class="field"><label class="f">Nomor WhatsApp</label><input id="sph" inputmode="tel" value="${esc(s ? s.phone || '' : '')}" placeholder="08xx-xxxx-xxxx"><div class="f-hint">Tampil di halaman Kontak untuk sesama panitia dan juri.</div></div>
       <div class="field"><label class="f">Catatan</label><input id="snote" value="${esc(s ? s.note || '' : '')}" placeholder="Mis. Juri E panel 1"></div>`;
-    const collect = (d) => ({ name: d.querySelector('#sn').value, role: d.querySelector('#sr') ? d.querySelector('#sr').value : undefined, discipline: d.querySelector('#sd').value,
+    const collect = (d) => ({ name: d.querySelector('#sn').value, role: d.querySelector('#sr') ? d.querySelector('#sr').value.replace('-dummy', '') : undefined,
+      is_dummy: d.querySelector('#sr') ? /-dummy$/.test(d.querySelector('#sr').value) : undefined, disc_group: d.querySelector('#sg').value, discipline: d.querySelector('#sd').value,
       components: [...d.querySelectorAll('[data-comp]:checked')].map((x) => x.dataset.comp), apparatus: d.querySelector('#sa').value.split(',').map((x) => x.trim().toUpperCase()).filter(Boolean), note: d.querySelector('#snote').value, phone: d.querySelector('#sph').value,
       access_windows: readWindows(d) });
-    const wireRole = () => { const d = document.getElementById('dlg'); const sr = d && d.querySelector('#sr'); if (sr) sr.onchange = () => { d.querySelector('#jopt').hidden = sr.value !== 'juri'; }; };
-    const showCode = (name, code) => dialog({ title: 'Kode akses untuk ' + name, ok: null, cancel: 'Selesai',
+    const wireRole = () => { const d = document.getElementById('dlg'); const sr = d && d.querySelector('#sr'); if (sr) sr.onchange = () => { d.querySelector('#jopt').hidden = sr.value !== 'juri'; const jr = /^(asjur|verifikator)/.test(sr.value); d.querySelector('#sgw').hidden = !jr; d.querySelector('#sdw').hidden = jr; }; };
+    const showCode = (name, code, juri) => dialog({ title: 'Kode akses untuk ' + name, ok: null, cancel: 'Selesai',
       body: `<div class="codebox">${esc(code)}</div><p class="small" style="margin-top:12px">Salin dan kirim secara pribadi. Kode ini tidak bisa ditampilkan lagi.</p>
         <div class="actions"><button type="button" class="btn btn-dark btn-sm" id="cp">Salin kode</button>
-        <a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(`Kode akses konsol panitia Jabar Open 2026 untuk ${name}: ${code}\nMasuk di ${JO.siteUrl()}panitia/\nJangan bagikan kode ini.`)}">Kirim lewat WhatsApp</a></div>` })
+        <a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(`Kode akses ${juri ? 'konsol juri' : 'konsol panitia'} Jabar Open 2026 untuk ${name}: ${code}\nMasuk di ${JO.siteUrl()}${juri ? 'juri/' : 'panitia/'}\nJangan bagikan kode ini.`)}">Kirim lewat WhatsApp</a></div>` })
       .then(() => pageAccess(v)) && setTimeout(() => { const cp = document.getElementById('cp'); if (cp) cp.onclick = () => navigator.clipboard.writeText(code).then(() => JO.toast('Kode disalin.')); }, 50);
     v.querySelector('#new').onclick = async () => {
       const pr = dialog({ title: 'Buat kode baru', ok: 'Buat kode', body: form(null), onOk: async (d) => api('console_staff_create', { p: collect(d) }) });
       wireRole(); const r = await pr;
-      if (r) showCode(r.staff.name, r.code);
+      if (r) showCode(r.staff.name, r.code, ['asjur', 'verifikator', 'td'].includes(r.staff.role));
     };
     v.querySelectorAll('[data-edit]').forEach((b) => b.onclick = async () => {
       const s = rows.find((x) => x.id === b.dataset.edit);
@@ -2820,7 +2915,7 @@
     v.querySelectorAll('[data-rc]').forEach((b) => b.onclick = async () => {
       const s = rows.find((x) => x.id === b.dataset.rc);
       if (!(await dialog({ title: 'Buat kode baru untuk ' + s.name + '?', ok: 'Buat kode baru', body: '<p>Kode lama langsung tidak berlaku dan sesi yang sedang masuk akan keluar.</p>' }))) return;
-      try { const r = await api('console_staff_new_code', { p_id: s.id }); showCode(s.name, r.code); } catch (e) { JO.toast(e.message, 'bad'); }
+      try { const r = await api('console_staff_new_code', { p_id: s.id }); showCode(s.name, r.code, ['asjur', 'verifikator', 'td'].includes(s.role)); } catch (e) { JO.toast(e.message, 'bad'); }
     });
     v.querySelectorAll('[data-del]').forEach((b) => b.onclick = async () => {
       const s = rows.find((x) => x.id === b.dataset.del);
@@ -3172,8 +3267,9 @@
   (async function boot() {
     try { await JO.ensureSession(); }
     catch (e) { root.innerHTML = `<div class="login"><div class="card"><p class="note bad">${esc(e.message)}</p><button class="btn btn-ghost" onclick="location.reload()">Muat ulang</button></div></div>`; return; }
-    try { ME = await rpc('console_me'); } catch (e) { ME = null; }
+    try { ME = await rpc(JURI ? 'console_juri_me' : 'console_me'); } catch (e) { ME = null; }
     if (!ME) return showLogin();
+    if (!JURI && (ME.role === 'asjur' || ME.role === 'verifikator')) { location.href = '../juri/'; return; }
     try { await startApp(); } catch (e) { showLogin(e.message); }
   })();
 })();

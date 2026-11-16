@@ -430,3 +430,49 @@ body[data-page="panitia"] .ath-tbl .bib{white-space:nowrap}
 .ms-empty{margin-top:4px}
 .ms-state{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin:0 0 12px;background:var(--paper)}
 .ms-state.done{background:var(--ok-lt);border-color:#bfe3cc}
+
+/* =====================================================================
+   Konsol juri (/juri/) — 16 Nov 2026
+   ===================================================================== */
+.jgrp{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:5px;margin-bottom:14px}
+.jgrp button{font:inherit;font-weight:700;border:0;background:none;color:var(--ink-2);padding:12px 6px;border-radius:10px;cursor:pointer}
+.jgrp button[aria-selected=true]{background:var(--ink);color:#fff;box-shadow:0 6px 14px -8px rgba(19,40,74,.6)}
+.sim-band{background:#b42318;color:#fff;font-weight:700;font-size:.85rem;padding:8px 16px;text-align:center;letter-spacing:.01em}
+.jtabs{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 14px}
+.jtabs button{font:inherit;font-weight:650;border:1px solid var(--line-2);background:#fff;color:var(--ink);border-radius:12px;padding:8px 14px;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;line-height:1.2}
+.jtabs button small{font-size:.72rem;font-weight:500;color:var(--muted)}
+.jtabs button[aria-selected=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.jtabs button[aria-selected=true] small{color:#c9d3e3}
+.jsheet td,.jsheet th{white-space:nowrap}
+.jsheet tr.click:hover td{background:var(--blue-lt)}
+.slot-grid{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:flex-end}
+.slot-grp .slot-h{display:block;font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.slot-row,.jq-slots{display:flex;flex-wrap:wrap;gap:8px}
+.slot{display:flex;flex-direction:column;gap:2px;font-size:.78rem;font-weight:650;color:var(--ink-2)}
+.slot input{width:92px;font:inherit;font-size:1.35rem;font-weight:700;text-align:center;padding:8px 6px;border:1.5px solid var(--line-2);border-radius:10px;font-variant-numeric:tabular-nums}
+.slot input:focus{border-color:var(--blue);outline:none;box-shadow:0 0 0 3px var(--blue-lt)}
+.slot input.bad{border-color:var(--bad);background:var(--bad-lt)}
+.slot input:disabled{background:var(--paper);color:var(--ink)}
+.calc{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;margin-top:14px;padding:10px 14px;background:var(--paper);border-radius:12px;font-variant-numeric:tabular-nums}
+.calc b{color:var(--ink)} .calc .tot{margin-left:auto;font-size:1.15rem} .calc .tot b{color:var(--blue-d)} .calc .bad{color:var(--bad);font-weight:700}
+.jfoot{flex-wrap:wrap;gap:8px}
+.jq{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
+.jq-card{background:#fff;border:1px solid var(--line);border-left:5px solid var(--warn);border-radius:14px;padding:12px 14px}
+.jq-card.returned{border-left-color:var(--bad);opacity:.8}
+.jq-card header,.jq-card footer{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.jq-card footer{align-items:center;margin-top:10px}
+.jq-card .jq-slots{margin-top:10px}
+.jq-card .slot input{width:76px;font-size:1.1rem;padding:6px 4px}
+.jq-card .acts{display:flex;gap:6px}
+.pslot{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.td-steps{margin:16px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:12px}
+.td-steps li.done b::after{content:" ✓";color:var(--ok)}
+.scr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+.scr{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.scr.on{border-color:var(--ok);box-shadow:0 0 0 2px var(--ok-lt)}
+.scr.dummy{background:repeating-linear-gradient(135deg,#fff,#fff 12px,#fff6f5 12px,#fff6f5 24px)}
+.scr header{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.scr header .pill,.jq-card header .pill{white-space:nowrap;flex:none}
+.scr footer{display:flex;gap:6px;flex-wrap:wrap}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media (max-width:640px){.grid-3{grid-template-columns:1fr}.slot input{width:76px}}

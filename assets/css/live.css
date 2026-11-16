@@ -1,0 +1,66 @@
+/* Jabar Open 2026 — Public Live View (layar TV & publik) */
+:root{--navy:#13284a;--navy2:#1f3a62;--gold:#e4c87d;--teal:#0f5c63}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#0b1526;font-family:'Hanken Grotesk',system-ui,sans-serif;color:#fff;-webkit-font-smoothing:antialiased}
+a{color:var(--gold)}
+.lv-msg{min-height:100vh;display:grid;place-items:center;font-size:20px;opacity:.8;text-align:center;padding:24px}
+
+/* indeks */
+.lv-idx{max-width:960px;margin:0 auto;padding:32px 18px 60px}
+.lv-idx .brand{display:flex;align-items:center;gap:14px;margin-bottom:22px}
+.lv-idx .brand img{height:54px;width:auto}
+.lv-idx h1{font-size:clamp(1.8rem,5vw,2.6rem);margin:0 0 6px;letter-spacing:-.03em}
+.lv-idx p{opacity:.75;margin:0 0 20px}
+.lv-idx h2{font-size:1rem;letter-spacing:.12em;text-transform:uppercase;opacity:.7;margin:26px 0 10px}
+.lv-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.lv-card{display:block;text-decoration:none;color:#fff;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:16px 18px}
+.lv-card:hover{background:rgba(255,255,255,.14)}
+.lv-card b{display:block;font-size:1.15rem}
+.lv-card span{opacity:.75;font-size:.92rem}
+.lv-card.dummy{border-color:#b42318;background:rgba(180,35,24,.18)}
+.lv-note{font-size:.9rem;opacity:.7;margin-top:26px}
+
+/* layar 16:9 yang diskalakan */
+.lv-wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#060d1a;overflow:hidden}
+.lv-wrap.withbar{top:44px}
+.lv-bar{position:fixed;left:0;right:0;top:0;height:44px;display:flex;align-items:center;gap:12px;padding:0 12px;background:#0b1526;border-bottom:1px solid rgba(255,255,255,.08);font-size:14px;z-index:5}
+.lv-bar a,.lv-bar button{color:#fff;text-decoration:none;font:inherit;background:rgba(255,255,255,.1);border:0;border-radius:999px;padding:6px 12px;cursor:pointer}
+.lv-bar .sp{flex:1}
+.stage{position:relative;width:1920px;height:1080px;flex:none;transform-origin:center center;overflow:hidden;
+  background:radial-gradient(1200px 700px at 80% -10%,#2c4c7b 0,transparent 60%),linear-gradient(160deg,var(--navy) 0,#0d1d38 100%)}
+.stage.app{background:radial-gradient(1200px 700px at 80% -10%,#1d8a8f 0,transparent 60%),linear-gradient(160deg,#0f4e57 0,#082f36 100%)}
+.stage .dmy{position:absolute;left:0;right:0;top:122px;text-align:center;background:#b42318;color:#fff;font-weight:800;font-size:26px;letter-spacing:.06em;padding:8px 0;z-index:6}
+.hd{position:absolute;left:60px;right:60px;top:30px;height:86px;display:flex;align-items:center;gap:26px}
+.hd img{height:78px;width:auto}
+.hd .t1{font-size:22px;font-weight:600;opacity:.75;letter-spacing:.08em;text-transform:uppercase}
+.hd .t2{font-size:46px;font-weight:850;letter-spacing:-.02em;line-height:1.05}
+.hd .t2 em{font-style:normal;color:var(--gold)}
+.hd .right{margin-left:auto;display:flex;align-items:center;gap:22px}
+.pg{font-size:32px;font-weight:800;font-variant-numeric:tabular-nums;opacity:.92}
+.live{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.1);border-radius:999px;padding:10px 22px 10px 16px;font-weight:800;font-size:24px;letter-spacing:.1em}
+.dot{width:22px;height:22px;border-radius:50%;background:#38d39f;animation:pulse 1.6s infinite}
+.dot.stale{background:#e5484d;animation:none}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(56,211,159,.7)}70%{box-shadow:0 0 0 18px rgba(56,211,159,0)}100%{box-shadow:0 0 0 0 rgba(56,211,159,0)}}
+.board{position:absolute;display:flex;flex-direction:column}
+.cols,.row{display:grid;align-items:center}
+.cols{font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.6;padding:0 18px 8px}
+.rows{position:relative;flex:1}
+.row{position:absolute;left:0;right:0;background:rgba(255,255,255,.07);border-radius:14px;padding:0 18px;transition:transform .9s cubic-bezier(.2,.8,.2,1),opacity .5s}
+.row.r1{background:linear-gradient(90deg,rgba(228,200,125,.32),rgba(255,255,255,.07) 60%)}
+.row.flash{animation:flash 2.2s ease-out}
+@keyframes flash{0%,25%{background:rgba(228,200,125,.95);color:#13284a}100%{}}
+.rk{font-weight:900;font-variant-numeric:tabular-nums}
+.ph{border-radius:12px;background:#c9d3e3 center/cover no-repeat;display:grid;place-items:center;color:#13284a;font-weight:800;overflow:hidden}
+.nm{min-width:0}
+.nm .n{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.1}
+.nm .c{opacity:.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc{text-align:right;font-variant-numeric:tabular-nums;font-weight:650}
+.sc.tot{font-weight:900;color:var(--gold)}
+.cam{position:absolute;background:#000;border-radius:16px;overflow:hidden;border:2px solid rgba(255,255,255,.12);display:grid;place-items:center;color:#6c7a92;font-size:40px;font-weight:800}
+.cam iframe{width:100%;height:100%;border:0}
+.empty-b{position:absolute;inset:0;display:grid;place-items:center;font-size:34px;opacity:.6;text-align:center}
+.ticker{position:absolute;left:0;right:0;bottom:0;height:78px;background:var(--gold);color:var(--navy);overflow:hidden;display:flex;align-items:center}
+.ticker .tk{white-space:nowrap;font-size:32px;font-weight:800;padding-left:100%;animation:tick var(--tk,30s) linear infinite}
+@keyframes tick{to{transform:translateX(-100%)}}
+.prog{position:absolute;left:0;bottom:78px;height:5px;background:var(--gold)}
+.foot{position:absolute;right:60px;bottom:94px;font-size:18px;opacity:.55}
