@@ -12,6 +12,9 @@ begin
   if length(trim(coalesce(p_reason,''))) < 3 then raise exception 'Tulis alasan penghapusan (masuk Log).'; end if;
   select * into s from jo.submissions where id = p_id for update;
   if s.id is null then raise exception 'Pendaftaran tidak ditemukan.'; end if;
+  if s.bulk_batch_id is not null and s.status <> 'dibatalkan' then
+    raise exception 'Pendaftaran ini bagian dari batch pendaftaran massal. Batalkan batchnya lewat halaman Pendaftaran massal (bisa dipulihkan).';
+  end if;
   v_detail := jsonb_build_object('code', s.code, 'status', s.status, 'discipline', s.discipline, 'type', s.registrant_type,
     'contact', s.contact_name, 'email', s.contact_email, 'phone', s.contact_phone, 'total', s.total_amount, 'paid', s.paid_amount,
     'club', (select name from jo.clubs where id = s.club_id),
@@ -32,6 +35,9 @@ begin
   select * into a from jo.athletes where id = p_athlete for update;
   if a.id is null then raise exception 'Atlet tidak ditemukan.'; end if;
   select * into s from jo.submissions where id = a.submission_id for update;
+  if s.bulk_batch_id is not null then
+    raise exception 'Atlet ini dari pendaftaran massal. Tarik lewat halaman Pendaftaran massal (bisa dipulihkan).';
+  end if;
   if (select count(*) from jo.athletes x where x.submission_id = s.id) <= 1 then
     raise exception 'Ini satu-satunya atlet di pendaftaran %. Hapus pendaftarannya.', s.code;
   end if;

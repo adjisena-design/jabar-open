@@ -122,3 +122,7 @@
 .ms-sheet .ms-err:empty{display:none}
 .ms-sheet .ms-err a{color:var(--bad);font-weight:600;text-decoration:underline}
 .ms-sheet td{vertical-align:top}
+
+.ms-bcm{border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin:10px 0 12px}
+.ms-bcm label{display:flex;gap:10px;align-items:flex-start;padding:6px 0;cursor:pointer}
+.ms-bcm input{margin-top:4px}

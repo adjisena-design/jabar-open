@@ -1313,6 +1313,7 @@
     catch (e) { JO.toast(e.message, 'bad'); }
   }
   let BULK_TAB = 'proses';
+  const BKIND = { atlet_ditarik: 'Atlet ditarik', baris_dihapus: 'Baris draf dihapus', batch_dibatalkan: 'Batch dibatalkan' };
   // Tandai selesai (label saja): tampilkan yang masih terbuka sebagai peringatan, tetap boleh ditandai.
   async function bulkComplete(it, done, after) {
     if (!it) return;
@@ -1394,7 +1395,8 @@
       return `<tr><td class="num">${String(r.row_no).padStart(3, '0')}</td><td>${esc(d.full_name || '–')}</td><td>${d.gender === 'M' ? 'L' : d.gender === 'F' ? 'P' : ''}</td><td class="small">${esc(d.birth_date || '')}</td>
         <td class="small">${esc(DN[d.discipline] || d.discipline || '')}</td><td class="small">${d.team_only ? 'Khusus beregu ' + esc(d.team_level || '') : (d.category_id ? esc(catName(d.category_id)) : '')}${d.team_name ? `<br><span class="tiny muted">Tim ${esc(d.team_name)}</span>` : ''}</td>
         <td class="small">${Object.keys(d.docs || {}).map((k) => `<button class="btn-link" data-doc="${esc(d.docs[k].path)}" data-t="${esc(DOCL[k] || k)} ${esc(d.full_name || '')}">${esc(DOCL[k] || k)}</button>`).join(' ') || '–'}</td>
-        <td class="small">${r.batch ? `<span class="pill info">${esc(r.batch.split('-').pop())}</span>` : '<span class="tiny muted">draf</span>'}<br><span class="tiny muted">${esc(r.updated_by || '')}</span></td></tr>`; };
+        <td class="small">${r.batch ? `<span class="pill info">${esc(r.batch.split('-').pop())}</span>` : '<span class="tiny muted">draf</span>'}<br><span class="tiny muted">${esc(r.updated_by || '')}</span></td>
+        ${isSuper() ? `<td class="r"><button class="btn btn-ghost btn-sm" data-wd="${r.row_no}">${r.batch ? 'Tarik' : 'Hapus'}</button></td>` : ''}</tr>`; };
     const pay = (p, b) => `<tr><td class="num">${fmtRp(p.amount)}</td><td class="small">${esc(p.transfer_date || '')}</td><td class="small">${esc(p.person || '')}<br><span class="tiny muted">${dt(p.uploaded_at)}</span></td>
       <td><button class="btn btn-ghost btn-sm" data-proof="${esc(p.proof_path)}">Lihat bukti</button></td>
       <td>${p.status === 'cocok' ? '<span class="pill ok">Cocok</span>' : p.status === 'tidak_cocok' ? `<span class="pill bad">Tidak cocok</span><div class="tiny">${esc(p.note || '')}</div>` : '<span class="pill warn">Menunggu</span>'}</td>
@@ -1402,6 +1404,8 @@
     const batch = (b) => `<section class="card"><div class="row" style="justify-content:space-between;align-items:center;gap:8px"><h2 style="margin:0">${esc(b.code)}</h2>
         ${b.status === 'lunas' ? '<span class="pill ok">Lunas</span>' : b.status === 'dibatalkan' ? '<span class="pill bad">Dibatalkan</span>' : b.overdue ? '<span class="pill bad">Lewat batas bayar</span>' : '<span class="pill warn">Menunggu pembayaran</span>'}</div>
       <p class="small muted">${b.athletes} atlet · dikirim ${dt(b.created_at)} oleh ${esc(b.person || '')}${b.status === 'menunggu' ? ` · batas bayar ${dt(b.due_at)}` : ''}</p>
+      ${b.refund_due > 0 ? `<p class="note warn small"><b>${fmtRp(b.refund_due)} perlu dikembalikan</b> ke klub (atlet ditarik/batch dibatalkan setelah pembayaran). Kembalikan di luar sistem lewat transfer.</p>` : ''}
+      ${isSuper() && b.status !== 'dibatalkan' ? `<div class="actions" style="margin:6px 0 10px"><button class="btn btn-bad btn-sm" data-bcancel="${b.id}">Batalkan batch</button></div>` : ''}
       <p><b>${fmtRp(b.total)}</b> · terverifikasi ${fmtRp(b.paid_verified)}${b.paid_pending ? ` · menunggu ${fmtRp(b.paid_pending)}` : ''} · sisa ${fmtRp(Math.max(0, b.total - b.paid_verified))}</p>
       <p class="small">Rencana: ${((b.split || {}).amounts || [b.total]).map((a, i) => `transfer ${i + 1} ${fmtRp(a)}`).join(' · ')}</p>
       <p class="small">Pendaftaran: ${b.submissions.map((s) => `<a href="#/pendaftaran/${s.id}">${esc(s.code)}</a> (${s.athletes} atlet, ${fmtRp(s.total)})`).join(' · ')}</p>
@@ -1439,12 +1443,66 @@
       <h2 style="margin-top:20px">Batch</h2>
       ${B.batch_list.length ? B.batch_list.slice().reverse().map(batch).join('') : '<p class="small muted">Belum ada batch yang dikirim.</p>'}
       <h2 style="margin-top:20px">Lembar atlet (${B.sheet.length})</h2>
-      ${B.sheet.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>No</th><th>Nama</th><th>L/P</th><th>Lahir</th><th>Disiplin</th><th>Kategori</th><th>Dokumen</th><th>Status</th></tr></thead><tbody>${B.sheet.map(sheetRow).join('')}</tbody></table></div>` : '<p class="small muted">Lembar masih kosong.</p>'}
+      ${B.sheet.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>No</th><th>Nama</th><th>L/P</th><th>Lahir</th><th>Disiplin</th><th>Kategori</th><th>Dokumen</th><th>Status</th>${isSuper() ? '<th></th>' : ''}</tr></thead><tbody>${B.sheet.map(sheetRow).join('')}</tbody></table></div>` : '<p class="small muted">Lembar masih kosong.</p>'}
+      ${(B.actions || []).length ? `<h2 style="margin-top:20px">Penarikan & pembatalan</h2>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Waktu</th><th>Tindakan</th><th>Oleh</th><th class="r">Nominal</th><th>Status</th>${isSuper() ? '<th></th>' : ''}</tr></thead><tbody>
+      ${B.actions.map((x) => `<tr><td class="small">${dt(x.at)}</td>
+        <td><b>${esc(BKIND[x.kind] || x.kind)}</b>${x.kind === 'batch_dibatalkan' ? ` ${esc(x.label)} <span class="tiny muted">(${x.mode === 'hapus' ? 'atlet dihapus dari lembar' : 'atlet kembali ke draf'}, ${x.row_nos.length} atlet)</span>` : `: ${esc(x.label)} <span class="tiny muted">baris ${x.row_nos.map((n) => String(n).padStart(3, '0')).join(', ')}${x.batch ? ' · ' + esc(x.batch) : ''}</span>`}
+          ${x.reason ? `<br><span class="tiny muted">${esc(x.reason)}</span>` : ''}</td>
+        <td class="small">${esc(x.person || '')}${x.by_club ? ' <span class="tiny muted">(klub)</span>' : ''}</td>
+        <td class="r num small">${x.amount ? fmtRp(x.amount) : '–'}${x.refund ? `<br><span class="tiny" style="color:var(--bad)">kembalikan ${fmtRp(x.refund)}</span>` : ''}</td>
+        <td class="small">${x.restored_at ? `<span class="pill ok">Dipulihkan</span><br><span class="tiny muted">${dt(x.restored_at)} · ${esc(x.restored_by || '')}</span>` : x.purged_at ? `<span class="pill">Dihapus permanen</span><br><span class="tiny muted">${dt(x.purged_at)} · ${esc(x.purged_by || '')}</span>` : '<span class="pill warn">Bisa dipulihkan</span>'}</td>
+        ${isSuper() ? `<td class="r" style="white-space:nowrap">${!x.restored_at && !x.purged_at ? `<button class="btn btn-ghost btn-sm" data-restore="${x.id}">Pulihkan</button> <button class="btn btn-ghost btn-sm" data-purge="${x.id}">Hapus permanen</button>` : ''}</td>` : ''}</tr>`).join('')}
+      </tbody></table></div>` : ''}
       <h2 style="margin-top:20px">Riwayat</h2>
       <div class="card small">${B.log.map((l) => `<div style="padding:5px 0;border-bottom:1px solid var(--line)">${dt(l.at)} · <b>${esc(l.person || 'Sistem')}</b> · ${esc(l.action.replace(/_/g, ' '))}${l.detail && (l.detail.code || l.detail.amount || l.detail.days) ? ' · ' + esc([l.detail.code, l.detail.amount ? fmtRp(l.detail.amount) : '', l.detail.days ? l.detail.days + ' hari' : '', l.detail.note || ''].filter(Boolean).join(' · ')) : ''}</div>`).join('') || '<p class="muted">Belum ada.</p>'}</div>`;
     labelTables(v);
     const reload = () => pageBulkDetail(v, id);
     const bd1 = v.querySelector('#bdone'); if (bd1) bd1.onclick = () => bulkComplete(B, true, reload);
+    v.querySelectorAll('[data-wd]').forEach((bt) => bt.onclick = async () => {
+      const no = Number(bt.dataset.wd); const row = B.sheet.find((x) => x.row_no === no); const d = (row && row.data) || {};
+      const bat = row && row.batch ? B.batch_list.find((x) => x.code === row.batch) : null;
+      const nm = d.full_name || 'Baris ' + String(no).padStart(3, '0');
+      const money = !bat ? 'Baris draf ini dihapus dari lembar klub.'
+        : bat.status === 'lunas' ? `Batch ${esc(bat.code)} sudah lunas: tagihan tidak berubah, biaya atlet ini dicatat sebagai <b>dana yang perlu dikembalikan</b>.`
+        : `Atlet dikeluarkan dari pendaftaran ${esc(bat.code)} dan tagihan batch dihitung ulang.`;
+      const r = await dialog({ title: (row && row.batch ? 'Tarik ' : 'Hapus ') + nm + '?', ok: row && row.batch ? 'Tarik atlet' : 'Hapus baris', okClass: 'btn-bad',
+        body: `<p>${money}</p><p class="small muted">Bisa dipulihkan dari bagian "Penarikan & pembatalan" sampai ditekan Hapus permanen.</p>
+          <label class="f" for="wdr">Alasan (masuk Log)</label><textarea id="wdr" required placeholder="mis. atlet batal ikut, permintaan pemilik klub"></textarea>`,
+        onOk: (dl) => { const t = dl.querySelector('#wdr').value.trim(); if (t.length < 3) throw new Error('Tulis alasan yang jelas.');
+          return api('console_bulk_withdraw', { p_id: id, p_row: no, p_reason: t }); } });
+      if (r) { JO.toast(r.refund ? `Ditarik. ${fmtRp(r.refund)} perlu dikembalikan.` : 'Tersimpan. Bisa dipulihkan.'); reload(); }
+    });
+    v.querySelectorAll('[data-bcancel]').forEach((bt) => bt.onclick = async () => {
+      const bat = B.batch_list.find((x) => x.id === bt.dataset.bcancel);
+      const r = await dialog({ title: 'Batalkan batch ' + bat.code + '?', ok: 'Batalkan batch', okClass: 'btn-bad',
+        body: `<p>${bat.athletes} atlet, ${fmtRp(bat.total)}. Semua pendaftaran batch ini (${bat.submissions.map((x) => esc(x.code)).join(', ')}) dibatalkan.</p>
+          ${bat.paid_verified ? `<p class="note warn small">Sudah terverifikasi ${fmtRp(bat.paid_verified)}: dicatat sebagai dana yang perlu dikembalikan.</p>` : ''}
+          <fieldset class="bc-mode"><legend class="f">Atlet di lembar klub</legend>
+            <label><input type="radio" name="bcm" value="draf" checked> <span><b>Kembalikan ke draf</b><br><span class="small muted">Klub bisa memperbaiki lalu mengirim ulang.</span></span></label>
+            <label><input type="radio" name="bcm" value="hapus"> <span><b>Hapus dari lembar</b><br><span class="small muted">Klub mulai dari awal.</span></span></label></fieldset>
+          <label class="f" for="bcr">Alasan (masuk Log)</label><textarea id="bcr" required placeholder="mis. klub ingin mengulang pendaftaran"></textarea>
+          <p class="small muted">Bisa dipulihkan dari bagian "Penarikan & pembatalan" sampai ditekan Hapus permanen.</p>`,
+        onOk: (dl) => { const t = dl.querySelector('#bcr').value.trim(); if (t.length < 3) throw new Error('Tulis alasan yang jelas.');
+          return api('console_bulk_cancel_batch', { p_batch: bat.id, p_mode: dl.querySelector('[name=bcm]:checked').value, p_reason: t }); } });
+      if (r) { JO.toast('Batch dibatalkan. Bisa dipulihkan.'); reload(); }
+    });
+    v.querySelectorAll('[data-restore]').forEach((bt) => bt.onclick = async () => {
+      const x = B.actions.find((a) => String(a.id) === bt.dataset.restore);
+      const r = await dialog({ title: 'Pulihkan?', ok: 'Pulihkan', okClass: 'btn-ok',
+        body: `<p><b>${esc(BKIND[x.kind] || x.kind)}</b>: ${esc(x.label)} dibatalkan; data kembali seperti sebelumnya.</p>
+          ${x.kind === 'batch_dibatalkan' ? '<p class="small muted">Baris atlet kembali terkirim di batch ini (data baris dikembalikan ke saat batch dikirim). Bila batas bayar sudah lewat, diperpanjang 48 jam.</p>' : ''}
+          ${x.kind === 'atlet_ditarik' && !x.refund ? '<p class="small muted">Tagihan batch dihitung ulang.</p>' : ''}`,
+        onOk: () => api('console_bulk_restore', { p_action: x.id }) });
+      if (r) { JO.toast('Dipulihkan.'); reload(); }
+    });
+    v.querySelectorAll('[data-purge]').forEach((bt) => bt.onclick = async () => {
+      const x = B.actions.find((a) => String(a.id) === bt.dataset.purge);
+      const r = await dialog({ title: 'Hapus permanen?', ok: 'Hapus permanen', okClass: 'btn-bad',
+        body: `<p><b>${esc(x.label)}</b>: data dan berkas yang tidak dipakai lagi dihapus selamanya. Tidak bisa dipulihkan.</p>`,
+        onOk: () => api('console_bulk_purge', { p_action: x.id }) });
+      if (r) { await removeFiles(r.files, x.label); JO.toast('Dihapus permanen.'); reload(); }
+    });
     const bd2 = v.querySelector('#bundone'); if (bd2) bd2.onclick = () => bulkComplete(B, false, reload);
     v.querySelectorAll('[data-proof]').forEach((b) => b.onclick = () => preview('bukti', b.dataset.proof, 'Bukti transfer'));
     v.querySelectorAll('[data-doc]').forEach((b) => b.onclick = () => preview('dokumen', b.dataset.doc, b.dataset.t));

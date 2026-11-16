@@ -631,7 +631,9 @@
     const del = !ACC.locked && r && !r.batch_id && st !== 'empty' ? `<button class="ms-del" data-del="${no}">Hapus</button>` : '';
     const by = r && r.updated_by && st !== 'empty' ? `<span class="by">diubah ${esc(r.updated_by)}</span>` : '';
     if (st === 'empty') return '';
-    if (st === 'sent') { const b = BATCHES.find((x) => x.id === r.batch_id); return `<span class="lk">Terkirim${b ? ' · ' + esc(b.code.split('-').pop()) : ''}</span>${by}`; }
+    if (st === 'sent') { const b = BATCHES.find((x) => x.id === r.batch_id);
+      const wd = b && b.free && !ACC.locked ? ` <button class="ms-del" data-wd="${no}" title="Tarik atlet dari batch ${esc(b.code)}">Tarik</button>` : '';
+      return `<span class="lk">Terkirim${b ? ' · ' + esc(b.code.split('-').pop()) : ''}</span>${wd}${by}`; }
     if (st === 'ok') return `<span class="ok">Siap</span> ${del}${by}`;
     const list = Object.values(r._E);
     return `<span class="bad" title="${esc(list.join('\n'))}">${list.length} perlu dilengkapi</span> ${del}${by}`;
@@ -748,6 +750,8 @@
     if (k === 'pair_row' || k === 'team_name') { validateAll(); refreshStates(); }
   }
   async function onClick(e) {
+    const wd = e.target.closest('[data-wd]');
+    if (wd) { withdrawRow(Number(wd.dataset.wd)); return; }
     const del = e.target.closest('[data-del]');
     if (del) {
       const no = Number(del.dataset.del); const r = ROWS.get(no);
@@ -1153,6 +1157,7 @@
       ${BATCHES.slice().reverse().map(batchHtml).join('')}`;
     body.querySelector('#cp').onclick = () => { navigator.clipboard && navigator.clipboard.writeText(bank.number); JO.toast('Nomor rekening disalin.'); };
     body.querySelectorAll('form[data-pay]').forEach((f) => f.onsubmit = (e) => payUpload(e, f));
+    body.querySelectorAll('[data-bcancel]').forEach((bt) => bt.onclick = () => cancelBatch(BATCHES.find((x) => x.id === bt.dataset.bcancel)));
     body.querySelectorAll('[data-cpcode]').forEach((b) => b.onclick = () => { navigator.clipboard && navigator.clipboard.writeText(b.dataset.cpcode); JO.toast('Kode batch disalin.'); });
   }
   function batchHtml(b) {
@@ -1171,6 +1176,8 @@
     return `<div class="ms-batch">
       <div class="hd"><h3>${esc(b.code)} <button class="btn-link small" data-cpcode="${esc(b.code)}">Salin</button></h3>${pill}</div>
       <p class="small muted" style="margin:4px 0 0">${b.athletes} atlet · dikirim ${esc(fmtDT(b.created_at))} oleh ${esc(b.person || '-')}</p>
+      ${b.refund_due > 0 ? `<p class="note warn small" style="margin-top:8px">${fmtRp(b.refund_due)} akan dikembalikan panitia (atlet ditarik/batch dibatalkan setelah pembayaran).</p>` : ''}
+      ${b.free && !ACC.locked ? `<p style="margin:8px 0 0"><button class="btn btn-ghost btn-sm" data-bcancel="${b.id}">Batalkan batch ini</button> <span class="small muted">Bisa selama belum ada bukti transfer.</span></p>` : ''}
       <p style="margin:10px 0 0;font-size:1.15rem"><b>${fmtRp(b.total)}</b></p>
       <div class="ms-paybar"><i style="width:${pctV}%;float:left"></i><i class="p" style="width:${pctP}%;float:left"></i></div>
       <p class="small" style="margin:0">Terverifikasi ${fmtRp(b.paid_verified)}${b.paid_pending ? ` · menunggu verifikasi ${fmtRp(b.paid_pending)}` : ''} · sisa ${fmtRp(Math.max(0, b.total - b.paid_verified))}</p>
@@ -1193,6 +1200,46 @@
         <div style="margin-top:8px;display:grid;gap:6px">${b.submissions.map((s) => `<div><b>${esc(discName(s.discipline))}</b> (${esc(s.code)}, ${s.athletes} atlet): <a href="status.html?k=${encodeURIComponent(s.code)}&t=${encodeURIComponent(s.token)}&aic=all" target="_blank" rel="noopener">semua AIC (1 PDF)</a>
           ${Object.entries((cats[s.discipline]) || {}).map(([id, nm]) => ` · <a href="status.html?k=${encodeURIComponent(s.code)}&t=${encodeURIComponent(s.token)}&aic=cat:${id}" target="_blank" rel="noopener">${esc(nm)}</a>`).join('')}</div>`).join('')}</div></div>` : ''}
     </div>`;
+  }
+  // ---------------- tarik atlet & batalkan batch (selama belum ada pembayaran) ----------------
+  function withdrawRow(no) {
+    const r = ROWS.get(no); const b = r && BATCHES.find((x) => x.id === r.batch_id);
+    if (!r || !b) return;
+    const nm = r.data.full_name || 'Baris ' + pad3(no);
+    const m = modal(`<h2>Tarik ${esc(nm)}?</h2>
+      <p>Atlet ini dikeluarkan dari ${esc(b.code)} dan dihapus dari lembar. Tagihan batch dihitung ulang (sekarang ${fmtRp(b.total)}).</p>
+      <div class="field"><label class="f small" for="wdr">Alasan (opsional)</label><input class="input" id="wdr" maxlength="200" placeholder="mis. atlet batal ikut"></div>
+      <p class="small muted">Salah tarik? Hubungi Inda; panitia bisa memulihkannya.</p>
+      <div class="acts"><button class="btn btn-ghost" id="cx">Batal</button><button class="btn btn-dark" id="ok" style="background:var(--bad);border-color:var(--bad)">Tarik atlet</button></div>`);
+    m.querySelector('#cx').onclick = () => m.remove();
+    m.querySelector('#ok').onclick = async (ev) => {
+      ev.target.disabled = true; m.dataset.busy = '1';
+      try {
+        await rpc('public_bulk_withdraw', { p_code: CODE, p_person: PERSON, p_row: no, p_reason: m.querySelector('#wdr').value });
+        m.remove(); JO.toast(nm + ' ditarik.'); await reloadAll();
+      } catch (err) { delete m.dataset.busy; ev.target.disabled = false; JO.toast(errMsg(err), 'bad'); }
+    };
+  }
+  function cancelBatch(b) {
+    if (!b) return;
+    const m = modal(`<h2>Batalkan ${esc(b.code)}?</h2>
+      <p>${b.athletes} atlet, ${fmtRp(b.total)}. Pendaftaran batch ini dibatalkan dan tagihannya tidak berlaku lagi.</p>
+      <fieldset class="ms-bcm"><legend class="f small">Atlet batch ini di lembar</legend>
+        <label><input type="radio" name="bcm" value="draf" checked> <span><b>Kembalikan ke draf</b><br><span class="small muted">Data tetap ada; perbaiki lalu kirim ulang.</span></span></label>
+        <label><input type="radio" name="bcm" value="hapus"> <span><b>Hapus dari lembar</b><br><span class="small muted">Mulai dari awal; data dan dokumen ${b.athletes} atlet ini hilang dari lembar.</span></span></label></fieldset>
+      <div class="field"><label class="f small" for="bcr">Alasan (opsional)</label><input class="input" id="bcr" maxlength="200" placeholder="mis. ingin mengulang pendaftaran"></div>
+      <p class="small muted">Salah batal? Hubungi Inda; panitia bisa memulihkannya.</p>
+      <div class="acts"><button class="btn btn-ghost" id="cx">Tidak jadi</button><button class="btn btn-dark" id="ok" style="background:var(--bad);border-color:var(--bad)">Batalkan batch</button></div>`);
+    m.querySelector('#cx').onclick = () => m.remove();
+    m.querySelector('#ok').onclick = async (ev) => {
+      const mode = m.querySelector('[name=bcm]:checked').value;
+      if (mode === 'hapus' && !confirm(`Hapus ${b.athletes} atlet ${b.code} dari lembar? Anda perlu mengisi ulang data dan dokumennya.`)) return;
+      ev.target.disabled = true; m.dataset.busy = '1';
+      try {
+        await rpc('public_bulk_cancel_batch', { p_code: CODE, p_person: PERSON, p_batch: b.id, p_mode: mode, p_reason: m.querySelector('#bcr').value });
+        m.remove(); JO.toast(b.code + ' dibatalkan.'); await reloadAll();
+      } catch (err) { delete m.dataset.busy; ev.target.disabled = false; JO.toast(errMsg(err), 'bad'); }
+    };
   }
   async function payUpload(e, f) {
     e.preventDefault();
@@ -1225,13 +1272,16 @@
     kode_dibuat: 'Kode akses dibuat', kode_dibuka: 'Kode pertama kali dibuka; masa pengisian dimulai', data_pemilik: 'Data pemilik dan klub diisi',
     data_pemilik_diubah: 'Data klub/kolaborator diubah', lembar_diubah: 'Mengisi lembar atlet', baris_dihapus: 'Menghapus baris', batch_dikirim: 'Mengirim batch',
     bukti_transfer: 'Mengunggah bukti transfer', transfer_cocok: 'Transfer diverifikasi', transfer_tidak_cocok: 'Transfer tidak cocok', batch_lunas: 'Batch lunas',
-    diperpanjang: 'Masa pengisian diperpanjang', batas_bayar_diperpanjang: 'Batas bayar diperpanjang', kode_diganti: 'Kode akses diganti', kode_dicabut: 'Kode akses dicabut',
+    diperpanjang: 'Masa pengisian diperpanjang', atlet_ditarik: 'Menarik atlet dari batch', batch_dibatalkan: 'Membatalkan batch', dipulihkan: 'Panitia memulihkan data', batas_bayar_diperpanjang: 'Batas bayar diperpanjang', kode_diganti: 'Kode akses diganti', kode_dicabut: 'Kode akses dicabut',
   };
   function logDetail(l) {
     const d = l.detail || {};
     if (l.action === 'batch_dikirim') return `${d.code}: ${d.athletes} atlet, ${fmtRp(d.total || 0)}`;
     if (['bukti_transfer', 'transfer_cocok', 'transfer_tidak_cocok'].includes(l.action)) return `${d.code}: ${fmtRp(d.amount || 0)}${d.note ? ' · ' + d.note : ''}`;
     if (l.action === 'baris_dihapus') return `Baris ${pad3(d.row_no)}${d.name ? ' (' + d.name + ')' : ''}`;
+    if (l.action === 'atlet_ditarik') return `${d.code || ''}: baris ${pad3(d.row_no)}${d.name ? ' (' + d.name + ')' : ''}${d.note ? ' · ' + d.note : ''}`;
+    if (l.action === 'batch_dibatalkan') return `${d.code}: ${d.athletes} atlet, ${d.mode === 'hapus' ? 'dihapus dari lembar' : 'kembali ke draf'}${d.note ? ' · ' + d.note : ''}`;
+    if (l.action === 'dipulihkan') return d.label || '';
     if (l.action === 'diperpanjang') return `${d.days} hari, sampai ${fmtDT(d.expires_at)}`;
     if (l.action === 'batch_lunas') return d.code || '';
     return '';

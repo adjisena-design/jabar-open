@@ -63,6 +63,7 @@ create table if not exists jo.bulk_batches (
   status       text not null default 'menunggu' check (status in ('menunggu','lunas','dibatalkan')),
   paid_at      timestamptz,
   verified_by  uuid references jo.staff(id),
+  refund_due   integer not null default 0,           -- dana yang perlu dikembalikan (penarikan/pembatalan setelah bayar)
   created_at   timestamptz not null default now(),
   unique (bulk_id, no)
 );
@@ -391,6 +392,7 @@ language sql stable set search_path = '' as $$
       'id', bt.id, 'no', bt.no, 'code', bt.code, 'person', bt.person, 'athletes', bt.athletes, 'total', bt.total,
       'split', bt.split, 'due_at', bt.due_at, 'status', bt.status, 'paid_at', bt.paid_at, 'created_at', bt.created_at,
       'overdue', bt.status = 'menunggu' and now() > bt.due_at,
+      'refund_due', bt.refund_due, 'free', bt.status = 'menunggu' and not exists (select 1 from jo.bulk_payments p0 where p0.batch_id = bt.id and p0.status in ('menunggu','cocok')),
       'aic_pending', (select count(*) from jo.athletes a join jo.submissions s on s.id = a.submission_id where s.bulk_batch_id = bt.id and a.aic_update_pending),
       'paid_verified', (select coalesce(sum(amount),0) from jo.bulk_payments p where p.batch_id = bt.id and p.status = 'cocok'),
       'paid_pending', (select coalesce(sum(amount),0) from jo.bulk_payments p where p.batch_id = bt.id and p.status = 'menunggu'),
@@ -417,8 +419,12 @@ begin
     'rows', (select coalesce(jsonb_agg(jsonb_build_object('row_no', r.row_no, 'data', r.data, 'has_photo', r.photo_thumb is not null,
               'batch_id', r.batch_id, 'updated_at', r.updated_at, 'updated_by', r.updated_by) order by r.row_no), '[]'::jsonb)
              from jo.bulk_rows r where r.bulk_id = b.id and (p_since is null or r.updated_at > p_since)),
-    'deleted', case when p_since is not null then (select coalesce(jsonb_agg((l.detail->>'row_no')::integer), '[]'::jsonb)
-             from jo.bulk_log l where l.bulk_id = b.id and l.action = 'baris_dihapus' and l.at > p_since) end,
+    'deleted', case when p_since is not null then (select coalesce(jsonb_agg(q.n), '[]'::jsonb) from (
+               select (l.detail->>'row_no')::integer n from jo.bulk_log l
+                where l.bulk_id = b.id and l.action = 'baris_dihapus' and l.at > p_since and not (l.detail ? 'deleted_rows')
+               union all
+               select (z)::text::integer from jo.bulk_log l cross join lateral jsonb_array_elements(l.detail->'deleted_rows') z
+                where l.bulk_id = b.id and l.at > p_since and l.detail ? 'deleted_rows') q) end,
     'batches', jo.bulk_batches_json(b.id),
     'log', (select coalesce(jsonb_agg(jsonb_build_object('at', l.at, 'person', l.person, 'action', l.action, 'detail', l.detail) order by l.at desc), '[]'::jsonb)
              from (select * from jo.bulk_log l where l.bulk_id = b.id order by l.at desc limit 30) l));
@@ -638,6 +644,7 @@ begin
     v_codes := v_codes || to_jsonb(v_sub.code);
   end loop;
   perform set_config('jo.bulk', '', true);
+  perform jo.bulk_link_rows(v_batch.id);
 
   v_amounts := coalesce(p_split->'amounts', jsonb_build_array(v_total));
   if jsonb_typeof(v_amounts) <> 'array' or jsonb_array_length(v_amounts) < 1 or jsonb_array_length(v_amounts) > 5 then
@@ -744,6 +751,7 @@ begin
               'batch', (select code from jo.bulk_batches bt where bt.id = r.batch_id), 'updated_at', r.updated_at, 'updated_by', r.updated_by) order by r.row_no), '[]'::jsonb)
               from jo.bulk_rows r where r.bulk_id = b.id),
     'batch_list', jo.bulk_batches_json(b.id),
+    'actions', jo.bulk_actions_json(b.id),
     'log', (select coalesce(jsonb_agg(jsonb_build_object('at', l.at, 'person', l.person, 'action', l.action, 'detail', l.detail) order by l.at desc), '[]'::jsonb)
              from (select * from jo.bulk_log l where l.bulk_id = b.id order by l.at desc limit 200) l));
 end $$;
