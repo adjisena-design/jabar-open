@@ -1220,20 +1220,28 @@
       } catch (err) { delete m.dataset.busy; ev.target.disabled = false; JO.toast(errMsg(err), 'bad'); }
     };
   }
+  // frasa konfirmasi, mis. "hapus-homkidsacademy" (huruf kecil, tanpa spasi/tanda baca)
+  const killPhrase = (name) => 'hapus-' + (String(name || 'batch').normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g, '') || 'batch');
   function cancelBatch(b) {
     if (!b) return;
+    const phrase = killPhrase(clubName());
     const m = modal(`<h2>Batalkan ${esc(b.code)}?</h2>
       <p>${b.athletes} atlet, ${fmtRp(b.total)}. Pendaftaran batch ini dibatalkan dan tagihannya tidak berlaku lagi.</p>
       <fieldset class="ms-bcm"><legend class="f small">Atlet batch ini di lembar</legend>
         <label><input type="radio" name="bcm" value="draf" checked> <span><b>Kembalikan ke draf</b><br><span class="small muted">Data tetap ada; perbaiki lalu kirim ulang.</span></span></label>
         <label><input type="radio" name="bcm" value="hapus"> <span><b>Hapus dari lembar</b><br><span class="small muted">Mulai dari awal; data dan dokumen ${b.athletes} atlet ini hilang dari lembar.</span></span></label></fieldset>
       <div class="field"><label class="f small" for="bcr">Alasan (opsional)</label><input class="input" id="bcr" maxlength="200" placeholder="mis. ingin mengulang pendaftaran"></div>
+      <div class="field ms-typed"><label class="f small" for="bct">Untuk memastikan, ketik <code>${esc(phrase)}</code></label>
+        <input class="input" id="bct" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(phrase)}"></div>
       <p class="small muted">Salah batal? Hubungi Inda; panitia bisa memulihkannya.</p>
-      <div class="acts"><button class="btn btn-ghost" id="cx">Tidak jadi</button><button class="btn btn-dark" id="ok" style="background:var(--bad);border-color:var(--bad)">Batalkan batch</button></div>`);
+      <div class="acts"><button class="btn btn-ghost" id="cx">Tidak jadi</button><button class="btn btn-dark" id="ok" disabled style="background:var(--bad);border-color:var(--bad)">Batalkan batch</button></div>`);
+    const okb = m.querySelector('#ok'), typed = m.querySelector('#bct');
+    typed.oninput = () => { okb.disabled = typed.value.trim().toLowerCase() !== phrase; };
+    typed.onpaste = (ev) => ev.preventDefault();
     m.querySelector('#cx').onclick = () => m.remove();
-    m.querySelector('#ok').onclick = async (ev) => {
+    okb.onclick = async (ev) => {
+      if (typed.value.trim().toLowerCase() !== phrase) return;
       const mode = m.querySelector('[name=bcm]:checked').value;
-      if (mode === 'hapus' && !confirm(`Hapus ${b.athletes} atlet ${b.code} dari lembar? Anda perlu mengisi ulang data dan dokumennya.`)) return;
       ev.target.disabled = true; m.dataset.busy = '1';
       try {
         await rpc('public_bulk_cancel_batch', { p_code: CODE, p_person: PERSON, p_batch: b.id, p_mode: mode, p_reason: m.querySelector('#bcr').value });

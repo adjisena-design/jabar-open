@@ -1475,6 +1475,9 @@
     });
     v.querySelectorAll('[data-bcancel]').forEach((bt) => bt.onclick = async () => {
       const bat = B.batch_list.find((x) => x.id === bt.dataset.bcancel);
+      const phrase = 'hapus-' + (String(B.club || B.label || 'batch').normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g, '') || 'batch');
+      setTimeout(() => { const ok = dlg.querySelector('[data-ok]'), inp = dlg.querySelector('#bct'); if (!ok || !inp) return;
+        ok.disabled = true; inp.oninput = () => { ok.disabled = inp.value.trim().toLowerCase() !== phrase; }; inp.onpaste = (e) => e.preventDefault(); }, 0);
       const r = await dialog({ title: 'Batalkan batch ' + bat.code + '?', ok: 'Batalkan batch', okClass: 'btn-bad',
         body: `<p>${bat.athletes} atlet, ${fmtRp(bat.total)}. Semua pendaftaran batch ini (${bat.submissions.map((x) => esc(x.code)).join(', ')}) dibatalkan.</p>
           ${bat.paid_verified ? `<p class="note warn small">Sudah terverifikasi ${fmtRp(bat.paid_verified)}: dicatat sebagai dana yang perlu dikembalikan.</p>` : ''}
@@ -1482,8 +1485,10 @@
             <label><input type="radio" name="bcm" value="draf" checked> <span><b>Kembalikan ke draf</b><br><span class="small muted">Klub bisa memperbaiki lalu mengirim ulang.</span></span></label>
             <label><input type="radio" name="bcm" value="hapus"> <span><b>Hapus dari lembar</b><br><span class="small muted">Klub mulai dari awal.</span></span></label></fieldset>
           <label class="f" for="bcr">Alasan (masuk Log)</label><textarea id="bcr" required placeholder="mis. klub ingin mengulang pendaftaran"></textarea>
+          <label class="f" for="bct" style="margin-top:10px">Untuk memastikan, ketik <code class="kill">${esc(phrase)}</code></label><input id="bct" autocomplete="off" spellcheck="false" placeholder="${esc(phrase)}">
           <p class="small muted">Bisa dipulihkan dari bagian "Penarikan & pembatalan" sampai ditekan Hapus permanen.</p>`,
         onOk: (dl) => { const t = dl.querySelector('#bcr').value.trim(); if (t.length < 3) throw new Error('Tulis alasan yang jelas.');
+          if (dl.querySelector('#bct').value.trim().toLowerCase() !== phrase) throw new Error('Ketik ' + phrase + ' untuk melanjutkan.');
           return api('console_bulk_cancel_batch', { p_batch: bat.id, p_mode: dl.querySelector('[name=bcm]:checked').value, p_reason: t }); } });
       if (r) { JO.toast('Batch dibatalkan. Bisa dipulihkan.'); reload(); }
     });
