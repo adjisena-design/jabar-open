@@ -504,3 +504,28 @@ body[data-page="panitia"] .ath-tbl .bib{white-space:nowrap}
   radial-gradient(circle at 6% 104%,#1f3a65 0 30%,transparent 30.2%),
   #142849}
 .login:not(.jlogin) .lg-panel{background:radial-gradient(rgba(255,255,255,.06) 1.4px,transparent 1.8px) 0 0/22px 22px,linear-gradient(180deg,#13284a,#0f2140)}
+
+/* =====================================================================
+   Konsol juri: seluruh konsol bertema red-orange Jabar Open
+   (konsol panitia/PM tetap biru) — supaya tidak tertukar
+   ===================================================================== */
+body[data-console="juri"]{
+  --ink:#7d2614; --ink-2:#4a3732; --muted:#7a6660; --faint:#a8938c;
+  --blue:#e9543c; --blue-d:#c63f28; --blue-2:#ef6e4e; --blue-lt:#fdeae4;
+  --paper:#fbf5f3; --line:#f1e2dc; --line-2:#e6cfc6;
+  background:var(--paper)}
+body[data-console="juri"] .side nav a[aria-current="page"],
+body[data-console="juri"] .btn-primary,body[data-console="juri"] .btn-dark,
+body[data-console="juri"] .jtabs button[aria-selected=true],
+body[data-console="juri"] .jgrp button[aria-selected=true],
+body[data-console="juri"] .seg label:has(input:checked),
+body[data-console="juri"] .chat-rooms a.on,
+body[data-console="juri"] .topline button.avatar:hover{background:#e9543c;border-color:#e9543c;color:#fff}
+body[data-console="juri"] .btn-primary:hover,body[data-console="juri"] .btn-dark:hover{background:#c63f28;color:#fff}
+body[data-console="juri"] .jtabs button[aria-selected=true] small{color:#ffe1d6}
+body[data-console="juri"] .btn-primary{box-shadow:0 6px 16px -8px rgba(217,68,44,.55)}
+body[data-console="juri"] .side .brandbox small{color:#c63f28}
+body[data-console="juri"] .slot input:focus{border-color:#e9543c;box-shadow:0 0 0 3px #fdeae4}
+body[data-console="juri"] .calc .tot b{color:#c63f28}
+body[data-console="juri"] .side{background:radial-gradient(rgba(233,84,60,.07) 1.2px,transparent 1.6px) 0 0/20px 20px,#fff}
+body[data-console="juri"] .sim-band{background:#7d2614}
