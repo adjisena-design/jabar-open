@@ -55,12 +55,13 @@
   const decOf = (k) => (/^(RERATA|AKHIR)/.test(k) ? 3 : 2);
   const toDg = (v, dec) => (v == null || v === '' || Number.isNaN(Number(v)) ? '' : String(Math.round(Number(v) * 10 ** dec)));
   const fmtDg = (dg, dec) => { if (!dg) return ''; const p = dg.padStart(dec + 1, '0'); return p.slice(0, -dec).replace(/^0+(?=\d)/, '') + '.' + p.slice(-dec); };
-  function formHtml(panel, slots, editable, esc) {
+  function formHtml(panel, slots, editable, esc, names) {
+    names = names || {};
     const art = panel.sheet === 'artistik'; const runs = Math.max(1, panel.runs || 1);
     const main = (panel.slots || []).filter((x) => x.comp !== 'PEN'); const pens = (panel.slots || []).filter((x) => x.comp === 'PEN');
     const lbl = (sl) => (art && sl.comp === 'D' && /^D$/i.test(sl.label) ? 'D1/D2' : art && sl.comp === 'PEN' && /^Pen$/i.test(sl.label) ? 'Pinalti' : sl.label);
     const inp = (k, label, cls) => { const dec = decOf(k); return `<input class="mk ${cls || ''}" data-k="${esc(k)}" data-dec="${dec}" data-dg="${toDg(slots[k], dec)}" value="${fmtDg(toDg(slots[k], dec), dec)}" inputmode="numeric" autocomplete="off" aria-label="${esc(label)}" ${editable ? '' : 'disabled'}>`; };
-    let h = `<div class="sf-wrap"><table class="sf"><thead><tr>${runs > 1 ? '<th></th>' : ''}${main.map((x) => `<th>${esc(lbl(x))}</th>`).join('')}${art ? '<th class="au">Rerata</th>' : ''}${pens.map((x) => `<th>${esc(lbl(x))}</th>`).join('')}${art ? '<th class="au">Nilai Akhir</th>' : ''}${runs > 1 ? '<th class="au">Average</th>' : ''}</tr></thead><tbody>`;
+    let h = `<div class="sf-wrap"><table class="sf"><thead><tr>${runs > 1 ? '<th></th>' : ''}${main.map((x) => `<th>${esc(lbl(x))}${names['SEAT:' + x.key] ? `<small class="sfn">${esc(names['SEAT:' + x.key].name)}</small>` : ''}</th>`).join('')}${art ? '<th class="au">Rerata</th>' : ''}${pens.map((x) => `<th>${esc(lbl(x))}</th>`).join('')}${art ? '<th class="au">Nilai Akhir</th>' : ''}${runs > 1 ? '<th class="au">Average</th>' : ''}</tr></thead><tbody>`;
     for (let r = 1; r <= runs; r++) {
       h += `<tr>${runs > 1 ? `<th class="rn">Lompatan ${r}</th>` : ''}${main.map((x) => `<td>${inp(x.key + sfx(r), lbl(x))}</td>`).join('')}
         ${art ? `<td>${inp('RERATA' + sfx(r), 'Rerata', 'auto')}</td>` : ''}${pens.map((x) => `<td>${inp(x.key + sfx(r), lbl(x))}</td>`).join('')}
@@ -206,13 +207,18 @@
         if (sc && (canVer || (canEnter && st !== 'submitted'))) btns.push(['clear', 'Hapus nilai', 'btn-bad']);
       }
       const cur = draft || (sc ? sc.slots : {});
+      const rs = (D.roster && e.session_id && D.roster[e.session_id]) || {};
+      const nm = rs[S.app] || {};
+      const crew = [['KETUA', 'Ketua panel'], ['ASJUR', 'Asisten juri'], ['VERIF', 'Verifikator']].filter(([k]) => nm[k]).map(([k, l]) => `${l}: ${esc(nm[k].name)}`)
+        .concat(rs['*'] && rs['*'].TD ? [`TD: ${esc(rs['*'].TD.name)}`] : []);
       dlg.style.maxWidth = 'min(860px, calc(100% - 24px))';
       dlg.innerHTML = `<form method="dialog" novalidate class="jed"><div class="dlg-head"><h2 style="margin:0;font-size:1.15rem">${esc(e.name)}</h2>
           <div class="small muted">${esc(e.club || '')} · ${esc(appName)} · ${pill(st)}</div></div>
         <div class="dlg-body">
           ${st === 'returned' && sc.note ? `<p class="note bad small">Dikembalikan verifikator: ${esc(sc.note)}</p>` : ''}
           ${sc && sc.verified_by ? `<p class="small muted">Diverifikasi ${esc(sc.verified_by)} ${ctx.dt(sc.verified_at)}${sc.entered_by ? ` · diisi ${esc(sc.entered_by)}` : ''}</p>` : sc && sc.entered_by ? `<p class="small muted">Diisi ${esc(sc.entered_by)} ${ctx.dt(sc.updated_at)}</p>` : ''}
-          ${formHtml(panel, cur, editable, esc)}
+          ${crew.length ? `<p class="small muted" style="margin:0 0 4px">${crew.join(' · ')}</p>` : ''}
+          ${formHtml(panel, cur, editable, esc, nm)}
           <div data-err></div>
         </div>
         <div class="dlg-foot jfoot"><button type="button" class="btn btn-ghost" data-x>Tutup</button>${btns.map(([a, l, c]) => `<button type="button" class="btn ${c}" data-act="${a}">${l}</button>`).join('')}</div></form>`;
@@ -456,10 +462,26 @@
       doc.text(r.medal ? MED[r.medal] : r.mini ? 'Mini ' + r.award_rank : '', x, y);
       y += 7.6;
     });
+    // panel juri & petugas per sesi + alat (dari menu Petugas & panel juri)
+    const ses = R.sessions || []; const ro = R.roster || {};
+    const lines = [];
+    ses.forEach((ss) => { const m = ro[ss.id]; if (!m) return;
+      const head = `${ss.name}${ss.day ? ' · ' + new Date(ss.day + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : ''}`;
+      if (m['*']) lines.push(`${head} · ${Object.values(m['*']).sort((x, y) => (x.sort || 0) - (y.sort || 0)).map((p) => (p.label || '') + ': ' + p.name).join(' · ')}`);
+      apps.forEach((a) => { const pm = m[a.code]; if (!pm) return;
+        lines.push(`${head} · ${a.id || a.code}: ${Object.values(pm).sort((x, y) => (x.sort || 0) - (y.sort || 0)).map((p) => (p.label || '') + ' ' + p.name).join(' · ')}`); });
+    });
+    if (lines.length) {
+      y += 4; if (y > 180) { doc.addPage(); y = 20; }
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.text('Panel juri & petugas', M, y); y += 4;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
+      lines.forEach((ln) => { doc.splitTextToSize(ln, W - 2 * M).forEach((t) => { if (y > 196) { doc.addPage(); y = 16; } doc.text(t, M, y); y += 3.4; }); });
+    }
+    const tdName = (() => { for (const ss of ses) { const m = ro[ss.id]; if (m && m['*'] && m['*'].TD) return m['*'].TD.name; } return ''; })();
     y += 4; if (y > 185) { doc.addPage(); y = 20; }
     doc.setFontSize(7); doc.text('Per. = peringkat serba bisa; "=" menandai nilai seri (perlu keputusan TD). Rincian per alat: D, E (rata-rata), A, P = penalti.', M, y);
     doc.text('Technical Delegate', W - M - 60, y + 6); doc.line(W - M - 60, y + 22, W - M, y + 22);
-    doc.text(c.td_confirmed_by_name || '', W - M - 60, y + 26);
+    doc.text(tdName || c.td_confirmed_by_name || '', W - M - 60, y + 26);
     return doc;
   }
 
@@ -650,6 +672,72 @@
     await load();
   }
 
+  // =====================================================================
+  //  PETUGAS & PANEL JURI per sesi + alat
+  // =====================================================================
+  const FIX = { KETUA: 'Ketua panel', ASJUR: 'Asisten juri', VERIF: 'Verifikator', TD: 'Technical Delegate (TD)' };
+  async function petugasPage(v, ctx) {
+    const { esc, api } = ctx;
+    let L = await api('console_roster_sessions');
+    const hp = ctx.hashParams(); let sid = hp.get('s') || (S.sid && L.sessions.some((x) => String(x.id) === String(S.sid)) ? S.sid : (L.sessions[0] && L.sessions[0].id));
+    const dayTxt = (x) => [x.day ? new Date(x.day + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' }) : '', x.start_time ? String(x.start_time).slice(0, 5) : ''].filter(Boolean).join(' ');
+    v.innerHTML = `<h1>Petugas & panel juri</h1><p class="muted">Nama juri dan petugas per sesi dan alat. Nama muncul di lembar nilai asisten juri dan di PDF hasil resmi.</p>
+      ${L.sessions.length ? `<div class="bar"><div class="field" style="flex:1;min-width:260px"><label class="f" for="ss">Sesi</label><select id="ss">${L.sessions.map((x) => `<option value="${x.id}" ${String(x.id) === String(sid) ? 'selected' : ''}>${esc(x.name)} · ${esc(dayTxt(x))}${x.filled ? ` · ${x.filled} nama` : ''}</option>`).join('')}</select></div></div><div id="rb"></div>`
+        : '<p class="empty">Belum ada sesi untuk disiplin ini. Buat sesi di menu Start list.</p>'}`;
+    if (!L.sessions.length) return;
+    const rb = v.querySelector('#rb');
+    const load = async () => {
+      S.sid = sid; ctx.loading(rb);
+      const R = await api('console_roster_get', { p_session: Number(sid) });
+      draw(R);
+    };
+    const draw = (R) => {
+      const ed = R.can_edit;
+      const byKey = {}; R.rows.forEach((r) => { byKey[r.apparatus + '|' + r.position] = r; });
+      const extras = (app) => R.rows.filter((r) => r.apparatus === app && /^X:/.test(r.position));
+      const row = (app, pos, label, fixed) => { const r = byKey[app + '|' + pos] || {};
+        return `<div class="rr" data-app="${esc(app)}" data-pos="${esc(pos)}">
+          ${fixed ? `<span class="rl">${esc(label)}</span>` : `<input class="rl" data-f="label" value="${esc(r.label || label || '')}" placeholder="Nama posisi" ${ed ? '' : 'disabled'}>`}
+          <input data-f="name" list="ppl" value="${esc(r.name || '')}" placeholder="${ed ? 'Ketik atau pilih nama' : '–'}" ${ed ? '' : 'disabled'}>
+          ${!fixed && ed ? '<button type="button" class="btn btn-ghost btn-sm" data-rm>Hapus</button>' : ''}</div>`; };
+      const card = (app, title, fixedRows) => `<section class="card rcard" data-card="${esc(app)}"><h2>${esc(title)}</h2>
+          ${fixedRows.map(([pos, label]) => row(app, pos, label, true)).join('')}
+          <div data-extra>${extras(app).map((r) => row(app, r.position, r.label, false)).join('')}</div>
+          ${ed ? '<button type="button" class="btn btn-ghost btn-sm" data-add>+ Tambah posisi</button>' : ''}</section>`;
+      rb.innerHTML = `<datalist id="ppl">${R.people.map((p) => `<option value="${esc(p.name)}">${esc(p.src === 'juri' ? 'Pendaftar juri' : ctx.ROLE[p.src] || p.src)}</option>`).join('')}</datalist>
+        <div class="rgrid">
+        ${card('*', 'Seluruh sesi', [['TD', FIX.TD]])}
+        ${R.apparatus.map((a) => card(a.code, a.name, [['KETUA', FIX.KETUA], ...a.seats.map((x) => [x.position, x.label]), ['ASJUR', FIX.ASJUR], ['VERIF', FIX.VERIF]])).join('')}
+        </div>
+        ${ed ? `<div class="sticky-actions"><button class="btn btn-primary" id="rsave">Simpan petugas</button>
+          ${R.others.length ? `<select id="rfrom"><option value="">Salin dari sesi lain…</option>${R.others.map((o) => `<option value="${o.id}">${esc(o.name)} · ${esc(dayTxt(o))}</option>`).join('')}</select>` : ''}</div>` : '<p class="small muted">Hanya owner, superadmin, dan TD yang bisa mengubah.</p>'}`;
+      let xn = Date.now();
+      rb.querySelectorAll('[data-add]').forEach((b) => b.onclick = () => {
+        const c = b.closest('[data-card]'); const box = c.querySelector('[data-extra]');
+        box.insertAdjacentHTML('beforeend', row(c.dataset.card, 'X:' + (xn++).toString(36), '', false));
+        box.lastElementChild.querySelector('[data-f=label]').focus();
+      });
+      rb.addEventListener('click', (ev) => { const x = ev.target.closest('[data-rm]'); if (x) x.closest('.rr').remove(); });
+      const sv = rb.querySelector('#rsave');
+      if (sv) sv.onclick = async () => {
+        const rows = [...rb.querySelectorAll('.rr')].map((r) => ({ apparatus: r.dataset.app, position: r.dataset.pos,
+          label: r.querySelector('[data-f=label]') ? r.querySelector('[data-f=label]').value : r.querySelector('.rl').textContent,
+          name: r.querySelector('[data-f=name]').value })).filter((r) => r.name.trim());
+        sv.disabled = true;
+        try { const R2 = await api('console_roster_save', { p_session: Number(sid), p_rows: rows }); ctx.toast(`Petugas disimpan (${R2.rows.length} nama).`); draw(R2); }
+        catch (e) { ctx.toast(e.message, 'bad'); sv.disabled = false; }
+      };
+      const rf = rb.querySelector('#rfrom');
+      if (rf) rf.onchange = async () => {
+        if (!rf.value) return;
+        if (!(await ctx.dialog({ title: 'Salin petugas?', ok: 'Salin', body: '<p>Semua nama di sesi ini diganti dengan nama dari sesi yang dipilih.</p>' }))) { rf.value = ''; return; }
+        try { draw(await api('console_roster_copy', { p_from: Number(rf.value), p_to: Number(sid) })); ctx.toast('Petugas disalin.'); } catch (e) { ctx.toast(e.message, 'bad'); }
+      };
+    };
+    v.querySelector('#ss').onchange = (ev) => { sid = ev.target.value; load(); };
+    await load();
+  }
+
   window.JO_MOD = window.JO_MOD || {};
   window.JO_MOD['konsol-juri'] = {
     penilaian: (v, ctx) => sheetPage(v, ctx, 'asjur'),
@@ -660,5 +748,6 @@
     td: (v, ctx) => tdPage(v, ctx),
     layar: (v, ctx) => layarPage(v, ctx),
     log: (v, ctx) => logPage(v, ctx),
+    petugas: (v, ctx) => petugasPage(v, ctx),
   };
 })();

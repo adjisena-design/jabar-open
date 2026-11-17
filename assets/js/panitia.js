@@ -366,7 +366,7 @@
   // ---------------- modul terpisah (proyek, backup) ----------------
   // Dimuat hanya saat halamannya dibuka. Galat di modul hanya tampil di halaman itu;
   // pendaftaran, verifikasi, dan penilaian tidak ikut terganggu.
-  const MOD_V = '1611q';
+  const MOD_V = '1711a';
   function loadModule(name) {
     window.JO_MOD = window.JO_MOD || {};
     if (window.JO_MOD[name]) return Promise.resolve(window.JO_MOD[name]);
@@ -423,6 +423,7 @@
     ['panel', 'Panel juri', () => (isVerif() || isSuper() || ME.role === 'td') && !isDummy(), jmod('panel'), 'gear', 'Penilaian'],
     ['startlist', 'Start list', () => !isDummy() && (isSuper() || isTD()), pageStartlist, 'list', 'Pertandingan'],
     ['sim-startlist', 'Start list simulasi', () => isDummy() || isSuper(), jmod('simstart'), 'list', 'Pertandingan'],
+    ['petugas', 'Petugas & panel juri', () => !isDummy(), jmod('petugas'), 'whistle', 'Pertandingan'],
     ['hasil-resmi', 'Konfirmasi hasil (TD)', () => !isDummy() && (isSuper() || ME.role === 'td'), jmod('td'), 'trophy', 'Pertandingan'],
     ['hasil', 'Hasil & medali', () => !isDummy() && (isSuper() || isTD()), pageResults, 'trophy', 'Pertandingan'],
     ['layar', 'Layar live', () => true, jmod('layar'), 'tv', 'Live'],

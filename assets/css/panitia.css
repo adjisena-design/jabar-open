@@ -561,3 +561,10 @@ code.kill{background:var(--bad-lt);color:var(--bad);padding:1px 6px;border-radiu
 .jq-card .sf input.mk.auto{width:76px}
 .jq-card .sf td.avg{min-width:76px;font-size:1.05rem}
 .jq{grid-template-columns:repeat(auto-fill,minmax(min(100%,780px),1fr))}
+/* petugas & panel juri */
+.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
+.rcard h2{margin:0 0 10px;font-size:1.05rem}
+.rr{display:grid;grid-template-columns:140px 1fr auto;gap:8px;align-items:center;margin-bottom:6px}
+.rr .rl{font-size:.88rem;font-weight:650;color:var(--ink-2)}
+.rr input.rl{font-weight:600}
+.sf th small.sfn{display:block;font-size:.66rem;font-weight:600;letter-spacing:0;text-transform:none;color:var(--ink-2);max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:2px auto 0}
