@@ -738,6 +738,78 @@
     await load();
   }
 
+  // =====================================================================
+  //  JUDGING FLOW SYSTEM - TUTORIAL
+  //  satu tombol: hanya langkah wajib <-> semua langkah (wajib + opsional)
+  // =====================================================================
+  const FLOW = [
+    { phase: 'Sebelum hari pertandingan', steps: [
+      { m: 1, who: 'Owner, Superadmin', where: 'Konsol panitia → Kode akses', title: 'Buat kode akses konsol juri',
+        text: 'Buat kode Asisten Juri dan Verifikator Nilai (pilih disiplin: Artistik, Ritmik, atau Aerobik) serta kode TD. Kode hanya tampil sekali; kirim ke pemegangnya lewat WhatsApp.' },
+      { m: 1, who: 'Owner, Superadmin', where: 'Start list', href: '#/startlist', title: 'Buat sesi dan start list',
+        text: 'Buat sesi (nama, hari, jam), masukkan kategori, atur grup dan urutan tampil, lalu Publikasikan. Hanya atlet lunas yang masuk lembar nilai.' },
+      { m: 1, who: 'TD, Owner, Superadmin', where: 'Petugas & panel juri', href: '#/petugas', title: 'Isi petugas dan panel juri per sesi',
+        text: 'Per sesi: TD; per alat: Ketua panel, D1/D2, E1–E3, Asisten juri, Verifikator. Nama juri tampil di atas kolom lembar nilai dan dicetak di PDF hasil. Gunakan Salin dari sesi lain untuk sesi berikutnya.' },
+      { m: 0, who: 'Verifikator, TD, Owner, Superadmin', where: 'Panel juri', href: '#/panel', title: 'Sesuaikan panel isian (bila perlu)',
+        text: 'Default Artistik: D1/D2, E1–E3, Pinalti; Meja Lompat 2 lompatan (nilai = rata-rata). Tambah/hapus E, ubah jumlah lompatan, atau buat panel khusus untuk kategori/alat tertentu.' },
+      { m: 0, who: 'Verifikator, TD, Owner, Superadmin', where: 'Layar live', href: '#/layar', title: 'Siapkan layar TV',
+        text: 'Satu layar = satu TV: pilih kategori, tampilan (serba bisa, satu alat, atau bergantian), layout 1–3, tautan kamera YouTube Live. Salin tautan venue lalu buka di browser TV (klik dua kali untuk layar penuh).' },
+      { m: 0, who: 'Verifikator, TD, Owner, Superadmin', where: 'Layar live → Teks berjalan', href: '#/layar', title: 'Isi teks berjalan',
+        text: 'Pengumuman di bagian bawah layar, mis. sesi berikutnya atau ucapan terima kasih kepada mitra.' },
+      { m: 0, who: 'Kode DUMMY', where: 'Start list simulasi, Penilaian, Verifikasi, Layar live', title: 'Latihan dengan simulasi DUMMY',
+        text: 'Masuk dengan kode DUMMY, buat start list simulasi, ketik dan verifikasi nilai, lalu Tayangkan simulasi ke publik untuk menguji TV. Nilai dummy tidak pernah masuk nilai resmi. Saat keluar, centang Hapus semua data simulasi (otomatis terhapus setelah 2 jam tanpa aktivitas).' },
+    ] },
+    { phase: 'Saat pertandingan (setiap atlet)', steps: [
+      { m: 1, who: 'Juri', where: 'Lembar kertas', title: 'Juri menulis nilai di lembar kertas',
+        text: 'D1/D2, E1, E2, E3, dan pinalti. Lembar diserahkan ke asisten juri di meja alat.' },
+      { m: 1, who: 'Asisten Juri', where: 'Penilaian', href: '#/nilai', title: 'Ketik nilai dan kirim ke verifikator',
+        text: 'Pilih kategori dan alat → klik atlet → ketik angka saja (titik otomatis: 2-4-0 = 2.40). Enter pindah kolom. Rerata dan Nilai Akhir terisi otomatis (abu-abu). Enter di kolom terakhir = Kirim ke verifikator, lalu atlet berikutnya terbuka.' },
+      { m: 0, who: 'Asisten Juri', where: 'Penilaian', href: '#/nilai', title: 'Ubah Rerata / Nilai Akhir manual (jarang)',
+        text: 'Bila angka di lembar berbeda dari hitungan sistem, ketik langsung di kotak Rerata atau Nilai Akhir. Tanpa konfirmasi, tetapi ditandai Manual, diberitahukan saat kirim, dan tercatat di log. Tidak tampil di live view, situs, maupun PDF.' },
+      { m: 0, who: 'Asisten Juri', where: 'Penilaian', href: '#/nilai', title: 'Tarik kembali sebelum diverifikasi',
+        text: 'Salah kirim? Buka atlet → Tarik kembali, perbaiki, kirim lagi. Nilai yang dikembalikan verifikator tampil merah dengan catatannya.' },
+      { m: 1, who: 'Verifikator Nilai', where: 'Verifikasi nilai', href: '#/verifikasi', title: 'Verifikasi atau kembalikan',
+        text: 'Antrean diperbarui setiap 3 detik. Cocokkan dengan lembar kertas; angka bisa diubah langsung di kartu. Verifikasi = nilai langsung tayang di Public Live View (belum resmi). Kembalikan = kembali ke asisten juri dengan catatan.' },
+      { m: 0, who: 'Verifikator Nilai', where: 'Verifikasi nilai → Lembar kategori', href: '#/verifikasi', title: 'Koreksi setelah diverifikasi',
+        text: 'Buka atlet di Lembar kategori → Simpan koreksi (wajib alasan) atau Batalkan verifikasi. Live view langsung diperbarui; semua tercatat di log.' },
+      { m: 0, who: 'Owner, Superadmin', where: 'Layar live', href: '#/layar', title: 'Pantau tayangan dan beban server',
+        text: 'Bila server berat, Jeda tayangan publik: TV venue tetap jalan, halaman publik menampilkan pesan jeda.' },
+    ] },
+    { phase: 'Setelah kategori selesai', steps: [
+      { m: 1, who: 'TD', where: 'Konfirmasi hasil (TD)', href: '#/hasil-resmi', title: 'Unduh dan periksa PDF hasil',
+        text: 'Pastikan semua nilai terverifikasi. Periksa nilai seri (ditandai) dan nilai bertanda Manual, lalu Unduh PDF hasil: peringkat, nilai per alat, panel juri dan petugas.' },
+      { m: 1, who: 'TD', where: 'Konfirmasi hasil (TD)', href: '#/hasil-resmi', title: 'Konfirmasi hasil & publikasikan medali',
+        text: 'Setelah PDF benar, klik Konfirmasi. Hasil resmi, tabel medali, dan sertifikat langsung tampil di halaman Hasil situs; nilai kategori terkunci.' },
+      { m: 0, who: 'TD, Owner, Superadmin', where: 'Hasil & medali', href: '#/hasil', title: 'Unduh sertifikat dan tabel medali',
+        text: 'Sertifikat juara (PDF) untuk dicetak, tabel medali per kab/kota dan klub, hasil beregu.' },
+      { m: 0, who: 'Superadmin, Owner', where: 'Konfirmasi hasil (TD)', href: '#/hasil-resmi', title: 'Tarik hasil resmi bila ada koreksi',
+        text: 'Hasil dan medali kategori hilang dari situs, nilai terbuka untuk koreksi verifikator, lalu TD membuat PDF dan mengonfirmasi ulang.' },
+      { m: 0, who: 'Owner, Superadmin', where: 'Log', href: '#/log', title: 'Telusuri riwayat',
+        text: 'Semua perubahan nilai (sebelum/sesudah, oleh siapa, alasan, tanda Manual) dan aktivitas konsol juri.' },
+    ] },
+  ];
+  async function tutorialPage(v, ctx) {
+    const { esc } = ctx;
+    let all = (() => { try { return localStorage.getItem('jo_flow_all') === '1'; } catch (e) { return false; } })();
+    const draw = () => {
+      let n = 0;
+      const nm = FLOW.reduce((a, p) => a + p.steps.filter((x) => x.m).length, 0);
+      const no = FLOW.reduce((a, p) => a + p.steps.filter((x) => !x.m).length, 0);
+      v.innerHTML = `<div class="row" style="justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-end">
+          <div><h1>Judging Flow System - Tutorial</h1><p class="muted" style="margin:0">Alur kerja konsol juri dari persiapan sampai hasil resmi.</p></div>
+          <button type="button" class="btn ${all ? 'btn-ghost' : 'btn-primary'}" id="ftg" aria-pressed="${all}">${all ? `Hanya langkah wajib (${nm})` : `Tampilkan semua langkah (+${no} opsional)`}</button></div>
+        <p class="small" style="margin:14px 0 4px"><span class="pill fl-m">Wajib</span> harus dilakukan agar nilai sampai ke hasil resmi${all ? ' · <span class="pill fl-o">Opsional</span> bila diperlukan' : ''}</p>
+        ${FLOW.map((p) => { const st = p.steps.filter((x) => all || x.m); if (!st.length) return '';
+          return `<section class="fl-phase"><h2>${esc(p.phase)}</h2><ol class="fl">${st.map((x) => { if (x.m) n++;
+            return `<li class="${x.m ? 'm' : 'o'}"><span class="fl-n">${x.m ? n : '·'}</span><div class="fl-b">
+              <div class="fl-h"><b>${esc(x.title)}</b><span class="pill ${x.m ? 'fl-m' : 'fl-o'}">${x.m ? 'Wajib' : 'Opsional'}</span></div>
+              <div class="fl-meta"><span>${esc(x.who)}</span><span>${x.href ? `<a href="${x.href}">${esc(x.where)}</a>` : esc(x.where)}</span></div>
+              <p>${esc(x.text)}</p></div></li>`; }).join('')}</ol></section>`; }).join('')}`;
+      v.querySelector('#ftg').onclick = () => { all = !all; try { localStorage.setItem('jo_flow_all', all ? '1' : '0'); } catch (e) {} draw(); };
+    };
+    draw();
+  }
+
   window.JO_MOD = window.JO_MOD || {};
   window.JO_MOD['konsol-juri'] = {
     penilaian: (v, ctx) => sheetPage(v, ctx, 'asjur'),
@@ -749,5 +821,6 @@
     layar: (v, ctx) => layarPage(v, ctx),
     log: (v, ctx) => logPage(v, ctx),
     petugas: (v, ctx) => petugasPage(v, ctx),
+    tutorial: (v, ctx) => tutorialPage(v, ctx),
   };
 })();

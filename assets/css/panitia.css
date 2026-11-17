@@ -568,3 +568,18 @@ code.kill{background:var(--bad-lt);color:var(--bad);padding:1px 6px;border-radiu
 .rr .rl{font-size:.88rem;font-weight:650;color:var(--ink-2)}
 .rr input.rl{font-weight:600}
 .sf th small.sfn{display:block;font-size:.66rem;font-weight:600;letter-spacing:0;text-transform:none;color:var(--ink-2);max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:2px auto 0}
+/* Judging Flow System - Tutorial */
+.fl-phase{margin-top:22px}
+.fl-phase h2{font-size:1.05rem;margin:0 0 10px}
+.fl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.fl li{display:grid;grid-template-columns:38px 1fr;gap:12px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.fl li.m{border-left:5px solid var(--blue)}
+.fl li.o{background:var(--paper);border-style:dashed}
+.fl-n{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:800;background:var(--blue);color:#fff}
+.fl li.o .fl-n{background:var(--line-2);color:var(--ink-2)}
+.fl-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.fl-meta{display:flex;gap:6px 14px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);margin-top:2px}
+.fl-meta span+span::before{content:"→ ";color:var(--faint)}
+.fl-b p{margin:6px 0 0;font-size:.92rem}
+.pill.fl-m{background:var(--blue);color:#fff}
+.pill.fl-o{background:var(--line);color:var(--ink-2)}
