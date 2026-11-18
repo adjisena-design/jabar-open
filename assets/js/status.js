@@ -49,6 +49,7 @@
     s_team_only_res: ['tidak diperingkat perorangan', 'not ranked individually'],
     s_music: ['Musik', 'Music'],
     s_jabar: ['Kategori Priangan: cek syarat Jawa Barat', 'Priangan category: West Java check'],
+    s_docs_no: ['Berkas wajib belum lengkap (unggah susulan lewat lembar pendaftaran massal sebelum kejuaraan):', 'Required documents incomplete (upload them through the bulk registration sheet before the championship):'],
     s_bpjs_no: ['BPJS Ketenagakerjaan belum diunggah: bawa kartunya ke meja panitia di venue sebelum bertanding.', 'BPJS Ketenagakerjaan not uploaded: bring the card to the committee desk at the venue before competing.'],
     s_timer: ['Unggah bukti bayar dalam {m}. Bila tidak, pendaftaran ini dihapus otomatis pukul {h}.', 'Upload the payment proof within {m}. Otherwise this registration is deleted automatically at {h}.'],
     s_music_belum: ['Belum ada tautan', 'No link yet'], s_music_menunggu: ['Menunggu pemeriksaan panitia', 'Awaiting committee check'],
@@ -126,7 +127,7 @@
       el.innerHTML = `<div class="ath-head"><span class="bib">${esc(a.athlete_no || '')}</span><strong>${esc(a.full_name)}</strong></div>
         <div class="ath-body">
           <p class="small" style="margin-bottom:8px"><span class="pill ${a.doc_status === 'valid' ? 'ok' : a.doc_status === 'tidak_valid' ? 'bad' : ''}">${esc(t('s_doc_' + a.doc_status))}</span></p>
-          ${a.nationality === 'WNI' && !a.has_bpjs ? `<p class="note warn small" style="margin:0 0 8px">${esc(t('s_bpjs_no'))}</p>` : ''}
+          ${(a.docs_missing || []).length ? `<p class="note warn small" style="margin:0 0 8px">${esc(t('s_docs_no'))} <b>${esc(a.docs_missing.join(', '))}</b></p>` : a.nationality === 'WNI' && !a.has_bpjs ? `<p class="note warn small" style="margin:0 0 8px">${esc(t('s_bpjs_no'))}</p>` : ''}
           ${ents.map((e) => `<div style="padding:8px 0;border-top:1px solid var(--line)">
             <div><strong>${esc(catName(e))}</strong>${e.team_only ? ` <span class="pill gold">${esc(t('s_team_tim'))}</span>` : ''}${e.athlete_ids.length > 1 ? ` <span class="small muted">(${esc(e.athlete_ids.map((x) => (d.athletes.find((y) => y.id === x) || {}).full_name).join(' & '))})</span>` : ''}</div>
             ${e.priangan_requested ? `<div class="small">${esc(t('s_jabar'))}: ${esc(t('s_pri_' + e.priangan_status))}</div>` : ''}
@@ -295,7 +296,7 @@
         bpjs_missing: a.nationality === 'WNI' && !a.has_bpjs,
         photo: a.photo_thumb, registered_by: regBy(),
         start: ents.map((e) => startText(e.start)).filter(Boolean).join(' / '),
-        ticket_code: a.ticket_code, submission_code: D.code, reissued_at: a.aic_reissued_at,
+        ticket_code: a.ticket_code, submission_code: D.code, reissued_at: a.aic_reissued_at, docs_missing: a.docs_missing || [],
       };
   }
   async function downloadTickets(btn, list) {

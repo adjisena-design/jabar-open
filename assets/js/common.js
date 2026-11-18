@@ -373,7 +373,7 @@ async function rpcGuarded(fn, args, retried) {
     const px = W - 12 - 33, py = 55, pw = 33, ph = 44;
     doc.setDrawColor(205, 214, 228); doc.setLineWidth(0.4); doc.rect(px - 0.6, py - 0.6, pw + 1.2, ph + 1.2);
     if (t_.photo) { try { doc.addImage(t_.photo, 'JPEG', px, py, pw, ph, undefined, 'FAST'); } catch (e) { /* lewati bila gagal */ } }
-    else { doc.setFillColor(244, 246, 250); doc.rect(px, py, pw, ph, 'F'); doc.setFontSize(7); doc.setTextColor(140, 150, 170); doc.text('Pas foto', px + pw / 2, py + ph / 2, { align: 'center' }); }
+    else { doc.setFillColor(244, 246, 250); doc.rect(px, py, pw, ph, 'F'); doc.setFontSize(7); doc.setTextColor(140, 150, 170); doc.text(t_.docs_missing && t_.docs_missing.length ? ['Pas foto', 'belum diunggah'] : 'Pas foto', px + pw / 2, py + ph / 2, { align: 'center' }); }
 
     const tw = px - 12 - 6;
     doc.setTextColor(91, 107, 136); doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.text('Nomor atlet', 12, 60);
@@ -401,7 +401,15 @@ async function rpcGuarded(fn, args, retried) {
     doc.setTextColor(91, 107, 136); doc.setFontSize(7.8);
     doc.text(doc.splitTextToSize('Kode verifikasi ' + t_.ticket_code + '. Panitia memindai QR ini; data dan pas foto atlet tampil di layar untuk dicocokkan.', 84), 52, qy + 19);
     doc.text(doc.splitTextToSize('Gymnasium Arcamanik, Jl. Pacuan Kuda No. 15b, Kota Bandung.', 84), 52, qy + 29);
-    if (t_.bpjs_missing) {
+    const miss = (t_.docs_missing || []).filter(Boolean);
+    if (miss.length) {
+      // pendaftaran massal: berkas boleh menyusul; AIC tetap terbit dengan tanda ini sampai berkas lengkap
+      doc.setFillColor(253, 236, 232); doc.setDrawColor(222, 150, 135); doc.roundedRect(12, 181, W - 24, 10, 2, 2, 'FD');
+      doc.setTextColor(170, 52, 30); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+      doc.text(doc.splitTextToSize('BERKAS BELUM LENGKAP: ' + miss.join(', '), W - 30)[0], 15, 185.2);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.3);
+      doc.text('Lengkapi sebelum kejuaraan; AIC diperbarui setelah berkas lengkap.', 15, 188.8);
+    } else if (t_.bpjs_missing) {
       // tanda bagi panitia — BPJS Ketenagakerjaan belum diunggah saat pendaftaran
       doc.setFillColor(253, 243, 220); doc.setDrawColor(228, 200, 125); doc.roundedRect(12, 181, W - 24, 10, 2, 2, 'FD');
       doc.setTextColor(154, 98, 0); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);

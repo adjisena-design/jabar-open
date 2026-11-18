@@ -8,7 +8,6 @@
     d_title: ['Pendaftaran atlet', 'Athlete registration'],
     d_lead: ['Semua atlet didaftarkan lewat klub (klub, sekolah, atau pengkab/pengkot) oleh pemilik, admin, atau pelatih klub. Satu pendaftaran untuk satu disiplin, maksimal {mx} atlet. Tim beregu Artistik Putri ditambahkan di pendaftaran yang sama.', "Every athlete is registered through a club (club, school or regency/city association) by the club's owner, admin or coach. One registration covers one discipline, up to {mx} athletes. Women's Artistic teams are added in the same registration."],
     d_ready_t: ['Siapkan sebelum mendaftar', 'Have this ready'],
-    d_check: ['Cek dulu kategori yang bisa diikuti atlet →', 'Check which categories an athlete can enter →'],
     d_bulk_tag: ['Mendaftar banyak atlet?', 'Registering many athletes?'],
     d_bulk_h: ['Pendaftaran massal', 'Bulk registration'],
     d_bulk: ['Cara lebih mudah untuk 30 atlet atau lebih dari satu klub: isi bersama di satu lembar, bayar lewat transfer bank.', 'An easier way for 30 or more athletes from one club: fill in one shared sheet together and pay by bank transfer (in Indonesian).'],

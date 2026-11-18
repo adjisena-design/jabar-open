@@ -303,7 +303,9 @@ language sql stable set search_path = '' as $$
       else '[]'::jsonb end,
     'club', case when b.club_id is not null then (select jsonb_build_object('id', c.id, 'name', c.name, 'kab_kota', c.kab_kota, 'province', c.province, 'country', c.country) from jo.clubs c where c.id = b.club_id)
                  else b.club_new end,
-    'locked', (b.expires_at is not null and now() > b.expires_at) or now() > jo.bulk_deadline())
+    'locked', (b.expires_at is not null and now() > b.expires_at) or now() > jo.bulk_deadline(),
+    'files_open', jo.bulk_files_open(b), 'files_until', jo.bulk_files_until(b),
+    'min', jo.bulk_cfg_int(b, 'min'), 'max', jo.bulk_cfg_int(b, 'max'), 'pay_hours', jo.bulk_cfg_int(b, 'pay_hours'))
 $$;
 
 -- membuka kode: hari pertama dibuka memulai masa berlaku 7 hari
@@ -416,7 +418,7 @@ begin
   return jsonb_build_object(
     'account', jo.bulk_public_json(b),
     'now', now(),
-    'rows', (select coalesce(jsonb_agg(jsonb_build_object('row_no', r.row_no, 'data', r.data, 'has_photo', r.photo_thumb is not null,
+    'rows', (select coalesce(jsonb_agg(jsonb_build_object('row_no', r.row_no, 'data', jo.bulk_row_data(r), 'has_photo', jo.bulk_row_has_photo(r),
               'batch_id', r.batch_id, 'updated_at', r.updated_at, 'updated_by', r.updated_by) order by r.row_no), '[]'::jsonb)
              from jo.bulk_rows r where r.bulk_id = b.id and (p_since is null or r.updated_at > p_since)),
     'deleted', case when p_since is not null then (select coalesce(jsonb_agg(q.n), '[]'::jsonb) from (
@@ -435,16 +437,18 @@ language plpgsql volatile security definer set search_path = '' as $$
 declare b jo.bulk_accounts;
 begin
   b := jo.bulk_auth(p_code, p_person, false);
-  return (select photo_thumb from jo.bulk_rows where bulk_id = b.id and row_no = p_row);
+  return (select coalesce((select a.photo_thumb from jo.athletes a where a.bulk_row_id = r.id and a.photo_thumb is not null limit 1), r.photo_thumb)
+            from jo.bulk_rows r where r.bulk_id = b.id and r.row_no = p_row);
 end $$;
 
 -- simpan beberapa baris: [{row_no, data, photo_thumb?, delete?}]
 create or replace function public.public_bulk_save(p_code text, p_person text, p_rows jsonb) returns jsonb
 language plpgsql volatile security definer set search_path = '' as $$
 declare b jo.bulk_accounts; v_uid uuid := auth.uid(); x jsonb; v_no integer; v_old jo.bulk_rows; v_name text; k text; v_path text;
-        v_max integer := coalesce(jo.setting_int('bulk_max'), 250); v_saved jsonb := '[]'::jsonb; v_thumb text; v_n integer := 0; v_del integer := 0;
+        v_max integer; v_saved jsonb := '[]'::jsonb; v_thumb text; v_n integer := 0; v_del integer := 0;
 begin
   b := jo.bulk_auth(p_code, p_person, true);
+  v_max := jo.bulk_cfg_int(b, 'max');
   v_name := jo.bulk_person_name(b, p_person);
   if jsonb_typeof(p_rows) <> 'array' or jsonb_array_length(p_rows) > 260 then
     raise exception 'Data tidak valid.' using hint = 'ERR_BULK_DATA';
@@ -456,7 +460,7 @@ begin
     end if;
     select * into v_old from jo.bulk_rows where bulk_id = b.id and row_no = v_no for update;
     if v_old.batch_id is not null then
-      raise exception 'Baris % sudah dikirim dalam batch dan terkunci. Koreksi lewat Inda.', v_no using hint = 'ERR_BULK_LOCKED';
+      raise exception 'Baris % sudah dikirim dalam batch dan terkunci. Berkas susulan diunggah lewat tombol dokumen; koreksi data lewat Inda.', v_no using hint = 'ERR_BULK_LOCKED';
     end if;
     if coalesce((x->>'delete')::boolean, false) then
       if v_old.id is not null then
@@ -588,10 +592,11 @@ end $$;
 create or replace function public.public_bulk_submit(p_code text, p_person text, p_rows integer[], p_split jsonb, p_confirm text) returns jsonb
 language plpgsql volatile security definer set search_path = '' as $$
 declare b jo.bulk_accounts; v_name text; v_no integer; v_batch jo.bulk_batches; v_disc text; v_res jsonb; v_sub jo.submissions;
-        v_total integer := 0; v_n integer; v_min integer := coalesce(jo.setting_int('bulk_min'), 30); v_amounts jsonb; v_sum integer;
+        v_total integer := 0; v_n integer; v_min integer; v_amounts jsonb; v_sum integer;
         v_msg text; v_hint text; v_codes jsonb := '[]'::jsonb; v_m text[]; v_row text;
 begin
   b := jo.bulk_auth(p_code, p_person, true);
+  v_min := jo.bulk_cfg_int(b, 'min');
   v_name := jo.bulk_person_name(b, p_person);
   if coalesce(p_confirm,'') <> 'SAYA SETUJU' then
     raise exception 'Centang pernyataan transfer sebelum mengirim.' using hint = 'ERR_CONSENT';
@@ -616,7 +621,7 @@ begin
   insert into jo.bulk_batches (bulk_id, no, code, person, due_at)
   values (b.id, coalesce((select max(no) from jo.bulk_batches where bulk_id = b.id), 0) + 1,
           jo.bulk_code_label(b) || '-B' || (coalesce((select max(no) from jo.bulk_batches where bulk_id = b.id), 0) + 1),
-          v_name, now() + interval '48 hours')
+          v_name, now() + make_interval(hours => jo.bulk_cfg_int(b, 'pay_hours')))
   returning * into v_batch;
   update jo.bulk_rows set batch_id = v_batch.id where bulk_id = b.id and row_no = any(p_rows);
 
@@ -715,7 +720,15 @@ language sql stable set search_path = '' as $$
     'unpaid_batches', (select count(*) from jo.bulk_batches bt where bt.bulk_id = b.id and bt.status = 'menunggu'),
     'docs_pending', (select count(*) from jo.athletes a join jo.submissions s on s.id = a.submission_id
                       join jo.bulk_batches bt on bt.id = s.bulk_batch_id
-                     where bt.bulk_id = b.id and s.status <> 'dibatalkan' and a.doc_status = 'menunggu'))
+                     where bt.bulk_id = b.id and s.status <> 'dibatalkan' and a.doc_status = 'menunggu'),
+    'docs_incomplete', (select count(*) from jo.athletes a join jo.submissions s on s.id = a.submission_id
+                      join jo.bulk_batches bt on bt.id = s.bulk_batch_id
+                     where bt.bulk_id = b.id and s.status <> 'dibatalkan' and cardinality(jo.athlete_docs_missing(a)) > 0),
+    'over_quota', jo.club_over_quota(b.club_id),
+    'files_until', b.files_until, 'files_open', jo.bulk_files_open(b), 'files_open_until', jo.bulk_files_until(b),
+    'event_start', jo.bulk_event_start(), 'deadline', jo.bulk_deadline(),
+    'settings', b.settings, 'cfg', jsonb_build_object('min', jo.bulk_cfg_int(b, 'min'), 'max', jo.bulk_cfg_int(b, 'max'), 'pay_hours', jo.bulk_cfg_int(b, 'pay_hours')),
+    'owner_role', b.owner_role)
 $$;
 
 create or replace function public.console_bulk_list() returns jsonb
@@ -747,7 +760,8 @@ begin
   if b.id is null then raise exception 'Data tidak ditemukan.'; end if;
   return jo.bulk_console_row(b) || jsonb_build_object(
     'manager', jo.bulk_is_manager(st),
-    'sheet', (select coalesce(jsonb_agg(jsonb_build_object('row_no', r.row_no, 'data', r.data, 'has_photo', r.photo_thumb is not null,
+    'admin', st.role in ('owner','superadmin'),
+    'sheet', (select coalesce(jsonb_agg(jsonb_build_object('row_no', r.row_no, 'data', jo.bulk_row_data(r), 'has_photo', jo.bulk_row_has_photo(r),
               'batch', (select code from jo.bulk_batches bt where bt.id = r.batch_id), 'updated_at', r.updated_at, 'updated_by', r.updated_by) order by r.row_no), '[]'::jsonb)
               from jo.bulk_rows r where r.bulk_id = b.id),
     'batch_list', jo.bulk_batches_json(b.id),
@@ -835,16 +849,15 @@ create or replace function public.console_bulk_extend(p_id uuid, p_days integer)
 language plpgsql volatile security definer set search_path = '' as $$
 declare st jo.staff; b jo.bulk_accounts;
 begin
-  st := jo.bulk_manager();
+  st := jo.bulk_admin();
   select * into b from jo.bulk_accounts where id = p_id for update;
   if b.id is null then raise exception 'Data tidak ditemukan.'; end if;
   if b.opened_at is null then raise exception 'Kode belum pernah dibuka klub; masa berlaku belum dimulai.'; end if;
-  if b.extended_days is not null then raise exception 'Kode ini sudah pernah diperpanjang. Perpanjangan hanya satu kali.'; end if;
-  if p_days not between 1 and 3 then raise exception 'Perpanjangan 1, 2, atau 3 hari.'; end if;
+  if p_days not between 1 and 30 then raise exception 'Perpanjangan 1 sampai 30 hari.'; end if;
   if b.expires_at >= jo.bulk_deadline() then raise exception 'Masa berlaku sudah sampai batas akhir pendaftaran.'; end if;
   update jo.bulk_accounts
      set expires_at = least(greatest(expires_at, now()) + make_interval(days => p_days), jo.bulk_deadline()),
-         extended_days = p_days, extended_by = st.id, extended_at = now(), reminded_at = null, updated_at = now()
+         extended_days = coalesce(extended_days, 0) + p_days, extended_by = st.id, extended_at = now(), reminded_at = null, updated_at = now()
    where id = b.id returning * into b;
   perform jo.bulk_add_log(b.id, st.name, 'diperpanjang', jsonb_build_object('days', p_days, 'expires_at', b.expires_at));
   perform jo.log(st.id, 'massal_diperpanjang', 'bulk', b.id::text, jsonb_build_object('code', jo.bulk_code_label(b), 'club', b.label, 'days', p_days));
@@ -856,8 +869,8 @@ create or replace function public.console_bulk_due(p_batch uuid, p_hours integer
 language plpgsql volatile security definer set search_path = '' as $$
 declare st jo.staff; bt jo.bulk_batches;
 begin
-  st := jo.bulk_manager();
-  if p_hours not in (24, 48) then raise exception 'Tambahan waktu 24 atau 48 jam.'; end if;
+  st := jo.bulk_admin();
+  if p_hours not between 1 and 336 then raise exception 'Tambahan waktu 1 sampai 336 jam.'; end if;
   update jo.bulk_batches set due_at = greatest(due_at, now()) + make_interval(hours => p_hours)
    where id = p_batch and status = 'menunggu' returning * into bt;
   if bt.id is null then raise exception 'Batch tidak ditemukan atau sudah selesai.'; end if;

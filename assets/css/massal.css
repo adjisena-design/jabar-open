@@ -129,3 +129,8 @@
 
 .ms-typed code{background:var(--bad-lt,#fde8e6);color:var(--bad,#b42318);padding:1px 6px;border-radius:5px;font-weight:700;user-select:all}
 .ms-modal button[disabled]{opacity:.45;cursor:not-allowed}
+/* peringatan tidak menghalangi (berkas menyusul, kuota klub) */
+.ms-sheet .warn-cell{background:#fdf6e7}
+.ms-sheet .ms-err.ms-warn{color:#8a5a00}
+.ms-st .wr{display:inline-block;color:#8a5a00;font-weight:600;font-size:.76rem}
+.ms-chip.warn b{color:#8a5a00}

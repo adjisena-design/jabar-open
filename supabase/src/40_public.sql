@@ -75,12 +75,15 @@ declare k text;
   v_req jsonb := jo.rules()->'docs'->v_nat;
   v_lbl jsonb := '{"akte":"Akte Kelahiran","passport":"paspor","ktp":"KTP","ijazah":"Ijazah","bpjs":"kartu BPJS Ketenagakerjaan"}';
 begin
+  -- pendaftaran massal (18 Nov 2026): boleh dikirim tanpa berkas; atlet ditandai berkas belum lengkap
+  if not jo.in_bulk() then
   foreach k in array array['akte','passport','ktp','ijazah','bpjs'] loop
     if v_req->>k = 'wajib' and coalesce(a->>(k || '_path'),'') = '' then
       raise exception '%: unggah %.', p_label, v_lbl->>k using hint = 'ERR_ATHLETE_DOC';
     end if;
   end loop;
-  if v_req->>'photo' = 'wajib' and coalesce(a->>'photo_path','') = '' then
+  end if;
+  if not jo.in_bulk() and v_req->>'photo' = 'wajib' and coalesce(a->>'photo_path','') = '' then
     raise exception '%: unggah pas foto (wajib untuk Athlete Identification Card).', p_label using hint = 'ERR_ATHLETE_PHOTO';
   end if;
   if coalesce(a->>'photo_path','') <> ''
@@ -459,8 +462,8 @@ begin
       raise exception 'Kategori % adalah pasangan campuran: satu putra dan satu putri.', v_cat.name_id using hint = 'ERR_PAIR';
     end if;
 
-    -- batas peserta per klub per kategori
-    if v_club_id is not null and v_cat.max_per_club is not null then
+    -- batas peserta per klub per kategori (arahan TD); pendaftaran massal boleh melebihi, ditandai di konsol
+    if v_club_id is not null and v_cat.max_per_club is not null and not jo.in_bulk() then
       select count(*) into v_cnt
         from jo.entries en join jo.submissions s on s.id = en.submission_id
        where en.category_id = v_cat.id and en.status = 'aktif'
@@ -649,7 +652,7 @@ begin
         if v_cat.id is null then
           raise exception 'Anggota %: tidak ada kelompok usia % % yang sesuai dengan tanggal lahir %.', i, v_disc.name_id, v_level, to_char(v_mbirth, 'DD-MM-YYYY') using hint = 'ERR_ELIGIBILITY';
         end if;
-        if v_cat.max_per_club is not null then
+        if v_cat.max_per_club is not null and not jo.in_bulk() then
           select count(*) into v_cnt
             from jo.entries en join jo.submissions s on s.id = en.submission_id
            where en.category_id = v_cat.id and en.status = 'aktif'
@@ -795,7 +798,7 @@ language sql stable set search_path = '' as $$
         'id', a.id, 'athlete_no', a.athlete_no, 'full_name', a.full_name, 'gender', a.gender,
         'birth_date', a.birth_date, 'nationality', a.nationality, 'province', a.province, 'kab_kota', a.kab_kota,
         'doc_status', a.doc_status, 'has_bpjs', a.bpjs_path is not null, 'photo_thumb', a.photo_thumb,
-        'aic_reissued_at', a.aic_reissued_at,
+        'aic_reissued_at', a.aic_reissued_at, 'docs_missing', to_jsonb(jo.athlete_docs_missing(a)),
         'docs', jsonb_build_object('akte', a.akte_path is not null, 'ktp', a.ktp_path is not null, 'ijazah', a.ijazah_path is not null,
                                    'passport', a.passport_path is not null, 'bpjs', a.bpjs_path is not null),
         'ticket_code', case when s.status = 'lunas' then a.ticket_code end
@@ -967,6 +970,7 @@ begin
     return jsonb_build_object('type', 'ticket', 'valid', s.status = 'lunas', 'status', s.status,
       'athlete_no', a.athlete_no, 'name', a.full_name, 'club', club, 'discipline', s.discipline,
       'photo', case when s.status = 'lunas' then a.photo_thumb end,
+      'docs_missing', case when s.status = 'lunas' then to_jsonb(jo.athlete_docs_missing(a)) end,
       'registered_by', case when s.status = 'lunas' then s.contact_name || coalesce(' (' || case s.contact_role
           when 'pemilik' then 'pemilik klub' when 'admin' then 'admin klub' when 'pelatih' then 'pelatih'
           when 'manajer' then 'manajer/official' end || ')', '') end,

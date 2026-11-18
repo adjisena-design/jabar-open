@@ -133,7 +133,8 @@ begin
       (select count(distinct ea.athlete_id) from jo.entries e join jo.entry_athletes ea on ea.entry_id = e.id
          join jo.athletes a on a.id = ea.athlete_id join jo.categories cat on cat.id = e.category_id
         where e.submission_id = s.id and e.status <> 'dibatalkan'
-          and (not cat.active or jo.category_mismatch(cat, a.gender, a.birth_date) is not null)) as rule_issues
+          and (not cat.active or jo.category_mismatch(cat, a.gender, a.birth_date) is not null)) as rule_issues,
+      (select count(*) from jo.athletes a where a.submission_id = s.id and cardinality(jo.athlete_docs_missing(a)) > 0) as docs_missing
     from jo.submissions s left join jo.clubs c on c.id = s.club_id
     where (d is null or s.discipline = d)
       and (nullif(f->>'status','') is null or s.status = f->>'status')
@@ -152,6 +153,8 @@ begin
                   and (not cat.active or jo.category_mismatch(cat, a.gender, a.birth_date) is not null))))
       and (nullif(f->>'category','') is null or exists (select 1 from jo.entries e where e.submission_id = s.id
              and e.status <> 'dibatalkan' and e.category_id = (f->>'category')::integer))
+      and (coalesce(f->>'flag','') <> 'berkas' or (s.status <> 'dibatalkan'
+             and exists (select 1 from jo.athletes a where a.submission_id = s.id and cardinality(jo.athlete_docs_missing(a)) > 0)))
     order by s.created_at desc
     limit 1000) x);
 end $$;
@@ -466,7 +469,8 @@ begin
                                                          jo.category_mismatch(cat, a.gender, a.birth_date)), '; ' order by cat.sort)
          from jo.entry_athletes ea join jo.entries e on e.id = ea.entry_id join jo.categories cat on cat.id = e.category_id
         where ea.athlete_id = a.id and e.status <> 'dibatalkan'
-          and (not cat.active or jo.category_mismatch(cat, a.gender, a.birth_date) is not null)) as rule_issue
+          and (not cat.active or jo.category_mismatch(cat, a.gender, a.birth_date) is not null)) as rule_issue,
+      array_to_string(jo.athlete_docs_missing(a), ', ') as docs_missing, s.bulk_batch_id is not null as is_bulk
     from jo.athletes a join jo.submissions s on s.id = a.submission_id
     left join jo.clubs c on c.id = s.club_id
     where (d is null or s.discipline = d)
@@ -476,7 +480,8 @@ begin
            or lower(coalesce(c.name,'')) like q or lower(coalesce(a.kab_kota,'')) like q)
       and (nullif(f->>'category','') is null or exists (select 1 from jo.entry_athletes ea join jo.entries e on e.id = ea.entry_id
              where ea.athlete_id = a.id and e.status <> 'dibatalkan' and e.category_id = (f->>'category')::integer))
-  ) x where coalesce(f->>'flag','') <> 'aturan' or x.rule_issue is not null);
+  ) x where (coalesce(f->>'flag','') <> 'aturan' or x.rule_issue is not null)
+          and (coalesce(f->>'flag','') <> 'berkas' or coalesce(x.docs_missing, '') <> ''));
 end $$;
 
 -- ---------------------------------------------------------------------

@@ -428,6 +428,7 @@ begin
   end if;
   select * into st from jo.current_staff();
   v_staff := st.id is not null;
+  if not v_staff then raise exception 'Cek kelayakan hanya untuk panitia.' using hint = 'ERR_SESSION'; end if;
   v_pri := jo.priangan_reason(nat, case when nat = 'WNI' then prov end, cprov);
 
   return jsonb_build_object(

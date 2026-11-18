@@ -768,7 +768,8 @@
           <option value="priangan" ${subFilter.flag === 'priangan' ? 'selected' : ''}>Priangan: cek syarat</option>
           <option value="beregu" ${subFilter.flag === 'beregu' ? 'selected' : ''}>Pendaftaran beregu</option>
           <option value="musik" ${subFilter.flag === 'musik' ? 'selected' : ''}>Musik Ritmik belum beres</option>
-          <option value="aturan" ${subFilter.flag === 'aturan' ? 'selected' : ''}>Tidak sesuai aturan kategori</option></select></div>
+          <option value="aturan" ${subFilter.flag === 'aturan' ? 'selected' : ''}>Tidak sesuai aturan kategori</option>
+          <option value="berkas" ${subFilter.flag === 'berkas' ? 'selected' : ''}>Berkas atlet belum lengkap</option></select></div>
         <div class="field" style="flex:1;min-width:200px"><label class="f" for="fq">Cari</label><input id="fq" type="search" placeholder="Kode, nama atlet, klub, email, nominal" value="${esc(subFilter.q)}"></div>
       </div><div id="list"><div class="empty"><span class="spinner"></span></div></div>`;
     const load = async () => {
@@ -784,7 +785,7 @@
           <td class="r num">${fmtRp(r.total_amount)}${r.payment_method === 'manual' ? '<br><span class="pill warn">WNA</span>' : ''}${r.bulk_code ? `<br><span class="pill info" title="Pendaftaran massal">${esc(r.bulk_code)}</span>` : ''}</td>
           <td>${pill(r.status)}</td>
           <td class="small">${r.proof_uploaded_at ? '<span class="pill info">Bukti ada</span> ' : ''}${r.mutation_matched ? '<span class="pill ok">Mutasi cocok</span> ' : ''}
-            ${r.expires_at ? `<span class="pill warn">hapus otomatis ${esc(new Date(r.expires_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }))}</span> ` : ''}${r.docs_pending ? `<span class="pill">dokumen ${r.docs_pending} atlet</span> ` : ''}${r.priangan_pending ? `<span class="pill warn">${r.priangan_pending} cek Priangan</span> ` : ''}${r.music_pending ? `<span class="pill warn">${r.music_pending} musik</span> ` : ''}${r.rule_issues ? `<span class="pill warn" title="Atlet yang kategorinya tidak lagi sesuai aturan">${r.rule_issues} tidak sesuai aturan</span>` : ''}</td></tr>`).join('')}
+            ${r.expires_at ? `<span class="pill warn">hapus otomatis ${esc(new Date(r.expires_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }))}</span> ` : ''}${r.docs_pending ? `<span class="pill">dokumen ${r.docs_pending} atlet</span> ` : ''}${r.priangan_pending ? `<span class="pill warn">${r.priangan_pending} cek Priangan</span> ` : ''}${r.music_pending ? `<span class="pill warn">${r.music_pending} musik</span> ` : ''}${r.rule_issues ? `<span class="pill warn" title="Atlet yang kategorinya tidak lagi sesuai aturan">${r.rule_issues} tidak sesuai aturan</span>` : ''}${r.docs_missing ? ` <span class="pill warn" title="Atlet dengan berkas wajib belum diunggah">berkas ${r.docs_missing} atlet belum lengkap</span>` : ''}</td></tr>`).join('')}
         </tbody></table></div>`;
       list.querySelectorAll('tr[data-id]').forEach((tr) => tr.onclick = (e) => { if (e.target.closest('.ath-more')) return; location.hash = '#/pendaftaran/' + tr.dataset.id; });
     };
@@ -1388,7 +1389,7 @@
           <td>${st(it)}${it.extended_days ? `<br><span class="tiny muted">diperpanjang ${it.extended_days} hari</span>` : ''}</td>
           <td class="r num">${it.rows_sent}/${it.rows}<br><span class="tiny muted">terkirim/diisi</span></td>
           <td class="r num">${fmtRp(it.paid)}<br><span class="tiny muted">dari ${fmtRp(it.billed)}</span></td>
-          <td>${it.to_verify ? `<span class="pill warn">${it.to_verify} transfer perlu diverifikasi</span> ` : ''}${it.overdue ? `<span class="pill bad">${it.overdue} batch lewat batas bayar</span>` : ''}${!it.to_verify && !it.overdue ? '<span class="tiny muted">–</span>' : ''}</td>
+          <td>${it.to_verify ? `<span class="pill warn">${it.to_verify} transfer perlu diverifikasi</span> ` : ''}${it.overdue ? `<span class="pill bad">${it.overdue} batch lewat batas bayar</span> ` : ''}${it.docs_incomplete ? `<span class="pill warn">berkas ${it.docs_incomplete} atlet belum lengkap</span> ` : ''}${(it.over_quota || []).length ? `<span class="pill warn" title="${esc(it.over_quota.map((q) => q.category + ' ' + q.n + '/' + q.max).join(', '))}">melebihi kuota klub</span>` : ''}${!it.to_verify && !it.overdue && !it.docs_incomplete && !(it.over_quota || []).length ? '<span class="tiny muted">–</span>' : ''}</td>
           <td class="r ms-acts">${it.completed_at ? `<button class="btn btn-ghost btn-sm" data-undone="${it.id}">Batalkan selesai</button>` : `<button class="btn btn-ok btn-sm" data-done="${it.id}">Tandai selesai</button>`}${L.manager ? ` <button class="btn btn-ghost btn-sm" data-del="${it.id}" title="Hapus kode dan datanya">Hapus</button>` : ''}</td></tr>`).join('')}
         </tbody></table></div>`}
       ${L.items.length ? '' : '<p class="empty">Belum ada kode akses. Klub meminta kode lewat WhatsApp Inda dari halaman pendaftaran massal.</p>'}`;
@@ -1411,17 +1412,152 @@
       pageBulk(v);
     };
   }
+
+  // ---------- kendali penuh pendaftaran massal (18 Nov 2026) ----------
+  const PROVS = () => ((window.JO_REGIONS || {}).provinces || []);
+  const dtIn = (d) => { if (!d) return ''; const x = new Date(d); const p = (n) => String(n).padStart(2, '0');
+    return `${x.getFullYear()}-${p(x.getMonth() + 1)}-${p(x.getDate())}T${p(x.getHours())}:${p(x.getMinutes())}`; };
+  const dtOut = (v) => { if (!v) throw new Error('Pilih tanggal dan jam.'); return new Date(v).toISOString(); };
+  function bulkAdminBind(v, B, id, reload) {
+    if (!B.admin) return;
+    const on = (sel, fn) => { const el = v.querySelector(sel); if (el) el.onclick = fn; };
+    const done = (msg) => (r) => { if (r) { JO.toast(msg); reload(); } };
+    on('#setexp', async () => done('Masa pengisian diatur.')(await dialog({ title: 'Atur masa pengisian', ok: 'Simpan',
+      body: `<p class="small">Klub bisa mengisi dan mengirim batch sampai waktu ini. Paling lambat ${dt(B.deadline)}.</p>
+        <div class="field"><label class="f" for="xd">Sampai</label><input id="xd" type="datetime-local" value="${dtIn(B.expires_at)}" max="${dtIn(B.deadline)}"></div>`,
+      onOk: (d) => api('console_bulk_set_expiry', { p_id: id, p_until: dtOut(d.querySelector('#xd').value) }) })));
+    on('#files', async () => done('Perpanjangan berkas disimpan.')(await dialog({ title: 'Perpanjangan berkas', ok: 'Simpan',
+      body: `<p class="small">Klub bisa mengunggah berkas susulan untuk atlet yang <b>sudah dikirim</b> sampai waktu ini, walau masa pengisian sudah berakhir. Data atlet tetap terkunci. Paling lambat ${dt(B.event_start)}.</p>
+        <div class="field"><label class="f" for="fd">Sampai</label><input id="fd" type="datetime-local" value="${dtIn(B.files_until || B.deadline)}" max="${dtIn(B.event_start)}"></div>`,
+      onOk: (d) => api('console_bulk_files', { p_id: id, p_until: dtOut(d.querySelector('#fd').value) }) })));
+    on('#filesoff', async () => done('Perpanjangan berkas ditutup.')(await dialog({ title: 'Tutup perpanjangan berkas?', ok: 'Tutup', okClass: 'btn-bad',
+      body: '<p>Klub tidak bisa lagi mengunggah berkas susulan (kecuali masa pengisian masih berjalan).</p>',
+      onOk: () => api('console_bulk_files', { p_id: id, p_until: null }) })));
+    on('#people', async () => {
+      const C = (B.collaborators || []).concat([{}, {}]).slice(0, 2);
+      done('Pengisi diubah.')(await dialog({ title: 'Pemilik & kolaborator', ok: 'Simpan', wide: true,
+        body: `<div class="grid2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
+          <div class="field"><label class="f" for="pn">Nama pemilik</label><input id="pn" value="${esc(B.owner_name || '')}"></div>
+          <div class="field"><label class="f" for="pp">WhatsApp</label><input id="pp" inputmode="tel" value="${esc(B.owner_phone || '')}"></div>
+          <div class="field"><label class="f" for="pe">Email</label><input id="pe" type="email" value="${esc(B.owner_email || '')}"></div>
+          <div class="field"><label class="f" for="pr">Peran</label><select id="pr">${[['pemilik', 'Pemilik klub'], ['admin', 'Admin klub'], ['pelatih', 'Pelatih'], ['manajer', 'Manajer / official'], ['lainnya', 'Lainnya']].map(([k, l]) => `<option value="${k}" ${k === B.owner_role ? 'selected' : ''}>${l}</option>`).join('')}</select></div></div>
+          ${C.map((c, i) => `<div class="grid2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="field"><label class="f">Kolaborator ${i + 1}</label><input data-cn="${i}" data-id="${esc(c.id || '')}" value="${esc(c.name || '')}" placeholder="kosongkan bila tidak ada"></div>
+            <div class="field"><label class="f">WhatsApp</label><input data-cp="${i}" inputmode="tel" value="${esc(c.phone || '')}"></div></div>`).join('')}
+          <p class="small muted">Kolaborator yang dihapus tidak bisa lagi masuk ke lembar.</p>
+          <label class="f" for="prs">Alasan (masuk Riwayat)</label><textarea id="prs" placeholder="mis. pelatih berganti, permintaan pemilik klub"></textarea>`,
+        onOk: (d) => api('console_bulk_people', { p_id: id, p_reason: d.querySelector('#prs').value, p: {
+          name: d.querySelector('#pn').value, phone: d.querySelector('#pp').value, email: d.querySelector('#pe').value, role: d.querySelector('#pr').value,
+          collaborators: [0, 1].map((i) => ({ id: d.querySelector(`[data-cn="${i}"]`).dataset.id, name: d.querySelector(`[data-cn="${i}"]`).value, phone: d.querySelector(`[data-cp="${i}"]`).value })) } }) }));
+    });
+    on('#cfg', async () => { const S = B.settings || {};
+      done('Pengaturan kode disimpan.')(await dialog({ title: 'Pengaturan kode ' + B.code_label, ok: 'Simpan',
+        body: `<p class="small muted">Kosongkan untuk memakai nilai bawaan.</p>
+          <div class="field"><label class="f" for="cmin">Batch pertama minimal (atlet)</label><input id="cmin" type="number" min="1" max="250" value="${S.min || ''}" placeholder="bawaan ${B.cfg.min}"></div>
+          <div class="field"><label class="f" for="cmax">Maksimal baris lembar</label><input id="cmax" type="number" min="1" max="250" value="${S.max || ''}" placeholder="bawaan ${B.cfg.max}"></div>
+          <div class="field"><label class="f" for="cpay">Batas bayar batch baru (jam)</label><input id="cpay" type="number" min="1" max="336" value="${S.pay_hours || ''}" placeholder="bawaan 48"></div>`,
+        onOk: (d) => api('console_bulk_settings', { p_id: id, p: { min: d.querySelector('#cmin').value, max: d.querySelector('#cmax').value, pay_hours: d.querySelector('#cpay').value } }) })); });
+    on('#addrow', () => { const used = B.sheet.map((r) => r.row_no); let no = 1; while (used.includes(no)) no++; bulkRowEditor(B, { row_no: no, data: { nationality: 'WNI', docs: {} } }, true, reload); });
+    v.querySelectorAll('[data-redit]').forEach((b) => b.onclick = () => {
+      const row = B.sheet.find((x) => x.row_no === Number(b.dataset.redit));
+      if (row.batch) return bulkFilesDlg(row, reload, b);
+      bulkRowEditor(B, row, false, reload);
+    });
+    v.querySelectorAll('[data-unlock]').forEach((b) => b.onclick = async () => {
+      const row = B.sheet.find((x) => x.row_no === Number(b.dataset.unlock)); const bat = B.batch_list.find((x) => x.code === row.batch);
+      const r = await dialog({ title: 'Buka kembali ' + (row.data.full_name || 'baris ' + row.row_no) + '?', ok: 'Buka kembali', okClass: 'btn-bad',
+        body: `<p>Atlet dikeluarkan dari ${esc(row.batch)} dan barisnya kembali menjadi <b>draf</b> agar klub (atau panitia) bisa memperbaiki data, lalu mengirimnya lagi di batch baru.</p>
+          ${bat && bat.status === 'lunas' ? '<p class="note warn small">Batch sudah lunas: biaya atlet ini dicatat sebagai dana yang perlu dikembalikan, atau dipakai untuk batch berikutnya.</p>' : '<p class="small muted">Tagihan batch dihitung ulang.</p>'}
+          <label class="f" for="ulr">Alasan (masuk Riwayat)</label><textarea id="ulr" placeholder="mis. salah tanggal lahir, disetujui TD"></textarea>`,
+        onOk: (d) => api('console_bulk_unlock_row', { p_id: id, p_row: row.row_no, p_reason: d.querySelector('#ulr').value }) });
+      if (r) { JO.toast(r.refund ? `Dibuka kembali. ${fmtRp(r.refund)} dicatat perlu dikembalikan.` : 'Baris kembali menjadi draf.'); reload(); }
+    });
+    v.querySelectorAll('[data-dueat]').forEach((b) => b.onclick = async () => { const bt = B.batch_list.find((x) => x.id === b.dataset.dueat);
+      done('Batas bayar diatur.')(await dialog({ title: 'Batas bayar ' + bt.code, ok: 'Simpan',
+        body: `<div class="field"><label class="f" for="bd">Bayar paling lambat</label><input id="bd" type="datetime-local" value="${dtIn(bt.due_at)}"></div>`,
+        onOk: (d) => api('console_bulk_due_at', { p_batch: bt.id, p_until: dtOut(d.querySelector('#bd').value) }) })); });
+    v.querySelectorAll('[data-markpaid]').forEach((b) => b.onclick = async () => { const bt = B.batch_list.find((x) => x.id === b.dataset.markpaid);
+      done('Batch ditandai lunas. AIC dikirim.')(await dialog({ title: 'Tandai ' + bt.code + ' lunas?', ok: 'Tandai lunas', okClass: 'btn-ok',
+        body: `<p>Seluruh tagihan <b>${fmtRp(bt.total)}</b> dianggap lunas tanpa mencocokkan bukti transfer di portal (mis. dibayar tunai atau satu transfer gabungan). AIC semua atlet batch ini diterbitkan dan dikirim.</p>
+          <label class="f" for="mpn">Keterangan pembayaran (masuk Log)</label><textarea id="mpn" placeholder="mis. tunai ke Inda 20 Nov, dicek di mutasi BCA 21 Nov"></textarea>`,
+        onOk: (d) => api('console_bulk_mark_paid', { p_batch: bt.id, p_note: d.querySelector('#mpn').value }) })); });
+  }
+  function bulkFilesDlg(row, reload, btn) {
+    if (!row.data.athlete_id) return JO.toast('Data atlet baris ini belum terhubung. Muat ulang halaman.', 'bad');
+    const tr = btn.closest('tr'); const nx = tr.nextElementSibling;
+    if (nx && nx.classList.contains('bfp-row')) { nx.remove(); return; }
+    const cols = tr.children.length;
+    tr.insertAdjacentHTML('afterend', `<tr class="bfp-row"><td colspan="${cols}"><p class="small muted" style="margin:4px 0 8px">Berkas ${esc(row.data.full_name || '')} (${esc(row.batch)}). Data atlet diubah di halaman Pendaftaran; di sini hanya berkas. Setelah lengkap, tekan Kirim ulang AIC batch.</p><div class="bfp"></div></td></tr>`);
+    filePanel(tr.nextElementSibling.querySelector('.bfp'), row.data.athlete_id, null);
+  }
+  function bulkRowEditor(B, row, isNew, reload) {
+    const d = JSON.parse(JSON.stringify(row.data || {})); d.docs = d.docs || {};
+    let thumb;
+    const DOCL = { akte: 'Akte Kelahiran', ktp: 'KTP', ijazah: 'Ijazah', bpjs: 'BPJS', passport: 'Paspor', photo: 'Pas foto' };
+    const cats = (disc) => (CATS.categories || []).filter((c) => c.discipline === disc && c.active);
+    const opt = (list, v) => list.map(([k, l]) => `<option value="${esc(k)}" ${String(k) === String(v == null ? '' : v) ? 'selected' : ''}>${esc(l)}</option>`).join('');
+    const f = (id, label, inner) => `<div class="field"><label class="f" for="${id}">${label}</label>${inner}</div>`;
+    const docsHtml = () => Object.keys(DOCL).map((k) => `<button type="button" class="btn btn-ghost btn-sm" data-up="${k}">${d.docs[k] ? '✓ ' : ''}${DOCL[k]}</button>`).join(' ');
+    const p = dialog({ title: (isNew ? 'Tambah baris ' : 'Ubah baris ') + String(row.row_no).padStart(3, '0'), ok: 'Simpan baris', wide: true,
+      body: `<p class="small muted">Baris draf di lembar klub. Klub tetap yang mengirim batch (atau panitia membantu lewat portal klub). Aturan kategori diperiksa saat batch dikirim.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px">
+        ${f('re_no', 'No. baris', `<input id="re_no" type="number" min="1" max="250" value="${row.row_no}" ${isNew ? '' : 'disabled'}>`)}
+        ${f('re_name', 'Nama lengkap', `<input id="re_name" value="${esc(d.full_name || '')}">`)}
+        ${f('re_g', 'L/P', `<select id="re_g">${opt([['', '–'], ['M', 'L'], ['F', 'P']], d.gender)}</select>`)}
+        ${f('re_bd', 'Tanggal lahir', `<input id="re_bd" type="date" value="${esc(d.birth_date || '')}">`)}
+        ${f('re_nat', 'WNI/WNA', `<select id="re_nat">${opt([['WNI', 'WNI'], ['WNA', 'WNA']], d.nationality || 'WNI')}</select>`)}
+        ${f('re_prov', 'Provinsi (WNI) / negara (WNA)', d.nationality === 'WNA' ? `<input id="re_prov" value="${esc(d.country || '')}">` : `<select id="re_prov"><option value=""></option>${opt(PROVS().map((x) => [x, x]), d.province)}</select>`)}
+        ${f('re_kab', 'Kab/kota', `<input id="re_kab" value="${esc(d.kab_kota || '')}">`)}
+        ${f('re_disc', 'Disiplin', `<select id="re_disc">${opt([['', 'Pilih']].concat(Object.entries(DN)), d.discipline)}</select>`)}
+        ${f('re_cat', 'Kategori', `<select id="re_cat"></select>`)}
+        ${f('re_team', 'Nama tim (Artistik Putri)', `<input id="re_team" value="${esc(d.team_name || '')}">`)}
+        ${f('re_gn', 'Orang tua/wali', `<input id="re_gn" value="${esc(d.g_name || '')}">`)}
+        ${f('re_gr', 'Hubungan', `<input id="re_gr" value="${esc(d.g_relation || '')}">`)}
+        ${f('re_gp', 'WA orang tua/wali', `<input id="re_gp" inputmode="tel" value="${esc(d.g_phone || '')}">`)}
+        ${f('re_ge', 'Email orang tua/wali', `<input id="re_ge" type="email" value="${esc(d.g_email || '')}">`)}
+        </div>
+        <p class="f" style="margin:12px 0 6px">Dokumen</p><div id="re_docs">${docsHtml()}</div>
+        <p class="small muted">Musik Ritmik dan pasangan Aerobik tetap diisi klub di lembar.</p>
+        <label class="f" for="re_rs" style="margin-top:10px">Alasan (masuk Riwayat)</label><textarea id="re_rs" placeholder="mis. permintaan pemilik klub lewat WhatsApp"></textarea>`,
+      onOk: (dl) => {
+        const q = (s) => dl.querySelector(s).value;
+        const nat = q('#re_nat'); const cv = q('#re_cat');
+        Object.assign(d, { full_name: JO.nameCase ? JO.nameCase(q('#re_name')) : q('#re_name'), gender: q('#re_g'), birth_date: q('#re_bd'), nationality: nat,
+          province: nat === 'WNA' ? '' : q('#re_prov'), country: nat === 'WNA' ? q('#re_prov') : '', kab_kota: nat === 'WNA' ? '' : q('#re_kab'),
+          discipline: q('#re_disc'), team_name: q('#re_team'), g_name: q('#re_gn'), g_relation: q('#re_gr'), g_phone: q('#re_gp'), g_email: q('#re_ge').trim().toLowerCase() });
+        if (cv.startsWith('team:')) { d.team_only = true; d.team_level = cv.slice(5); d.category_id = null; } else { d.team_only = false; d.team_level = null; d.category_id = cv ? Number(cv) : null; }
+        const body = { row_no: Number(q('#re_no')), data: d }; if (thumb !== undefined) body.photo_thumb = thumb;
+        return api('console_bulk_row_save', { p_id: B.id, p: body, p_reason: q('#re_rs') });
+      } });
+    const catFill = () => { const disc = dlg.querySelector('#re_disc').value;
+      const list = [['', disc ? 'Pilih kategori' : 'Pilih disiplin dulu']].concat(cats(disc).map((c) => [String(c.id), c.name_id]))
+        .concat(disc === 'WAG' ? teamLevels('WAG').map((l) => ['team:' + l, 'Khusus beregu – ' + l]) : []);
+      dlg.querySelector('#re_cat').innerHTML = opt(list, d.team_only ? 'team:' + d.team_level : d.category_id); };
+    catFill();
+    dlg.querySelector('#re_disc').onchange = () => { d.category_id = null; d.team_only = false; catFill(); };
+    dlg.querySelector('#re_nat').onchange = (e) => { const box = dlg.querySelector('#re_prov').parentElement; const wna = e.target.value === 'WNA';
+      box.querySelector('#re_prov').outerHTML = wna ? '<input id="re_prov">' : `<select id="re_prov"><option value=""></option>${opt(PROVS().map((x) => [x, x]), '')}</select>`; };
+    dlg.querySelector('#re_docs').onclick = (e) => { const b = e.target.closest('[data-up]'); if (!b) return; const k = b.dataset.up;
+      const fi = document.createElement('input'); fi.type = 'file'; fi.accept = k === 'photo' ? 'image/jpeg,image/png,image/webp' : 'image/jpeg,image/png,image/webp,application/pdf';
+      fi.onchange = async () => { const file = fi.files[0]; if (!file) return; b.disabled = true; b.textContent = 'Mengunggah…';
+        try { const up = await JO.uploadFile('dokumen', file); if (k === 'photo') thumb = await JO.photoThumb(file); d.docs[k] = { path: up.path, name: file.name }; }
+        catch (err) { JO.toast(err.message, 'bad'); }
+        dlg.querySelector('#re_docs').innerHTML = docsHtml(); };
+      fi.click(); };
+    p.then((r) => { if (r) { JO.toast('Baris disimpan.'); reload(); } });
+  }
   async function pageBulkDetail(v, id) {
     const B = await api('console_bulk', { p_id: id });
-    const M = B.manager;
+    const M = B.manager, A = B.admin;   // A: owner, superadmin, Inda (kendali penuh pendaftaran massal)
+    const OQ = B.over_quota || [];
     const ownerMsg = (extra) => `Halo ${B.owner_name || ''}, ini Inda dari panitia Jabar Open 2026 terkait Pendaftaran Massal ${B.club || B.label} (${B.code_label}). ${extra || ''}`;
     const DOCL = { akte: 'Akte', ktp: 'KTP', ijazah: 'Ijazah', bpjs: 'BPJS', passport: 'Paspor', photo: 'Foto' };
     const sheetRow = (r) => { const d = r.data || {};
       return `<tr><td class="num">${String(r.row_no).padStart(3, '0')}</td><td>${esc(d.full_name || '–')}</td><td>${d.gender === 'M' ? 'L' : d.gender === 'F' ? 'P' : ''}</td><td class="small">${esc(d.birth_date || '')}</td>
         <td class="small">${esc(DN[d.discipline] || d.discipline || '')}</td><td class="small">${d.team_only ? 'Khusus beregu ' + esc(d.team_level || '') : (d.category_id ? esc(catName(d.category_id)) : '')}${d.team_name ? `<br><span class="tiny muted">Tim ${esc(d.team_name)}</span>` : ''}</td>
-        <td class="small">${Object.keys(d.docs || {}).map((k) => `<button class="btn-link" data-doc="${esc(d.docs[k].path)}" data-t="${esc(DOCL[k] || k)} ${esc(d.full_name || '')}">${esc(DOCL[k] || k)}</button>`).join(' ') || '–'}</td>
-        <td class="small">${r.batch ? `<span class="pill info">${esc(r.batch.split('-').pop())}</span>` : '<span class="tiny muted">draf</span>'}<br><span class="tiny muted">${esc(r.updated_by || '')}</span></td>
-        ${isSuper() ? `<td class="r"><button class="btn btn-ghost btn-sm" data-wd="${r.row_no}">${r.batch ? 'Tarik' : 'Hapus'}</button></td>` : ''}</tr>`; };
+        <td class="small">${Object.keys(d.docs || {}).map((k) => `<button class="btn-link" data-doc="${esc(d.docs[k].path)}" data-t="${esc(DOCL[k] || k)} ${esc(d.full_name || '')}">${esc(DOCL[k] || k)}</button>`).join(' ') || '–'}
+          ${(d.docs_missing || []).length ? `<br><span class="pill warn" title="Belum diunggah: ${esc(d.docs_missing.join(', '))}">Belum: ${esc(d.docs_missing.join(', '))}</span>` : ''}</td>
+        <td class="small">${r.batch ? `<span class="pill info">${esc(r.batch.split('-').pop())}</span>` : '<span class="tiny muted">draf</span>'}${!d.team_only && OQ.some((q) => String(q.category_id) === String(d.category_id)) ? ' <span class="pill warn" title="Kategori ini melebihi kuota per klub (arahan TD)">kuota</span>' : ''}<br><span class="tiny muted">${esc(r.updated_by || '')}</span></td>
+        ${isSuper() || A ? `<td class="r" style="white-space:nowrap">${A ? `<button class="btn btn-ghost btn-sm" data-redit="${r.row_no}">${r.batch ? 'Berkas' : 'Ubah'}</button> ` : ''}${A && r.batch ? `<button class="btn btn-ghost btn-sm" data-unlock="${r.row_no}" title="Keluarkan dari batch dan kembalikan ke draf agar bisa diperbaiki">Buka kembali</button> ` : ''}${isSuper() ? `<button class="btn btn-ghost btn-sm" data-wd="${r.row_no}">${r.batch ? 'Tarik' : 'Hapus'}</button>` : ''}</td>` : ''}</tr>`; };
     const pay = (p, b) => `<tr><td class="num">${fmtRp(p.amount)}</td><td class="small">${esc(p.transfer_date || '')}</td><td class="small">${esc(p.person || '')}<br><span class="tiny muted">${dt(p.uploaded_at)}</span></td>
       <td><button class="btn btn-ghost btn-sm" data-proof="${esc(p.proof_path)}">Lihat bukti</button></td>
       <td>${p.status === 'cocok' ? '<span class="pill ok">Cocok</span>' : p.status === 'tidak_cocok' ? `<span class="pill bad">Tidak cocok</span><div class="tiny">${esc(p.note || '')}</div>` : '<span class="pill warn">Menunggu</span>'}</td>
@@ -1437,7 +1573,8 @@
       ${b.status === 'lunas' ? `<div class="actions" style="margin:6px 0 10px">${b.aic_pending ? `<span class="pill warn">AIC ${b.aic_pending} atlet diperbarui, belum dikirim ulang</span>` : ''}
         ${isSuper() ? `<button class="btn btn-ghost btn-sm" data-aicb="${b.id}">Kirim ulang AIC batch (1 email)</button>` : ''}</div>` : ''}
       ${b.payments.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nominal</th><th>Tgl transfer</th><th>Diunggah</th><th>Bukti</th><th>Status</th><th></th></tr></thead><tbody>${b.payments.map((p) => pay(p, b)).join('')}</tbody></table></div>` : '<p class="small muted">Belum ada bukti transfer.</p>'}
-      ${M && b.status === 'menunggu' ? `<div class="actions" style="margin-top:10px"><button class="btn btn-ghost btn-sm" data-due="${b.id}" data-h="24">+24 jam batas bayar</button><button class="btn btn-ghost btn-sm" data-due="${b.id}" data-h="48">+48 jam</button>
+      ${A && b.status === 'menunggu' ? `<div class="actions" style="margin-top:10px"><button class="btn btn-ghost btn-sm" data-due="${b.id}" data-h="24">+24 jam batas bayar</button><button class="btn btn-ghost btn-sm" data-due="${b.id}" data-h="48">+48 jam</button>
+        <button class="btn btn-ghost btn-sm" data-dueat="${b.id}">Atur batas bayar…</button><button class="btn btn-ok btn-sm" data-markpaid="${b.id}">Tandai lunas manual</button>
         ${B.owner_phone ? `<a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${esc(waHref(B.owner_phone, ownerMsg(`Mengingatkan pembayaran ${b.code} sebesar ${fmtRp(Math.max(0, b.total - b.paid_verified))} ke BCA 1300030431533 a.n. Inda Sopia, paling lambat ${dt(b.due_at)}. Mohon unggah bukti transfer di portal. Terima kasih.`)))}">Ingatkan lewat WhatsApp</a>` : ''}</div>` : ''}</section>`;
     const people = [[B.owner_name, B.owner_phone, 'Pemilik']].concat((B.collaborators || []).map((c) => [c.name, c.phone, 'Kolaborator'])).filter((x) => x[0]);
     v.innerHTML = `<p><a href="#/massal">← Pendaftaran massal</a></p>
@@ -1451,7 +1588,6 @@
           <p class="small">Dibuat ${dt(B.created_at)} oleh ${esc(B.created_by || '')}${B.opened_at ? ` · dibuka ${dt(B.opened_at)}` : ''}</p>
           <p class="small"><b>Masa pengisian:</b> ${B.expires_at ? `${dt(B.expires_at)} (${esc(bulkLeft(B.expires_at))})` : 'dimulai saat kode pertama dibuka'}${B.extended_days ? `<br>Diperpanjang ${B.extended_days} hari oleh ${esc(B.extended_by || '')}` : ''}</p>
           ${M ? `<div class="actions" style="margin-top:10px">
-            ${B.opened_at && !B.extended_days ? '<button class="btn btn-ghost btn-sm" id="ext">Perpanjang</button>' : ''}
             <button class="btn btn-ghost btn-sm" id="newcode">Buat kode baru</button>
             ${B.status === 'aktif' ? '<button class="btn btn-bad btn-sm" id="revoke">Cabut kode</button>' : ''}
             <button class="btn btn-ghost btn-sm" id="bdel">Hapus</button></div>` : ''}
@@ -1463,8 +1599,24 @@
           <p>Atlet di lembar: <b>${B.rows}</b> · terkirim: <b>${B.rows_sent}</b></p>
           <p>Tagihan: <b>${fmtRp(B.billed)}</b> · terverifikasi: <b>${fmtRp(B.paid)}</b></p>
           ${B.to_verify ? `<p class="note warn small">${B.to_verify} bukti transfer menunggu verifikasi.</p>` : ''}${B.overdue ? `<p class="note bad small">${B.overdue} batch lewat batas bayar.</p>` : ''}
+          ${B.docs_incomplete ? `<p class="note warn small"><b>${B.docs_incomplete} atlet terkirim berkasnya belum lengkap.</b> ${B.files_open ? `Klub masih bisa mengunggah susulan sampai ${dt(B.files_open_until)}.` : 'Masa unggah berkas klub sudah tertutup; beri Perpanjangan berkas bila perlu.'} Setelah lengkap, tekan Kirim ulang AIC batch.</p>` : ''}
+          ${OQ.length ? `<p class="note warn small"><b>Melebihi kuota per klub (arahan TD):</b> ${OQ.map((q) => `${esc(q.category)} ${q.n}/${q.max}`).join(' · ')}. Diizinkan lewat pendaftaran massal; konfirmasi ke TD.</p>` : ''}
         </section>
       </div>
+      ${A ? `<section class="card" style="margin-top:16px"><h2>Kendali pendaftaran massal</h2>
+        <p class="small muted">Owner, superadmin, dan Inda. Semua perubahan masuk Riwayat dan Log.</p>
+        <div class="tbl-wrap"><table class="tbl"><tbody>
+          <tr><td>Masa pengisian</td><td class="small">${B.expires_at ? dt(B.expires_at) : 'belum dimulai'}${B.extended_days ? ` <span class="tiny muted">(diperpanjang ${B.extended_days}×/hari)</span>` : ''}<br><span class="tiny muted">paling lambat ${dt(B.deadline)} (batas pendaftaran)</span></td>
+            <td class="r"><button class="btn btn-ghost btn-sm" id="ext">+ hari</button> <button class="btn btn-ghost btn-sm" id="setexp">Atur tanggal…</button></td></tr>
+          <tr><td>Perpanjangan berkas</td><td class="small">${B.files_until ? `sampai ${dt(B.files_until)}` : 'tidak ada'}${B.files_open ? `<br><span class="pill ok">Unggah berkas terbuka sampai ${dt(B.files_open_until)}</span>` : '<br><span class="pill">Unggah berkas tertutup</span>'}<br><span class="tiny muted">khusus berkas atlet terkirim; paling lambat ${dt(B.event_start)} (kejuaraan dimulai)</span></td>
+            <td class="r"><button class="btn btn-ghost btn-sm" id="files">Atur…</button>${B.files_until ? ' <button class="btn btn-ghost btn-sm" id="filesoff">Tutup</button>' : ''}</td></tr>
+          <tr><td>Pemilik &amp; kolaborator</td><td class="small">${esc(B.owner_name || '–')}${(B.collaborators || []).length ? ' + ' + B.collaborators.map((c) => esc(c.name)).join(', ') : ''}</td>
+            <td class="r"><button class="btn btn-ghost btn-sm" id="people">Ubah…</button></td></tr>
+          <tr><td>Pengaturan kode</td><td class="small">batch pertama min. <b>${B.cfg.min}</b> atlet · maks. <b>${B.cfg.max}</b> baris · batas bayar <b>${B.cfg.pay_hours}</b> jam${Object.keys(B.settings || {}).length ? ' <span class="tiny muted">(khusus kode ini)</span>' : ' <span class="tiny muted">(bawaan)</span>'}</td>
+            <td class="r"><button class="btn btn-ghost btn-sm" id="cfg">Ubah…</button></td></tr>
+          <tr><td>Lembar atlet</td><td class="small">Tambah atau ubah baris draf atas nama klub; berkas atlet terkirim diunggah lewat tombol Berkas.</td>
+            <td class="r"><button class="btn btn-ghost btn-sm" id="addrow">+ Tambah baris</button></td></tr>
+        </tbody></table></div></section>` : ''}
       <h2 style="margin-top:20px">Batch</h2>
       ${B.batch_list.length ? B.batch_list.slice().reverse().map(batch).join('') : '<p class="small muted">Belum ada batch yang dikirim.</p>'}
       <h2 style="margin-top:20px">Lembar atlet (${B.sheet.length})</h2>
@@ -1477,7 +1629,7 @@
         <td class="small">${esc(x.person || '')}${x.by_club ? ' <span class="tiny muted">(klub)</span>' : ''}</td>
         <td class="r num small">${x.amount ? fmtRp(x.amount) : '–'}${x.refund ? `<br><span class="tiny" style="color:var(--bad)">kembalikan ${fmtRp(x.refund)}</span>` : ''}</td>
         <td class="small">${x.restored_at ? `<span class="pill ok">Dipulihkan</span><br><span class="tiny muted">${dt(x.restored_at)} · ${esc(x.restored_by || '')}</span>` : x.purged_at ? `<span class="pill">Dihapus permanen</span><br><span class="tiny muted">${dt(x.purged_at)} · ${esc(x.purged_by || '')}</span>` : '<span class="pill warn">Bisa dipulihkan</span>'}</td>
-        ${isSuper() ? `<td class="r" style="white-space:nowrap">${!x.restored_at && !x.purged_at ? `<button class="btn btn-ghost btn-sm" data-restore="${x.id}">Pulihkan</button> <button class="btn btn-ghost btn-sm" data-purge="${x.id}">Hapus permanen</button>` : ''}</td>` : ''}</tr>`).join('')}
+        ${isSuper() ? `<td class="r" style="white-space:nowrap">${!x.restored_at && !x.purged_at && /^Dibuka kembali/.test(x.reason || '') ? '<span class="tiny muted">dibuka kembali sebagai draf</span>' : ''}${!x.restored_at && !x.purged_at && !/^Dibuka kembali/.test(x.reason || '') ? `<button class="btn btn-ghost btn-sm" data-restore="${x.id}">Pulihkan</button> <button class="btn btn-ghost btn-sm" data-purge="${x.id}">Hapus permanen</button>` : ''}</td>` : ''}</tr>`).join('')}
       </tbody></table></div>` : ''}
       <h2 style="margin-top:20px">Riwayat</h2>
       <div class="card small">${B.log.map((l) => `<div style="padding:5px 0;border-bottom:1px solid var(--line)">${dt(l.at)} · <b>${esc(l.person || 'Sistem')}</b> · ${esc(l.action.replace(/_/g, ' '))}${l.detail && (l.detail.code || l.detail.amount || l.detail.days) ? ' · ' + esc([l.detail.code, l.detail.amount ? fmtRp(l.detail.amount) : '', l.detail.days ? l.detail.days + ' hari' : '', l.detail.note || ''].filter(Boolean).join(' · ')) : ''}</div>`).join('') || '<p class="muted">Belum ada.</p>'}</div>`;
@@ -1560,10 +1712,11 @@
     const ext = v.querySelector('#ext');
     if (ext) ext.onclick = async () => {
       const r = await dialog({ title: 'Perpanjang masa pengisian', ok: 'Perpanjang',
-        body: `<p>Hanya bisa sekali, 1 sampai 3 hari, dan tidak melewati batas pendaftaran.</p><div class="field"><label class="f" for="dd">Tambahan</label><select id="dd"><option value="1">1 hari</option><option value="2">2 hari</option><option value="3">3 hari</option></select></div>`,
+        body: `<p>Tambah 1 sampai 30 hari (bisa berulang), tidak melewati batas pendaftaran ${dt(B.deadline)}.</p><div class="field"><label class="f" for="dd">Tambahan (hari)</label><input id="dd" type="number" min="1" max="30" value="3"></div>`,
         onOk: (d) => api('console_bulk_extend', { p_id: id, p_days: Number(d.querySelector('#dd').value) }) });
       if (r) { JO.toast('Diperpanjang sampai ' + dt(r.expires_at) + '.'); reload(); }
     };
+    bulkAdminBind(v, B, id, reload);
     const nc = v.querySelector('#newcode');
     if (nc) nc.onclick = async () => {
       const r = await dialog({ title: 'Buat kode baru', ok: 'Buat kode baru', okClass: 'btn-bad', body: '<p>Kode lama langsung tidak berlaku. Lembar dan data atlet tetap utuh. Kirim kode baru ke pemilik klub.</p>',
@@ -1678,7 +1831,7 @@
       <div class="bar">${discSelect('ad', '')}
         <div class="field" style="min-width:220px;max-width:340px"><label class="f" for="ac">Kategori</label><select id="ac">${catOpts()}</select></div>
         <div class="field"><label class="f" for="as">Pembayaran</label><select id="as"><option value="">Semua</option>${Object.entries(ST).filter(([k]) => k !== 'dibatalkan').map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></div>
-        <div class="field"><label class="f" for="af">Periksa</label><select id="af"><option value="">Semua</option><option value="aturan">Tidak sesuai aturan kategori</option></select></div>
+        <div class="field"><label class="f" for="af">Periksa</label><select id="af"><option value="">Semua</option><option value="aturan">Tidak sesuai aturan kategori</option><option value="berkas">Berkas belum lengkap</option></select></div>
         <div class="field" style="flex:1;min-width:200px"><label class="f" for="aq">Cari</label><input id="aq" type="search" placeholder="Nama, nomor atlet, klub, kota"></div>
         <button class="btn btn-dark" id="ax" type="button">Unduh Excel</button>
         ${myDiscs().some((d) => d === 'MAG' || d === 'WAG') ? '<button class="btn btn-ghost" id="anom" type="button">Nominative Form</button>' : ''}</div><div id="list"></div>`;
@@ -1690,6 +1843,7 @@
       const kv = (k, v) => (v ? `<div><span>${esc(k)}</span><b>${v}</b></div>` : '');
       const det = (r) => `<div class="ath-det">
           ${r.rule_issue ? `<div style="grid-column:1/-1"><span>Tidak sesuai aturan</span><b>${esc(r.rule_issue)}</b></div>` : ''}
+          ${r.docs_missing ? `<div style="grid-column:1/-1"><span>Berkas belum lengkap</span><b>${esc(r.docs_missing)}</b></div>` : ''}
           ${kv('Tanggal lahir', esc(r.birth_date) + ` (usia ${r.age})`)}
           ${kv('Kewarganegaraan', esc(r.nationality === 'WNA' ? 'WNA · ' + (r.country || '') : 'WNI'))}
           ${r.nationality === 'WNI' ? kv('Alamat (KTP)', esc([r.kab_kota, r.province].filter(Boolean).join(', '))) : ''}
@@ -1704,7 +1858,7 @@
         ${rows.map((r) => `<tr class="click" data-row="${r.id}"><td class="tg" aria-hidden="true">${icon('chev')}</td><td><span class="bib">${esc(r.athlete_no)}</span></td>
           <td><b class="nm">${esc(r.full_name)}</b><span class="sub">${r.gender === 'M' ? 'L' : 'P'} · ${r.age} th${r.nationality === 'WNA' ? ' · WNA' : ''}</span></td>
           <td>${esc(r.club)}<span class="sub">${esc(r.nationality === 'WNA' ? r.country : r.kab_kota || '')}</span></td>
-          <td class="catc">${esc(r.categories || '')}${r.rule_issue ? `<br><span class="pill warn" title="${esc(r.rule_issue)}">Tidak sesuai aturan</span>` : ''}</td>
+          <td class="catc">${esc(r.categories || '')}${r.rule_issue ? `<br><span class="pill warn" title="${esc(r.rule_issue)}">Tidak sesuai aturan</span>` : ''}${r.docs_missing ? `<br><span class="pill warn" title="Belum diunggah: ${esc(r.docs_missing)}">Berkas belum lengkap</span>` : ''}</td>
           <td>${pill(r.payment_status)}</td><td class="nowrap">${esc(r.doc_status)}${r.nationality === 'WNI' && !r.has_bpjs ? ' <span class="pill warn" title="Tanpa BPJS Ketenagakerjaan">BPJS</span>' : ''}${r.aic_update_pending ? ' <span class="pill info" data-aicp title="AIC sudah diperbarui, belum dikirim ulang">AIC baru</span>' : ''}</td>
           <td class="r">${rowMenu('', [{ label: 'Buka pendaftaran', attr: `data-open="${r.submission_id}"` }, { label: 'Cek kelayakan', attr: `data-chk="${r.id}"` }].concat(isSuper() ? [{ sep: true }, { label: 'Hapus atlet', attr: `data-delath="${r.id}"`, danger: true }] : []))}</td></tr>
           <tr class="det-row" data-det="${r.id}" hidden><td></td><td colspan="7">${det(r)}<h3 class="fp-title">Berkas</h3><div data-fp="${r.id}"></div></td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">Tidak ada atlet yang cocok.</p>';
@@ -1744,7 +1898,7 @@
     let tm; v.querySelector('#aq').oninput = (e) => { clearTimeout(tm); tm = setTimeout(() => { f.q = e.target.value.trim(); load(); }, 300); };
     v.querySelector('#ax').onclick = () => exportXlsx(`atlet-jabar-open-2026-${new Date().toISOString().slice(0, 10)}.xlsx`, rows, [
       ['athlete_no', 'No. atlet'], ['full_name', 'Nama lengkap'], ['gender', 'L/P', (r) => (r.gender === 'M' ? 'L' : 'P')], ['birth_date', 'Tanggal lahir'], ['age', 'Usia 2026'],
-      ['discipline', 'Disiplin', (r) => DN[r.discipline]], ['categories', 'Kategori'], ['rule_issue', 'Tidak sesuai aturan'], ['club', 'Klub'], ['club_kab_kota', 'Kab/kota klub'],
+      ['discipline', 'Disiplin', (r) => DN[r.discipline]], ['categories', 'Kategori'], ['rule_issue', 'Tidak sesuai aturan'], ['docs_missing', 'Berkas belum lengkap'], ['club', 'Klub'], ['club_kab_kota', 'Kab/kota klub'],
       ['nationality', 'WNI/WNA'], ['country', 'Negara'], ['province', 'Provinsi (KTP)'], ['kab_kota', 'Kab/kota (KTP)'],
       ['submission_code', 'Kode pendaftaran'], ['payment_status', 'Status bayar', (r) => ST[r.payment_status]], ['doc_status', 'Dokumen'],
       ['has_bpjs', 'BPJS TK diunggah', (r) => (r.nationality === 'WNA' ? '-' : r.has_bpjs ? 'Ya' : 'Belum (bawa ke venue)')],

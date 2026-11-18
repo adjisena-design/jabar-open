@@ -10,6 +10,7 @@
   const app = document.getElementById('app');
 
   let CFG = null, INFO = null, CODE = '', PERSON = '', ACC = null, BATCHES = [], LOG = [], LAST_SYNC = null;
+  const FILES = new Map();       // no -> Set(jenis dokumen) berkas susulan baris terkirim yang belum disimpan
   const ROWS = new Map();        // no -> { no, data, has_photo, batch_id, updated_by, updated_at, saved }
   const DIRTY = new Set();
   const THUMB = new Map();       // no -> data URL pas foto yang belum tersimpan
@@ -32,7 +33,9 @@
   const discName = (code) => { const d = CFG.disciplines.find((x) => x.code === code); return d ? d.name_id : code; };
   const appName = (disc, code) => { const d = CFG.disciplines.find((x) => x.code === disc); const a = d && (d.apparatus || []).find((x) => x.code === code); return a ? a.id : code; };
   const teamLevels = (disc) => ((CFG.registration.team_levels || {})[disc] || []);
-  const minAth = () => INFO.min || 30, maxAth = () => INFO.max || 250;
+  const minAth = () => (ACC && ACC.min) || INFO.min || 30, maxAth = () => (ACC && ACC.max) || INFO.max || 250;
+  const payHours = () => (ACC && ACC.pay_hours) || 48;
+  const payText = () => payHours() % 24 === 0 ? `${payHours() / 24}×24 jam` : `${payHours()} jam`;
   function fmtDT(d) {
     if (!d) return '';
     return new Date(d).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' WIB';
@@ -108,18 +111,18 @@
       .some((k) => String(d[k] || '').trim()) && !Object.keys(d.docs || {}).length);
   }
   function validateAll() {
-    const all = [...ROWS.values()].filter((r) => !rowEmpty(r.data));
+    const all = [...ROWS.values()].filter((r) => !rowEmpty(r.data)).sort((a, b) => a.no - b.no);
     const dup = new Map(), catCount = new Map(), teamCount = new Map();
     all.forEach((r) => {
       const d = r.data;
       if (d.full_name && d.birth_date) { const k = JO.nameCase(d.full_name).toLowerCase() + '|' + d.birth_date; dup.set(k, (dup.get(k) || []).concat(r.no)); }
-      if (!d.team_only && d.category_id) catCount.set(String(d.category_id), (catCount.get(String(d.category_id)) || 0) + 1);
+      if (!d.team_only && d.category_id) { catCount.set(String(d.category_id), (catCount.get(String(d.category_id)) || 0) + 1); r._rank = catCount.get(String(d.category_id)); } else r._rank = 0;
       if (d.discipline === 'WAG' && (d.team_name || '').trim()) {
         const lvl = d.team_only ? d.team_level : (catById(d.category_id) || {}).level;
         const k = (lvl || '') + '|' + d.team_name.trim().toLowerCase(); teamCount.set(k, (teamCount.get(k) || 0) + 1);
       }
     });
-    for (const r of ROWS.values()) r._E = rowErrors(r, dup, catCount, teamCount);
+    for (const r of ROWS.values()) { r._E = r.batch_id ? {} : rowErrors(r, dup, catCount, teamCount); r._W = rowWarn(r, catCount); }
   }
   function rowErrors(r, dup, catCount, teamCount) {
     const d = r.data || {}, E = {};
@@ -145,7 +148,6 @@
         const m = mism(c, d.gender, d.birth_date);
         if (m) { E.category = 'Kategori ini ' + m; if (/kelahiran/.test(m)) E.birth_date = 'Tidak sesuai kategori yang dipilih'; }
         else if (c.jabar_only && !priOk(d)) E.category = 'Priangan: ' + (CFG.registration.priangan_desc || 'syarat khusus daerah tidak terpenuhi');
-        else if (c.max_per_club && (catCount.get(String(c.id)) || 0) > c.max_per_club) E.category = `Maksimal ${c.max_per_club} atlet per klub di kategori ini`;
         if (d.discipline === 'RG') (c.apparatus || []).forEach((a, i) => {
           if (!DRIVE.test(((d.music || [])[i] || '').trim())) E['music' + (i + 1)] = `Tautan Google Drive musik ${appName('RG', a)} (https://drive.google.com/...)`;
         });
@@ -173,15 +175,27 @@
       if (digits(d.g_phone).length < 9) E.g_phone = 'Isi WhatsApp orang tua/wali (min. 9 angka)';
       if (!EMAIL.test(cleanEmail(d.g_email))) E.g_email = 'Email orang tua/wali belum valid';
     }
-    const docs = d.docs || {};
-    const miss = docReq(d).filter((k) => !docs[k]);
-    if (miss.length) E.docs = 'Unggah ' + miss.map((k) => ({ akte: 'Akte Kelahiran', passport: 'paspor', photo: 'pas foto', ktp: 'KTP', ijazah: 'Ijazah', bpjs: 'BPJS' })[k]).join(', ');
     if (d.full_name && d.birth_date) {
       const same = dup.get(JO.nameCase(d.full_name).toLowerCase() + '|' + d.birth_date) || [];
       if (same.length > 1) E.full_name = 'Atlet yang sama juga ada di baris ' + same.filter((n) => n !== r.no).map(pad3).join(', ');
     }
     return E;
   }
+  // peringatan yang tidak menghalangi pengiriman (revisi 18 Nov 2026):
+  // berkas boleh menyusul, dan kuota per klub (arahan TD) boleh dilampaui lewat pendaftaran massal; keduanya ditandai di konsol panitia
+  const DOC_LBL = { akte: 'Akte Kelahiran', passport: 'paspor', photo: 'pas foto', ktp: 'KTP', ijazah: 'Ijazah', bpjs: 'BPJS' };
+  function rowWarn(r, catCount) {
+    const d = (r && r.data) || {}, W = {};
+    if (rowEmpty(d)) return W;
+    const docs = d.docs || {};
+    const miss = docReq(d).filter((k) => !docs[k]);
+    if (miss.length) W.docs = 'Berkas belum lengkap: ' + miss.map((k) => DOC_LBL[k]).join(', ') + (r.batch_id ? '. Unggah susulan di sini.' : '. Boleh dikirim dulu, unggah susulan setelahnya.');
+    const c = !d.team_only && catById(d.category_id);
+    if (c && c.max_per_club && (r._rank || 0) > c.max_per_club)
+      W.category = `Atlet ke-${r._rank} di kategori ini; kuota ${c.max_per_club} atlet per klub (arahan TD). Tetap bisa dikirim lewat pendaftaran massal; panitia akan meninjau.`;
+    return W;
+  }
+  const docsOpen = (r) => (r && r.batch_id ? !!ACC.files_open : !ACC.locked);
   function rowState(r) {
     if (!r || rowEmpty(r.data)) return 'empty';
     if (r.batch_id) return 'sent';
@@ -228,9 +242,15 @@
     saving = true; setSaveLabel();
     const nos = [...DIRTY].slice(0, 50);
     nos.forEach((n) => DIRTY.delete(n));
-    const payload = [], sentThumb = [];
+    const payload = [], sentThumb = [], files = [];
     nos.forEach((no) => {
       const r = ROWS.get(no);
+      if (r && r.batch_id) {
+        const ks = FILES.get(no); if (!ks || !ks.size) return;
+        const o = { row_no: no, docs: {} }; ks.forEach((k) => { if (r.data.docs[k]) o.docs[k] = r.data.docs[k]; });
+        if (ks.has('photo') && THUMB.has(no)) { o.photo_thumb = THUMB.get(no); sentThumb.push(no); }
+        files.push(o); return;
+      }
       if (!r || rowEmpty(r.data)) { if (r && r.saved) payload.push({ row_no: no, delete: true }); return; }
       const o = { row_no: no, data: cleanData(r.data) };
       if (THUMB.has(no)) { o.photo_thumb = THUMB.get(no); sentThumb.push(no); }
@@ -244,12 +264,18 @@
           const r = ROWS.get(p.row_no); if (!r) return;
           if (p.delete) { r.saved = false; } else { r.saved = true; r.updated_by = res.by; r.updated_at = res.at; }
         });
-        sentThumb.forEach((n) => THUMB.delete(n));
       }
+      if (files.length) {
+        const res = await rpc('public_bulk_files', { p_code: CODE, p_person: PERSON, p_rows: files });
+        lastSaved = res.at;
+        files.forEach((p) => { FILES.delete(p.row_no); const r = ROWS.get(p.row_no); if (r) { r.updated_by = res.by; r.updated_at = res.at; } });
+      }
+      sentThumb.forEach((n) => THUMB.delete(n));
       saveErr = '';
     } catch (e) {
       nos.forEach((n) => DIRTY.add(n));
       saveErr = errMsg(e);
+      if (e.hint === 'ERR_BULK_FILES_CLOSED') { nos.forEach((n) => { if ((ROWS.get(n) || {}).batch_id) DIRTY.delete(n); }); JO.toast(errMsg(e), 'bad'); saving = false; setSaveLabel(); return reloadAll(); }
       if (e.hint === 'ERR_BULK_EXPIRED' || e.hint === 'ERR_BULK_CODE' || e.hint === 'ERR_CLOSED') { saving = false; setSaveLabel(); return reloadAll(); }
     } finally {
       saving = false;
@@ -284,7 +310,7 @@
     try {
       const res = await rpc('public_bulk_sheet', { p_code: CODE, p_person: PERSON, p_since: null });
       ACC = res.account; BATCHES = res.batches; LOG = res.log; LAST_SYNC = res.now;
-      ROWS.clear();
+      ROWS.clear(); FILES.clear();
       (res.rows || []).forEach((x) => ROWS.set(x.row_no, { no: x.row_no, data: x.data || {}, has_photo: x.has_photo, batch_id: x.batch_id, updated_by: x.updated_by, updated_at: x.updated_at, saved: true }));
       validateAll();
       drawMain();
@@ -526,7 +552,8 @@
       if (FILTER === 'bad' && st !== 'bad') return false;
       if (FILTER === 'ok' && st !== 'ok') return false;
       if (FILTER === 'sent' && st !== 'sent') return false;
-      if (FILTER === 'docs' && !(r && r._E && r._E.docs)) return false;
+      if (FILTER === 'docs' && !(r && r._W && r._W.docs)) return false;
+      if (FILTER === 'quota' && !(r && r._W && r._W.category)) return false;
       if (Q) { const d = (r && r.data) || {}; if (!((d.full_name || '') + ' ' + pad3(no)).toLowerCase().includes(Q)) return false; }
       return true;
     });
@@ -534,8 +561,14 @@
   function drawSheet() {
     const body = document.getElementById('ms-body');
     const locked = ACC.locked;
-    body.innerHTML = `${locked ? '<p class="note warn">Masa pengisian sudah berakhir. Lembar hanya bisa dilihat. Batch yang sudah dikirim tetap bisa dibayar di tab Batch &amp; pembayaran.</p>' : ''}
-      ${locked ? '' : `<div class="ms-tools">
+    const sentMiss = [...ROWS.values()].filter((r) => r.batch_id && r._W && r._W.docs).length;
+    const filesNote = sentMiss ? (ACC.files_open
+      ? `<p class="note warn"><b>${sentMiss} atlet terkirim berkasnya belum lengkap.</b> Unggah susulan lewat tombol dokumen di baris masing-masing atau <i>Unggah dokumen sekaligus</i>, paling lambat <b>${esc(fmtDT(ACC.files_until))}</b>. AIC diperbarui otomatis setelah berkas lengkap.</p>`
+      : `<p class="note bad"><b>${sentMiss} atlet terkirim berkasnya belum lengkap</b> dan masa unggah berkas sudah berakhir. <a target="_blank" rel="noopener" href="${esc(waLink(`Halo Kak Inda, saya ${personName()} dari ${clubName()} (Pendaftaran Massal ${ACC.code_label}). Berkas ${sentMiss} atlet kami belum lengkap. Mohon perpanjangan berkas. Terima kasih.`))}">Minta perpanjangan berkas ke Inda</a>.</p>`) : '';
+    body.innerHTML = `${locked ? `<p class="note warn">Masa pengisian sudah berakhir. Data atlet hanya bisa dilihat. Batch yang sudah dikirim tetap bisa dibayar di tab Batch &amp; pembayaran.</p>` : ''}${filesNote}
+      ${locked ? (ACC.files_open && sentMiss ? `<div class="ms-tools"><div class="ms-grp"><span class="ms-lbl">Berkas susulan</span><div class="ms-btns">
+          <button class="btn btn-primary btn-sm" id="ms-docs">Unggah dokumen sekaligus</button>
+          <button class="btn btn-ghost btn-sm" id="ms-save-now">Simpan sekarang</button><span class="ms-save" data-save></span></div></div></div>` : '') : `<div class="ms-tools">
         <div class="ms-grp"><span class="ms-lbl">1. Isi data</span><div class="ms-btns">
           <button class="btn btn-primary btn-sm" id="ms-paste">Tempel dari Excel</button>
           <button class="btn btn-ghost btn-sm" id="ms-xlsx">Unggah file Excel</button>
@@ -558,6 +591,10 @@
       <p class="small muted" style="margin-top:8px">Kolom orang tua/wali wajib untuk atlet di bawah ${guardAge()} tahun. Nama file dokumen untuk unggah sekaligus: <code>012-akte.pdf</code>, <code>012-foto.jpg</code>, <code>012-ktp.jpg</code>, <code>012-bpjs.pdf</code>, <code>012-paspor.pdf</code>, <code>012-ijazah.pdf</code> (012 = nomor baris).</p>`;
     const q = body.querySelector('#ms-q');
     q.oninput = () => { Q = q.value.trim().toLowerCase(); drawRows(); };
+    if (locked && body.querySelector('#ms-docs')) {
+      body.querySelector('#ms-docs').onclick = bulkDocs;
+      body.querySelector('#ms-save-now').onclick = () => flush();
+    }
     if (!locked) {
       body.querySelector('#ms-more').onclick = () => { EXTRA_ROWS += 10; drawRows(); };
       body.querySelector('#ms-paste').onclick = pasteBox;
@@ -580,15 +617,16 @@
   }
   function drawSummary() {
     const el = document.getElementById('ms-sum'); if (!el) return;
-    let n = 0, ok = 0, bad = 0, sent = 0, docs = 0;
+    let n = 0, ok = 0, bad = 0, sent = 0, docs = 0, quota = 0;
     for (const r of ROWS.values()) {
       const st = rowState(r); if (st === 'empty') continue;
       n++; if (st === 'ok') ok++; if (st === 'bad') bad++; if (st === 'sent') sent++;
-      if (st !== 'sent' && r._E && r._E.docs) docs++;
+      if (r._W && r._W.docs) docs++;
+      if (r._W && r._W.category) quota++;
     }
     const chip = (k, label, v, cls) => `<button class="ms-chip ${cls || ''}" data-f="${k}" aria-pressed="${FILTER === k}">${label} <b>${v}</b></button>`;
     el.innerHTML = chip('all', 'Semua atlet', `${n} / ${maxAth()}`) + chip('ok', 'Siap kirim', ok) + chip('bad', 'Perlu dilengkapi', bad, bad ? 'bad' : '')
-      + chip('docs', 'Dokumen belum lengkap', docs, docs ? 'bad' : '') + chip('sent', 'Sudah dikirim', sent);
+      + chip('docs', 'Berkas belum lengkap', docs, docs ? 'warn' : '') + (quota ? chip('quota', 'Melebihi kuota klub', quota, 'warn') : '') + chip('sent', 'Sudah dikirim', sent);
     el.querySelectorAll('[data-f]').forEach((b) => b.onclick = () => { FILTER = b.dataset.f; drawSummary(); drawRows(); });
   }
   function updSel() {
@@ -628,11 +666,12 @@
     document.querySelectorAll('#ms-sheet tr[data-row]').forEach((tr) => {
       const r = ROWS.get(Number(tr.dataset.row)); const E = (r && r._E) || {};
       tr.querySelectorAll('td[data-c]').forEach((td) => {
-        const msg = E[td.dataset.c] || '';
-        td.classList.toggle('bad-cell', !!msg);
+        const msg = E[td.dataset.c] || ''; const wmsg = !msg && r && r._W ? r._W[td.dataset.c] || '' : '';
+        td.classList.toggle('bad-cell', !!msg); td.classList.toggle('warn-cell', !!wmsg);
         const no = Number(tr.dataset.row); let box = td.querySelector('.ms-err');
         if (!box) { box = document.createElement('div'); box.className = 'ms-err'; td.appendChild(box); }
-        const h = errHtml(td.dataset.c, msg, no); if (box.innerHTML !== h) box.innerHTML = h;
+        box.classList.toggle('ms-warn', !!wmsg);
+        const h = msg ? errHtml(td.dataset.c, msg, no) : esc(wmsg); if (box.innerHTML !== h) box.innerHTML = h;
       });
       const st = tr.querySelector('.ms-st'); if (st) st.innerHTML = statusHtml(r, Number(tr.dataset.row));
       const cb = tr.querySelector('[data-sel]'); if (cb) cb.disabled = rowState(r) !== 'ok';
@@ -646,8 +685,10 @@
     if (st === 'empty') return '';
     if (st === 'sent') { const b = BATCHES.find((x) => x.id === r.batch_id);
       const wd = b && b.free && !ACC.locked ? ` <button class="ms-del" data-wd="${no}" title="Tarik atlet dari batch ${esc(b.code)}">Tarik</button>` : '';
-      return `<span class="lk">Terkirim${b ? ' · ' + esc(b.code.split('-').pop()) : ''}</span>${wd}${by}`; }
-    if (st === 'ok') return `<span class="ok">Siap</span> ${del}${by}`;
+      const wf = r._W && r._W.docs ? ' <span class="wr">Berkas belum lengkap</span>' : '';
+      return `<span class="lk">Terkirim${b ? ' · ' + esc(b.code.split('-').pop()) : ''}</span>${wf}${wd}${by}`; }
+    if (st === 'ok') { const w = Object.values(r._W || {}).length;
+      return `<span class="ok">Siap</span>${w ? ` <span class="wr" title="${esc(Object.values(r._W).join('\n'))}">${r._W.docs ? 'berkas menyusul' : 'melebihi kuota'}</span>` : ''} ${del}${by}`; }
     const list = Object.values(r._E);
     return `<span class="bad" title="${esc(list.join('\n'))}">${list.length} perlu dilengkapi</span> ${del}${by}`;
   }
@@ -657,7 +698,10 @@
     const lock = !!r.batch_id || ACC.locked;
     const dis = lock ? 'disabled' : '';
     const st = rowState(r);
-    const td = (c, inner, cls) => `<td data-c="${c}" class="${cls || ''} ${E[c] ? 'bad-cell' : ''}">${inner}<div class="ms-err">${errHtml(c, E[c], no)}</div></td>`;
+    const W = r._W || {};
+    const td = (c, inner, cls) => { const w = !E[c] && W[c];
+      return `<td data-c="${c}" class="${cls || ''} ${E[c] ? 'bad-cell' : w ? 'warn-cell' : ''}">${inner}<div class="ms-err ${w ? 'ms-warn' : ''}">${E[c] ? errHtml(c, E[c], no) : esc(w || '')}</div></td>`; };
+    const dlock = !docsOpen(r);
     const inp = (k, v, extra) => `<input data-row-no="${no}" data-k="${k}" value="${esc(v == null ? '' : v)}" ${dis} ${extra || ''}>`;
     const sel = (k, opts, v, extra) => `<select data-k="${k}" ${dis} ${extra || ''}>${opts.map(([val, lab]) => `<option value="${esc(val)}" ${String(val) === String(v == null ? '' : v) ? 'selected' : ''}>${esc(lab)}</option>`).join('')}</select>`;
     const wna = d.nationality === 'WNA';
@@ -685,7 +729,7 @@
     const req = docReq(d);
     const docs = keys.map((k) => {
       const has = d.docs && d.docs[k];
-      return `<button type="button" class="ms-doc ${has ? 'has' : req.includes(k) ? 'req' : ''}" data-doc="${k}" ${lock ? 'disabled' : ''} title="${has ? esc(has.name || 'Terunggah') : 'Unggah ' + DOCS[k]}">${has ? '✓ ' : ''}${DOCS[k]}${req.includes(k) && !has ? '*' : ''}</button>`;
+      return `<button type="button" class="ms-doc ${has ? 'has' : req.includes(k) ? 'req' : ''}" data-doc="${k}" ${dlock ? 'disabled' : ''} title="${has ? esc(has.name || 'Terunggah') : 'Unggah ' + DOCS[k]}">${has ? '✓ ' : ''}${DOCS[k]}${req.includes(k) && !has ? '*' : ''}</button>`;
     }).join('');
     return `<tr data-row="${no}" class="${lock && r.batch_id ? 'locked' : ''} ${st === 'empty' ? 'empty-row' : ''}">
       <td class="stk c-sel"><input type="checkbox" data-sel="${no}" ${SEL.has(no) ? 'checked' : ''} ${st === 'ok' && !ACC.locked ? '' : 'disabled'} aria-label="Pilih baris ${no}"></td>
@@ -777,7 +821,9 @@
     if (doc && !doc.disabled) {
       const no = Number(doc.closest('tr').dataset.row); const k = doc.dataset.doc;
       const r = ensureRow(no);
-      if (r.data.docs[k]) {
+      if (r.data.docs[k] && r.batch_id) {
+        if (!confirm(`${DOCS[k]} baris ${pad3(no)} sudah diunggah (${r.data.docs[k].name || 'berkas'}). Ganti dengan berkas baru? Panitia akan memeriksa ulang.`)) return;
+      } else if (r.data.docs[k]) {
         const ans = prompt(`${DOCS[k]} baris ${pad3(no)} sudah diunggah (${r.data.docs[k].name || 'berkas'}).\nKetik GANTI untuk mengunggah ulang atau HAPUS untuk menghapus.`, 'GANTI');
         if (!ans) return;
         if (ans.trim().toUpperCase() === 'HAPUS') {
@@ -799,6 +845,7 @@
       const r = ensureRow(no);
       if (k === 'photo') { THUMB.set(no, await JO.photoThumb(file)); r.has_photo = true; }
       r.data.docs[k] = { path: up.path, name: file.name };
+      if (r.batch_id) { if (!FILES.has(no)) FILES.set(no, new Set()); FILES.get(no).add(k); }
       markDirty(no); validateAll(); redrawRow(no); refreshStates();
       return true;
     } catch (e) { JO.toast(`Baris ${pad3(no)} ${DOCS[k]}: ${errMsg(e)}`, 'bad'); if (btn) btn.classList.remove('busy'); return false; }
@@ -1017,13 +1064,14 @@
         const r = no && ROWS.get(no);
         if (!no || !k) why = 'Nama berkas tidak dikenali';
         else if (no > maxAth()) why = 'Nomor baris di luar batas';
-        else if (r && r.batch_id) why = 'Baris sudah dikirim';
+        else if (r && r.batch_id && !ACC.files_open) why = 'Baris sudah dikirim; masa unggah berkas berakhir';
+        else if (r && !r.batch_id && ACC.locked) why = 'Masa pengisian berakhir';
         else if (r && !docKeys(r.data).includes(k)) why = 'Dokumen ini tidak diminta untuk atlet ' + (r.data.nationality === 'WNA' ? 'WNA' : 'WNI');
         return { f, no, k, why };
       });
       const ok = items.filter((x) => !x.why);
       res.innerHTML = `<p class="small" style="margin:10px 0 0"><b>${ok.length}</b> berkas siap diunggah${items.length - ok.length ? `, <b style="color:var(--bad)">${items.length - ok.length}</b> dilewati` : ''}.</p>
-        <div class="ms-list">${items.map((x) => `<div><span>${esc(x.f.name)}</span><span class="${x.why ? 'muted' : ''}">${x.why ? esc(x.why) : `Baris ${pad3(x.no)} · ${DOCS[x.k]}${ROWS.get(x.no) && ROWS.get(x.no).data.docs && ROWS.get(x.no).data.docs[x.k] ? ' (mengganti)' : ''}`}</span></div>`).join('')}</div>
+        <div class="ms-list">${items.map((x) => `<div><span>${esc(x.f.name)}</span><span class="${x.why ? 'muted' : ''}">${x.why ? esc(x.why) : `Baris ${pad3(x.no)} · ${DOCS[x.k]}${ROWS.get(x.no) && ROWS.get(x.no).batch_id ? ' (susulan)' : ''}${ROWS.get(x.no) && ROWS.get(x.no).data.docs && ROWS.get(x.no).data.docs[x.k] ? ' (mengganti)' : ''}`}</span></div>`).join('')}</div>
         <div class="ms-prog"><i id="bar"></i></div>`;
       go.disabled = !ok.length;
     }
@@ -1096,7 +1144,7 @@
       </div>
       <div id="amts"></div>
       <div class="ms-bank" style="margin-top:14px"><span>Transfer ke <b>${esc(bank.bank)}</b></span><b class="num">${esc(bank.number)}</b><span>a.n. <b>${esc(bank.name)}</b> (${esc(bank.title)})</span></div>
-      <label class="check" style="margin-top:14px;align-items:flex-start"><input type="checkbox" id="agree"> <span>Saya akan mentransfer <b>${fmtRp(calc.total)}</b> ke ${esc(bank.bank)} ${esc(bank.number)} a.n. ${esc(bank.name)} <b>dalam 2×24 jam</b> setelah batch dikirim, dan mengunggah setiap bukti transfer di portal ini. Data ${nos.length} atlet ini terkunci setelah dikirim.</span></label>
+      <label class="check" style="margin-top:14px;align-items:flex-start"><input type="checkbox" id="agree"> <span>Saya akan mentransfer <b>${fmtRp(calc.total)}</b> ke ${esc(bank.bank)} ${esc(bank.number)} a.n. ${esc(bank.name)} <b>dalam ${payText()}</b> setelah batch dikirim, dan mengunggah setiap bukti transfer di portal ini. Data ${nos.length} atlet ini terkunci setelah dikirim.${(() => { const w = nos.filter((n) => (ROWS.get(n)._W || {}).docs).length; return w ? ` <b>${w} atlet berkasnya belum lengkap</b>; berkas wajib diunggah susulan${ACC.files_until ? ' paling lambat ' + esc(fmtDT(ACC.files_until)) : ''}. AIC tetap terbit dengan tanda berkas belum lengkap.` : ''; })()}</span></label>
       <div id="b-err"></div>
       <div class="acts" id="acts"><button class="btn btn-ghost" id="no">Batal</button><button class="btn btn-dark" id="next" disabled>Kirim batch</button></div>`, true);
     let amounts = [calc.total];

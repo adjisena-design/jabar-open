@@ -12,6 +12,7 @@
     v_cert_wait: ['Kode sertifikat dikenal, tetapi hasil kategorinya belum dipublikasikan', 'Known certificate code, but results for its category are not published yet'],
     v_none: ['Kode tidak dikenal. Periksa kembali penulisannya. Jika kode berasal dari dokumen resmi, hubungi panitia.', 'Unknown code. Check the spelling. If the code comes from an official document, contact the committee.'],
     v_photo: ['Pas foto', 'Photo'], v_regby: ['Didaftarkan oleh', 'Registered by'],
+    v_docs_t: ['Berkas belum lengkap:', 'Documents incomplete:'], v_docs: ['Arahkan ke meja panitia untuk melengkapi berkas.', 'Send to the committee desk to complete the documents.'],
     v_photo_hint: ['Cocokkan wajah pemegang kartu dengan pas foto di atas.', "Match the cardholder's face with the photo above."],
         v_name: ['Nama', 'Name'], v_no: ['Nomor atlet', 'Athlete number'], v_club: ['Klub', 'Club'], v_cat: ['Kategori', 'Category'],
     v_team_ok: ['Sertifikat Juara Beregu asli', 'Genuine team champion certificate'],
@@ -48,6 +49,7 @@
           <dt>${esc(t('v_disc'))}</dt><dd>${esc(DN[r.discipline] || r.discipline)}</dd>
           <dt>${esc(t('v_cat'))}</dt><dd>${(r.categories || []).map(esc).join('<br>')}</dd>
           ${r.registered_by ? `<dt>${esc(t('v_regby'))}</dt><dd>${esc(r.registered_by)}</dd>` : ''}</dl></div>
+        ${(r.docs_missing || []).length ? `<p class="note warn" style="margin:12px 0 0"><b>${esc(t('v_docs_t'))}</b> ${esc(r.docs_missing.join(', '))}. ${esc(t('v_docs'))}</p>` : ''}
         ${r.valid ? `<p class="small muted" style="margin:10px 0 0">${esc(t('v_photo_hint'))}</p>` : ''}</section>`;
     } else if (r.type === 'certificate' && r.valid) {
       const cat = JO.lang === 'en' ? r.category_name_en : r.category_name_id;
