@@ -70,7 +70,21 @@
     if (c.birth_year_max && y > c.birth_year_max) return `untuk kelahiran ${c.birth_year_max} ke bawah`;
     return null;
   }
-  function priOk(d) { return d.nationality !== 'WNA' && d.province === 'Jawa Barat' && clubProvince() === 'Jawa Barat'; }
+  // aturan pendaftaran dari server (Konsol → Aturan pendaftaran)
+  const RL = () => (CFG && CFG.registration.rules) || {};
+  function priOk(d) {
+    const P = RL().priangan || { wni: true, athlete_province: 'Jawa Barat', club_province: 'Jawa Barat' };
+    if (P.wni !== false && d.nationality === 'WNA') return false;
+    if (P.athlete_province && (d.nationality === 'WNA' ? '' : d.province) !== P.athlete_province) return false;
+    if (P.club_province && clubProvince() !== P.club_province) return false;
+    return true;
+  }
+  const DOC_DEF = { WNI: { akte: 'wajib', ktp: 'opsional', ijazah: 'opsional', bpjs: 'opsional', passport: 'tidak', photo: 'wajib' },
+    WNA: { akte: 'tidak', ktp: 'tidak', ijazah: 'tidak', bpjs: 'tidak', passport: 'wajib', photo: 'wajib' } };
+  const docRule = (d) => { const n = d.nationality === 'WNA' ? 'WNA' : 'WNI'; return (RL().docs && RL().docs[n]) || DOC_DEF[n]; };
+  const docKeys = (d) => ['akte', 'ktp', 'ijazah', 'bpjs', 'passport', 'photo'].filter((k) => (docRule(d)[k] || 'tidak') !== 'tidak');
+  const docReq = (d) => docKeys(d).filter((k) => docRule(d)[k] === 'wajib');
+  const guardAge = () => (RL().guardian_age == null ? 18 : RL().guardian_age);
   function catOptions(d) {
     if (!d.discipline) return [];
     return CFG.categories.filter((c) => c.discipline === d.discipline && c.entry_type === 'individual'
@@ -130,12 +144,12 @@
       if (c) {
         const m = mism(c, d.gender, d.birth_date);
         if (m) { E.category = 'Kategori ini ' + m; if (/kelahiran/.test(m)) E.birth_date = 'Tidak sesuai kategori yang dipilih'; }
-        else if (c.jabar_only && !priOk(d)) E.category = 'Priangan khusus WNI dengan alamat identitas dan klub di Jawa Barat';
+        else if (c.jabar_only && !priOk(d)) E.category = 'Priangan: ' + (CFG.registration.priangan_desc || 'syarat khusus daerah tidak terpenuhi');
         else if (c.max_per_club && (catCount.get(String(c.id)) || 0) > c.max_per_club) E.category = `Maksimal ${c.max_per_club} atlet per klub di kategori ini`;
         if (d.discipline === 'RG') (c.apparatus || []).forEach((a, i) => {
           if (!DRIVE.test(((d.music || [])[i] || '').trim())) E['music' + (i + 1)] = `Tautan Google Drive musik ${appName('RG', a)} (https://drive.google.com/...)`;
         });
-        if (d.discipline === 'WAG' && (d.team_name || '').trim() && !teamLevels('WAG').includes(c.level)) E.extra = 'Beregu hanya untuk Level 1–6';
+        if (d.discipline === 'WAG' && (d.team_name || '').trim() && !teamLevels('WAG').includes(c.level)) E.extra = 'Beregu tidak tersedia untuk ' + c.level;
       }
     }
     if (d.discipline === 'WAG' && (d.team_name || '').trim()) {
@@ -160,9 +174,8 @@
       if (!EMAIL.test(cleanEmail(d.g_email))) E.g_email = 'Email orang tua/wali belum valid';
     }
     const docs = d.docs || {};
-    if (d.nationality === 'WNA') { if (!docs.passport) E.docs = 'Unggah paspor'; }
-    else if (!docs.akte) E.docs = 'Unggah Akte Kelahiran';
-    if (!E.docs && !docs.photo) E.docs = 'Unggah pas foto';
+    const miss = docReq(d).filter((k) => !docs[k]);
+    if (miss.length) E.docs = 'Unggah ' + miss.map((k) => ({ akte: 'Akte Kelahiran', passport: 'paspor', photo: 'pas foto', ktp: 'KTP', ijazah: 'Ijazah', bpjs: 'BPJS' })[k]).join(', ');
     if (d.full_name && d.birth_date) {
       const same = dup.get(JO.nameCase(d.full_name).toLowerCase() + '|' + d.birth_date) || [];
       if (same.length > 1) E.full_name = 'Atlet yang sama juga ada di baris ' + same.filter((n) => n !== r.no).map(pad3).join(', ');
@@ -542,7 +555,7 @@
         <th>L/P</th><th>Tanggal lahir</th><th>WNI/WNA</th><th>Provinsi / negara</th><th>Kab/kota</th><th>Disiplin</th><th>Kategori</th>
         <th>Tim (Artistik) / Pasangan (Aerobik)</th><th>Orang tua/wali</th><th>Hubungan</th><th>WA orang tua/wali</th><th>Email orang tua/wali</th>
         <th>Musik 1 (Ritmik)</th><th>Musik 2</th><th>Musik 3</th><th>Musik 4 (Junior)</th><th>Dokumen</th><th>Status</th></tr></thead><tbody></tbody></table></div>
-      <p class="small muted" style="margin-top:8px">Kolom orang tua/wali wajib untuk atlet di bawah 18 tahun. Nama file dokumen untuk unggah sekaligus: <code>012-akte.pdf</code>, <code>012-foto.jpg</code>, <code>012-ktp.jpg</code>, <code>012-bpjs.pdf</code>, <code>012-paspor.pdf</code>, <code>012-ijazah.pdf</code> (012 = nomor baris).</p>`;
+      <p class="small muted" style="margin-top:8px">Kolom orang tua/wali wajib untuk atlet di bawah ${guardAge()} tahun. Nama file dokumen untuk unggah sekaligus: <code>012-akte.pdf</code>, <code>012-foto.jpg</code>, <code>012-ktp.jpg</code>, <code>012-bpjs.pdf</code>, <code>012-paspor.pdf</code>, <code>012-ijazah.pdf</code> (012 = nomor baris).</p>`;
     const q = body.querySelector('#ms-q');
     q.oninput = () => { Q = q.value.trim().toLowerCase(); drawRows(); };
     if (!locked) {
@@ -668,8 +681,8 @@
     const apps = d.discipline === 'RG' && c ? (c.apparatus || []) : [];
     const mus = [0, 1, 2, 3].map((i) => apps[i] ? inp('music' + (i + 1), (d.music || [])[i], `placeholder="${esc(appName('RG', apps[i]))}: https://drive.google.com/..."`) : '<input disabled placeholder="–">');
     // dokumen
-    const keys = wna ? ['passport', 'photo'] : ['akte', 'ktp', 'ijazah', 'bpjs', 'photo'];
-    const req = wna ? ['passport', 'photo'] : ['akte', 'photo'];
+    const keys = docKeys(d);
+    const req = docReq(d);
     const docs = keys.map((k) => {
       const has = d.docs && d.docs[k];
       return `<button type="button" class="ms-doc ${has ? 'has' : req.includes(k) ? 'req' : ''}" data-doc="${k}" ${lock ? 'disabled' : ''} title="${has ? esc(has.name || 'Terunggah') : 'Unggah ' + DOCS[k]}">${has ? '✓ ' : ''}${DOCS[k]}${req.includes(k) && !has ? '*' : ''}</button>`;
@@ -686,7 +699,7 @@
       ${td('discipline', sel('discipline', [['', 'Pilih']].concat(CFG.disciplines.filter((x) => x.registration_open || x.code === d.discipline).map((x) => [x.code, x.name_id])), d.discipline), 'w-disc')}
       ${td('category', catSel, 'w-cat')}
       ${td('extra', extra, 'w-x')}
-      ${td('g_name', minor ? inp('g_name', d.g_name, 'placeholder="Nama"') : '<input disabled placeholder="18+">', 'w-gn')}
+      ${td('g_name', minor ? inp('g_name', d.g_name, 'placeholder="Nama"') : `<input disabled placeholder="${guardAge()}+">`, 'w-gn')}
       ${td('g_relation', minor ? inp('g_relation', d.g_relation, 'placeholder="Ibu/Ayah"') : '<input disabled>', 'w-gr')}
       ${td('g_phone', minor ? inp('g_phone', d.g_phone, 'inputmode="tel" placeholder="08..."') : '<input disabled>', 'w-gp')}
       ${td('g_email', minor ? inp('g_email', d.g_email, 'type="email" placeholder="email"') : '<input disabled>', 'w-ge')}
@@ -1005,7 +1018,7 @@
         if (!no || !k) why = 'Nama berkas tidak dikenali';
         else if (no > maxAth()) why = 'Nomor baris di luar batas';
         else if (r && r.batch_id) why = 'Baris sudah dikirim';
-        else if (r && r.data.nationality === 'WNA' && ['akte', 'ktp', 'ijazah', 'bpjs'].includes(k)) why = 'Atlet WNA: hanya paspor dan foto';
+        else if (r && !docKeys(r.data).includes(k)) why = 'Dokumen ini tidak diminta untuk atlet ' + (r.data.nationality === 'WNA' ? 'WNA' : 'WNI');
         return { f, no, k, why };
       });
       const ok = items.filter((x) => !x.why);
@@ -1305,6 +1318,7 @@
     try {
       await JO.ensureSession();
       [CFG, INFO] = await Promise.all([rpc('public_config'), rpc('public_bulk_info')]);
+      JO.setRuleVars({ ga: guardAge() });
     } catch (e) {
       app.innerHTML = `<p class="note bad">${esc(errMsg(e))}</p>`; return;
     }

@@ -28,7 +28,9 @@ begin
       'team_max', coalesce(jo.setting_int('team_max'), 6),
       'team_counting', coalesce(jo.setting_int('team_counting'), 4),
       'team_levels', coalesce(jo.setting('team_levels'), '{}'::jsonb),
-      'qris_cap', coalesce(jo.setting_int('qris_cap'), 10000000)),
+      'qris_cap', coalesce(jo.setting_int('qris_cap'), 10000000),
+      'rules', jo.rules(),
+      'priangan_desc', jo.priangan_desc()),
     'payment', jsonb_build_object(
       'qris_image_url', jo.setting_text('qris_image_url'),
       'qris_merchant', jo.setting_text('qris_merchant'),
@@ -67,19 +69,22 @@ $$;
 -- ---------------------------------------------------------------------
 create or replace function jo.check_athlete_docs(a jsonb, p_label text, p_uid uuid) returns void
 language plpgsql stable set search_path = '' as $$
+-- Dokumen wajib/opsional per kewarganegaraan diatur di Konsol → Aturan pendaftaran (reg_rules.docs)
 declare k text;
+  v_nat text := case when coalesce(a->>'nationality','WNI') = 'WNA' then 'WNA' else 'WNI' end;
+  v_req jsonb := jo.rules()->'docs'->v_nat;
+  v_lbl jsonb := '{"akte":"Akte Kelahiran","passport":"paspor","ktp":"KTP","ijazah":"Ijazah","bpjs":"kartu BPJS Ketenagakerjaan"}';
 begin
-  if coalesce(a->>'nationality','WNI') = 'WNA' then
-    if coalesce(a->>'passport_path','') = '' then
-      raise exception '%: unggah paspor.', p_label using hint = 'ERR_ATHLETE_DOC';
+  foreach k in array array['akte','passport','ktp','ijazah','bpjs'] loop
+    if v_req->>k = 'wajib' and coalesce(a->>(k || '_path'),'') = '' then
+      raise exception '%: unggah %.', p_label, v_lbl->>k using hint = 'ERR_ATHLETE_DOC';
     end if;
-  elsif coalesce(a->>'akte_path','') = '' then
-    raise exception '%: unggah Akte Kelahiran.', p_label using hint = 'ERR_ATHLETE_DOC';
-  end if;
-  if coalesce(a->>'photo_path','') = '' then
+  end loop;
+  if v_req->>'photo' = 'wajib' and coalesce(a->>'photo_path','') = '' then
     raise exception '%: unggah pas foto (wajib untuk Athlete Identification Card).', p_label using hint = 'ERR_ATHLETE_PHOTO';
   end if;
-  if coalesce(a->>'photo_thumb','') !~ '^data:image/jpeg;base64,[A-Za-z0-9+/=]+$' or length(a->>'photo_thumb') > 150000 then
+  if coalesce(a->>'photo_path','') <> ''
+     and (coalesce(a->>'photo_thumb','') !~ '^data:image/jpeg;base64,[A-Za-z0-9+/=]+$' or length(a->>'photo_thumb') > 150000) then
     raise exception '%: pas foto tidak terbaca. Unggah ulang pas foto (JPG atau PNG).', p_label using hint = 'ERR_ATHLETE_PHOTO';
   end if;
   foreach k in array array['akte_path','ktp_path','ijazah_path','passport_path','bpjs_path','photo_path'] loop
@@ -98,16 +103,17 @@ $$;
 -- v6: pendaftaran QRIS tanpa bukti bayar dalam 15 menit dihapus otomatis
 create or replace function jo.expire_unpaid() returns integer
 language plpgsql volatile set search_path = '' as $$
-declare r record; n integer := 0;
+declare r record; n integer := 0; v_min integer := coalesce(jo.rule_int('proof_minutes'), 15);
 begin
+  if v_min <= 0 then return 0; end if;   -- 0 = pendaftaran tanpa bukti bayar tidak dihapus otomatis
   for r in select id, code, contact_name, discipline, total_amount from jo.submissions
             where payment_method = 'qris' and status = 'menunggu_pembayaran' and proof_path is null
-              and created_at < now() - interval '15 minutes'
+              and created_at < now() - make_interval(mins => v_min)
             for update skip locked loop
     perform jo.purge_submission(r.id);
     perform jo.log(null, 'pendaftaran_kedaluwarsa', 'submission', r.id::text,
       jsonb_build_object('code', r.code, 'contact', r.contact_name, 'discipline', r.discipline, 'total', r.total_amount,
-                         'reason', 'Tidak ada bukti bayar dalam 15 menit'));
+                         'reason', 'Tidak ada bukti bayar dalam ' || v_min || ' menit'));
     n := n + 1;
   end loop;
   if n > 0 then
@@ -217,7 +223,7 @@ begin
   end if;
   perform jo.expire_unpaid();
 
-  if not jo.in_bulk() and (select count(*) from jo.rate_events where uid = v_uid and action = 'register' and at > now() - interval '1 hour') >= 12 then
+  if not jo.in_bulk() and (select count(*) from jo.rate_events where uid = v_uid and action = 'register' and at > now() - interval '1 hour') >= coalesce(jo.rule_int('rate_per_hour'), 12) then
     raise exception 'Terlalu banyak pendaftaran dari perangkat ini dalam satu jam. Coba lagi nanti.' using hint = 'ERR_RATE';
   end if;
 
@@ -245,7 +251,7 @@ begin
                   else '[]'::jsonb end;
   v_n_teams := jsonb_array_length(v_teams);
   if v_n_teams > 0 and not (jo.setting('team_levels') ? v_disc.code) then
-    raise exception 'Beregu hanya untuk Artistik Putri Level 1–6.' using hint = 'ERR_TEAM';
+    raise exception 'Beregu tidak tersedia untuk disiplin %.', v_disc.name_id using hint = 'ERR_TEAM';
   end if;
 
   -- Kontak
@@ -369,7 +375,7 @@ begin
       if length(trim(coalesce(a->'guardian'->>'name',''))) < 3
          or length(regexp_replace(coalesce(a->'guardian'->>'phone',''), '[^0-9]', '', 'g')) < 9
          or coalesce(a->'guardian'->>'email','') !~* '^[^@\s]+@[^@\s]+\.[^@\s]+$' then
-        raise exception 'Atlet %: atlet di bawah 18 tahun wajib mencantumkan nama, nomor WhatsApp, dan email orang tua/wali.', i using hint = 'ERR_GUARDIAN';
+        raise exception 'Atlet %: atlet di bawah % tahun wajib mencantumkan nama, nomor WhatsApp, dan email orang tua/wali.', i, coalesce(jo.rule_int('guardian_age'), 18) using hint = 'ERR_GUARDIAN';
       end if;
     end if;
 
@@ -429,8 +435,8 @@ begin
                   where ea.athlete_id = v_ath.id and en.category_id = v_cat.id) then
         raise exception '% terdaftar dua kali di kategori %.', v_ath.full_name, v_cat.name_id using hint = 'ERR_DUPLICATE';
       end if;
-      -- aturan jumlah nomor per atlet
-      if v_disc.code in ('MAG','WAG','RG') then
+      -- aturan jumlah nomor per atlet (Konsol → Aturan pendaftaran: disiplin yang membolehkan nomor pasangan tambahan)
+      if not coalesce(jo.rules()->'pair_with_individual' ? v_disc.code, false) then
         if exists (select 1 from jo.entry_athletes ea where ea.athlete_id = v_ath.id) then
           raise exception '% hanya boleh mengikuti satu kategori di disiplin ini.', v_ath.full_name using hint = 'ERR_ONE_CATEGORY';
         end if;
@@ -441,9 +447,9 @@ begin
           raise exception '% hanya boleh mengikuti satu nomor perorangan dan satu nomor pasangan.', v_ath.full_name using hint = 'ERR_ONE_CATEGORY';
         end if;
       end if;
-      -- kelayakan Priangan: WNI, alamat identitas di Jawa Barat, dan klub di Jawa Barat
-      if v_ath.nationality <> 'WNI' or coalesce(v_ath.province,'') <> 'Jawa Barat'
-         or (v_club_id is not null and coalesce(v_club.province,'') <> 'Jawa Barat') then
+      -- kelayakan kategori khusus daerah (Priangan), syarat diatur di Konsol → Aturan pendaftaran
+      if jo.priangan_reason(v_ath.nationality, v_ath.province,
+                            case when v_club_id is not null then coalesce(v_club.province,'') end) is not null then
         v_pri_ok := false;
       end if;
     end loop;
@@ -469,7 +475,7 @@ begin
       raise exception 'Priangan kini kategori tersendiri (khusus Ritmik). Pilih kategori Ritmik Priangan.' using hint = 'ERR_PRIANGAN';
     end if;
     if v_cat.jabar_only and not v_pri_ok then
-      raise exception '% khusus atlet WNI dengan alamat identitas di Jawa Barat dan klub di Jawa Barat.', v_cat.name_id using hint = 'ERR_PRIANGAN';
+      raise exception '%: %.', v_cat.name_id, jo.priangan_desc() using hint = 'ERR_PRIANGAN';
     end if;
 
     -- musik Ritmik (v6): satu tautan Google Drive untuk setiap nomor (alat) kategori, semua wajib
@@ -631,7 +637,7 @@ begin
           if length(trim(coalesce(a->'guardian'->>'name',''))) < 3
              or length(regexp_replace(coalesce(a->'guardian'->>'phone',''), '[^0-9]', '', 'g')) < 9
              or coalesce(a->'guardian'->>'email','') !~* '^[^@\s]+@[^@\s]+\.[^@\s]+$' then
-            raise exception 'Anggota %: pesenam di bawah 18 tahun wajib mencantumkan nama, nomor WhatsApp, dan email orang tua/wali.', i using hint = 'ERR_GUARDIAN';
+            raise exception 'Anggota %: pesenam di bawah % tahun wajib mencantumkan nama, nomor WhatsApp, dan email orang tua/wali.', i, coalesce(jo.rule_int('guardian_age'), 18) using hint = 'ERR_GUARDIAN';
           end if;
         end if;
         -- kategori usia di level ini (ditentukan dari tanggal lahir)
@@ -679,7 +685,7 @@ begin
   v_base := v_base + v_team_amt;
 
   if v_any_minor and not coalesce((v_consents->>'guardian')::boolean, false) then
-    raise exception 'Persetujuan orang tua/wali wajib dicentang untuk atlet di bawah 18 tahun.' using hint = 'ERR_CONSENT';
+    raise exception 'Persetujuan orang tua/wali wajib dicentang untuk atlet di bawah % tahun.', coalesce(jo.rule_int('guardian_age'), 18) using hint = 'ERR_CONSENT';
   end if;
 
   -- nomor atlet per disiplin (MAG-001, ...)
@@ -715,7 +721,8 @@ begin
   return jsonb_build_object(
     'code', v_code, 'token', v_token, 'status', 'menunggu_pembayaran', 'payment_method', v_pm,
     'base_amount', v_base, 'team_amount', v_team_amt, 'priangan_amount', v_pri, 'unique_code', v_uc, 'total_amount', v_total,
-    'expires_at', case when v_pm = 'qris' then now() + interval '15 minutes' end);
+    'expires_at', case when v_pm = 'qris' and coalesce(jo.rule_int('proof_minutes'), 15) > 0
+                       then now() + make_interval(mins => coalesce(jo.rule_int('proof_minutes'), 15)) end);
 end $$;
 
 -- ---------------------------------------------------------------------
@@ -775,7 +782,8 @@ language sql stable set search_path = '' as $$
     'verify_note', case when s.status = 'perlu_perbaikan' then s.verify_note end,
     'created_at', s.created_at,
     'expires_at', case when s.payment_method = 'qris' and s.status = 'menunggu_pembayaran' and s.proof_path is null
-                       then s.created_at + interval '15 minutes' end,
+                            and coalesce(jo.rule_int('proof_minutes'), 15) > 0
+                       then s.created_at + make_interval(mins => coalesce(jo.rule_int('proof_minutes'), 15)) end,
     'payment', jsonb_build_object(
       'qris_image_url', jo.setting_text('qris_image_url'),
       'qris_merchant', jo.setting_text('qris_merchant'),

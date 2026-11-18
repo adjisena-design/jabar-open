@@ -6,14 +6,15 @@
 
   JO.addDict({
     d_title: ['Pendaftaran atlet', 'Athlete registration'],
-    d_lead: ['Semua atlet didaftarkan lewat klub (klub, sekolah, atau pengkab/pengkot) oleh pemilik, admin, atau pelatih klub. Satu pendaftaran untuk satu disiplin, maksimal 10 atlet. Tim beregu Artistik Putri ditambahkan di pendaftaran yang sama.', "Every athlete is registered through a club (club, school or regency/city association) by the club's owner, admin or coach. One registration covers one discipline, up to 10 athletes. Women's Artistic teams are added in the same registration."],
+    d_lead: ['Semua atlet didaftarkan lewat klub (klub, sekolah, atau pengkab/pengkot) oleh pemilik, admin, atau pelatih klub. Satu pendaftaran untuk satu disiplin, maksimal {mx} atlet. Tim beregu Artistik Putri ditambahkan di pendaftaran yang sama.', "Every athlete is registered through a club (club, school or regency/city association) by the club's owner, admin or coach. One registration covers one discipline, up to {mx} athletes. Women's Artistic teams are added in the same registration."],
     d_ready_t: ['Siapkan sebelum mendaftar', 'Have this ready'],
+    d_check: ['Cek dulu kategori yang bisa diikuti atlet →', 'Check which categories an athlete can enter →'],
     d_bulk_tag: ['Mendaftar banyak atlet?', 'Registering many athletes?'],
     d_bulk_h: ['Pendaftaran massal', 'Bulk registration'],
     d_bulk: ['Cara lebih mudah untuk 30 atlet atau lebih dari satu klub: isi bersama di satu lembar, bayar lewat transfer bank.', 'An easier way for 30 or more athletes from one club: fill in one shared sheet together and pay by bank transfer (in Indonesian).'],
     d_bulk_btn: ['Buka pendaftaran massal', 'Open bulk registration'],
-    d_or: ['atau daftar biasa (maks. 10 atlet)', 'or register normally (up to 10 athletes)'],
-    d_ready: ['Akte Kelahiran atlet (wajib), KTP dan Ijazah bila sudah punya, kartu BPJS Ketenagakerjaan bila ada (wajib saat bertanding), data orang tua/wali untuk atlet di bawah 18 tahun. Atlet asing: paspor. Ritmik: satu tautan Google Drive musik untuk setiap nomor. Siapkan juga pembayaran QRIS: bukti bayar harus diunggah dalam 15 menit setelah mendaftar.', "Athlete's birth certificate (required), national ID and school certificate if they have them, BPJS Ketenagakerjaan card if available (required on competition day), parent/guardian details for athletes under 18. Foreign athletes: passport. Rhythmic: one Google Drive music link per routine. Have your QRIS payment ready: the payment proof must be uploaded within 15 minutes of registering."],
+    d_or: ['atau daftar biasa (maks. {mx} atlet)', 'or register normally (up to {mx} athletes)'],
+    d_ready: ['Akte Kelahiran atlet (wajib), KTP dan Ijazah bila sudah punya, kartu BPJS Ketenagakerjaan bila ada (wajib saat bertanding), data orang tua/wali untuk atlet di bawah {ga} tahun. Atlet asing: paspor. Ritmik: satu tautan Google Drive musik untuk setiap nomor. Siapkan juga pembayaran QRIS{pmtxt}.', "Athlete's birth certificate (required), national ID and school certificate if they have them, BPJS Ketenagakerjaan card if available (required on competition day), parent/guardian details for athletes under {ga}. Foreign athletes: passport. Rhythmic: one Google Drive music link per routine. Have your QRIS payment ready{pmtxt}."],
     st_team: ['Beregu', 'Team'],
     tm_intro: ['Opsional. Tambahkan tim beregu Artistik Putri bila klub ikut nomor beregu. Satu tim berisi 1–{n} pesenam dari satu level, {fee} per tim. Tidak ikut beregu? Langsung tekan Lanjut.', "Optional. Add a Women's Artistic team if the club enters the team event. One team has 1–{n} gymnasts from one level, {fee} per team. Not entering a team? Just press Continue."],
     add_team: ['Tambah tim beregu', 'Add a team'], rm_team: ['Hapus tim', 'Remove team'], tm_n: ['Tim {n}', 'Team {n}'],
@@ -95,20 +96,22 @@
     err_a_photo: ['Unggah pas foto.', 'Upload a photo.'],
     d_bpjs_note: ['Wajib saat bertanding. Bila belum diunggah sekarang, bawa kartu BPJS Ketenagakerjaan ke meja panitia di venue; tidak ada unggah susulan.', 'Required on competition day. If not uploaded now, bring the BPJS Ketenagakerjaan card to the committee desk at the venue; it cannot be uploaded later.'],
     up_btn: ['Unggah', 'Upload'],
-    jabar_only: ['Khusus atlet WNI beralamat di Jawa Barat dari klub di Jawa Barat. Tanpa biaya tambahan.', 'Only for Indonesian athletes with a West Java address, from a West Java club. No extra fee.'],
+    jabar_only: ['{pd}. Tanpa biaya tambahan.', '{pd}. No extra fee.'],
     uploading: ['Mengunggah…', 'Uploading…'], uploaded: ['Terunggah', 'Uploaded'], replace: ['Ganti berkas', 'Replace file'],
-    g_title: ['Orang tua / wali', 'Parent / guardian'], g_hint: ['Wajib untuk atlet di bawah 18 tahun.', 'Required for athletes under 18.'],
+    g_title: ['Orang tua / wali', 'Parent / guardian'], g_hint: ['Wajib untuk atlet di bawah {ga} tahun.', 'Required for athletes under {ga}.'],
     g_name: ['Nama orang tua / wali', 'Parent / guardian name'], g_phone: ['WhatsApp orang tua / wali', 'Parent / guardian WhatsApp'], g_email: ['Email orang tua / wali', 'Parent / guardian email'], g_rel: ['Hubungan', 'Relationship'],
     cat_title: ['Kategori', 'Category'],
     cat_need: ['Isi jenis kelamin dan tanggal lahir untuk melihat kategori yang sesuai.', 'Enter sex and date of birth to see matching categories.'],
     cat_age: ['Usia 2026: {a} tahun', 'Age in 2026: {a}'],
     cat_off: ['{n} kategori lain tidak sesuai usia atau jenis kelamin', '{n} other categories do not match age or sex'],
-    cat_none: ['Tidak ada kategori di disiplin ini yang sesuai dengan usia dan jenis kelamin atlet. Periksa tanggal lahir, atau hubungi panitia.', 'No category in this discipline matches the athlete\'s age and sex. Check the date of birth or contact the committee.'],
+    cat_none: ['Tidak ada kategori di disiplin ini yang sesuai dengan usia dan jenis kelamin atlet. Periksa tanggal lahir (jangan diubah dari data identitas), lalu hubungi panitia bila kategorinya seharusnya terbuka.', 'No category in this discipline matches the athlete\'s age and sex. Check the date of birth (keep it as on the ID) and contact the committee if a category should be open.'],
     why_gender_M: ['khusus putra', 'men only'], why_gender_F: ['khusus putri', 'women only'],
     why_min: ['kelahiran {y} ke atas', 'born {y} or later'], why_max: ['kelahiran {y} ke bawah', 'born {y} or earlier'],
-    pri_no: ['Priangan hanya untuk atlet WNI beralamat (sesuai identitas) di Jawa Barat dari klub di Jawa Barat.', 'Priangan is only for Indonesian athletes with a West Java address on their ID, from a West Java club.'],
-    pri_no_ath: ['Isi alamat atlet di Jawa Barat (provinsi pada identitas) untuk memilih Priangan.', "Set the athlete's ID address to West Java to choose Priangan."],
-    pri_no_club: ['Klub yang dipilih bukan dari Jawa Barat, jadi Priangan tidak bisa dipilih. Penanggung jawab (pelatih/manajer) boleh dari mana saja.', 'The chosen club is not from West Java, so Priangan is not available. The contact person (coach/manager) may be from anywhere.'],
+    pri_no: ['Priangan: {pd}.', 'Priangan: {pd}.'],
+    pri_no_ath: ['Kategori ini: alamat identitas atlet harus di {pap}.', "This category requires the athlete's ID address to be in {pap}."],
+    pri_no_club: ['Kategori ini: klub harus dari {pcp}. Penanggung jawab (pelatih/manajer) boleh dari mana saja.', 'This category requires a club from {pcp}. The contact person (coach/manager) may be from anywhere.'],
+    err_one_cat: ['Satu atlet hanya boleh ikut satu kategori di disiplin ini (perorangan atau pasangan).', 'An athlete may enter only one category in this discipline (individual or pair).'],
+    d_opt: ['(opsional)', '(optional)'], d_req: ['(wajib)', '(required)'], err_a_docreq: ['Unggah {d}.', 'Upload the {d}.'],
     pri_no_wna: ['Priangan hanya untuk atlet WNI.', 'Priangan is only for Indonesian athletes.'],
     pair_title: ['Nomor pasangan campuran (MP)', 'Mixed pair (MP)'],
     pair_hint: ['Opsional. Pasangan terdiri dari satu putra dan satu putri dari atlet di pendaftaran ini. Biaya {fee} per pasangan.', 'Optional. A pair is one man and one woman from the athletes in this registration. Fee {fee} per pair.'],
@@ -130,7 +133,7 @@
     cons_insurance: ['Saya memahami bahwa panitia hanya memberikan pertolongan pertama. Biaya perawatan lanjutan menjadi tanggung jawab peserta atau delegasi, dan peserta wajib memiliki BPJS atau asuransi sesuai Undangan.', 'I understand the committee only provides first aid. Further treatment costs are the participant\'s or delegation\'s responsibility, and participants must hold BPJS or insurance as stated in the Invitation.'],
     cons_data: ['Saya menyetujui panitia mengolah data pribadi dan dokumen identitas hanya untuk keperluan kejuaraan (verifikasi usia, jadwal pertandingan, hasil, sertifikat), sesuai UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi. Nama, klub, asal daerah, pas foto, dan hasil atlet dipublikasikan di situs (pas foto atlet di bawah 10 tahun tidak dipublikasikan); tanggal lahir dan dokumen tidak. Dokumen identitas dihapus setelah kejuaraan selesai.', 'I agree the committee may process personal data and identity documents only for this championship (age checks, competition schedules, results, certificates), under Indonesian Law No. 27 of 2022 on Personal Data Protection. Athlete name, club, home region, photo and results are published on the website (photos of athletes under 10 are not published); birth dates and documents are not. Identity documents are deleted after the championship.'],
     cons_rules: ['Saya telah membaca ketentuan Jabar Open 2026 (kategori, biaya, jadwal) dan menerima keputusan juri dan panitia.', 'I have read the Jabar Open 2026 rules (categories, fees, schedule) and accept the decisions of the judges and committee.'],
-    cons_guardian: ['Klub telah mendapat persetujuan orang tua/wali dari setiap atlet di bawah 18 tahun dalam pendaftaran ini untuk keikutsertaan dan pengolahan data anak tersebut.', 'The club has the consent of the parent/guardian of every under-18 athlete in this registration for their participation and the processing of their data.'],
+    cons_guardian: ['Klub telah mendapat persetujuan orang tua/wali dari setiap atlet di bawah {ga} tahun dalam pendaftaran ini untuk keikutsertaan dan pengolahan data anak tersebut.', 'The club has the consent of the parent/guardian of every athlete under {ga} in this registration for their participation and the processing of their data.'],
     err_cons: ['Centang semua pernyataan untuk melanjutkan.', 'Tick all declarations to continue.'],
     sum_title: ['Ringkasan biaya', 'Fee summary'],
     sum_fees: ['Biaya pendaftaran', 'Entry fees'], sum_pri: ['Kategori Priangan', 'Priangan category'],
@@ -151,9 +154,9 @@
     proof_title: ['Unggah bukti pembayaran', 'Upload payment proof'],
     proof_hint: ['Tangkapan layar atau foto struk dari aplikasi.', 'A screenshot or photo of the receipt.'],
     timer_t: ['Unggah bukti bayar dalam {m}', 'Upload the payment proof within {m}'],
-    timer_d: ['Pendaftaran tanpa bukti bayar dihapus otomatis 15 menit setelah dikirim (pukul {h}). Setelah bukti terunggah, pendaftaran aman walau belum diverifikasi panitia.', 'Registrations without a payment proof are deleted automatically 15 minutes after submitting (at {h}). Once the proof is uploaded, the registration is safe even before the committee verifies it.'],
-    timer_over: ['Waktu 15 menit sudah habis. Bila bukti belum terunggah, pendaftaran ini dihapus; silakan daftar ulang.', 'The 15 minutes have passed. If no proof was uploaded, this registration has been deleted; please register again.'],
-    sum_15: ['Setelah dikirim, Anda punya 15 menit untuk membayar lewat QRIS dan mengunggah bukti bayar. Bila tidak, pendaftaran dihapus otomatis.', 'After submitting you have 15 minutes to pay by QRIS and upload the payment proof. Otherwise the registration is deleted automatically.'],
+    timer_d: ['Pendaftaran tanpa bukti bayar dihapus otomatis {pm} menit setelah dikirim (pukul {h}). Setelah bukti terunggah, pendaftaran aman walau belum diverifikasi panitia.', 'Registrations without a payment proof are deleted automatically {pm} minutes after submitting (at {h}). Once the proof is uploaded, the registration is safe even before the committee verifies it.'],
+    timer_over: ['Waktu {pm} menit sudah habis. Bila bukti belum terunggah, pendaftaran ini dihapus; silakan daftar ulang.', 'The {pm} minutes have passed. If no proof was uploaded, this registration has been deleted; please register again.'],
+    sum_15: ['Setelah dikirim, Anda punya {pm} menit untuk membayar lewat QRIS dan mengunggah bukti bayar. Bila tidak, pendaftaran dihapus otomatis.', 'After submitting you have {pm} minutes to pay by QRIS and upload the payment proof. Otherwise the registration is deleted automatically.'],
     sum_bpjs: ['Tanpa BPJS Ketenagakerjaan: {n}. Bawa kartunya ke meja panitia di venue sebelum bertanding.', 'No BPJS Ketenagakerjaan uploaded: {n}. Bring the card to the committee desk at the venue before competing.'],
     proof_done: ['Bukti terkirim. Panitia akan memverifikasi dan mengirim AIC lewat email.', 'Proof received. The committee will verify it and email the AIC.'],
     open_status: ['Buka halaman status', 'Open status page'], register_more: ['Daftarkan atlet lain dari klub ini', 'Register more athletes from this club'],
@@ -178,13 +181,39 @@
   const newMember = (T) => ({ key: 'm' + (++seq), kind: formChoices(T, null).length ? 'form' : 'tim', ref: '', full_name: '', birth_date: '', nationality: 'WNI', country: '',
     ...noDocs(), uploading: 0, guardian: { name: '', phone: '', email: '', relation: '' } });
   const newTeam = () => ({ key: 't' + (++seq), level: '', name: '', members: [] });
-  const docPaths = (o) => (o.nationality === 'WNA'
-    ? { passport_path: o.passport && o.passport.path, photo_path: o.photo && o.photo.path, photo_thumb: o.photo && o.photo.thumb }
-    : { akte_path: o.akte && o.akte.path, ktp_path: o.ktp && o.ktp.path, ijazah_path: o.ijazah && o.ijazah.path,
-        bpjs_path: o.bpjs && o.bpjs.path, photo_path: o.photo && o.photo.path, photo_thumb: o.photo && o.photo.thumb });
-  const docsOk = (o) => (o.nationality === 'WNA' ? !!o.passport : !!o.akte);
-  const docErr = (o) => (!docsOk(o) ? [o.nationality === 'WNA' ? '.up-passport' : '.up-akte', o.nationality === 'WNA' ? 'err_a_pass' : 'err_a_doc']
-    : !o.photo ? ['.up-photo', 'err_a_photo'] : null);
+  // aturan pendaftaran dari server (Konsol → Aturan pendaftaran)
+  const RL = () => (CFG && CFG.registration.rules) || {};
+  const DOC_DEF = { WNI: { akte: 'wajib', ktp: 'opsional', ijazah: 'opsional', bpjs: 'opsional', passport: 'tidak', photo: 'wajib' },
+    WNA: { akte: 'tidak', ktp: 'tidak', ijazah: 'tidak', bpjs: 'tidak', passport: 'wajib', photo: 'wajib' } };
+  const docRule = (o) => { const n = o.nationality === 'WNA' ? 'WNA' : 'WNI'; return (RL().docs && RL().docs[n]) || DOC_DEF[n]; };
+  const docKinds = (o) => DOC_KINDS.filter((k) => (docRule(o)[k] || 'tidak') !== 'tidak');
+  const docPaths = (o) => {
+    const r = {}; docKinds(o).forEach((k) => { r[k + '_path'] = o[k] && o[k].path; });
+    r.photo_thumb = o.photo && o.photo.thumb; return r;
+  };
+  const DOC_BASE = { akte: ['Akte Kelahiran', 'birth certificate'], ktp: ['KTP', 'national ID / KTP'], ijazah: ['Ijazah', 'school certificate / Ijazah'],
+    passport: ['paspor', 'passport'], bpjs: ['kartu BPJS Ketenagakerjaan', 'BPJS Ketenagakerjaan card'], photo: ['pas foto', 'photo'] };
+  const docName = (k) => (JO.lang === 'en' ? DOC_BASE[k][1] : DOC_BASE[k][0]);
+  const docErr = (o) => {
+    const R = docRule(o);
+    for (const k of ['akte', 'passport', 'ktp', 'ijazah', 'bpjs', 'photo']) {
+      if (R[k] === 'wajib' && !o[k]) return ['.up-' + k, k === 'photo' ? t('err_a_photo') : k === 'akte' ? t('err_a_doc') : k === 'passport' ? t('err_a_pass') : t('err_a_docreq', { d: docName(k) })];
+    }
+    return null;
+  };
+  const docLabel = (o, k) => {
+    const st = docRule(o)[k], n = o.nationality === 'WNA' ? 'WNA' : 'WNI';
+    if (st === DOC_DEF[n][k] || (k === 'passport' && st === 'wajib') || (k === 'akte' && st === 'wajib')) return t(DOC_LABEL[k]);
+    const b = docName(k); return b.charAt(0).toUpperCase() + b.slice(1) + ' ' + t(st === 'wajib' ? 'd_req' : 'd_opt');
+  };
+  const bpjsOptional = (o) => docRule(o).bpjs === 'opsional';
+  const pairPlus = () => (RL().pair_with_individual || ['AER']).includes(S.discipline);
+  function applyRules() {
+    const r = RL(), pm = r.proof_minutes == null ? 15 : Number(r.proof_minutes), P = r.priangan || {};
+    JO.setRuleVars({ ga: r.guardian_age == null ? 18 : r.guardian_age, pm, mx: maxAth(),
+      pmtxt: pm > 0 ? (JO.lang === 'en' ? `: the payment proof must be uploaded within ${pm} minutes of registering` : `: bukti bayar harus diunggah dalam ${pm} menit setelah mendaftar`) : '',
+      pd: CFG.registration.priangan_desc || '', pap: P.athlete_province || '', pcp: P.club_province || '' });
+  }
   const teamLevels = () => (CFG && CFG.registration.team_levels) || { WAG: ['Level 1', 'Level 2', 'Level 3', 'Level 4', 'Level 5', 'Level 6'] };
   const teamOK = (d) => Object.prototype.hasOwnProperty.call(teamLevels(), d);
   const teamFee = () => (CFG && CFG.registration.team_fee) || 650000;
@@ -259,10 +288,11 @@
   }
   // Priangan: hanya alamat identitas atlet dan provinsi klub yang menentukan (bukan asal penanggung jawab)
   function priReason(a) {
-    if (a.nationality !== 'WNI') return 'pri_no_wna';
-    if (a.province !== 'Jawa Barat') return 'pri_no_ath';
+    const P = RL().priangan || { wni: true, athlete_province: 'Jawa Barat', club_province: 'Jawa Barat' };
+    if (P.wni !== false && a.nationality !== 'WNI') return 'pri_no_wna';
+    if (P.athlete_province && (a.nationality === 'WNA' ? '' : a.province) !== P.athlete_province) return 'pri_no_ath';
     const cp = clubProvince();
-    if (cp !== null && cp !== 'Jawa Barat') return 'pri_no_club';
+    if (P.club_province && cp !== null && cp !== P.club_province) return 'pri_no_club';
     return null;
   }
   const priEligible = (a) => !priReason(a);
@@ -490,15 +520,15 @@
   }
   // dokumen terpisah: WNI Akte (wajib), KTP & Ijazah (bila ada), BPJS TK (opsional), pas foto; WNA paspor (wajib), pas foto
   function docsBlock(box, o) {
-    const kinds = o.nationality === 'WNA' ? ['passport', 'photo'] : ['akte', 'ktp', 'ijazah', 'bpjs', 'photo'];
+    const kinds = docKinds(o);
     box.innerHTML = `<span class="f">${esc(t('a_docs'))}</span><div class="doc-grid">${kinds.map((k) =>
-      `<div class="field doc-slot" data-doc="${k}"><span class="f small">${esc(t(DOC_LABEL[k]))}</span><div class="upload up-${k}"></div></div>`).join('')}</div>
+      `<div class="field doc-slot" data-doc="${k}"><span class="f small">${esc(docLabel(o, k))}</span><div class="upload up-${k}"></div></div>`).join('')}</div>
       <details class="photo-rules"><summary class="small"><b>${esc(t('photo_rules_t'))}</b></summary>
         <div class="pr-body"><p class="small" style="margin:0 0 8px">${esc(t('photo_rules'))}</p>
         <div class="pr-ex"><figure class="ok"><img src="assets/img/pasfoto/benar.svg" alt="" width="90" height="120"><figcaption>${esc(t('photo_ok'))}</figcaption></figure>
           <figure class="no"><img src="assets/img/pasfoto/swafoto.svg" alt="" width="90" height="120"><figcaption>${esc(t('photo_no1'))}</figcaption></figure>
           <figure class="no"><img src="assets/img/pasfoto/santai.svg" alt="" width="90" height="120"><figcaption>${esc(t('photo_no2'))}</figcaption></figure></div></div></details>
-      ${o.nationality === 'WNA' ? '' : `<p class="note warn small" data-bpjs-note ${o.bpjs ? 'hidden' : ''}>${esc(t('d_bpjs_note'))}</p>`}`;
+      ${bpjsOptional(o) ? `<p class="note warn small" data-bpjs-note ${o.bpjs ? 'hidden' : ''}>${esc(t('d_bpjs_note'))}</p>` : ''}`;
     kinds.forEach((k) => uploadSlot(box.querySelector('.up-' + k), o, k));
   }
   function guardBlock(g, o) {
@@ -712,7 +742,7 @@
           }
           if (m.kind === 'tim') {
             if (m.nationality === 'WNA' && m.country.trim().length < 2) { fieldErr(q('[data-k=country]'), t('err_a_country')); bad = true; }
-            { const de = docErr(m); if (de) { fieldErr(q(de[0]), t(de[1])); bad = true; } }
+            { const de = docErr(m); if (de) { fieldErr(q(de[0]), de[1]); bad = true; } }
             if (m.birth_date && JO.isMinor(m.birth_date) && guardMark(el, m.guardian)) bad = true;
             if (T.level && m.birth_date && !memberCat(T, m)) { fieldErr(q('[data-cat]'), t('err_mb_cat')); bad = true; }
           }
@@ -830,8 +860,9 @@
         if (!a.birth_date) { fieldErr(q('[data-k=birth_date]'), t('err_a_birth')); bad = true; }
         if (a.nationality === 'WNI' && (!a.province || !a.kab_kota.trim())) { fieldErr(q('[data-r=prov]') || q('.regbox'), t('err_a_addr')); bad = true; }
         if (a.nationality === 'WNA' && a.country.trim().length < 2) { fieldErr(q('[data-k=country]'), t('err_a_country')); bad = true; }
-        { const de = docErr(a); if (de) { fieldErr(q(de[0]), t(de[1])); bad = true; } }
+        { const de = docErr(a); if (de) { fieldErr(q(de[0]), de[1]); bad = true; } }
         if (!a.cat && !inPair.has(a.key)) { fieldErr(q('.cat-list'), t('err_a_cat')); bad = true; }
+        if (a.cat && inPair.has(a.key) && !pairPlus()) { fieldErr(q('.cat-list'), t('err_one_cat')); bad = true; }
         if (S.discipline === 'RG' && a.cat) {
           (catById(a.cat).apparatus || []).forEach((ap) => { if (!validDrive((a.music || {})[ap])) { fieldErr(q(`[data-mu="${ap}"]`), t('err_music')); bad = true; } });
         }
@@ -1004,8 +1035,8 @@
           <tr><td>${esc(t('sum_uc'))}</td><td class="muted">${esc(t('sum_uc_val'))}</td></tr>
           <tr class="total"><td>${esc(t('sum_total'))}</td><td>${fmtRp(base + pri)} + ${esc(t('sum_uc').toLowerCase())}</td></tr>
         </tbody></table>
-        <p class="note warn small" style="margin-top:12px">${esc(t('sum_15'))}</p>
-        ${(() => { const list = S.athletes.concat(tim).filter((x) => x.nationality !== 'WNA' && !x.bpjs).map((x) => x.full_name.trim()).filter(Boolean);
+        ${RL().proof_minutes === 0 ? '' : `<p class="note warn small" style="margin-top:12px">${esc(t('sum_15'))}</p>`}
+        ${(() => { const list = S.athletes.concat(tim).filter((x) => bpjsOptional(x) && !x.bpjs).map((x) => x.full_name.trim()).filter(Boolean);
             return list.length ? `<p class="note info small">${esc(t('sum_bpjs', { n: list.join(', ') }))}</p>` : ''; })()}
         ${over ? `<p class="note bad" style="margin-top:12px">${esc(t('sum_cap', { cap: fmtRp(cap) }))}</p>` : ''}
       </section>
@@ -1153,11 +1184,12 @@
       if (ro && !isNaN(ro)) c.textContent += ' ' + (JO.lang === 'en' ? 'Registration reopens ' : 'Pendaftaran dibuka kembali ') + ro.toLocaleString(JO.lang === 'en' ? 'en-GB' : 'id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' WIB.';
       app.innerHTML = ''; return;
     }
+    applyRules(); JO.applyI18n();
     const pre = JO.qs('disiplin');
     if (loadDraft()) JO.toast(t('draft_restored'));
     if (pre && CFG.disciplines.some((d) => d.code === pre.toUpperCase())) S.discipline = pre.toUpperCase();
     render();
-    JO.onLang(() => { if (S.result) renderDone(); else render(); });
+    JO.onLang(() => { applyRules(); JO.applyI18n(); if (S.result) renderDone(); else render(); });
   }
   init();
 })();

@@ -401,6 +401,7 @@
     ['musik', 'Musik Ritmik', () => isAdmin() && (!ME.discipline || ME.discipline === 'RG'), pageMusic, 'music', 'Peserta'],
     ['klub', 'Klub', () => isAdmin(), pageClubs, 'flag', 'Peserta'],
     ['kategori', 'Kategori', () => canSee(), pageCategories, 'tag', 'Pertandingan'],
+    ['aturan', 'Aturan pendaftaran', () => canSee(), pageRules, 'check', 'Pertandingan'],
     ['juri', 'Pendaftaran juri', () => isAdmin(), pageJury, 'whistle', 'Pertandingan'],
     ['konsol-juri', 'Konsol juri ↗', () => isSuper() || isTD(), (v) => { location.href = '../juri/'; v.innerHTML = '<p class="empty">Membuka konsol juri…</p>'; }, 'pen', 'Pertandingan'],
     ['mitra', 'Calon mitra', () => ME && ['owner', 'superadmin', 'bendahara'].includes(ME.role), pageLeads, 'users', 'Proyek'],
@@ -734,7 +735,7 @@
   // =====================================================================
   //  PENDAFTARAN
   // =====================================================================
-  const subFilter = { discipline: '', status: '', flag: '', q: '' };
+  const subFilter = { discipline: '', status: '', flag: '', q: '', category: '' };
   function hashParams() { const i = location.hash.indexOf('?'); return new URLSearchParams(i >= 0 ? location.hash.slice(i + 1) : ''); }
   // daftar atlet per pendaftaran: jumlah, lalu satu nama per baris; lebih dari 5 atlet: 3 tampil, sisanya dilipat
   function athList(r) {
@@ -752,15 +753,22 @@
     const hp = hashParams();
     if (hp.has('d') || hp.has('s') || hp.has('f')) { subFilter.discipline = hp.get('d') || ''; subFilter.status = hp.get('s') || ''; subFilter.flag = hp.get('f') || ''; }
     if (hp.has('q')) { subFilter.q = hp.get('q') || ''; if (!hp.has('d') && !hp.has('s') && !hp.has('f')) { subFilter.discipline = ''; subFilter.status = ''; subFilter.flag = ''; } }
-    v.innerHTML = `<h1>Pendaftaran</h1><p class="muted">Tanpa bukti bayar, pendaftaran terhapus otomatis setelah 15 menit.</p>
+    await refreshCats();
+    if (!RULES) { try { RULES = await api('console_rules'); } catch (e) { RULES = null; } }
+    const pm = RULES ? RULES.rules.proof_minutes : null;
+    const catOpts = () => `<option value="">Semua kategori</option>${CATS.categories.filter((c) => { const d = subFilter.discipline || ME.discipline; return !d || c.discipline === d; })
+      .map((c) => `<option value="${c.id}" ${String(c.id) === String(subFilter.category) ? 'selected' : ''}>${esc(c.name_id)}${c.active ? '' : ' (nonaktif)'}</option>`).join('')}`;
+    v.innerHTML = `<h1>Pendaftaran</h1><p class="muted">${pm === 0 ? 'Pendaftaran tanpa bukti bayar tidak dihapus otomatis.' : `Tanpa bukti bayar, pendaftaran terhapus otomatis setelah ${pm || 'beberapa'} menit.`}</p>
       <div class="bar">${discSelect('fd', subFilter.discipline)}
+        <div class="field" style="min-width:220px;max-width:340px"><label class="f" for="fc">Kategori</label><select id="fc">${catOpts()}</select></div>
         <div class="field"><label class="f" for="fs">Status</label><select id="fs"><option value="">Semua status</option>
           ${Object.entries(ST).map(([k, l]) => `<option value="${k}" ${subFilter.status === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
         <div class="field"><label class="f" for="ff">Perlu diperiksa</label><select id="ff"><option value="">Semua</option>
           <option value="docs" ${subFilter.flag === 'docs' ? 'selected' : ''}>Dokumen belum diperiksa</option>
           <option value="priangan" ${subFilter.flag === 'priangan' ? 'selected' : ''}>Priangan: cek syarat</option>
           <option value="beregu" ${subFilter.flag === 'beregu' ? 'selected' : ''}>Pendaftaran beregu</option>
-          <option value="musik" ${subFilter.flag === 'musik' ? 'selected' : ''}>Musik Ritmik belum beres</option></select></div>
+          <option value="musik" ${subFilter.flag === 'musik' ? 'selected' : ''}>Musik Ritmik belum beres</option>
+          <option value="aturan" ${subFilter.flag === 'aturan' ? 'selected' : ''}>Tidak sesuai aturan kategori</option></select></div>
         <div class="field" style="flex:1;min-width:200px"><label class="f" for="fq">Cari</label><input id="fq" type="search" placeholder="Kode, nama atlet, klub, email, nominal" value="${esc(subFilter.q)}"></div>
       </div><div id="list"><div class="empty"><span class="spinner"></span></div></div>`;
     const load = async () => {
@@ -776,12 +784,13 @@
           <td class="r num">${fmtRp(r.total_amount)}${r.payment_method === 'manual' ? '<br><span class="pill warn">WNA</span>' : ''}${r.bulk_code ? `<br><span class="pill info" title="Pendaftaran massal">${esc(r.bulk_code)}</span>` : ''}</td>
           <td>${pill(r.status)}</td>
           <td class="small">${r.proof_uploaded_at ? '<span class="pill info">Bukti ada</span> ' : ''}${r.mutation_matched ? '<span class="pill ok">Mutasi cocok</span> ' : ''}
-            ${r.expires_at ? `<span class="pill warn">hapus otomatis ${esc(new Date(r.expires_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }))}</span> ` : ''}${r.docs_pending ? `<span class="pill">dokumen ${r.docs_pending} atlet</span> ` : ''}${r.priangan_pending ? `<span class="pill warn">${r.priangan_pending} cek Priangan</span> ` : ''}${r.music_pending ? `<span class="pill warn">${r.music_pending} musik</span>` : ''}</td></tr>`).join('')}
+            ${r.expires_at ? `<span class="pill warn">hapus otomatis ${esc(new Date(r.expires_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }))}</span> ` : ''}${r.docs_pending ? `<span class="pill">dokumen ${r.docs_pending} atlet</span> ` : ''}${r.priangan_pending ? `<span class="pill warn">${r.priangan_pending} cek Priangan</span> ` : ''}${r.music_pending ? `<span class="pill warn">${r.music_pending} musik</span> ` : ''}${r.rule_issues ? `<span class="pill warn" title="Atlet yang kategorinya tidak lagi sesuai aturan">${r.rule_issues} tidak sesuai aturan</span>` : ''}</td></tr>`).join('')}
         </tbody></table></div>`;
       list.querySelectorAll('tr[data-id]').forEach((tr) => tr.onclick = (e) => { if (e.target.closest('.ath-more')) return; location.hash = '#/pendaftaran/' + tr.dataset.id; });
     };
     const bind = (sel, key, ev) => { const el = v.querySelector(sel); if (el) el.addEventListener(ev || 'change', () => { subFilter[key] = el.value; load().catch((e) => fail(v.querySelector('#list'), e)); }); };
-    bind('#fd', 'discipline'); bind('#fs', 'status'); bind('#ff', 'flag');
+    if (v.querySelector('#fd')) v.querySelector('#fd').addEventListener('change', (e) => { subFilter.discipline = e.target.value; subFilter.category = ''; v.querySelector('#fc').innerHTML = catOpts(); });
+    bind('#fd', 'discipline'); bind('#fs', 'status'); bind('#ff', 'flag'); bind('#fc', 'category');
     let tm; v.querySelector('#fq').addEventListener('input', (e) => { clearTimeout(tm); tm = setTimeout(() => { subFilter.q = e.target.value.trim(); load(); }, 300); });
     await load();
   }
@@ -907,6 +916,7 @@
       const ents = D.entries.filter((e) => e.athletes.some((x) => x.id === a.id));
       const el = document.createElement('div'); el.className = 'ath';
       el.innerHTML = `<div class="ath-head"><span class="bib">${esc(a.athlete_no || '')}</span><strong>${esc(a.full_name)}</strong><span class="spacer"></span>
+          <a class="btn btn-ghost btn-sm" href="${checkLink({ b: a.birth_date, g: a.gender, n: a.nationality, p: a.province, k: D.club && D.club.id, nm: a.full_name + (a.athlete_no ? ' (' + a.athlete_no + ')' : '') })}">Cek kelayakan</a>
           <button class="btn btn-ghost btn-sm" data-files aria-expanded="${FP_OPEN.has(a.id)}">Kelola berkas</button>
           ${isSuper() && D.athletes.length > 1 ? rowMenu('<button class="btn btn-ghost btn-sm" data-edit>Ubah data</button>', [{ label: 'Hapus atlet', attr: 'data-delath', danger: true }]) : '<button class="btn btn-ghost btn-sm" data-edit>Ubah data</button>'}</div>
         ${a.aic_update_pending ? '<p class="note warn small" style="margin:8px 0 0">AIC atlet ini sudah diperbarui tetapi belum dikirim ulang.</p>' : ''}
@@ -1660,10 +1670,15 @@
   }
 
   async function pageAthletes(v) {
-    const f = { discipline: '', status: '', q: '' };
+    const f = { discipline: '', status: '', q: '', category: '', flag: '' };
+    await refreshCats();
+    const catOpts = () => `<option value="">Semua kategori</option>${CATS.categories.filter((c) => { const d = f.discipline || ME.discipline; return !d || c.discipline === d; })
+      .map((c) => `<option value="${c.id}" ${String(c.id) === f.category ? 'selected' : ''}>${esc(c.name_id)}${c.active ? '' : ' (nonaktif)'}</option>`).join('')}`;
     v.innerHTML = `<h1>Data atlet</h1>
       <div class="bar">${discSelect('ad', '')}
+        <div class="field" style="min-width:220px;max-width:340px"><label class="f" for="ac">Kategori</label><select id="ac">${catOpts()}</select></div>
         <div class="field"><label class="f" for="as">Pembayaran</label><select id="as"><option value="">Semua</option>${Object.entries(ST).filter(([k]) => k !== 'dibatalkan').map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></div>
+        <div class="field"><label class="f" for="af">Periksa</label><select id="af"><option value="">Semua</option><option value="aturan">Tidak sesuai aturan kategori</option></select></div>
         <div class="field" style="flex:1;min-width:200px"><label class="f" for="aq">Cari</label><input id="aq" type="search" placeholder="Nama, nomor atlet, klub, kota"></div>
         <button class="btn btn-dark" id="ax" type="button">Unduh Excel</button>
         ${myDiscs().some((d) => d === 'MAG' || d === 'WAG') ? '<button class="btn btn-ghost" id="anom" type="button">Nominative Form</button>' : ''}</div><div id="list"></div>`;
@@ -1674,6 +1689,7 @@
       rows = await api('console_athletes', { p_filter: f });
       const kv = (k, v) => (v ? `<div><span>${esc(k)}</span><b>${v}</b></div>` : '');
       const det = (r) => `<div class="ath-det">
+          ${r.rule_issue ? `<div style="grid-column:1/-1"><span>Tidak sesuai aturan</span><b>${esc(r.rule_issue)}</b></div>` : ''}
           ${kv('Tanggal lahir', esc(r.birth_date) + ` (usia ${r.age})`)}
           ${kv('Kewarganegaraan', esc(r.nationality === 'WNA' ? 'WNA · ' + (r.country || '') : 'WNI'))}
           ${r.nationality === 'WNI' ? kv('Alamat (KTP)', esc([r.kab_kota, r.province].filter(Boolean).join(', '))) : ''}
@@ -1688,9 +1704,9 @@
         ${rows.map((r) => `<tr class="click" data-row="${r.id}"><td class="tg" aria-hidden="true">${icon('chev')}</td><td><span class="bib">${esc(r.athlete_no)}</span></td>
           <td><b class="nm">${esc(r.full_name)}</b><span class="sub">${r.gender === 'M' ? 'L' : 'P'} · ${r.age} th${r.nationality === 'WNA' ? ' · WNA' : ''}</span></td>
           <td>${esc(r.club)}<span class="sub">${esc(r.nationality === 'WNA' ? r.country : r.kab_kota || '')}</span></td>
-          <td class="catc">${esc(r.categories || '')}</td>
+          <td class="catc">${esc(r.categories || '')}${r.rule_issue ? `<br><span class="pill warn" title="${esc(r.rule_issue)}">Tidak sesuai aturan</span>` : ''}</td>
           <td>${pill(r.payment_status)}</td><td class="nowrap">${esc(r.doc_status)}${r.nationality === 'WNI' && !r.has_bpjs ? ' <span class="pill warn" title="Tanpa BPJS Ketenagakerjaan">BPJS</span>' : ''}${r.aic_update_pending ? ' <span class="pill info" data-aicp title="AIC sudah diperbarui, belum dikirim ulang">AIC baru</span>' : ''}</td>
-          <td class="r">${rowMenu('', [{ label: 'Buka pendaftaran', attr: `data-open="${r.submission_id}"` }].concat(isSuper() ? [{ sep: true }, { label: 'Hapus atlet', attr: `data-delath="${r.id}"`, danger: true }] : []))}</td></tr>
+          <td class="r">${rowMenu('', [{ label: 'Buka pendaftaran', attr: `data-open="${r.submission_id}"` }, { label: 'Cek kelayakan', attr: `data-chk="${r.id}"` }].concat(isSuper() ? [{ sep: true }, { label: 'Hapus atlet', attr: `data-delath="${r.id}"`, danger: true }] : []))}</td></tr>
           <tr class="det-row" data-det="${r.id}" hidden><td></td><td colspan="7">${det(r)}<h3 class="fp-title">Berkas</h3><div data-fp="${r.id}"></div></td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">Tidak ada atlet yang cocok.</p>';
       list.querySelectorAll('tr[data-row]').forEach((tr) => tr.onclick = (ev) => {
         if (ev.target.closest('.rm, a, button')) return;
@@ -1708,6 +1724,10 @@
         }
       });
       list.querySelectorAll('[data-open]').forEach((b) => b.onclick = () => { location.hash = '#/pendaftaran/' + b.dataset.open; });
+      list.querySelectorAll('[data-chk]').forEach((b) => b.onclick = () => {
+        const r = rows.find((x) => x.id === b.dataset.chk);
+        location.hash = checkLink({ b: r.birth_date, g: r.gender, n: r.nationality, p: r.province, nm: r.full_name + ' (' + r.athlete_no + ')' });
+      });
       list.querySelectorAll('[data-delath]').forEach((b) => b.onclick = async () => {
         const r = rows.find((x) => x.id === b.dataset.delath);
         const reason = await askReason('Hapus atlet ' + r.full_name + '?', 'Alasan penghapusan (masuk Log)', { min: 3, ok: 'Hapus atlet', okClass: 'btn-bad',
@@ -1717,18 +1737,322 @@
         catch (e) { JO.toast(e.message, 'bad'); }
       });
     };
-    const ad = v.querySelector('#ad'); if (ad) ad.onchange = () => { f.discipline = ad.value; load(); };
+    const ad = v.querySelector('#ad'); if (ad) ad.onchange = () => { f.discipline = ad.value; f.category = ''; v.querySelector('#ac').innerHTML = catOpts(); load(); };
+    v.querySelector('#ac').onchange = (e) => { f.category = e.target.value; load(); };
+    v.querySelector('#af').onchange = (e) => { f.flag = e.target.value; load(); };
     v.querySelector('#as').onchange = (e) => { f.status = e.target.value; load(); };
     let tm; v.querySelector('#aq').oninput = (e) => { clearTimeout(tm); tm = setTimeout(() => { f.q = e.target.value.trim(); load(); }, 300); };
     v.querySelector('#ax').onclick = () => exportXlsx(`atlet-jabar-open-2026-${new Date().toISOString().slice(0, 10)}.xlsx`, rows, [
       ['athlete_no', 'No. atlet'], ['full_name', 'Nama lengkap'], ['gender', 'L/P', (r) => (r.gender === 'M' ? 'L' : 'P')], ['birth_date', 'Tanggal lahir'], ['age', 'Usia 2026'],
-      ['discipline', 'Disiplin', (r) => DN[r.discipline]], ['categories', 'Kategori'], ['club', 'Klub'], ['club_kab_kota', 'Kab/kota klub'],
+      ['discipline', 'Disiplin', (r) => DN[r.discipline]], ['categories', 'Kategori'], ['rule_issue', 'Tidak sesuai aturan'], ['club', 'Klub'], ['club_kab_kota', 'Kab/kota klub'],
       ['nationality', 'WNI/WNA'], ['country', 'Negara'], ['province', 'Provinsi (KTP)'], ['kab_kota', 'Kab/kota (KTP)'],
       ['submission_code', 'Kode pendaftaran'], ['payment_status', 'Status bayar', (r) => ST[r.payment_status]], ['doc_status', 'Dokumen'],
       ['has_bpjs', 'BPJS TK diunggah', (r) => (r.nationality === 'WNA' ? '-' : r.has_bpjs ? 'Ya' : 'Belum (bawa ke venue)')],
       ['guardian_name', 'Orang tua/wali'], ['guardian_phone', 'WA orang tua/wali'], ['guardian_email', 'Email orang tua/wali'],
       ['contact_name', 'Penanggung jawab'], ['contact_phone', 'WA penanggung jawab'], ['contact_email', 'Email penanggung jawab']]);
     await load();
+  }
+
+  // =====================================================================
+  //  ATURAN PENDAFTARAN: cek kelayakan, kategori & usia, aturan umum
+  //  Semua perubahan langsung berlaku di formulir, portal massal, dan cek kelayakan publik.
+  // =====================================================================
+  const GEN = { M: 'Putra', F: 'Putri', X: 'Campuran' };
+  const DOC_SLOTS = [['akte', 'Akte Kelahiran'], ['ktp', 'KTP'], ['ijazah', 'Ijazah'], ['bpjs', 'BPJS Ketenagakerjaan'], ['passport', 'Paspor'], ['photo', 'Pas foto']];
+  const DOC_ST = { wajib: 'Wajib', opsional: 'Opsional', tidak: 'Tidak diminta' };
+  let RULES = null;
+  const eventYear = () => (RULES && RULES.settings.event_year) || 2026;
+  function ageRange(c) {
+    const Y = eventYear();
+    const lo = c.birth_year_max != null ? Y - c.birth_year_max : null, hi = c.birth_year_min != null ? Y - c.birth_year_min : null;
+    const age = lo != null && hi != null ? (lo === hi ? `${lo} tahun` : `${lo}–${hi} tahun`) : hi != null ? `${hi} tahun ke bawah` : lo != null ? `${lo} tahun ke atas` : 'Usia terbuka';
+    const born = c.birth_year_min == null && c.birth_year_max == null ? 'semua tahun lahir'
+      : c.birth_year_min != null && c.birth_year_max != null ? `lahir ${c.birth_year_min}–${c.birth_year_max}`
+      : c.birth_year_min != null ? `lahir ${c.birth_year_min} ke atas` : `lahir ${c.birth_year_max} ke bawah`;
+    return { age, born };
+  }
+  function priDesc(p) {
+    const parts = [p.athlete_province ? 'alamat identitas di ' + p.athlete_province : '', p.club_province ? 'klub di ' + p.club_province : ''].filter(Boolean);
+    return 'Khusus atlet' + (p.wni ? ' WNI' : '') + (parts.length ? ' dengan ' + parts.join(' dan ') : '') + (!p.wni && !parts.length ? ' (tanpa syarat tambahan)' : '');
+  }
+  const checkLink = (o) => '#/aturan/cek?' + new URLSearchParams(Object.entries(o).filter(([, x]) => x)).toString();
+
+  async function pageRules(v, rest) {
+    const tab0 = ['cek', 'kategori', 'umum'].includes(rest[0]) ? rest[0] : 'cek';
+    const [R] = await Promise.all([api('console_rules'), refreshCats()]);
+    RULES = R;
+    const tabs = [['cek', 'Cek kelayakan'], ['kategori', 'Kategori & usia'], ['umum', 'Aturan umum']];
+    v.innerHTML = `<h1>Aturan pendaftaran</h1>
+      <p class="muted">Perubahan langsung berlaku di formulir pendaftaran, pendaftaran massal, dan cek kelayakan publik.${R.updated && R.updated.at ? ` Terakhir diubah ${esc(dt(R.updated.at))}${R.updated.by ? ' oleh ' + esc(R.updated.by) : ''}.` : ''}</p>
+      ${R.can_edit ? '' : '<p class="note info small">Hanya baca. Aturan diubah oleh owner atau superadmin.</p>'}
+      <div class="tabs" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" data-tab="${k}" aria-selected="${k === tab0}">${l}</button>`).join('')}</div>
+      <div id="rbox"></div>`;
+    const box = v.querySelector('#rbox');
+    const show = (k, keepQuery) => {
+      v.querySelectorAll('[data-tab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === k)));
+      const q = keepQuery ? location.hash.replace(/^[^?]*/, '') : '';
+      history.replaceState(null, '', '#/aturan/' + k + q);
+      loading(box);
+      ({ cek: rulesCheck, kategori: rulesCats, umum: rulesGeneral })[k](box).catch((e) => fail(box, e));
+    };
+    v.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => show(b.dataset.tab, false));
+    show(tab0, true);
+  }
+
+  // ---------- cek kelayakan ----------
+  async function rulesCheck(box) {
+    const hp = hashParams();
+    let clubs = [];
+    try { clubs = (await api('console_clubs')).filter((k) => !k.merged_into).sort((a, b) => a.name.localeCompare(b.name)); } catch (e) { clubs = []; }
+    const f = { b: hp.get('b') || '', g: hp.get('g') || '', n: hp.get('n') || 'WNI', p: hp.get('p') || '', k: hp.get('k') || '' };
+    box.innerHTML = `<div class="card"><div class="bar" style="margin:0">
+        <div class="field"><label class="f" for="ck_b">Tanggal lahir</label><input id="ck_b" type="date" value="${esc(f.b)}"></div>
+        <div class="field"><label class="f" for="ck_g">Jenis kelamin</label><select id="ck_g"><option value="">Pilih…</option>
+          <option value="M" ${f.g === 'M' ? 'selected' : ''}>Laki-laki</option><option value="F" ${f.g === 'F' ? 'selected' : ''}>Perempuan</option></select></div>
+        <div class="field"><label class="f" for="ck_n">Kewarganegaraan</label><select id="ck_n"><option value="WNI">WNI</option><option value="WNA" ${f.n === 'WNA' ? 'selected' : ''}>WNA</option></select></div>
+        <div class="field"><label class="f" for="ck_p">Provinsi (alamat identitas)</label><select id="ck_p"><option value="">Belum diisi</option>
+          ${window.JO_REGIONS.provinces.map((p) => `<option ${p === f.p ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select></div>
+        <div class="field" style="flex:1;min-width:220px"><label class="f" for="ck_k">Klub (untuk kuota dan syarat klub)</label><select id="ck_k"><option value="">Tanpa klub</option>
+          ${clubs.map((k) => `<option value="${k.id}" ${k.id === f.k ? 'selected' : ''}>${esc(k.name)}${k.kab_kota ? ' · ' + esc(k.kab_kota) : ''}</option>`).join('')}</select></div>
+      </div>${hp.get('nm') ? `<p class="small" style="margin:10px 0 0">Atlet: <b>${esc(hp.get('nm'))}</b></p>` : ''}</div>
+      <div id="ck_out" style="margin-top:14px"></div>`;
+    const out = box.querySelector('#ck_out');
+    const run = async () => {
+      const p = { birth_date: box.querySelector('#ck_b').value, gender: box.querySelector('#ck_g').value, nationality: box.querySelector('#ck_n').value,
+        province: box.querySelector('#ck_p').value, club_id: box.querySelector('#ck_k').value || null };
+      box.querySelector('#ck_p').disabled = p.nationality === 'WNA';
+      if (!p.birth_date || !p.gender) { out.innerHTML = '<p class="empty">Isi tanggal lahir dan jenis kelamin untuk melihat kategori yang bisa diikuti.</p>'; return; }
+      loading(out);
+      try { out.innerHTML = eligibilityHtml(await api('public_check_eligibility', { p }), true); }
+      catch (e) { fail(out, e); }
+    };
+    box.querySelectorAll('input,select').forEach((el) => el.addEventListener('change', run));
+    await run();
+  }
+  function eligibilityHtml(x, staff) {
+    const head = `<div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <span class="pill dark">Usia ${x.year}: ${x.age} tahun</span>
+        ${x.minor ? `<span class="pill warn">Di bawah ${x.guardian_age} tahun: data orang tua/wali wajib</span>` : ''}
+        ${x.club ? `<span class="pill info">Klub: ${esc(x.club.name)}</span>` : ''}
+        ${x.registration_open ? '' : '<span class="pill bad">Pendaftaran sedang ditutup</span>'}</div>`;
+    const discs = x.disciplines.map((d) => {
+      const ok = d.categories.filter((c) => !c.reason), off = d.categories.filter((c) => c.reason);
+      const row = (c) => {
+        const a = ageRange(c);
+        return `<tr><td><b>${esc(c.name_id)}</b>${c.entry_type === 'pair' ? ' <span class="pill">Pasangan</span>' : ''}${c.jabar_only ? ' <span class="pill gold">Khusus daerah</span>' : ''}
+            ${staff ? `<br><span class="tiny muted code">${esc(c.code)}</span>` : ''}${c.note ? `<br><span class="tiny muted">${esc(c.note)}</span>` : ''}</td>
+          <td class="small">${esc(a.age)}<br><span class="tiny muted">${esc(a.born)}</span></td>
+          <td class="small">${GEN[c.gender] || c.gender}</td><td class="r num">${fmtRp(c.fee)}</td>
+          <td class="small">${c.reason ? `<span class="pill bad">Tidak bisa</span><br>${esc(c.reason)}` : `<span class="pill ok">Bisa</span>${c.quota_left != null ? `<br><span class="tiny muted">Sisa kuota klub: ${c.quota_left}</span>` : ''}`}</td></tr>`;
+      };
+      const tbl = (list) => `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Kategori</th><th>Usia</th><th>Jenis kelamin</th><th class="r">Biaya</th><th>Status</th></tr></thead><tbody>${list.map(row).join('')}</tbody></table></div>`;
+      return `<section class="card"><h2 style="margin:0 0 8px;font-size:1.05rem">${esc(d.name_id)} ${d.open ? '' : '<span class="pill bad">Pendaftaran disiplin ditutup</span>'}</h2>
+        ${ok.length ? tbl(ok) : '<p class="small muted" style="margin:0">Tidak ada kategori yang bisa diikuti.</p>'}
+        ${off.length ? `<details style="margin-top:10px"><summary class="small">${off.length} kategori tidak bisa diikuti (lihat alasannya)</summary>${tbl(off)}</details>` : ''}</section>`;
+    }).join('');
+    return head + discs + (staff && RULES && RULES.can_edit ? '<p class="small muted">Atlet ingin ikut kategori yang terkunci karena aturannya keliru? Ubah di tab <a href="#/aturan/kategori">Kategori &amp; usia</a>, lalu klub bisa langsung mendaftar dengan data aslinya.</p>' : '');
+  }
+
+  // ---------- kategori & usia ----------
+  let rulesDisc = null;
+  async function rulesCats(box) {
+    rulesDisc = rulesDisc && myDiscs().includes(rulesDisc) ? rulesDisc : myDiscs()[0];
+    const can = RULES.can_edit;
+    const draw = () => {
+      const list = CATS.categories.filter((c) => c.discipline === rulesDisc);
+      box.innerHTML = `<div class="tabs">${myDiscs().map((k) => `<button type="button" data-d="${k}" aria-selected="${k === rulesDisc}">${DN[k]}</button>`).join('')}</div>
+        <div class="row" style="margin-bottom:10px;gap:8px;flex-wrap:wrap"><span class="small muted" style="flex:1">Usia dihitung ${eventYear()} dikurangi tahun lahir.</span>
+          ${can ? '<button type="button" class="btn btn-primary btn-sm" id="cat_new">Tambah kategori</button>' : ''}</div>
+        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Kategori</th><th>Usia</th><th>Jenis kelamin</th><th>Nomor</th><th class="r">Biaya</th><th class="r">Kuota/klub</th><th class="r">Terdaftar</th><th>Status</th><th></th></tr></thead><tbody>
+        ${list.map((c) => {
+          const a = ageRange(c);
+          return `<tr><td><b>${esc(c.name_id)}</b><br><span class="tiny muted code">${esc(c.code)}</span>${c.jabar_only ? ' <span class="pill gold">Khusus daerah</span>' : ''}</td>
+            <td class="small">${esc(a.age)}<br><span class="tiny muted">${esc(a.born)}</span></td>
+            <td class="small">${GEN[c.gender]}</td><td class="small">${c.entry_type === 'pair' ? 'Pasangan' : 'Perorangan'}</td>
+            <td class="r num">${fmtRp(c.fee)}</td><td class="r num">${c.max_per_club || '–'}</td><td class="r num">${c.registered}</td>
+            <td>${c.active ? '<span class="pill ok">Aktif</span>' : '<span class="pill">Nonaktif</span>'}</td>
+            <td class="r">${can ? rowMenu(`<button type="button" class="btn btn-ghost btn-sm" data-ce="${c.id}">Ubah</button>`,
+              [{ label: 'Duplikat', attr: `data-cd="${c.id}"` }, { label: c.active ? 'Nonaktifkan' : 'Aktifkan', attr: `data-ca="${c.id}"` },
+               { sep: true }, { label: 'Hapus permanen', attr: `data-cx="${c.id}"`, danger: true }]) : ''}</td></tr>`;
+        }).join('') || '<tr><td colspan="9" class="empty">Belum ada kategori.</td></tr>'}</tbody></table></div>`;
+      box.querySelectorAll('[data-d]').forEach((b) => b.onclick = () => { rulesDisc = b.dataset.d; draw(); });
+      const byId = (id) => CATS.categories.find((c) => c.id === Number(id));
+      const nb = box.querySelector('#cat_new'); if (nb) nb.onclick = () => catDialog(null, 'new', draw);
+      box.querySelectorAll('[data-ce]').forEach((b) => b.onclick = () => catDialog(byId(b.dataset.ce), 'edit', draw));
+      box.querySelectorAll('[data-cd]').forEach((b) => b.onclick = () => catDialog(byId(b.dataset.cd), 'dup', draw));
+      box.querySelectorAll('[data-ca]').forEach((b) => b.onclick = async () => {
+        const c = byId(b.dataset.ca);
+        try { await api('console_update_category', { p_id: c.id, p_patch: { active: !c.active } }); await refreshCats(); JO.toast(c.active ? 'Kategori dinonaktifkan.' : 'Kategori diaktifkan.'); draw(); }
+        catch (e) { JO.toast(e.message, 'bad'); }
+      });
+      box.querySelectorAll('[data-cx]').forEach((b) => b.onclick = async () => {
+        const c = byId(b.dataset.cx);
+        const reason = await askReason('Hapus ' + c.name_id + '?', 'Alasan penghapusan (masuk Log)', { ok: 'Hapus permanen', okClass: 'btn-bad',
+          intro: 'Hanya bisa untuk kategori yang belum pernah dipakai pendaftaran. Kategori yang sudah dipakai cukup dinonaktifkan.' });
+        if (!reason) return;
+        try { await api('console_delete_category', { p_id: c.id, p_reason: reason }); await refreshCats(); JO.toast('Kategori dihapus.'); draw(); }
+        catch (e) { JO.toast(e.message, 'bad'); }
+      });
+    };
+    draw();
+  }
+
+  async function catDialog(src, mode, done) {
+    const Y = eventYear();
+    const c = src || { discipline: rulesDisc, gender: rulesDisc === 'MAG' ? 'M' : 'F', entry_type: 'individual', fee: '', apparatus: [], active: true, level: '', division: '', name_id: '', name_en: '' };
+    const disc = c.discipline;
+    const ageMin = c.birth_year_max != null ? Y - c.birth_year_max : '', ageMax = c.birth_year_min != null ? Y - c.birth_year_min : '';
+    const apps = discApps(disc);
+    const title = mode === 'edit' ? 'Ubah kategori' : mode === 'dup' ? 'Duplikat kategori' : 'Tambah kategori ' + DN[disc];
+    const r = await dialog({ title, ok: mode === 'edit' ? 'Simpan' : 'Buat kategori', wide: true,
+      body: `${mode === 'edit' && c.registered > 0 ? `<p class="note warn small">${c.registered} peserta sudah terdaftar di kategori ini. Bila aturan baru tidak cocok untuk mereka, atletnya ditandai "Tidak sesuai aturan" di Pendaftaran dan Data atlet. Data pendaftaran mereka tidak berubah.</p>` : ''}
+        ${mode === 'dup' ? `<p class="small muted">Salinan dari <b>${esc(c.name_id)}</b>. Ubah yang perlu, lalu buat.</p>` : ''}
+        <div class="grid-2">
+          <div class="field"><label class="f" for="cf_nid">Nama (Indonesia)</label><input id="cf_nid" value="${esc(mode === 'dup' ? c.name_id + ' (salinan)' : c.name_id)}"></div>
+          <div class="field"><label class="f" for="cf_nen">Nama (English)</label><input id="cf_nen" value="${esc(c.name_en || '')}"></div>
+          <div class="field"><label class="f" for="cf_lv">Level</label><input id="cf_lv" value="${esc(c.level || '')}" placeholder="mis. Level 1, KU 5–6, Junior"></div>
+          <div class="field"><label class="f" for="cf_dv">Divisi (opsional)</label><input id="cf_dv" value="${esc(c.division || '')}" placeholder="mis. Profesional, Amatir"></div>
+          <div class="field"><label class="f" for="cf_et">Nomor</label><select id="cf_et"><option value="individual">Perorangan</option><option value="pair" ${c.entry_type === 'pair' ? 'selected' : ''}>Pasangan</option></select></div>
+          <div class="field"><label class="f" for="cf_g">Jenis kelamin</label><select id="cf_g">${Object.entries(GEN).map(([k, l]) => `<option value="${k}" ${c.gender === k ? 'selected' : ''}>${l}${k === 'X' ? ' (pasangan putra-putri)' : ''}</option>`).join('')}</select></div>
+          <div class="field"><label class="f" for="cf_amin">Usia termuda (${Y})</label><input id="cf_amin" type="number" min="0" max="99" value="${ageMin}"><div class="f-hint">Kosongkan bila tanpa batas bawah</div></div>
+          <div class="field"><label class="f" for="cf_amax">Usia tertua (${Y})</label><input id="cf_amax" type="number" min="0" max="99" value="${ageMax}"><div class="f-hint">Kosongkan bila tanpa batas atas</div></div>
+        </div>
+        <p class="note info small" id="cf_prev" style="margin-top:0"></p>
+        <div class="grid-3">
+          <div class="field"><label class="f" for="cf_fee">Biaya (Rp)</label><input id="cf_fee" type="number" min="0" value="${c.fee === '' ? '' : c.fee}"><div class="f-hint">Hanya untuk pendaftaran baru</div></div>
+          <div class="field"><label class="f" for="cf_q">Maks. peserta per klub</label><input id="cf_q" type="number" min="1" value="${c.max_per_club || ''}"><div class="f-hint">Kosongkan bila tanpa batas</div></div>
+          <div class="field"><label class="f" for="cf_code">Kode</label><input id="cf_code" value="${mode === 'edit' ? esc(c.code) : ''}" placeholder="${mode === 'edit' ? '' : 'Otomatis'}" style="text-transform:uppercase"></div>
+        </div>
+        ${apps.length ? `<div class="field"><span class="f">Alat</span><div class="row" style="flex-wrap:wrap">${apps.map((a) => `<label class="check" style="padding:2px 10px 2px 0"><input type="checkbox" data-app="${a.code}" ${(c.apparatus || []).includes(a.code) ? 'checked' : ''}>${esc(a.id)}</label>`).join('')}</div></div>` : ''}
+        <label class="check"><input type="checkbox" id="cf_j" ${c.jabar_only ? 'checked' : ''}><span>Khusus daerah (syarat Priangan di tab Aturan umum)</span></label>
+        <label class="check"><input type="checkbox" id="cf_a" ${c.active !== false ? 'checked' : ''}><span>Aktif (tampil di formulir pendaftaran)</span></label>`,
+      onOk: async (d) => {
+        const q = (s) => d.querySelector(s);
+        const amin = q('#cf_amin').value.trim(), amax = q('#cf_amax').value.trim();
+        if (amin !== '' && amax !== '' && Number(amin) > Number(amax)) throw new Error('Usia termuda tidak boleh lebih besar dari usia tertua.');
+        if (q('#cf_et').value === 'individual' && q('#cf_g').value === 'X') throw new Error('Kategori perorangan harus putra atau putri. "Campuran" hanya untuk pasangan.');
+        if (q('#cf_fee').value === '') throw new Error('Isi biaya kategori.');
+        const p = {
+          name_id: q('#cf_nid').value.trim(), name_en: q('#cf_nen').value.trim(), level: q('#cf_lv').value.trim(), division: q('#cf_dv').value.trim(),
+          entry_type: q('#cf_et').value, gender: q('#cf_g').value,
+          birth_year_min: amax === '' ? '' : String(Y - Number(amax)), birth_year_max: amin === '' ? '' : String(Y - Number(amin)),
+          fee: Number(q('#cf_fee').value), max_per_club: q('#cf_q').value.trim(), jabar_only: q('#cf_j').checked, active: q('#cf_a').checked,
+          apparatus: [...d.querySelectorAll('[data-app]:checked')].map((x) => x.dataset.app) };
+        const code = q('#cf_code').value.trim().toUpperCase();
+        if (mode === 'edit') {
+          const patch = {};
+          Object.entries(p).forEach(([k, val]) => {
+            const old = c[k];
+            if (k === 'apparatus') { if ((old || []).join() !== val.join()) patch[k] = val; return; }
+            if (typeof val === 'boolean') { if (val !== !!old) patch[k] = val; return; }
+            if (String(old == null ? '' : old) !== String(val)) patch[k] = val;
+          });
+          if (code && code !== c.code) patch.code = code;
+          if (!Object.keys(patch).length) return { none: true };
+          await api('console_update_category', { p_id: c.id, p_patch: patch });
+          return { id: c.id };
+        }
+        const x = await api('console_create_category', { p: Object.assign(p, { discipline: disc, code, copied_from: mode === 'dup' ? c.code : null,
+          medal_rule: mode === 'dup' ? c.medal_rule : undefined, sort: mode === 'dup' ? c.sort : undefined,
+          label_style: mode === 'dup' && /^kelahiran/i.test(c.age_label || '') ? 'kelahiran' : null }) });
+        return { id: x.created_id };
+      } });
+    if (!r) return;
+    if (r.none) { JO.toast('Tidak ada perubahan.'); return; }
+    await refreshCats();
+    let msg = mode === 'edit' ? 'Kategori disimpan.' : 'Kategori dibuat.';
+    if (mode === 'edit') {
+      try { const bad = await api('console_athletes', { p_filter: { flag: 'aturan', category: r.id } }); if (bad.length) msg += ` ${bad.length} atlet kini tidak sesuai aturan kategori ini dan ditandai di Data atlet.`; } catch (e) { /* abaikan */ }
+    }
+    JO.toast(msg);
+    done();
+  }
+  // pratinjau usia di dialog kategori
+  document.addEventListener('input', (e) => {
+    if (!e.target.matches || !e.target.matches('#cf_amin, #cf_amax')) return;
+    const d = e.target.closest('dialog'); const Y = eventYear();
+    const a = d.querySelector('#cf_amin').value.trim(), b = d.querySelector('#cf_amax').value.trim();
+    const R = ageRange({ birth_year_max: a === '' ? null : Y - Number(a), birth_year_min: b === '' ? null : Y - Number(b) });
+    d.querySelector('#cf_prev').textContent = `Label otomatis: ${R.age} · ${R.born}`;
+  });
+  if (document.getElementById('dlg')) new MutationObserver(() => {
+    const p = document.querySelector('dialog[open] #cf_prev');
+    if (p && !p.textContent) p.closest('dialog').querySelector('#cf_amin').dispatchEvent(new Event('input', { bubbles: true }));
+  }).observe(document.getElementById('dlg'), { childList: true });
+
+  // ---------- aturan umum ----------
+  async function rulesGeneral(box) {
+    const R = RULES, r = R.rules, s = R.settings, D = R.defaults, can = R.can_edit;
+    const dis = can ? '' : 'disabled';
+    const num = (id, val, def, attrs, hint) => `<div class="field"><label class="f" for="${id}">${attrs.label}</label><input id="${id}" type="number" ${attrs.min != null ? `min="${attrs.min}"` : ''} ${attrs.max != null ? `max="${attrs.max}"` : ''} value="${esc(val)}" ${dis}>
+      <div class="f-hint">${hint || ''}${def != null ? `${hint ? ' · ' : ''}Awal: ${esc(def)}` : ''}</div></div>`;
+    const provSel = (id, val) => `<select id="${id}" ${dis}><option value="">Tidak diperiksa</option>${window.JO_REGIONS.provinces.map((p) => `<option ${p === val ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select>`;
+    const levelsFor = (code) => ((R.disciplines.find((d) => d.code === code) || {}).levels || []);
+    box.innerHTML = `
+      <section class="card"><h2 style="font-size:1.05rem;margin:0 0 10px">Kategori per atlet</h2>
+        <p class="small muted">Satu atlet ikut satu kategori per disiplin. Disiplin yang dicentang membolehkan satu nomor perorangan ditambah satu nomor pasangan.</p>
+        <div class="row" style="flex-wrap:wrap">${R.disciplines.map((d) => `<label class="check" style="padding:4px 14px 4px 0"><input type="checkbox" data-pwi="${d.code}" ${(r.pair_with_individual || []).includes(d.code) ? 'checked' : ''} ${dis}><span>${esc(d.name_id)}</span></label>`).join('')}</div></section>
+      <section class="card"><h2 style="font-size:1.05rem;margin:0 0 10px">Pendaftaran & pembayaran</h2><div class="grid-2">
+        ${num('ru_max', s.max_athletes, 10, { label: 'Maks. atlet per pendaftaran', min: 1, max: 100 }, 'Termasuk anggota khusus beregu')}
+        ${num('ru_qris', s.qris_cap, 10000000, { label: 'Batas satu transaksi QRIS (Rp)', min: 100000 })}
+        ${num('ru_pm', r.proof_minutes, D.proof_minutes, { label: 'Batas unggah bukti bayar (menit)', min: 0, max: 1440 }, '0 = tidak dihapus otomatis')}
+        ${num('ru_rate', r.rate_per_hour, D.rate_per_hour, { label: 'Maks. pendaftaran per perangkat per jam', min: 1, max: 1000 })}
+        ${num('ru_ga', r.guardian_age, D.guardian_age, { label: 'Data orang tua/wali wajib di bawah usia', min: 0, max: 30 }, '0 = tidak pernah wajib')}
+      </div></section>
+      <section class="card"><h2 style="font-size:1.05rem;margin:0 0 10px">Kategori khusus daerah (Priangan)</h2>
+        <p class="small muted">Berlaku untuk kategori yang ditandai "Khusus daerah". Syarat saat ini: ${esc(priDesc(r.priangan))}.</p>
+        <label class="check"><input type="checkbox" id="ru_pwni" ${r.priangan.wni ? 'checked' : ''} ${dis}><span>Khusus atlet WNI</span></label>
+        <div class="grid-2">
+          <div class="field"><label class="f" for="ru_pap">Provinsi alamat identitas atlet</label>${provSel('ru_pap', r.priangan.athlete_province)}</div>
+          <div class="field"><label class="f" for="ru_pcp">Provinsi klub</label>${provSel('ru_pcp', r.priangan.club_province)}</div></div></section>
+      <section class="card"><h2 style="font-size:1.05rem;margin:0 0 10px">Dokumen atlet</h2>
+        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Dokumen</th><th>Atlet WNI</th><th>Atlet WNA</th></tr></thead><tbody>
+        ${DOC_SLOTS.map(([k, l]) => `<tr><td>${esc(l)}</td>${['WNI', 'WNA'].map((n) => `<td><select data-doc="${n}:${k}" ${dis}>${Object.entries(DOC_ST).map(([v2, l2]) => `<option value="${v2}" ${r.docs[n][k] === v2 ? 'selected' : ''}>${l2}</option>`).join('')}</select></td>`).join('')}</tr>`).join('')}
+        </tbody></table></div><p class="small muted">Pas foto dipakai di AIC. Bila dibuat opsional, atlet tanpa pas foto mendapat AIC tanpa foto.</p></section>
+      <section class="card"><h2 style="font-size:1.05rem;margin:0 0 10px">Beregu</h2>
+        ${['MAG', 'WAG'].filter((k) => levelsFor(k).length).map((k) => `<div class="field"><span class="f">Level beregu ${DN[k]}</span><div class="row" style="flex-wrap:wrap">
+          ${levelsFor(k).sort((a, b) => a.localeCompare(b, 'id', { numeric: true })).map((lv) => `<label class="check" style="padding:2px 12px 2px 0"><input type="checkbox" data-tl="${k}" value="${esc(lv)}" ${((s.team_levels || {})[k] || []).includes(lv) ? 'checked' : ''} ${dis}><span>${esc(lv)}</span></label>`).join('')}</div></div>`).join('')}
+        <div class="grid-3">
+          ${num('ru_tmax', s.team_max, 6, { label: 'Maks. pesenam per tim', min: 1, max: 20 })}
+          ${num('ru_tcnt', s.team_counting, 4, { label: 'Nilai terbaik yang dihitung', min: 1, max: 20 })}
+          ${num('ru_tfee', s.team_fee, 650000, { label: 'Biaya per tim (Rp)', min: 0 })}</div></section>
+      <section class="card"><h2 style="font-size:1.05rem;margin:0 0 10px">Pendaftaran massal</h2><div class="grid-3">
+        ${num('ru_bmin', s.bulk_min, 30, { label: 'Minimal atlet', min: 1, max: 250 })}
+        ${num('ru_bmax', s.bulk_max, 250, { label: 'Maksimal atlet', min: 1, max: 250 }, 'Batas sistem 250')}
+        ${num('ru_bday', s.bulk_days, 7, { label: 'Masa berlaku kode (hari)', min: 1, max: 30 })}</div></section>
+      ${can ? '<div class="row" style="justify-content:flex-end;margin-top:14px"><button type="button" class="btn btn-primary" id="ru_save">Simpan aturan</button></div>' : ''}`;
+    const sb = box.querySelector('#ru_save');
+    if (!sb) return;
+    const val = (id) => box.querySelector('#' + id).value.trim();
+    sb.onclick = async () => {
+      const docs = { WNI: {}, WNA: {} };
+      box.querySelectorAll('[data-doc]').forEach((el) => { const [n, k] = el.dataset.doc.split(':'); docs[n][k] = el.value; });
+      const tl = {};
+      box.querySelectorAll('[data-tl]').forEach((el) => { if (el.checked) (tl[el.dataset.tl] = tl[el.dataset.tl] || []).push(el.value); });
+      const rules = {
+        pair_with_individual: [...box.querySelectorAll('[data-pwi]:checked')].map((x) => x.dataset.pwi),
+        proof_minutes: Number(val('ru_pm')), rate_per_hour: Number(val('ru_rate')), guardian_age: Number(val('ru_ga')),
+        priangan: { wni: box.querySelector('#ru_pwni').checked, athlete_province: val('ru_pap'), club_province: val('ru_pcp') }, docs };
+      const settings = { max_athletes: Number(val('ru_max')), qris_cap: Number(val('ru_qris')), team_max: Number(val('ru_tmax')),
+        team_counting: Number(val('ru_tcnt')), team_fee: Number(val('ru_tfee')), bulk_min: Number(val('ru_bmin')), bulk_max: Number(val('ru_bmax')),
+        bulk_days: Number(val('ru_bday')), team_levels: Object.assign({}, s.team_levels || {}, { MAG: tl.MAG || [], WAG: tl.WAG || [] }) };
+      Object.keys(settings.team_levels).forEach((k) => { if (!settings.team_levels[k].length) delete settings.team_levels[k]; });
+      // ringkasan perubahan untuk konfirmasi
+      const L = { pair_with_individual: 'Disiplin dengan nomor pasangan tambahan', proof_minutes: 'Batas unggah bukti bayar (menit)', rate_per_hour: 'Maks. pendaftaran per perangkat per jam',
+        guardian_age: 'Data wali wajib di bawah usia', priangan: 'Syarat khusus daerah', docs: 'Dokumen atlet', max_athletes: 'Maks. atlet per pendaftaran', qris_cap: 'Batas transaksi QRIS',
+        team_max: 'Maks. pesenam per tim', team_counting: 'Nilai terbaik tim', team_fee: 'Biaya beregu', bulk_min: 'Minimal atlet massal', bulk_max: 'Maksimal atlet massal', bulk_days: 'Masa berlaku kode massal', team_levels: 'Level beregu' };
+      const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+      const norm = (o) => (o && typeof o === 'object' && !Array.isArray(o) ? Object.keys(o).sort().reduce((m, k) => { m[k] = norm(o[k]); return m; }, {}) : o);
+      const changed = [];
+      Object.entries(rules).forEach(([k, x]) => { if (!same(norm(x), norm(k === 'docs' ? r.docs : r[k]))) changed.push(L[k]); });
+      Object.entries(settings).forEach(([k, x]) => { if (!same(norm(x), norm(s[k]))) changed.push(L[k]); });
+      if (!changed.length) { JO.toast('Tidak ada perubahan.'); return; }
+      const ok = await dialog({ title: 'Simpan aturan?', ok: 'Simpan dan berlakukan',
+        body: `<p>Yang berubah:</p><ul>${changed.map((x) => `<li>${esc(x)}</li>`).join('')}</ul><p class="small muted">Langsung berlaku untuk pendaftaran berikutnya dan tercatat di Log.</p>` });
+      if (!ok) return;
+      try { RULES = await api('console_save_rules', { p: { rules, settings } }); JO.toast('Aturan disimpan dan langsung berlaku.'); rulesGeneral(box); }
+      catch (e) { JO.toast(e.message, 'bad'); }
+    };
   }
 
   // =====================================================================
@@ -1741,6 +2065,7 @@
       const d = CATS.disciplines.find((x) => x.code === disc);
       const list = CATS.categories.filter((c) => c.discipline === disc);
       v.innerHTML = `<h1>Kategori</h1>${isTD() ? `<p class="muted">${roMode()}: hanya baca.</p>` : ''}
+        ${isSuper() ? '<p class="small muted">Tambah, duplikat, atau hapus kategori dan ubah batas usia di <a href="#/aturan/kategori">Aturan pendaftaran</a>.</p>' : ''}
         <div class="tabs">${myDiscs().map((k) => `<button data-d="${k}" aria-selected="${k === disc}">${DN[k]}</button>`).join('')}</div>
         ${d ? `<div class="row" style="margin-bottom:12px"><span>Pendaftaran ${DN[disc]}: <strong>${d.registration_open ? 'dibuka' : 'ditutup'}</strong></span>
           ${isSuper() ? `<button class="btn btn-ghost btn-sm" id="dtoggle">${d.registration_open ? 'Tutup pendaftaran disiplin ini' : 'Buka pendaftaran'}</button>` : ''}
@@ -3263,7 +3588,7 @@
     hasil_dipublikasikan: 'Hasil dipublikasikan', hasil_ditarik: 'Hasil ditarik', hasil_beregu_dipublikasikan: 'Hasil beregu dipublikasikan', hasil_beregu_ditarik: 'Hasil beregu ditarik',
     start_list_disimpan: 'Start list disimpan', start_list_dipublikasikan: 'Start list dipublikasikan', start_list_ditarik: 'Start list ditarik',
     sesi_disimpan: 'Sesi disimpan', sesi_dihapus: 'Sesi dihapus', undian_urutan: 'Undian urutan tampil', status_entri: 'Status peserta diubah',
-    kategori_diubah: 'Kategori diubah', disiplin_diubah: 'Disiplin diubah', pengaturan_diubah: 'Pengaturan diubah', secret_email_diganti: 'Secret email diganti',
+    kategori_diubah: 'Kategori diubah', kategori_dibuat: 'Kategori dibuat', kategori_dihapus_permanen: 'Kategori dihapus permanen', aturan_diubah: 'Aturan pendaftaran diubah', disiplin_diubah: 'Disiplin diubah', pengaturan_diubah: 'Pengaturan diubah', secret_email_diganti: 'Secret email diganti',
     laporan_dibuat: 'Laporan masalah dibuat', laporan_status: 'Status laporan diubah', laporan_dihapus: 'Laporan dihapus', pesan_dihapus: 'Pesan chat dihapus',
     calon_mitra_masuk: 'Calon mitra masuk', calon_mitra_status: 'Status calon mitra diubah', calon_mitra_dihapus: 'Calon mitra dihapus', berkas_dihapus: 'Berkas yatim dihapus', data_uji_dihapus: 'Data uji dihapus',
     wa_penerima_disimpan: 'Penerima WA disimpan', wa_pengaturan: 'Pengaturan WA diubah', wa_tes: 'Tes WA dikirim',

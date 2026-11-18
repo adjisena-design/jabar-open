@@ -178,6 +178,26 @@
     }).catch(() => {});
   })();
 
+  // ---------- angka aturan pendaftaran (Konsol → Aturan pendaftaran) ----------
+  (function () {
+    const C = window.JO_CONFIG; if (!C || !C.supabaseUrl) return;
+    fetch(C.supabaseUrl + '/rest/v1/rpc/public_rules', {
+      method: 'POST', headers: { apikey: C.supabaseKey, Authorization: 'Bearer ' + C.supabaseKey, 'Content-Type': 'application/json' }, body: '{}',
+    }).then((r) => (r.ok ? r.json() : null)).then((x) => {
+      if (!x || !x.rules) return;
+      const pm = Number(x.rules.proof_minutes), mx = Number(x.max_athletes);
+      if (Number.isFinite(pm)) {
+        ID.t_s5 = pm > 0 ? `Bayar QRIS dan unggah bukti dalam ${pm} menit.` : 'Bayar QRIS dan unggah bukti bayar.';
+        EN.t_s5 = pm > 0 ? `Pay by QRIS and upload the proof within ${pm} minutes.` : 'Pay by QRIS and upload the payment proof.';
+      }
+      if (Number.isFinite(mx)) {
+        if (ID.f_lead) ID.f_lead = ID.f_lead.replace(/hingga \d+ atlet/, `hingga ${mx} atlet`);
+        if (EN.f_lead) EN.f_lead = EN.f_lead.replace(/up to \d+ athletes/, `up to ${mx} athletes`);
+      }
+      setLang(LANG);
+    }).catch(() => {});
+  })();
+
   // ---------- FAQ: tampil hanya bila ada pertanyaan terbit ----------
   const faqSec = document.getElementById('faq');
   if (faqSec && window.JOFaq) {

@@ -158,10 +158,14 @@ begin
       || jo.tr(l,'Tiga digit terakhir adalah kode unik yang mencocokkan pembayaran Anda dengan pendaftaran ini. Setelah membayar, unggah bukti pembayaran di halaman status.',
                  'The last three digits are a unique code that matches your payment to this registration. After paying, upload the payment proof on the status page.')
       || '</p><p style="background:#fdf3dc;border-left:4px solid #e4c87d;padding:10px 14px"><b>'
-      || jo.tr(l,'Penting: unggah bukti bayar paling lambat 15 menit setelah mendaftar','Important: upload the payment proof within 15 minutes of registering')
-      || '</b> (' || to_char(s.created_at at time zone 'Asia/Jakarta' + interval '15 minutes', 'HH24:MI') || ' WIB). '
-      || jo.tr(l,'Bila tidak, pendaftaran ini dihapus otomatis dan Anda perlu mendaftar ulang.',
-                 'Otherwise this registration is deleted automatically and you will need to register again.') || '</p>';
+      || case when coalesce(jo.rule_int('proof_minutes'), 15) > 0 then
+           jo.tr(l,'Penting: unggah bukti bayar paling lambat ' || jo.rule_int('proof_minutes') || ' menit setelah mendaftar',
+                   'Important: upload the payment proof within ' || jo.rule_int('proof_minutes') || ' minutes of registering')
+           || '</b> (' || to_char(s.created_at at time zone 'Asia/Jakarta' + make_interval(mins => jo.rule_int('proof_minutes')), 'HH24:MI') || ' WIB). '
+           || jo.tr(l,'Bila tidak, pendaftaran ini dihapus otomatis dan Anda perlu mendaftar ulang.',
+                      'Otherwise this registration is deleted automatically and you will need to register again.')
+         else jo.tr(l,'Penting: segera unggah bukti bayar setelah membayar.','Important: upload the payment proof right after paying.') || '</b>'
+         end || '</p>';
   else
     body := body || '<p>' || jo.tr(l,
       'Pendaftaran atlet internasional dibayar terpisah. Panitia akan menghubungi Anda melalui email ini untuk cara pembayaran.',

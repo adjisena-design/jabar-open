@@ -125,10 +125,15 @@ begin
       s.total_amount, s.unique_code, s.status, s.payment_method, s.proof_uploaded_at, s.paid_at,
       (select b.code from jo.bulk_batches b where b.id = s.bulk_batch_id) as bulk_code,
       case when s.payment_method = 'qris' and s.status = 'menunggu_pembayaran' and s.proof_path is null
-           then s.created_at + interval '15 minutes' end as expires_at,
+                and coalesce(jo.rule_int('proof_minutes'), 15) > 0
+           then s.created_at + make_interval(mins => jo.rule_int('proof_minutes')) end as expires_at,
       (select count(*) from jo.athletes a where a.submission_id = s.id and a.doc_status = 'menunggu') as docs_pending,
       (select count(*) from jo.entries e where e.submission_id = s.id and e.priangan_status = 'menunggu') as priangan_pending,
-      exists (select 1 from jo.mutations m where m.submission_id = s.id and m.match_status in ('otomatis','manual')) as mutation_matched
+      exists (select 1 from jo.mutations m where m.submission_id = s.id and m.match_status in ('otomatis','manual')) as mutation_matched,
+      (select count(distinct ea.athlete_id) from jo.entries e join jo.entry_athletes ea on ea.entry_id = e.id
+         join jo.athletes a on a.id = ea.athlete_id join jo.categories cat on cat.id = e.category_id
+        where e.submission_id = s.id and e.status <> 'dibatalkan'
+          and (not cat.active or jo.category_mismatch(cat, a.gender, a.birth_date) is not null)) as rule_issues
     from jo.submissions s left join jo.clubs c on c.id = s.club_id
     where (d is null or s.discipline = d)
       and (nullif(f->>'status','') is null or s.status = f->>'status')
@@ -140,7 +145,13 @@ begin
            or (f->>'flag' = 'docs' and exists (select 1 from jo.athletes a where a.submission_id = s.id and a.doc_status = 'menunggu') and s.status <> 'dibatalkan')
            or (f->>'flag' = 'priangan' and exists (select 1 from jo.entries e where e.submission_id = s.id and e.priangan_status = 'menunggu') and s.status <> 'dibatalkan')
            or (f->>'flag' = 'beregu' and exists (select 1 from jo.teams t where t.submission_id = s.id))
-           or (f->>'flag' = 'musik' and exists (select 1 from jo.entries e where e.submission_id = s.id and e.status <> 'dibatalkan' and e.music_status in ('menunggu','belum','tidak_bisa')) and s.status <> 'dibatalkan'))
+           or (f->>'flag' = 'musik' and exists (select 1 from jo.entries e where e.submission_id = s.id and e.status <> 'dibatalkan' and e.music_status in ('menunggu','belum','tidak_bisa')) and s.status <> 'dibatalkan')
+           or (f->>'flag' = 'aturan' and s.status <> 'dibatalkan' and exists (select 1 from jo.entries e join jo.entry_athletes ea on ea.entry_id = e.id
+                 join jo.athletes a on a.id = ea.athlete_id join jo.categories cat on cat.id = e.category_id
+                where e.submission_id = s.id and e.status <> 'dibatalkan'
+                  and (not cat.active or jo.category_mismatch(cat, a.gender, a.birth_date) is not null))))
+      and (nullif(f->>'category','') is null or exists (select 1 from jo.entries e where e.submission_id = s.id
+             and e.status <> 'dibatalkan' and e.category_id = (f->>'category')::integer))
     order by s.created_at desc
     limit 1000) x);
 end $$;
@@ -450,7 +461,12 @@ begin
          from jo.entry_athletes ea join jo.entries e on e.id = ea.entry_id join jo.categories cat on cat.id = e.category_id
         where ea.athlete_id = a.id and e.status <> 'dibatalkan') as categories,
       a.id_doc_path, a.photo_path, a.akte_path, a.ktp_path, a.ijazah_path, a.passport_path, a.bpjs_path,
-      a.bpjs_path is not null as has_bpjs, a.aic_update_pending, a.aic_reissued_at
+      a.bpjs_path is not null as has_bpjs, a.aic_update_pending, a.aic_reissued_at,
+      (select string_agg(cat.name_id || ': ' || coalesce(case when not cat.active then 'kategori dinonaktifkan' end,
+                                                         jo.category_mismatch(cat, a.gender, a.birth_date)), '; ' order by cat.sort)
+         from jo.entry_athletes ea join jo.entries e on e.id = ea.entry_id join jo.categories cat on cat.id = e.category_id
+        where ea.athlete_id = a.id and e.status <> 'dibatalkan'
+          and (not cat.active or jo.category_mismatch(cat, a.gender, a.birth_date) is not null)) as rule_issue
     from jo.athletes a join jo.submissions s on s.id = a.submission_id
     left join jo.clubs c on c.id = s.club_id
     where (d is null or s.discipline = d)
@@ -458,7 +474,9 @@ begin
       and (nullif(f->>'status','') is null or s.status = f->>'status')
       and (coalesce(f->>'q','') = '' or lower(a.full_name) like q or lower(coalesce(a.athlete_no,'')) like q
            or lower(coalesce(c.name,'')) like q or lower(coalesce(a.kab_kota,'')) like q)
-  ) x);
+      and (nullif(f->>'category','') is null or exists (select 1 from jo.entry_athletes ea join jo.entries e on e.id = ea.entry_id
+             where ea.athlete_id = a.id and e.status <> 'dibatalkan' and e.category_id = (f->>'category')::integer))
+  ) x where coalesce(f->>'flag','') <> 'aturan' or x.rule_issue is not null);
 end $$;
 
 -- ---------------------------------------------------------------------

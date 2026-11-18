@@ -147,7 +147,7 @@ begin
     if exists (select 1 from jo.entry_athletes ea join jo.entries e on e.id = ea.entry_id where ea.athlete_id = a.id and e.category_id = c.id) then
       raise exception '% sudah terdaftar di kategori %.', a.full_name, c.name_id;
     end if;
-    if s.discipline in ('MAG','WAG','RG') then
+    if not coalesce(jo.rules()->'pair_with_individual' ? s.discipline, false) then
       if exists (select 1 from jo.entry_athletes ea join jo.entries e on e.id = ea.entry_id where ea.athlete_id = a.id and e.status <> 'dibatalkan') then
         raise exception '% sudah punya kategori di disiplin ini (satu atlet satu kategori). Gunakan Pindah kategori.', a.full_name;
       end if;

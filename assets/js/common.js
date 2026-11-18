@@ -21,9 +21,13 @@
       dict.en[k] = d[k][1] !== undefined ? d[k][1] : d[k][0];
     }
   }
+  // nilai aturan pendaftaran dari server (usia wali, menit bukti bayar, maks. atlet) dipakai di semua teks
+  const ruleVars = { ga: 18, pm: 15, mx: 10 };
+  function setRuleVars(o) { Object.assign(ruleVars, o || {}); }
   function t(key, vars) {
     let s = (dict[lang] && dict[lang][key]) || dict.id[key] || key;
-    if (vars) for (const v of Object.keys(vars)) s = s.split('{' + v + '}').join(vars[v]);
+    const all = Object.assign({}, ruleVars, vars || {});
+    if (s.indexOf('{') >= 0) for (const v of Object.keys(all)) s = s.split('{' + v + '}').join(all[v]);
     return s;
   }
   function applyI18n(root) {
@@ -87,8 +91,9 @@
   function isMinor(birth) {
     if (!birth) return false;
     const b = new Date(birth + 'T00:00:00'); const now = new Date();
-    const eighteen = new Date(b.getFullYear() + 18, b.getMonth(), b.getDate());
-    return eighteen > now;
+    const age = Number(ruleVars.ga);
+    const limit = new Date(b.getFullYear() + (Number.isFinite(age) ? age : 18), b.getMonth(), b.getDate());
+    return limit > now;
   }
 
   // ---------------- server ----------------
@@ -510,7 +515,7 @@ async function rpcGuarded(fn, args, retried) {
   window.JO = {
     nameCase, orgCase, autoNameCase,
     sb, config: C, t, addDict, applyI18n, setLang, onLang, get lang() { return lang; },
-    fmtRp, fmtDate, fmtDateTime, esc, statusPill, amountHtml, compAge, isMinor,
+    fmtRp, fmtDate, fmtDateTime, esc, statusPill, amountHtml, compAge, isMinor, setRuleVars, ruleVars,
     ensureSession, rpc, uploadFile, photoThumb, toast, header, footer, qs, siteUrl, qrSvg, ticketPdf, certificatePdf,
     DISC_DATES, DISC_NAME,
   };
