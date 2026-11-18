@@ -363,7 +363,7 @@ language plpgsql volatile security definer set search_path = '' as $$
 declare st jo.staff; bt jo.bulk_batches; s jo.submissions; v_note text := trim(coalesce(p_note, ''));
 begin
   st := jo.bulk_admin();
-  if length(v_note) < 5 then raise exception 'Tulis keterangan pembayaran (mis. tunai ke Inda 20 Nov, dicek di mutasi BCA).'; end if;
+  if length(v_note) < 5 then raise exception 'Tulis keterangan pembayaran (mis. tunai ke Inda 20 Nov, dicek di mutasi Mandiri).'; end if;
   select * into bt from jo.bulk_batches where id = p_batch for update;
   if bt.id is null then raise exception 'Batch tidak ditemukan.'; end if;
   if bt.status <> 'menunggu' then raise exception 'Batch ini sudah %.', bt.status; end if;

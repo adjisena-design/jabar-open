@@ -4,7 +4,7 @@
 --
 --  Alur: Inda/Owner membuat kode akses untuk satu klub -> klub (pemilik + maks. 2
 --  kolaborator) mengisi lembar atlet yang tersimpan di server -> kirim per batch
---  (batch pertama min. 30) -> transfer BCA (boleh dipecah, maks. 5) + unggah bukti
+--  (batch pertama min. 30) -> transfer Mandiri (boleh dipecah, maks. 5) + unggah bukti
 --  -> Inda memverifikasi -> batch lunas -> pendaftaran biasa per disiplin ikut lunas
 --  dan email AIC terkirim seperti biasa.
 --
@@ -112,7 +112,7 @@ insert into jo.settings (key, value) values
   ('bulk_max', '250'::jsonb),
   ('bulk_days', '7'::jsonb),
   ('bulk_wa', '"6282115596852"'::jsonb),
-  ('bulk_bank', '{"bank":"BCA","number":"1300030431533","name":"Inda Sopia","title":"Finance Manager Jabar Open 2026"}'::jsonb)
+  ('bulk_bank', '{"bank":"Mandiri","number":"1300030431533","name":"Inda Sopia","title":"Finance Manager Jabar Open 2026"}'::jsonb)
 on conflict (key) do nothing;
 
 -- ---------------------------------------------------------------------

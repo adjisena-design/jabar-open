@@ -1,6 +1,6 @@
 /* Jabar Open 2026 — Pendaftaran Massal (min. 30 atlet per klub, maks. 250 per kode akses)
  * Alur: kode akses dari Inda -> data pemilik & kolaborator -> lembar atlet (tersimpan otomatis di server)
- * -> kirim batch -> transfer BCA (boleh dipecah) + unggah bukti -> diverifikasi Inda -> AIC.
+ * -> kirim batch -> transfer Mandiri (boleh dipecah) + unggah bukti -> diverifikasi Inda -> AIC.
  */
 (function () {
   'use strict';
@@ -355,7 +355,7 @@
           <li>Masukkan kode, isi data klub, pemilik, dan maksimal 2 kolaborator.</li>
           <li>Isi lembar atlet dan unggah dokumen. Semua tersimpan otomatis dan bisa dilanjutkan dari perangkat mana pun selama <b>${INFO.days || 7} hari</b> sejak kode pertama dibuka.</li>
           <li>Kirim atlet per batch (batch pertama minimal ${minAth()} atlet).</li>
-          <li>Transfer ke rekening BCA panitia dalam <b>2×24 jam</b>, boleh dipecah sampai 5 kali, lalu unggah setiap bukti transfer di portal.</li>
+          <li>Transfer ke rekening Mandiri panitia dalam <b>2×24 jam</b>, boleh dipecah sampai 5 kali, lalu unggah setiap bukti transfer di portal.</li>
           <li>Setelah transfer diverifikasi, Athlete Identification Card (AIC) dikirim lewat email dan bisa diunduh di portal.</li>
         </ol>
       </section>

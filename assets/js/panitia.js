@@ -1478,7 +1478,7 @@
     v.querySelectorAll('[data-markpaid]').forEach((b) => b.onclick = async () => { const bt = B.batch_list.find((x) => x.id === b.dataset.markpaid);
       done('Batch ditandai lunas. AIC dikirim.')(await dialog({ title: 'Tandai ' + bt.code + ' lunas?', ok: 'Tandai lunas', okClass: 'btn-ok',
         body: `<p>Seluruh tagihan <b>${fmtRp(bt.total)}</b> dianggap lunas tanpa mencocokkan bukti transfer di portal (mis. dibayar tunai atau satu transfer gabungan). AIC semua atlet batch ini diterbitkan dan dikirim.</p>
-          <label class="f" for="mpn">Keterangan pembayaran (masuk Log)</label><textarea id="mpn" placeholder="mis. tunai ke Inda 20 Nov, dicek di mutasi BCA 21 Nov"></textarea>`,
+          <label class="f" for="mpn">Keterangan pembayaran (masuk Log)</label><textarea id="mpn" placeholder="mis. tunai ke Inda 20 Nov, dicek di mutasi Mandiri 21 Nov"></textarea>`,
         onOk: (d) => api('console_bulk_mark_paid', { p_batch: bt.id, p_note: d.querySelector('#mpn').value }) })); });
   }
   function bulkFilesDlg(row, reload, btn) {
@@ -1575,7 +1575,7 @@
       ${b.payments.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nominal</th><th>Tgl transfer</th><th>Diunggah</th><th>Bukti</th><th>Status</th><th></th></tr></thead><tbody>${b.payments.map((p) => pay(p, b)).join('')}</tbody></table></div>` : '<p class="small muted">Belum ada bukti transfer.</p>'}
       ${A && b.status === 'menunggu' ? `<div class="actions" style="margin-top:10px"><button class="btn btn-ghost btn-sm" data-due="${b.id}" data-h="24">+24 jam batas bayar</button><button class="btn btn-ghost btn-sm" data-due="${b.id}" data-h="48">+48 jam</button>
         <button class="btn btn-ghost btn-sm" data-dueat="${b.id}">Atur batas bayar…</button><button class="btn btn-ok btn-sm" data-markpaid="${b.id}">Tandai lunas manual</button>
-        ${B.owner_phone ? `<a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${esc(waHref(B.owner_phone, ownerMsg(`Mengingatkan pembayaran ${b.code} sebesar ${fmtRp(Math.max(0, b.total - b.paid_verified))} ke BCA 1300030431533 a.n. Inda Sopia, paling lambat ${dt(b.due_at)}. Mohon unggah bukti transfer di portal. Terima kasih.`)))}">Ingatkan lewat WhatsApp</a>` : ''}</div>` : ''}</section>`;
+        ${B.owner_phone ? `<a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${esc(waHref(B.owner_phone, ownerMsg(`Mengingatkan pembayaran ${b.code} sebesar ${fmtRp(Math.max(0, b.total - b.paid_verified))} ke Mandiri 1300030431533 a.n. Inda Sopia, paling lambat ${dt(b.due_at)}. Mohon unggah bukti transfer di portal. Terima kasih.`)))}">Ingatkan lewat WhatsApp</a>` : ''}</div>` : ''}</section>`;
     const people = [[B.owner_name, B.owner_phone, 'Pemilik']].concat((B.collaborators || []).map((c) => [c.name, c.phone, 'Kolaborator'])).filter((x) => x[0]);
     v.innerHTML = `<p><a href="#/massal">← Pendaftaran massal</a></p>
       <div class="row page-act" style="justify-content:space-between;align-items:center;gap:12px 20px"><div><h1>${esc(B.club || B.label)}</h1>
@@ -1689,7 +1689,7 @@
     v.querySelectorAll('[data-proof]').forEach((b) => b.onclick = () => preview('bukti', b.dataset.proof, 'Bukti transfer'));
     v.querySelectorAll('[data-doc]').forEach((b) => b.onclick = () => preview('dokumen', b.dataset.doc, b.dataset.t));
     v.querySelectorAll('[data-ok]').forEach((b) => b.onclick = async () => {
-      const r = await dialog({ title: 'Transfer cocok?', ok: 'Ya, cocok', okClass: 'btn-ok', body: '<p>Nominal dan rekening tujuan sudah dicek di mutasi BCA. Bila total yang cocok sudah sama dengan tagihan, batch otomatis lunas dan AIC dikirim.</p>',
+      const r = await dialog({ title: 'Transfer cocok?', ok: 'Ya, cocok', okClass: 'btn-ok', body: '<p>Nominal dan rekening tujuan sudah dicek di mutasi Mandiri. Bila total yang cocok sudah sama dengan tagihan, batch otomatis lunas dan AIC dikirim.</p>',
         onOk: () => api('console_bulk_verify', { p_payment: Number(b.dataset.ok), p_ok: true, p_note: null }) });
       if (r) { JO.toast('Tersimpan.'); reload(); }
     });
