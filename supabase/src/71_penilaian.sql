@@ -1044,7 +1044,8 @@ begin
   end if;
   if v_group is not null and v_group not in ('ART','RG','AER') then raise exception 'Kelompok disiplin tidak dikenal.'; end if;
   if v_dummy and v_role not in ('asjur','verifikator') then raise exception 'Kode dummy hanya untuk Asisten Juri atau Verifikator Nilai.'; end if;
-  if v_role in ('asjur','verifikator') and v_group is null and nullif(p->>'discipline','') is null then
+  if v_dummy then v_group := null; end if;   -- kode dummy: satu kode untuk semua disiplin (18 Nov 2026)
+  if v_role in ('asjur','verifikator') and not v_dummy and v_group is null and nullif(p->>'discipline','') is null then
     raise exception 'Pilih disiplin untuk kode ini (Artistik, Ritmik, atau Aerobik).';
   end if;
   v_code := jo.new_staff_code();
@@ -1057,7 +1058,7 @@ begin
     jo.sha256(jo.norm_code(v_code)), right(v_code, 4), nullif(trim(coalesce(p->>'note','')),''), st.id,
     nullif(regexp_replace(coalesce(p->>'phone',''), '[^0-9+]', '', 'g'), ''),
     case when v_role = 'juri' then jo.norm_windows(p->'access_windows') end,
-    case when v_role in ('asjur','verifikator') then coalesce(v_group, jo.disc_group_of(nullif(p->>'discipline',''))) end,
+    case when v_role in ('asjur','verifikator') and not v_dummy then coalesce(v_group, jo.disc_group_of(nullif(p->>'discipline',''))) end,
     v_dummy)
   returning * into x;
   perform jo.log(st.id, 'kode_dibuat', 'staff', x.id::text, jsonb_build_object('name', x.name, 'role', x.role, 'discipline', x.discipline, 'disc_group', x.disc_group, 'dummy', x.is_dummy));
@@ -1092,7 +1093,7 @@ begin
     note = case when p ? 'note' then nullif(trim(p->>'note'),'') else note end,
     phone = case when p ? 'phone' then nullif(regexp_replace(coalesce(p->>'phone',''), '[^0-9+]', '', 'g'), '') else phone end,
     access_windows = case when x.role <> 'juri' then null when p ? 'access_windows' then jo.norm_windows(p->'access_windows') else access_windows end,
-    disc_group = case when x.role in ('asjur','verifikator') and p ? 'disc_group' then coalesce(nullif(upper(p->>'disc_group'),''), disc_group) else disc_group end
+    disc_group = case when x.is_dummy then null when x.role in ('asjur','verifikator') and p ? 'disc_group' then coalesce(nullif(upper(p->>'disc_group'),''), disc_group) else disc_group end
   where id = x.id;
   if coalesce((p->>'active')::boolean, true) = false then
     delete from jo.staff_sessions where staff_id = x.id;
@@ -1115,9 +1116,10 @@ create or replace function public.console_juri_switch(p_group text) returns json
 language plpgsql volatile security definer set search_path = '' as $$
 declare st jo.staff; v_group text := upper(coalesce(p_group,''));
 begin
-  st := jo.require_judging(array['owner','superadmin','td']);
+  st := jo.require_judging();
+  if not (st.role in ('owner','superadmin','td') or st.is_dummy) then raise exception 'Peran Anda tidak bisa mengganti disiplin.' using hint = 'ERR_FORBIDDEN'; end if;
   if v_group not in ('ART','RG','AER') then raise exception 'Disiplin tidak dikenal.'; end if;
-  if st.is_dummy or st.disc_group is not null or st.discipline is not null then
+  if st.disc_group is not null or st.discipline is not null then
     raise exception 'Kode Anda terkunci pada satu disiplin.' using hint = 'ERR_FORBIDDEN';
   end if;
   update jo.staff_sessions set disc_group = v_group where uid = auth.uid();

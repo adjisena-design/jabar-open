@@ -33,7 +33,7 @@
   const isAsjur = () => ME && ME.role === 'asjur';
   const isVerif = () => ME && ME.role === 'verifikator';
   const isDummy = () => ME && ME.is_dummy;
-  const canSwitch = () => ME && ['owner', 'superadmin', 'td'].includes(ME.role) && !ME.discipline && !ME.disc_group && !ME.is_dummy;
+  const canSwitch = () => ME && (['owner', 'superadmin', 'td'].includes(ME.role) || ME.is_dummy) && !ME.discipline && !ME.disc_group;   // kode dummy: semua disiplin
   // Tabel di ponsel tampil sebagai kartu: setiap sel diberi label dari judul kolomnya,
   // isinya dibungkus agar label dan nilai bisa berdampingan. Node dipindahkan (bukan
   // disalin) sehingga pendengar klik tetap menempel.
@@ -3448,7 +3448,8 @@
         <option value="bendahara">Bendahara (hanya lihat & unduh: Gantt, Struktur, RAB, Pendapatan)</option>
         ${ME.role === 'owner' ? '<option value="superadmin">Superadmin (semua, termasuk ledger)</option>' : ''}</select></div>`}
       <div class="field" id="sdw" ${s && (s.role === 'asjur' || s.role === 'verifikator') ? 'hidden' : ''}><label class="f">Disiplin</label><select id="sd"><option value="">Semua disiplin</option>${DISCS.map((d) => `<option value="${d}" ${s && s.discipline === d ? 'selected' : ''}>${DN[d]}</option>`).join('')}</select></div>
-      <div class="field" id="sgw" ${s && (s.role === 'asjur' || s.role === 'verifikator') ? '' : 'hidden'}><label class="f">Disiplin konsol juri</label><select id="sg">${Object.entries(DGN).map(([k, n]) => `<option value="${k}" ${s && s.disc_group === k ? 'selected' : ''}>${n}</option>`).join('')}</select>
+      <p class="note info small" id="sdum" ${s && s.is_dummy ? '' : 'hidden'}>Kode DUMMY berlaku untuk <b>semua disiplin</b> (Artistik, Ritmik, Aerobik). Masuk lewat kotak disiplin mana pun di ${esc(JO.siteUrl())}juri/ dan ganti disiplin dari dalam konsol juri.</p>
+      <div class="field" id="sgw" ${s && (s.role === 'asjur' || s.role === 'verifikator') && !s.is_dummy ? '' : 'hidden'}><label class="f">Disiplin konsol juri</label><select id="sg">${Object.entries(DGN).map(([k, n]) => `<option value="${k}" ${s && s.disc_group === k ? 'selected' : ''}>${n}</option>`).join('')}</select>
         <div class="f-hint">Masuk di ${esc(JO.siteUrl())}juri/ lewat kotak disiplin ini.</div></div>
       <div id="jopt" ${!s || s.role !== 'juri' ? 'hidden' : ''}><div class="field"><span class="f">Batasi komponen (juri)</span><div class="row">${['D', 'E', 'A', 'PEN'].map((c) => `<label class="check" style="padding:2px 10px 2px 0"><input type="checkbox" data-comp="${c}" ${s && s.components && s.components.includes(c) ? 'checked' : ''}>${c}</label>`).join('')}</div><div class="f-hint">Kosongkan untuk semua komponen.</div></div>
         <div class="field"><label class="f">Batasi alat (juri, pisahkan dengan koma)</label><input id="sa" placeholder="Mis. VT, UB" value="${esc(s && s.apparatus ? s.apparatus.join(', ') : '')}"><div class="f-hint">Kode alat: MAG FX PH SR VT PB HB; WAG VT UB BB FX; Ritmik FH ROPE HOOP BALL CLUBS RIBBON; Aerobik RTN. Kosongkan untuk semua alat.</div></div>${winEditor(s ? s.access_windows : [])}</div>
@@ -3458,7 +3459,7 @@
       is_dummy: d.querySelector('#sr') ? /-dummy$/.test(d.querySelector('#sr').value) : undefined, disc_group: d.querySelector('#sg').value, discipline: d.querySelector('#sd').value,
       components: [...d.querySelectorAll('[data-comp]:checked')].map((x) => x.dataset.comp), apparatus: d.querySelector('#sa').value.split(',').map((x) => x.trim().toUpperCase()).filter(Boolean), note: d.querySelector('#snote').value, phone: d.querySelector('#sph').value,
       access_windows: readWindows(d) });
-    const wireRole = () => { const d = document.getElementById('dlg'); const sr = d && d.querySelector('#sr'); if (sr) sr.onchange = () => { d.querySelector('#jopt').hidden = sr.value !== 'juri'; const jr = /^(asjur|verifikator)/.test(sr.value); d.querySelector('#sgw').hidden = !jr; d.querySelector('#sdw').hidden = jr; }; };
+    const wireRole = () => { const d = document.getElementById('dlg'); const sr = d && d.querySelector('#sr'); if (sr) sr.onchange = () => { d.querySelector('#jopt').hidden = sr.value !== 'juri'; const jr = /^(asjur|verifikator)/.test(sr.value), dm = /-dummy$/.test(sr.value); d.querySelector('#sgw').hidden = !jr || dm; d.querySelector('#sdw').hidden = jr; d.querySelector('#sdum').hidden = !dm; }; };
     const showCode = (name, code, juri) => dialog({ title: 'Kode akses untuk ' + name, ok: null, cancel: 'Selesai',
       body: `<div class="codebox">${esc(code)}</div><p class="small" style="margin-top:12px">Salin dan kirim secara pribadi. Kode ini tidak bisa ditampilkan lagi.</p>
         <div class="actions"><button type="button" class="btn btn-dark btn-sm" id="cp">Salin kode</button>
