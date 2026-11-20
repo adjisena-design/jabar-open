@@ -831,7 +831,9 @@
               ${s.team_amount ? `<tr><td>Biaya beregu (${D.teams.length} tim)</td><td>${fmtRp(s.team_amount)}</td></tr>` : ''}
                 <tr><td>Kode unik</td><td>${fmtRp(s.unique_code)}</td></tr>
               <tr class="total"><td>Total</td><td>${fmtRp(s.total_amount)}</td></tr></tbody></table>
-            ${s.bulk_batch_id ? `<p class="note info" style="margin-top:12px">Pendaftaran massal. Transfer bank, diverifikasi per batch di <a href="#/massal">Pendaftaran massal</a>.</p>` : ''}
+            ${s.bulk_batch_id ? `<p class="note info" style="margin-top:12px">Pendaftaran massal${s.bulk_code ? ' ' + esc(s.bulk_code) : ''}. Transfer bank, diverifikasi per batch di <a href="#/massal">Pendaftaran massal</a>.</p>
+              ${isSuper() && !['lunas', 'dibatalkan'].includes(s.status) ? `<div class="actions" style="margin-top:8px"><button class="btn btn-dark btn-sm" id="bulkpay" data-batch="${esc(s.bulk_batch_id)}">Tambah bukti bayar dari klub</button></div>
+              <p class="tiny muted">Untuk klub yang mengirim bukti transfer langsung ke Inda (WhatsApp), bukan lewat portal.</p>` : ''}` : ''}
             ${s.payment_method === 'manual' ? '<p class="note warn" style="margin-top:12px">Atlet internasional: pembayaran terpisah. Hubungi pendaftar, lalu superadmin menandai lunas dengan nominal yang diterima.</p>' : ''}
             ${s.status === 'lunas' ? `<p class="note ok" style="margin-top:12px">Lunas ${fmtRp(s.paid_amount)} pada ${dt(s.paid_at)}${s.verified_by_name ? ', diverifikasi ' + esc(s.verified_by_name) : ''}.${s.verify_note ? '<br>Catatan: ' + esc(s.verify_note) : ''}</p>` : ''}
             ${s.status === 'lunas' && s.paid_amount != null && s.total_amount !== s.paid_amount ? `<p class="note warn" style="margin-top:12px">Tagihan berubah setelah lunas: <strong>${s.total_amount > s.paid_amount ? 'kurang bayar ' + fmtRp(s.total_amount - s.paid_amount) : 'lebih bayar ' + fmtRp(s.paid_amount - s.total_amount)}</strong>. Tidak ada tagihan otomatis; selesaikan langsung dengan klub.</p>` : ''}
@@ -852,6 +854,8 @@
           </section>
         </div>
       </div>`;
+    const bp = v.querySelector('#bulkpay');
+    if (bp) bp.onclick = () => bulkAddPayDlg(bp.dataset.batch, () => pageSubmission(v, id));
     if (s.proof_path) {
       signed('bukti', s.proof_path).then((url) => {
         const box = v.querySelector('#proof');
@@ -1413,6 +1417,36 @@
     };
   }
 
+
+  // Bukti transfer massal yang dikirim klub langsung ke Inda: diunggah panitia atas nama klub, lalu (opsional) langsung ditandai cocok
+  async function bulkAddPayDlg(batchId, onDone) {
+    let bt;
+    try { bt = await api('console_bulk_batch_brief', { p_batch: batchId }); } catch (e) { return JO.toast(e.message, 'bad'); }
+    if (!bt.manager) return JO.toast('Hanya Inda (Finance Manager) dan owner yang bisa mencatat bukti transfer pendaftaran massal.', 'bad');
+    if (bt.status !== 'menunggu') return JO.toast('Batch ' + bt.code + ' sudah ' + bt.status + '.', 'bad');
+    const sisa = Math.max(0, bt.total - bt.paid_verified - bt.paid_pending);
+    const today = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
+    const r = await dialog({ title: 'Tambah bukti transfer ' + bt.code, ok: 'Simpan bukti',
+      body: `<p class="small">${esc(bt.club || '')} · tagihan <b>${fmtRp(bt.total)}</b> · terverifikasi ${fmtRp(bt.paid_verified)}${bt.paid_pending ? ` · menunggu ${fmtRp(bt.paid_pending)}` : ''}</p>
+        <p class="small muted">Untuk bukti yang dikirim klub langsung ke Inda (mis. lewat WhatsApp). Tercatat atas nama Anda di riwayat batch.</p>
+        <div class="field"><label class="f" for="pa">Nominal transfer (Rp)</label><input id="pa" inputmode="numeric" value="${sisa || ''}"></div>
+        <div class="field"><label class="f" for="pd">Tanggal transfer</label><input id="pd" type="date" value="${today}" max="${today}"></div>
+        <div class="field"><label class="f" for="pf">Bukti transfer (JPG, PNG, atau PDF)</label><input id="pf" type="file" accept="image/jpeg,image/png,image/webp,application/pdf"></div>
+        <div class="field"><label class="f" for="pn">Keterangan (opsional)</label><input id="pn" placeholder="mis. dikirim ke WA Inda 19 Nov, a.n. pengirim Ayub"></div>
+        <label class="check"><input type="checkbox" id="pv" checked><span>Langsung tandai <b>cocok</b> (nominal sudah dicek di mutasi Mandiri). Bila total cocok sudah mencapai tagihan, batch otomatis lunas dan AIC dikirim.</span></label>`,
+      onOk: async (d) => {
+        const amount = Number(d.querySelector('#pa').value.replace(/\D/g, '')); const date = d.querySelector('#pd').value; const file = d.querySelector('#pf').files[0];
+        if (!amount) throw new Error('Isi nominal transfer.');
+        if (!date) throw new Error('Isi tanggal transfer.');
+        if (!file) throw new Error('Pilih file bukti transfer.');
+        const up = await JO.uploadFile('bukti', file);
+        return api('console_bulk_add_payment', { p_batch: bt.id, p_amount: amount, p_date: date, p_path: up.path, p_note: d.querySelector('#pn').value, p_verify: d.querySelector('#pv').checked });
+      } });
+    if (!r) return;
+    const nb = (r.batch_list || []).find((x) => x.id === bt.id);
+    JO.toast(nb && nb.status === 'lunas' ? `Bukti tersimpan. ${bt.code} lunas, AIC dikirim.` : 'Bukti transfer tersimpan.');
+    if (onDone) onDone();
+  }
   // ---------- kendali penuh pendaftaran massal (18 Nov 2026) ----------
   const PROVS = () => ((window.JO_REGIONS || {}).provinces || []);
   const dtIn = (d) => { if (!d) return ''; const x = new Date(d); const p = (n) => String(n).padStart(2, '0');
@@ -1572,6 +1606,7 @@
       <p class="small">Pendaftaran: ${b.submissions.map((s) => `<a href="#/pendaftaran/${s.id}">${esc(s.code)}</a> (${s.athletes} atlet, ${fmtRp(s.total)})`).join(' · ')}</p>
       ${b.status === 'lunas' ? `<div class="actions" style="margin:6px 0 10px">${b.aic_pending ? `<span class="pill warn">AIC ${b.aic_pending} atlet diperbarui, belum dikirim ulang</span>` : ''}
         ${isSuper() ? `<button class="btn btn-ghost btn-sm" data-aicb="${b.id}">Kirim ulang AIC batch (1 email)</button>` : ''}</div>` : ''}
+      ${M && b.status === 'menunggu' ? `<div class="actions" style="margin:6px 0 10px"><button class="btn btn-dark btn-sm" data-addpay="${b.id}">Tambah bukti dari klub</button><span class="tiny muted">bukti yang dikirim klub langsung ke Inda</span></div>` : ''}
       ${b.payments.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nominal</th><th>Tgl transfer</th><th>Diunggah</th><th>Bukti</th><th>Status</th><th></th></tr></thead><tbody>${b.payments.map((p) => pay(p, b)).join('')}</tbody></table></div>` : '<p class="small muted">Belum ada bukti transfer.</p>'}
       ${A && b.status === 'menunggu' ? `<div class="actions" style="margin-top:10px"><button class="btn btn-ghost btn-sm" data-due="${b.id}" data-h="24">+24 jam batas bayar</button><button class="btn btn-ghost btn-sm" data-due="${b.id}" data-h="48">+48 jam</button>
         <button class="btn btn-ghost btn-sm" data-dueat="${b.id}">Atur batas bayar…</button><button class="btn btn-ok btn-sm" data-markpaid="${b.id}">Tandai lunas manual</button>
@@ -1688,6 +1723,7 @@
     const bd2 = v.querySelector('#bundone'); if (bd2) bd2.onclick = () => bulkComplete(B, false, reload);
     v.querySelectorAll('[data-proof]').forEach((b) => b.onclick = () => preview('bukti', b.dataset.proof, 'Bukti transfer'));
     v.querySelectorAll('[data-doc]').forEach((b) => b.onclick = () => preview('dokumen', b.dataset.doc, b.dataset.t));
+    v.querySelectorAll('[data-addpay]').forEach((b) => b.onclick = () => bulkAddPayDlg(b.dataset.addpay, reload));
     v.querySelectorAll('[data-ok]').forEach((b) => b.onclick = async () => {
       const r = await dialog({ title: 'Transfer cocok?', ok: 'Ya, cocok', okClass: 'btn-ok', body: '<p>Nominal dan rekening tujuan sudah dicek di mutasi Mandiri. Bila total yang cocok sudah sama dengan tagihan, batch otomatis lunas dan AIC dikirim.</p>',
         onOk: () => api('console_bulk_verify', { p_payment: Number(b.dataset.ok), p_ok: true, p_note: null }) });
