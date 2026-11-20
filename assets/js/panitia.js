@@ -297,6 +297,7 @@
     whistle: '<circle cx="8" cy="14" r="5"/><path d="M12 11l9-4v5l-8 1"/><path d="M8 4v3M4.5 5.5l1.5 2"/>',
     help: '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.8M12 17v.5"/>',
     tv: '<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/>',
+    chart: '<path d="M4 20h16"/><path d="M7 16v-5M12 16V6M17 16v-8"/>',
     check: '<path d="M4 12l5 5L20 6"/>', clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', alert: '<path d="M12 3l10 18H2z"/><path d="M12 10v4M12 17.5v.5"/>',
   };
   const icon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${IC[k] || ''}</svg>`;
@@ -366,7 +367,7 @@
   // ---------------- modul terpisah (proyek, backup) ----------------
   // Dimuat hanya saat halamannya dibuka. Galat di modul hanya tampil di halaman itu;
   // pendaftaran, verifikasi, dan penilaian tidak ikut terganggu.
-  const MOD_V = '1711b';
+  const MOD_V = '2011r';
   function loadModule(name) {
     window.JO_MOD = window.JO_MOD || {};
     if (window.JO_MOD[name]) return Promise.resolve(window.JO_MOD[name]);
@@ -400,6 +401,7 @@
     ['atlet', 'Data atlet', () => isAdmin(), pageAthletes, 'users', 'Peserta'],
     ['musik', 'Musik Ritmik', () => isAdmin() && (!ME.discipline || ME.discipline === 'RG'), pageMusic, 'music', 'Peserta'],
     ['klub', 'Klub', () => isAdmin(), pageClubs, 'flag', 'Peserta'],
+    ['laporan-pendaftaran', 'Laporan pendaftaran', () => isSuper(), modPage('laporan', 'page'), 'chart', 'Peserta'],
     ['kategori', 'Kategori', () => canSee(), pageCategories, 'tag', 'Pertandingan'],
     ['aturan', 'Aturan pendaftaran', () => canSee(), pageRules, 'check', 'Pertandingan'],
     ['juri', 'Pendaftaran juri', () => isAdmin(), pageJury, 'whistle', 'Pertandingan'],
@@ -543,7 +545,7 @@
       [Number(A.priangan_pending), 'Cek syarat Priangan', `${A.priangan_pending} nomor Ritmik`, `#/pendaftaran?f=priangan${one('')}`],
       [Number(A.music_pending), 'Periksa tautan musik', `${A.music_pending} nomor Ritmik`, '#/musik'],
     ].filter((x) => x[0] > 0) : [];
-    v.innerHTML = `<h1>Ringkasan</h1>
+    v.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h1 style="margin:0">Ringkasan</h1>${isSuper() ? '<a class="btn btn-ghost btn-sm" href="#/laporan-pendaftaran">Unduh laporan pendaftaran</a>' : ''}</div>
       <section class="todo ${acts.length ? 'has' : 'none'}" aria-live="polite">
         <h2>${acts.length ? '<span class="rdot" aria-hidden="true"></span>Perlu tindakan' : 'Tidak ada yang perlu ditindaklanjuti'}</h2>
         ${acts.length ? `<div class="todo-list">${acts.map((x) => `<a class="todo-item" href="${x[3]}"><span class="rdot" aria-hidden="true"></span><span><b>${esc(x[1])}</b><small>${esc(x[2])}</small></span><strong>${x[0]}</strong>${icon('chev')}</a>`).join('')}</div>`
@@ -3786,6 +3788,7 @@
     massal_kode_dibuat: 'Kode massal dibuat', massal_kode_diganti: 'Kode massal diganti', massal_kode_dicabut: 'Kode massal dicabut',
     massal_diperpanjang: 'Masa pengisian massal diperpanjang', massal_batas_bayar: 'Batas bayar massal diperpanjang', massal_batch_dikirim: 'Batch massal dikirim',
     massal_bukti_transfer: 'Bukti transfer massal diunggah', massal_transfer_cocok: 'Transfer massal cocok', massal_transfer_tidak_cocok: 'Transfer massal tidak cocok', massal_dihapus: 'Kode massal dihapus',
+    laporan_diunduh: 'Laporan pendaftaran diunduh',
     proyek_simpan: 'Data proyek disimpan', proyek_unggah: 'Data proyek diunggah', proyek_arsip: 'Data proyek diarsipkan', proyek_saklar: 'Modul proyek dinyalakan/dimatikan',
   };
   const logAction = (a) => LOG_ACT[a] || (a.charAt(0).toUpperCase() + a.slice(1).replace(/_/g, ' '));
