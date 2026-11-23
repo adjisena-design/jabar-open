@@ -20,7 +20,10 @@
   const THUMB = new Map();       // no -> data URL pas foto yang belum tersimpan
   const SEL = new Set();         // baris dipilih untuk batch
   let saveTimer = null, saving = false, saveErr = '', lastSaved = null, pollTimer = null, clockTimer = null;
-  let TAB = 'sheet', FILTER = 'all', Q = '', EXTRA_ROWS = 0;
+  let TAB = 'sheet', FILTER = 'all', Q = '', EXTRA_ROWS = 0, VIEW = '';
+  // tombol kembali browser dari halaman Data klub/kontak kembali ke lembar
+  window.addEventListener('popstate', () => { if (VIEW === 'setup' && ACC && ACC.setup) drawMain(); });
+  function backToSheet() { if (history.state && history.state.ms === 'setup') history.back(); else drawMain(); }
 
   const DOCS = { akte: 'Akte', ktp: 'KTP', ijazah: 'Ijazah', bpjs: 'BPJS', passport: 'Paspor', photo: 'Foto' };
   const ROLES = [['pemilik', 'Pemilik klub'], ['admin', 'Admin klub'], ['pelatih', 'Pelatih'], ['manajer', 'Manajer / official'], ['lainnya', 'Lainnya']];
@@ -53,8 +56,10 @@
     return `${h} jam ${m} menit`;
   }
   function waLink(text) { return `https://wa.me/${INFO.wa}?text=${encodeURIComponent(text)}`; }
-  function loadLS() { try { return JSON.parse(localStorage.getItem(LS) || '{}'); } catch (e) { return {}; } }
-  function saveLS() { try { localStorage.setItem(LS, JSON.stringify({ code: CODE, person: PERSON })); } catch (e) { /* abaikan */ } }
+  // Pemulihan: akses hanya diingat di tab yang sama (sessionStorage); membuka pulih.html baru selalu meminta kode / pilihan lembar
+  const STORE = () => (PULIH ? window.sessionStorage : window.localStorage);
+  function loadLS() { try { return JSON.parse(STORE().getItem(LS) || '{}'); } catch (e) { return {}; } }
+  function saveLS() { try { STORE().setItem(LS, JSON.stringify({ code: CODE, person: PERSON })); } catch (e) { /* abaikan */ } }
   function personName() { const p = (ACC && ACC.people || []).find((x) => x.id === PERSON); return p ? p.name : ''; }
   function clubName() { return (ACC && ACC.club && ACC.club.name) || (ACC && ACC.label) || ''; }
   function clubProvince() { return (ACC && ACC.club && ACC.club.province) || ''; }
@@ -443,6 +448,8 @@
   // ---------------- 2. data pemilik, klub, kolaborator ----------------
   function drawSetup(first) {
     stopTimers();
+    VIEW = 'setup';
+    if (!first && !(history.state && history.state.ms === 'setup')) { try { history.pushState({ ms: 'setup' }, ''); } catch (e) { /* abaikan */ } }
     const o = (ACC && ACC.owner) || {};
     const col = (ACC && ACC.collaborators) || [];
     const clubLocked = !first && BATCHES.length > 0;
@@ -450,6 +457,7 @@
     let clubSel = club && club.id ? { id: club.id, name: club.name } : null;
     let clubNew = club && !club.id ? club : null;
     const html = `<div class="ms-narrow">
+      ${first ? '' : '<p style="margin:0 0 6px"><button type="button" class="btn btn-ghost btn-sm" id="back-top">&larr; Kembali ke lembar atlet</button></p>'}
       <div class="page-head"><h1>${PULIH ? 'Data kontak dan klub' : first ? 'Data klub dan pengisi' : 'Data klub dan kolaborator'}</h1>
         ${PULIH && (ACC.missing_contact || []).length ? `<p class="note warn">Data berikut hilang saat pendaftaran terhapus dan perlu dilengkapi: <b>${esc(missingContactText())}</b>.</p>` : ''}
         <p>${esc(ACC.label)} · ${esc(ACC.code_label)}${ACC.expires_at ? ` · berlaku sampai ${esc(fmtDT(ACC.expires_at))}` : ''}</p></div>
@@ -474,7 +482,7 @@
         <div id="setup-err"></div>
         <div class="ms-bar" style="margin-top:14px">
           <button class="btn btn-dark" type="submit">${first ? 'Simpan dan mulai mengisi' : 'Simpan'}</button>
-          ${first ? '' : '<button class="btn btn-ghost" type="button" id="cancel">Batal</button>'}
+          ${first ? '' : '<button class="btn btn-ghost" type="button" id="cancel">&larr; Kembali ke lembar</button>'}
         </div>
       </form></div>`;
     app.innerHTML = html;
@@ -512,7 +520,7 @@
       box.querySelector('#cl-new').onclick = () => { clubNew = { name: box.querySelector('#cl_q').value.trim(), country: 'Indonesia', province: '', kab_kota: '' }; drawClub(); };
     }
     drawClub();
-    if (!first) app.querySelector('#cancel').onclick = () => drawMain();
+    if (!first) { app.querySelector('#cancel').onclick = backToSheet; app.querySelector('#back-top').onclick = backToSheet; }
     app.querySelector('#f-setup').onsubmit = async (e) => {
       e.preventDefault();
       const v = (id) => app.querySelector('#' + id).value.trim();
@@ -527,6 +535,7 @@
         ACC = await rpc('public_bulk_setup', { p_code: CODE, p_person: first ? null : PERSON, p });
         if (first) { PERSON = 'pemilik'; saveLS(); }
         JO.toast('Tersimpan.');
+        if (!first && history.state && history.state.ms === 'setup') { VIEW = ''; history.back(); }
         reloadAll();
       } catch (err) {
         app.querySelector('#setup-err').innerHTML = `<p class="note bad">${esc(errMsg(err))}</p>`;
@@ -554,6 +563,7 @@
 
   // ---------------- 4. portal ----------------
   function drawMain() {
+    VIEW = 'main';
     app.innerHTML = `<div class="ms-top" id="ms-top"></div>
       <div class="ms-tabs" role="tablist">
         <button role="tab" data-tab="sheet">Lembar atlet</button>
@@ -582,8 +592,10 @@
       <span class="ms-save" data-save></span>
       ${askExt ? `<a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${esc(waLink(`Halo Kak Inda, saya ${personName()} dari ${clubName()}. Masa pengisian ${PNAME} kami berakhir ${fmtDT(ACC.expires_at)}. Saat ini ${done} dari ${total} atlet sudah lengkap. Mohon perpanjangan waktu. Terima kasih.`))}">Minta perpanjangan</a>` : ''}
       <a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${esc(waLink(`Halo Kak Inda, saya ${personName()} dari ${clubName()} (${PNAME} ${ACC.code_label}). Saya butuh bantuan terkait: `))}">Bantuan (WhatsApp Inda)</a>
+      ${STAFF() ? '<button class="btn btn-ghost btn-sm" id="ms-list">Daftar lembar</button>' : ''}
       <button class="btn btn-ghost btn-sm" id="ms-out">Keluar</button>`;
     el.querySelector('#ms-out').onclick = logout;
+    const lb = el.querySelector('#ms-list'); if (lb) lb.onclick = logout;   // panitia: kembali ke pilihan lembar
     setSaveLabel();
   }
   function drawTab() {
@@ -1446,10 +1458,11 @@
     } catch (e) {
       app.innerHTML = `<p class="note bad">${esc(errMsg(e))}</p>`; return;
     }
+    if (PULIH) { try { localStorage.removeItem(LS); } catch (e) { /* versi lama menyimpan di localStorage */ } }
     const ls = loadLS(); CODE = ls.code || ''; PERSON = ls.person || '';
     if (JO.qs('kode')) { CODE = JO.qs('kode').toUpperCase(); PERSON = ''; saveLS(); }
     if (PULIH && JO.qs('akun')) { CODE = 'PANITIA:' + JO.qs('akun'); PERSON = 'panitia'; saveLS(); }   // owner/superadmin dari konsol
-    if (PULIH && JO.qs('kode') && history.replaceState) history.replaceState(null, '', location.pathname);   // kode tidak tertinggal di riwayat/tangkapan layar
+    if (PULIH && (JO.qs('kode') || JO.qs('akun')) && history.replaceState) history.replaceState(null, '', location.pathname);   // kode tidak tertinggal di riwayat/tangkapan layar
     route();
   }
   init();
