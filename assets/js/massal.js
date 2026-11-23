@@ -6,7 +6,11 @@
   'use strict';
   const { esc, fmtRp, rpc } = JO;
   const R = window.JO_REGIONS;
-  const LS = 'jo_massal';
+  // Mode Pemulihan Pendaftaran (pulih.html): mesin yang sama, untuk pendaftaran yang gagal/terhapus padahal sudah membayar
+  const PULIH = !!window.JO_PULIH;
+  const PNAME = PULIH ? 'Pemulihan Pendaftaran' : 'Pendaftaran Massal';
+  const LS = PULIH ? 'jo_pulih' : 'jo_massal';
+  const STAFF = () => PULIH && CODE.toUpperCase().startsWith('PANITIA:');
   const app = document.getElementById('app');
 
   let CFG = null, INFO = null, CODE = '', PERSON = '', ACC = null, BATCHES = [], LOG = [], LAST_SYNC = null;
@@ -62,6 +66,8 @@
     return m;
   }
   function errMsg(e) { return (e && e.message) || 'Terjadi kesalahan. Coba lagi.'; }
+  const MISS_LBL = { phone: 'nomor WhatsApp kontak', email: 'email kontak', role: 'peran di klub', club: 'provinsi dan kabupaten/kota klub' };
+  function missingContactText() { return ((ACC && ACC.missing_contact) || []).map((k) => MISS_LBL[k] || k).join(', '); }
 
   // ---------------- aturan kategori (sama dengan jo.category_mismatch) ----------------
   function mism(c, g, bd) {
@@ -328,14 +334,19 @@
     catch (e) { return drawIntro(errMsg(e)); }
     if (!o.ok) { CODE = ''; PERSON = ''; saveLS(); return drawIntro(o.message); }
     ACC = o;
+    if (STAFF()) { PERSON = 'panitia'; saveLS(); return reloadAll(); }   // panitia: langsung ke lembar
     if (!ACC.setup) return drawSetup(true);
-    if (!PERSON || !(ACC.people || []).some((p) => p.id === PERSON)) return drawPerson();
+    if (!PERSON || !(ACC.people || []).some((p) => p.id === PERSON)) {
+      if (PULIH && (ACC.people || []).length === 1) { PERSON = ACC.people[0].id; saveLS(); return reloadAll(); }
+      return drawPerson();
+    }
     return reloadAll();
   }
 
   // ---------------- 1. pengantar & minta kode ----------------
   function drawIntro(err) {
     stopTimers();
+    if (PULIH) return drawPulihIntro(err);
     const discs = CFG.disciplines.filter((d) => d.registration_open);
     app.innerHTML = `<div class="ms-narrow">
       <div class="page-head"><h1>Pendaftaran massal</h1>
@@ -388,6 +399,47 @@
     };
   }
 
+  // ---------------- 1b. pengantar Pemulihan Pendaftaran ----------------
+  function drawPulihIntro(err) {
+    app.innerHTML = `<div class="ms-narrow">
+      <div class="page-head"><h1>Pemulihan pendaftaran</h1>
+        <p>Halaman khusus untuk klub yang <b>sudah membayar</b>, tetapi pendaftarannya gagal atau terhapus otomatis oleh sistem (misalnya karena bukti bayar belum diunggah tepat waktu). Panitia sudah memulihkan data yang masih tersimpan ke satu lembar; Anda tinggal melengkapi yang hilang.</p></div>
+      ${err ? `<p class="note bad">${esc(err)}</p>` : ''}
+      <div id="pl-staff"></div>
+      <section class="card"><h2>Masukkan kode akses</h2>
+        <form id="f-code" class="ms-bar" style="margin:0">
+          <input id="code" class="input" style="flex:1;min-width:220px;text-transform:uppercase;letter-spacing:.06em" placeholder="PL-XXXX-XXXX-XXXX" autocomplete="off" required>
+          <button class="btn btn-dark" type="submit">Masuk</button>
+        </form>
+        <p class="small muted" style="margin:8px 0 0">Tautan dan kode akses dikirim panitia lewat WhatsApp, khusus untuk klub Anda. Tidak punya kode? <a target="_blank" rel="noopener" href="${esc(waLink('Halo Kak Inda, saya ingin menanyakan pemulihan pendaftaran Jabar Open 2026 untuk klub kami: '))}">Hubungi Inda</a>.</p>
+      </section>
+      <section class="card"><h2>Mengapa halaman ini ada?</h2>
+        <ol class="ms-steps">
+          <li>Beberapa pendaftaran terhapus otomatis karena bukti bayar tidak diunggah dalam batas waktu, padahal klub sudah mentransfer. Halaman ini memulihkannya tanpa klub harus mengulang dari awal.</li>
+          <li>Data yang masih tersimpan (nama atlet, kategori, kode pendaftaran lama) sudah diisi panitia. <b>Kolom berwarna merah adalah data yang hilang</b> dan wajib dilengkapi sebelum dikirim. Nama atlet tetap bisa diperbaiki.</li>
+          <li>Atlet yang belum sempat terdaftar boleh ditambahkan di baris kosong. Atlet putra dan putri boleh di lembar yang sama; sistem memisahkannya per disiplin saat dikirim.</li>
+          <li>Setelah dikirim, unggah bukti transfer yang sudah dilakukan (atau transfer tambahan untuk atlet baru). Inda memverifikasinya, lalu Athlete Identification Card (AIC) dikirim lewat email.</li>
+          <li>Kode pendaftaran dan nomor atlet lama dipakai kembali bila masih tersedia, sehingga tautan status lama ikut aktif lagi.</li>
+        </ol>
+        <p class="small muted" style="margin:0">Untuk pendaftaran baru, gunakan <a href="daftar.html">formulir pendaftaran biasa</a>.</p>
+      </section></div>`;
+    app.querySelector('#f-code').onsubmit = (e) => {
+      e.preventDefault();
+      CODE = app.querySelector('#code').value.trim().toUpperCase(); PERSON = ''; saveLS();
+      route();
+    };
+    // owner / superadmin yang sedang masuk konsol melihat semua lembar pemulihan
+    rpc('public_pulih_list').then((res) => {
+      if (!res || !res.staff) return;
+      const box = app.querySelector('#pl-staff'); if (!box) return;
+      box.innerHTML = `<section class="card"><h2>Lembar pemulihan (panitia)</h2>
+        <p class="small muted" style="margin-top:0">Anda masuk konsol sebagai owner/superadmin, jadi bisa membuka dan mengisi lembar mana pun tanpa kode.</p>
+        <div class="ms-list">${(res.items || []).map((x) => `<div><span><b>${esc(x.label)}</b> <span class="muted">${esc(x.code_label)} · ${x.rows} atlet · ${x.sent} terkirim${(x.sources || []).length ? ' · asal ' + esc(x.sources.map((s) => s.code).join(', ')) : ''}</span></span>
+          <button class="btn btn-ghost btn-sm" data-akun="${esc(x.id)}">Buka</button></div>`).join('') || '<div class="muted">Belum ada lembar pemulihan.</div>'}</div></section>`;
+      box.querySelectorAll('[data-akun]').forEach((b) => b.onclick = () => { CODE = 'PANITIA:' + b.dataset.akun; PERSON = 'panitia'; saveLS(); route(); });
+    }).catch(() => { /* bukan panitia */ });
+  }
+
   // ---------------- 2. data pemilik, klub, kolaborator ----------------
   function drawSetup(first) {
     stopTimers();
@@ -398,7 +450,8 @@
     let clubSel = club && club.id ? { id: club.id, name: club.name } : null;
     let clubNew = club && !club.id ? club : null;
     const html = `<div class="ms-narrow">
-      <div class="page-head"><h1>${first ? 'Data klub dan pengisi' : 'Data klub dan kolaborator'}</h1>
+      <div class="page-head"><h1>${PULIH ? 'Data kontak dan klub' : first ? 'Data klub dan pengisi' : 'Data klub dan kolaborator'}</h1>
+        ${PULIH && (ACC.missing_contact || []).length ? `<p class="note warn">Data berikut hilang saat pendaftaran terhapus dan perlu dilengkapi: <b>${esc(missingContactText())}</b>.</p>` : ''}
         <p>${esc(ACC.label)} · ${esc(ACC.code_label)}${ACC.expires_at ? ` · berlaku sampai ${esc(fmtDT(ACC.expires_at))}` : ''}</p></div>
       <form id="f-setup">
         <section class="card"><h2>Pemilik</h2>
@@ -506,7 +559,7 @@
         <button role="tab" data-tab="sheet">Lembar atlet</button>
         <button role="tab" data-tab="batch">Batch &amp; pembayaran</button>
         <button role="tab" data-tab="log">Riwayat</button>
-        ${PERSON === 'pemilik' ? '<button role="tab" data-tab="club">Data klub</button>' : ''}
+        ${PERSON === 'pemilik' || (PULIH && PERSON === 'panitia') ? `<button role="tab" data-tab="club">${PULIH ? 'Data kontak &amp; klub' : 'Data klub'}</button>` : ''}
       </div>
       <div id="ms-body"></div>
       <datalist id="jabar-kab">${R.jabar.map((k) => `<option value="${esc(k)}">`).join('')}</datalist>`;
@@ -523,12 +576,12 @@
     const total = [...ROWS.values()].filter((r) => rowState(r) !== 'empty').length;
     const clockCls = ms == null ? '' : ms <= 0 ? 'bad' : ms < 2 * 86400000 ? 'warn' : '';
     const askExt = ms != null && ms < 2 * 86400000 && !ACC.extended_days;
-    el.innerHTML = `<div class="who"><b>${esc(clubName())}</b><small>${esc(ACC.code_label)} · ${esc(personName())}</small></div>
+    el.innerHTML = `<div class="who"><b>${esc(clubName())}</b><small>${PULIH ? 'Pemulihan · ' : ''}${esc(ACC.code_label)} · ${esc(personName())}${STAFF() ? ' <span class="pill warn">Akses panitia</span>' : ''}</small></div>
       <span class="ms-clock ${clockCls}">${ms == null ? '' : ms <= 0 ? 'Masa pengisian berakhir ' + esc(fmtDT(ACC.expires_at)) : 'Sisa waktu pengisian: ' + leftText(ms)}</span>
       <span class="sp"></span>
       <span class="ms-save" data-save></span>
-      ${askExt ? `<a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${esc(waLink(`Halo Kak Inda, saya ${personName()} dari ${clubName()}. Masa pengisian Pendaftaran Massal kami berakhir ${fmtDT(ACC.expires_at)}. Saat ini ${done} dari ${total} atlet sudah lengkap. Mohon perpanjangan waktu. Terima kasih.`))}">Minta perpanjangan</a>` : ''}
-      <a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${esc(waLink(`Halo Kak Inda, saya ${personName()} dari ${clubName()} (Pendaftaran Massal ${ACC.code_label}). Saya butuh bantuan terkait: `))}">Bantuan (WhatsApp Inda)</a>
+      ${askExt ? `<a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${esc(waLink(`Halo Kak Inda, saya ${personName()} dari ${clubName()}. Masa pengisian ${PNAME} kami berakhir ${fmtDT(ACC.expires_at)}. Saat ini ${done} dari ${total} atlet sudah lengkap. Mohon perpanjangan waktu. Terima kasih.`))}">Minta perpanjangan</a>` : ''}
+      <a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${esc(waLink(`Halo Kak Inda, saya ${personName()} dari ${clubName()} (${PNAME} ${ACC.code_label}). Saya butuh bantuan terkait: `))}">Bantuan (WhatsApp Inda)</a>
       <button class="btn btn-ghost btn-sm" id="ms-out">Keluar</button>`;
     el.querySelector('#ms-out').onclick = logout;
     setSaveLabel();
@@ -564,8 +617,8 @@
     const sentMiss = [...ROWS.values()].filter((r) => r.batch_id && r._W && r._W.docs).length;
     const filesNote = sentMiss ? (ACC.files_open
       ? `<p class="note warn"><b>${sentMiss} atlet terkirim berkasnya belum lengkap.</b> Unggah susulan lewat tombol dokumen di baris masing-masing atau <i>Unggah dokumen sekaligus</i>, paling lambat <b>${esc(fmtDT(ACC.files_until))}</b>. AIC diperbarui otomatis setelah berkas lengkap.</p>`
-      : `<p class="note bad"><b>${sentMiss} atlet terkirim berkasnya belum lengkap</b> dan masa unggah berkas sudah berakhir. <a target="_blank" rel="noopener" href="${esc(waLink(`Halo Kak Inda, saya ${personName()} dari ${clubName()} (Pendaftaran Massal ${ACC.code_label}). Berkas ${sentMiss} atlet kami belum lengkap. Mohon perpanjangan berkas. Terima kasih.`))}">Minta perpanjangan berkas ke Inda</a>.</p>`) : '';
-    body.innerHTML = `${locked ? `<p class="note warn">Masa pengisian sudah berakhir. Data atlet hanya bisa dilihat. Batch yang sudah dikirim tetap bisa dibayar di tab Batch &amp; pembayaran.</p>` : ''}${filesNote}
+      : `<p class="note bad"><b>${sentMiss} atlet terkirim berkasnya belum lengkap</b> dan masa unggah berkas sudah berakhir. <a target="_blank" rel="noopener" href="${esc(waLink(`Halo Kak Inda, saya ${personName()} dari ${clubName()} (${PNAME} ${ACC.code_label}). Berkas ${sentMiss} atlet kami belum lengkap. Mohon perpanjangan berkas. Terima kasih.`))}">Minta perpanjangan berkas ke Inda</a>.</p>`) : '';
+    body.innerHTML = `${PULIH ? pulihBanner() : ''}${locked ? `<p class="note warn">Masa pengisian sudah berakhir. Data atlet hanya bisa dilihat. Batch yang sudah dikirim tetap bisa dibayar di tab Batch &amp; pembayaran.</p>` : ''}${filesNote}
       ${locked ? (ACC.files_open && sentMiss ? `<div class="ms-tools"><div class="ms-grp"><span class="ms-lbl">Berkas susulan</span><div class="ms-btns">
           <button class="btn btn-primary btn-sm" id="ms-docs">Unggah dokumen sekaligus</button>
           <button class="btn btn-ghost btn-sm" id="ms-save-now">Simpan sekarang</button><span class="ms-save" data-save></span></div></div></div>` : '') : `<div class="ms-tools">
@@ -591,6 +644,7 @@
       <p class="small muted" style="margin-top:8px">Kolom orang tua/wali wajib untuk atlet di bawah ${guardAge()} tahun. Nama file dokumen untuk unggah sekaligus: <code>012-akte.pdf</code>, <code>012-foto.jpg</code>, <code>012-ktp.jpg</code>, <code>012-bpjs.pdf</code>, <code>012-paspor.pdf</code>, <code>012-ijazah.pdf</code> (012 = nomor baris).</p>`;
     const q = body.querySelector('#ms-q');
     q.oninput = () => { Q = q.value.trim().toLowerCase(); drawRows(); };
+    const plc = body.querySelector('#pl-contact'); if (plc) plc.onclick = () => drawSetup(false);
     if (locked && body.querySelector('#ms-docs')) {
       body.querySelector('#ms-docs').onclick = bulkDocs;
       body.querySelector('#ms-save-now').onclick = () => flush();
@@ -614,6 +668,21 @@
     tb.addEventListener('paste', onPaste);
     tb.addEventListener('click', onClick);
     drawSummary(); drawRows(); updSel(); setSaveLabel();
+  }
+  function pulihBanner() {
+    const src = (ACC.sources || []).filter((s) => s && s.code);
+    const bad = [...ROWS.values()].filter((r) => rowState(r) === 'bad').length;
+    const miss = (ACC.missing_contact || []).length;
+    return `<section class="card ms-pulih" style="margin-bottom:12px;border-left:4px solid var(--gold, #e4c87d)">
+      <h2 style="margin:0 0 6px">Lembar pemulihan pendaftaran</h2>
+      <p style="margin:0">${src.length ? `Dipulihkan dari pendaftaran <b>${esc(src.map((s) => s.code).join(', '))}</b> yang terhapus otomatis. ` : ''}Data yang masih tersimpan sudah diisi panitia. <b>Kolom merah adalah data yang hilang</b> dan wajib dilengkapi sebelum dikirim; nama atlet boleh diperbaiki dan atlet baru boleh ditambahkan di baris kosong.</p>
+      ${ACC.pulih_note ? `<p class="small muted" style="margin:6px 0 0">Catatan panitia: ${esc(ACC.pulih_note)}</p>` : ''}
+      <div class="ms-bar" style="margin-top:10px">
+        ${bad ? `<span class="pill bad">${bad} atlet perlu dilengkapi</span>` : '<span class="pill ok">Data atlet lengkap</span>'}
+        ${miss ? `<span class="pill bad">Kontak/klub belum lengkap: ${esc(missingContactText())}</span> <button class="btn btn-ghost btn-sm" id="pl-contact">Lengkapi data kontak &amp; klub</button>` : ''}
+      </div>
+      <p class="small muted" style="margin:8px 0 0">Sudah transfer sebelumnya? Setelah mengirim, unggah bukti transfer lama di tab <b>Batch &amp; pembayaran</b>; tanggal transfer sebelum hari ini tetap diterima.</p>
+    </section>`;
   }
   function drawSummary() {
     const el = document.getElementById('ms-sum'); if (!el) return;
@@ -656,7 +725,7 @@
     if (c === 'category' && /^Tidak ada kategori/.test(msg)) {
       const d = (ROWS.get(no) || {}).data || {};
       const bd = d.birth_date ? d.birth_date.split('-').reverse().join('/') : '';
-      const wa = waLink(`Halo Kak Inda, saya ${personName()} dari ${clubName()} (Pendaftaran Massal ${ACC.code_label || ''}). Atlet baris ${pad3(no)} (${d.full_name || '-'}, ${d.gender === 'M' ? 'L' : d.gender === 'F' ? 'P' : '-'}, lahir ${bd}, ${DISC_NAME(d.discipline)}) tidak menemukan kategori yang sesuai. Mohon bantuannya. Terima kasih.`);
+      const wa = waLink(`Halo Kak Inda, saya ${personName()} dari ${clubName()} (${PNAME} ${ACC.code_label || ''}). Atlet baris ${pad3(no)} (${d.full_name || '-'}, ${d.gender === 'M' ? 'L' : d.gender === 'F' ? 'P' : '-'}, lahir ${bd}, ${DISC_NAME(d.discipline)}) tidak menemukan kategori yang sesuai. Mohon bantuannya. Terima kasih.`);
       h += ` <a href="${FAQ_CAT}" target="_blank" rel="noopener">Lihat aturan kategori</a> · <a href="${esc(wa)}" target="_blank" rel="noopener">Tanya Inda</a>`;
     }
     return h;
@@ -681,7 +750,9 @@
   function statusHtml(r, no) {
     const st = rowState(r);
     const del = !ACC.locked && r && !r.batch_id && st !== 'empty' ? `<button class="ms-del" data-del="${no}">Hapus</button>` : '';
-    const by = r && r.updated_by && st !== 'empty' ? `<span class="by">diubah ${esc(r.updated_by)}</span>` : '';
+    const o = PULIH && r && r.data && r.data.orig;
+    const by = (o && (o.code || o.athlete_no) && st !== 'empty' ? `<span class="by" title="Data dipulihkan dari pendaftaran yang terhapus">asal ${esc([o.code, o.athlete_no].filter(Boolean).join(' · '))}</span>` : '')
+      + (r && r.updated_by && st !== 'empty' ? `<span class="by">diubah ${esc(r.updated_by)}</span>` : '');
     if (st === 'empty') return '';
     if (st === 'sent') { const b = BATCHES.find((x) => x.id === r.batch_id);
       const wd = b && b.free && !ACC.locked ? ` <button class="ms-del" data-wd="${no}" title="Tarik atlet dari batch ${esc(b.code)}">Tarik</button>` : '';
@@ -1125,6 +1196,10 @@
     const first = !BATCHES.some((b) => b.status !== 'dibatalkan');
     if (!nos.length) { JO.toast('Pilih atlet yang siap dikirim (centang di kolom paling kiri), atau tekan "Pilih semua yang siap".', 'bad'); return; }
     if (first && nos.length < minAth()) { JO.toast(`Batch pertama minimal ${minAth()} atlet. Saat ini dipilih ${nos.length}.`, 'bad'); return; }
+    if (PULIH && (ACC.missing_contact || []).length) {
+      JO.toast(`Lengkapi dulu data kontak & klub: ${missingContactText()}.`, 'bad');
+      return drawSetup(false);
+    }
     // pasangan dan tim harus ikut lengkap dalam batch yang sama
     const miss = [];
     nos.forEach((no) => { const d = ROWS.get(no).data; if (d.pair_row && !nos.includes(Number(d.pair_row))) miss.push(`baris ${pad3(no)} (pasangan baris ${pad3(d.pair_row)})`); });
@@ -1144,7 +1219,7 @@
       </div>
       <div id="amts"></div>
       <div class="ms-bank" style="margin-top:14px"><span>Transfer ke <b>${esc(bank.bank)}</b></span><b class="num">${esc(bank.number)}</b><span>a.n. <b>${esc(bank.name)}</b> (${esc(bank.title)})</span></div>
-      <label class="check" style="margin-top:14px;align-items:flex-start"><input type="checkbox" id="agree"> <span>Saya akan mentransfer <b>${fmtRp(calc.total)}</b> ke ${esc(bank.bank)} ${esc(bank.number)} a.n. ${esc(bank.name)} <b>dalam ${payText()}</b> setelah batch dikirim, dan mengunggah setiap bukti transfer di portal ini. Data ${nos.length} atlet ini terkunci setelah dikirim.${(() => { const w = nos.filter((n) => (ROWS.get(n)._W || {}).docs).length; return w ? ` <b>${w} atlet berkasnya belum lengkap</b>; berkas wajib diunggah susulan${ACC.files_until ? ' paling lambat ' + esc(fmtDT(ACC.files_until)) : ''}. AIC tetap terbit dengan tanda berkas belum lengkap.` : ''; })()}</span></label>
+      <label class="check" style="margin-top:14px;align-items:flex-start"><input type="checkbox" id="agree"> <span>${PULIH ? `Total tagihan <b>${fmtRp(calc.total)}</b>. Transfer yang sudah dilakukan sebelumnya (termasuk ke rekening lain milik panitia) dihitung; sisanya saya transfer ke ${esc(bank.bank)} ${esc(bank.number)} a.n. ${esc(bank.name)} <b>dalam ${payText()}</b>. Saya akan mengunggah setiap bukti transfer, lama maupun baru, di portal ini.` : `Saya akan mentransfer <b>${fmtRp(calc.total)}</b> ke ${esc(bank.bank)} ${esc(bank.number)} a.n. ${esc(bank.name)} <b>dalam ${payText()}</b> setelah batch dikirim, dan mengunggah setiap bukti transfer di portal ini.`} Data ${nos.length} atlet ini terkunci setelah dikirim.${(() => { const w = nos.filter((n) => (ROWS.get(n)._W || {}).docs).length; return w ? ` <b>${w} atlet berkasnya belum lengkap</b>; berkas wajib diunggah susulan${ACC.files_until ? ' paling lambat ' + esc(fmtDT(ACC.files_until)) : ''}. AIC tetap terbit dengan tanda berkas belum lengkap.` : ''; })()}</span></label>
       <div id="b-err"></div>
       <div class="acts" id="acts"><button class="btn btn-ghost" id="no">Batal</button><button class="btn btn-dark" id="next" disabled>Kirim batch</button></div>`, true);
     let amounts = [calc.total];
@@ -1209,7 +1284,7 @@
     const body = document.getElementById('ms-body'); if (!body) return;
     const bank = INFO.bank;
     if (!BATCHES.length) {
-      body.innerHTML = `<section class="card"><h2>Belum ada batch</h2><p>Lengkapi lembar atlet, centang atlet yang siap, lalu tekan <b>Kirim batch</b>. Batch pertama minimal ${minAth()} atlet.</p></section>`;
+      body.innerHTML = `<section class="card"><h2>Belum ada batch</h2><p>Lengkapi lembar atlet, centang atlet yang siap, lalu tekan <b>Kirim batch</b>.${PULIH ? ' Setelah dikirim, unggah bukti transfer yang sudah Anda lakukan di halaman ini.' : ` Batch pertama minimal ${minAth()} atlet.`}</p></section>`;
       return;
     }
     body.innerHTML = `<section class="card" style="margin-bottom:12px"><h2>Rekening transfer</h2>
@@ -1338,7 +1413,8 @@
 
   // ---------------- riwayat ----------------
   const LOGTXT = {
-    kode_dibuat: 'Kode akses dibuat', kode_dibuka: 'Kode pertama kali dibuka; masa pengisian dimulai', data_pemilik: 'Data pemilik dan klub diisi',
+    kode_dibuat: 'Kode akses dibuat', kode_dibuka: PULIH ? 'Kode pertama kali dibuka' : 'Kode pertama kali dibuka; masa pengisian dimulai',
+    akun_pulih_dibuat: 'Panitia membuat lembar pemulihan dari data yang masih tersimpan', data_pemilik: 'Data pemilik dan klub diisi',
     data_pemilik_diubah: 'Data klub/kolaborator diubah', lembar_diubah: 'Mengisi lembar atlet', baris_dihapus: 'Menghapus baris', batch_dikirim: 'Mengirim batch',
     bukti_transfer: 'Mengunggah bukti transfer', transfer_cocok: 'Transfer diverifikasi', transfer_tidak_cocok: 'Transfer tidak cocok', batch_lunas: 'Batch lunas',
     diperpanjang: 'Masa pengisian diperpanjang', atlet_ditarik: 'Menarik atlet dari batch', batch_dibatalkan: 'Membatalkan batch', dipulihkan: 'Panitia memulihkan data', batas_bayar_diperpanjang: 'Batas bayar diperpanjang', kode_diganti: 'Kode akses diganti', kode_dicabut: 'Kode akses dicabut',
@@ -1372,6 +1448,8 @@
     }
     const ls = loadLS(); CODE = ls.code || ''; PERSON = ls.person || '';
     if (JO.qs('kode')) { CODE = JO.qs('kode').toUpperCase(); PERSON = ''; saveLS(); }
+    if (PULIH && JO.qs('akun')) { CODE = 'PANITIA:' + JO.qs('akun'); PERSON = 'panitia'; saveLS(); }   // owner/superadmin dari konsol
+    if (PULIH && JO.qs('kode') && history.replaceState) history.replaceState(null, '', location.pathname);   // kode tidak tertinggal di riwayat/tangkapan layar
     route();
   }
   init();
