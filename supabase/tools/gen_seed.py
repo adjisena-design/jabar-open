@@ -37,9 +37,9 @@ for lvl, groups in [
     (1, [('A','6 tahun ke bawah','6 & under',None,6), ('B','7–8 tahun','7–8',7,8), ('C','9 tahun ke atas','9 & over',9,None)]),
     (2, [('A','6 tahun ke bawah','6 & under',None,6), ('B','7–8 tahun','7–8',7,8), ('C','9 tahun ke atas','9 & over',9,None)]),
     (3, [('A','9 tahun ke bawah','9 & under',None,9), ('B','10 tahun ke atas','10 & over',10,None)]),
-    (4, [('A','10 tahun ke bawah','10 & under',None,10), ('B','11 tahun ke atas','11 & over',11,None)]),
-    (5, [('A','11 tahun ke bawah','11 & under',None,11), ('B','12 tahun ke atas','12 & over',12,None)]),
-    (6, [('A','11 tahun ke bawah','11 & under',None,11), ('B','12 tahun ke atas','12 & over',12,None)]),
+    (4, [('A','11 tahun ke bawah','11 & under',None,11), ('B','12 tahun ke atas','12 & over',12,None)]),   # Undangan: L4 11- / 12+ (dikoreksi 23 Nov 2026)
+    (5, [('A','12 tahun ke bawah','12 & under',None,12), ('B','13 tahun ke atas','13 & over',13,None)]),   # Undangan: L5-6 12- / 13+
+    (6, [('A','12 tahun ke bawah','12 & under',None,12), ('B','13 tahun ke atas','13 & over',13,None)]),
 ]:
     for g, lid, len_, a0, a1 in groups:
         add('WAG', f'WAG-L{lvl}-{g}', f'Level {lvl}', lid, f'Artistik Putri Level {lvl} ({lid})', f"Women's Artistic Level {lvl} ({len_})", 'F', a0, a1, 750000, WAG_APP, 10)
