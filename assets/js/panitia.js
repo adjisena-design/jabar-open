@@ -2284,14 +2284,61 @@
             <td class="small num">${c.birth_year_min || '…'}–${c.birth_year_max || '…'}</td><td class="small">${esc((c.apparatus || []).join(', '))}</td>
             <td class="r num">${fmtRp(c.fee)}</td><td class="r num">${c.registered}</td><td class="r num">${c.paid}</td><td class="r num">${c.priangan}</td>
             <td class="small">${warn.map((w) => `<span class="pill warn">${esc(w)}</span>`).join(' ')}${c.note ? `<br>${esc(c.note)}` : ''}</td>
-            <td>${isAdmin() ? `<button class="btn btn-ghost btn-sm" data-edit="${c.id}">Ubah</button>` : ''}</td></tr>`;
+            <td style="white-space:nowrap">${isAdmin() && c.registered > 0 ? `<button class="btn btn-ghost btn-sm" data-merge="${c.id}" title="Pindahkan atlet kategori ini ke kategori lain">Gabungkan…</button> ` : ''}${isAdmin() ? `<button class="btn btn-ghost btn-sm" data-edit="${c.id}">Ubah</button>` : ''}</td></tr>`;
         }).join('')}</tbody></table></div>`;
       v.querySelectorAll('[data-d]').forEach((b) => b.onclick = () => { disc = b.dataset.d; draw(); });
       const dt_ = v.querySelector('#dtoggle');
       if (dt_) dt_.onclick = async () => { try { await api('console_update_discipline', { p_code: disc, p_patch: { registration_open: !d.registration_open } }); await refreshCats(); draw(); } catch (e) { JO.toast(e.message, 'bad'); } };
       v.querySelectorAll('[data-edit]').forEach((b) => b.onclick = () => editCategory(CATS.categories.find((c) => c.id === Number(b.dataset.edit)), draw));
+      v.querySelectorAll('[data-merge]').forEach((b) => b.onclick = () => mergeCategory(CATS.categories.find((c) => c.id === Number(b.dataset.merge)), draw));
     };
     draw();
+  }
+  // Gabungkan: pindahkan semua (atau sebagian) atlet satu kategori ke kategori lain sekaligus
+  async function mergeCategory(c, done) {
+    let ents;
+    try { ents = await api('console_category_entries', { p_category: c.id }); } catch (e) { JO.toast(e.message, 'bad'); return; }
+    if (!ents.length) { JO.toast('Kategori ini tidak berisi atlet.'); return; }
+    const targets = CATS.categories.filter((x) => x.discipline === c.discipline && x.entry_type === c.entry_type && x.id !== c.id)
+      .sort((a, b) => (b.active - a.active) || (a.sort - b.sort));
+    if (!targets.length) { JO.toast('Tidak ada kategori tujuan yang sejenis.', 'bad'); return; }
+    const yr = (d) => String(d || '').slice(0, 4);
+    const row = (e) => `<tr data-row="${e.id}"><td><input type="checkbox" data-pick="${e.id}" ${e.scored ? 'disabled' : 'checked'} aria-label="Pilih ${esc(e.athletes.map((a) => a.name).join(' & '))}"></td>
+      <td>${e.athletes.map((a) => `<b>${esc(a.name)}</b> <span class="tiny muted">${yr(a.birth_date)}${a.no ? ' · ' + esc(a.no) : ''}</span>`).join('<br>')}</td>
+      <td class="small">${esc(e.club)}<br><a class="tiny" href="#/pendaftaran/${e.submission_id}" target="_blank" rel="noopener">${esc(e.code)}</a></td>
+      <td class="small">${e.sub_status === 'lunas' ? '<span class="pill ok">Lunas</span>' : `<span class="pill">${esc(e.sub_status)}</span>`}${e.status !== 'aktif' ? ` <span class="pill bad">${esc(e.status)}</span>` : ''}${e.scored ? ' <span class="pill bad">sudah dinilai</span>' : ''}</td>
+      <td class="small" data-mm></td></tr>`;
+    const p = dialog({ title: 'Gabungkan ' + c.name_id, ok: 'Pindahkan', okClass: 'btn-primary', wide: true,
+      body: `<p class="small muted">${ents.length} atlet di ${esc(c.code)}. Biaya mengikuti kategori tujuan; start list atlet yang dipindah dikosongkan.</p>
+        <div class="field"><label class="f" for="mg_to">Ke kategori</label><select id="mg_to">${targets.map((x) => `<option value="${x.id}">${esc(x.name_id)} (${x.registered} terdaftar${x.fee !== c.fee ? ', biaya ' + fmtRp(x.fee) : ''})${x.active ? '' : ' · nonaktif'}</option>`).join('')}</select></div>
+        <div class="tbl-wrap"><table class="tbl"><thead><tr><th><input type="checkbox" id="mg_all" checked aria-label="Pilih semua"></th><th>Atlet</th><th>Klub</th><th>Status</th><th>Cek usia/jenis kelamin</th></tr></thead><tbody>${ents.map(row).join('')}</tbody></table></div>
+        <p class="small" id="mg_sum" style="margin-top:8px"></p>
+        ${isSuper() ? '<label class="check"><input type="checkbox" id="mg_close"> Tutup kategori ini dari formulir pendaftaran (hanya bisa bila semua atlet dipindah)</label>' : ''}
+        <label class="f" for="mg_why" style="margin-top:10px">Alasan (tercatat di Log tiap atlet)</label><textarea id="mg_why" placeholder="mis. digabung karena peserta kurang dari 3, disetujui TD"></textarea>`,
+      onOk: async (d) => {
+        const ids = [...d.querySelectorAll('[data-pick]:checked')].map((x) => x.dataset.pick);
+        const cl = d.querySelector('#mg_close');
+        await api('console_merge_category', { p_from: c.id, p_to: Number(d.querySelector('#mg_to').value), p_entries: ids,
+          p_reason: d.querySelector('#mg_why').value.trim(), p_close: !!(cl && cl.checked) });
+        return { n: ids.length };
+      } });
+    const upd = () => {
+      const to = targets.find((x) => x.id === Number(dlg.querySelector('#mg_to').value));
+      ents.forEach((e) => { const mm = e.athletes.map((a) => catMismatch(to, a)).filter(Boolean)[0];
+        dlg.querySelector(`[data-row="${e.id}"] [data-mm]`).innerHTML = mm ? `<span class="pill warn">tidak sesuai: ${esc(mm)}</span>` : '<span class="tiny muted">sesuai</span>'; });
+      const picks = [...dlg.querySelectorAll('[data-pick]')]; const n = picks.filter((x) => x.checked).length;
+      const all = picks.every((x) => x.checked);
+      dlg.querySelector('#mg_all').checked = all;
+      dlg.querySelector('#mg_sum').innerHTML = `Dipindah: <b>${n}</b> atlet. Setelah digabung, ${esc(to.name_id)} berisi <b>${to.registered + n}</b> atlet${n < ents.length ? `; ${ents.length - n} atlet tetap di kategori ini` : ''}.`;
+      const cl = dlg.querySelector('#mg_close'); if (cl) { cl.disabled = !all; if (!all) cl.checked = false; }
+      dlg.querySelector('[data-ok]').textContent = n ? `Pindahkan ${n} atlet` : 'Simpan';
+    };
+    dlg.querySelector('#mg_to').onchange = upd;
+    dlg.querySelectorAll('[data-pick]').forEach((x) => x.onchange = upd);
+    dlg.querySelector('#mg_all').onchange = (ev) => { dlg.querySelectorAll('[data-pick]:not(:disabled)').forEach((x) => { x.checked = ev.target.checked; }); upd(); };
+    upd();
+    const r = await p;
+    if (r) { JO.toast(`${r.n} atlet dipindahkan.`); await refreshCats(); done(); }
   }
   async function editCategory(c, done) {
     const sup = isSuper();
@@ -3783,7 +3830,7 @@
     pendaftaran_dihapus: 'Pendaftaran dihapus', pendaftaran_kedaluwarsa: 'Kedaluwarsa (tanpa bukti bayar)',
     dokumen_valid: 'Dokumen valid', dokumen_tidak_valid: 'Dokumen tidak valid', musik_ok: 'Musik bisa dibuka', musik_tidak_bisa: 'Musik tidak bisa dibuka',
     priangan_disetujui: 'Priangan disetujui', priangan_ditolak: 'Priangan ditolak', data_atlet_diubah: 'Data atlet diubah', berkas_atlet_diubah: 'Berkas atlet diubah', atlet_dihapus: 'Atlet dihapus',
-    pindah_kategori: 'Pindah kategori', penanggung_jawab_diubah: 'Penanggung jawab diubah', klub_diubah: 'Klub pendaftaran diganti', kategori_ditambah: 'Kategori ditambah', kategori_dihapus: 'Kategori dihapus', atlet_ditambah: 'Atlet ditambah', tim_dibuat: 'Tim beregu dibuat', tim_diubah: 'Tim beregu diubah', tim_dihapus: 'Tim beregu dihapus', anggota_tim_ditambah: 'Anggota tim ditambah', anggota_tim_dikeluarkan: 'Anggota tim dikeluarkan', musik_diubah_panitia: 'Tautan musik diubah panitia', kirim_ulang_email: 'Email dikirim ulang', impor_mutasi: 'Impor mutasi GoBiz', cocokkan_mutasi: 'Mutasi dicocokkan',
+    pindah_kategori: 'Pindah kategori', kategori_digabung: 'Kategori digabung', penanggung_jawab_diubah: 'Penanggung jawab diubah', klub_diubah: 'Klub pendaftaran diganti', kategori_ditambah: 'Kategori ditambah', kategori_dihapus: 'Kategori dihapus', atlet_ditambah: 'Atlet ditambah', tim_dibuat: 'Tim beregu dibuat', tim_diubah: 'Tim beregu diubah', tim_dihapus: 'Tim beregu dihapus', anggota_tim_ditambah: 'Anggota tim ditambah', anggota_tim_dikeluarkan: 'Anggota tim dikeluarkan', musik_diubah_panitia: 'Tautan musik diubah panitia', kirim_ulang_email: 'Email dikirim ulang', impor_mutasi: 'Impor mutasi GoBiz', cocokkan_mutasi: 'Mutasi dicocokkan',
     kode_dibuat: 'Kode akses dibuat', kode_diubah: 'Data kode diubah', kode_diganti: 'Kode akses diganti', kode_dihapus: 'Kode akses dihapus',
     klub_disimpan: 'Klub disimpan', klub_digabung: 'Klub digabung', klub_dihapus: 'Klub dihapus',
     faq_status: 'Status FAQ diubah', faq_diubah: 'FAQ diubah', faq_dibuat: 'FAQ dibuat', faq_kategori_dibuat: 'Kategori FAQ dibuat', faq_kategori_diubah: 'Kategori FAQ diubah',
