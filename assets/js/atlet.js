@@ -62,7 +62,8 @@
     const allCats = (cats || []).join(' · ');
     const inner = `${avw}<div class="ac-body">
         <h2 class="ac-name" title="${esc(x.name)}">${esc(x.name)}</h2>
-        <p class="ac-sub"><span class="ac-club" title="${esc(x.club)}">${esc(x.club)}</span><span class="ac-city" title="${esc(second)}">${x.kind === 'team' ? `<span class="sr-only">${esc(t('at_members'))}: </span>` : ''}${esc(second)}</span></p>
+        <p class="ac-club" title="${esc(x.club)}">${esc(x.club)}</p>
+        <p class="ac-city" title="${esc(second)}">${x.kind === 'team' ? `<span class="sr-only">${esc(t('at_members'))}: </span>` : icPin}${esc(second)}</p>
         <p class="ac-cat" title="${esc(allCats)}"><span>${esc((cats || [])[0] || '')}${(cats || []).length > 1 ? ` <b>+${cats.length - 1}</b>` : ''}</span></p>
       </div>`;
     return x.has_detail
