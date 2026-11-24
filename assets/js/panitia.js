@@ -1597,7 +1597,7 @@
     const pay = (p, b) => `<tr><td class="num">${fmtRp(p.amount)}</td><td class="small">${esc(p.transfer_date || '')}</td><td class="small">${esc(p.person || '')}<br><span class="tiny muted">${dt(p.uploaded_at)}</span></td>
       <td><button class="btn btn-ghost btn-sm" data-proof="${esc(p.proof_path)}">Lihat bukti</button></td>
       <td>${p.status === 'cocok' ? '<span class="pill ok">Cocok</span>' : p.status === 'tidak_cocok' ? `<span class="pill bad">Tidak cocok</span><div class="tiny">${esc(p.note || '')}</div>` : '<span class="pill warn">Menunggu</span>'}</td>
-      <td>${M && b.status === 'menunggu' && p.status !== 'cocok' ? `<button class="btn btn-ok btn-sm" data-ok="${p.id}">Cocok</button> ` : ''}${M && b.status === 'menunggu' && p.status === 'menunggu' ? `<button class="btn btn-bad btn-sm" data-no="${p.id}">Tidak cocok</button>` : ''}</td></tr>`;
+      <td>${M && b.status === 'menunggu' && p.status !== 'cocok' ? `<button class="btn btn-ok btn-sm" data-ok="${p.id}">Cocok</button> ` : ''}${M && b.status === 'menunggu' && p.status === 'menunggu' ? `<button class="btn btn-bad btn-sm" data-no="${p.id}">Tidak cocok</button> ` : ''}${A && p.status !== 'cocok' ? `<button class="btn btn-ghost btn-sm" data-paydel="${p.id}" title="Hapus bukti ganda atau salah unggah">Hapus</button>` : ''}</td></tr>`;
     const batch = (b) => `<section class="card"><div class="row" style="justify-content:space-between;align-items:center;gap:8px"><h2 style="margin:0">${esc(b.code)}</h2>
         ${b.status === 'lunas' ? '<span class="pill ok">Lunas</span>' : b.status === 'dibatalkan' ? '<span class="pill bad">Dibatalkan</span>' : b.overdue ? '<span class="pill bad">Lewat batas bayar</span>' : '<span class="pill warn">Menunggu pembayaran</span>'}</div>
       <p class="small muted">${b.athletes} atlet · dikirim ${dt(b.created_at)} oleh ${esc(b.person || '')}${b.status === 'menunggu' ? ` · batas bayar ${dt(b.due_at)}` : ''}</p>
@@ -1735,6 +1735,17 @@
       const note = await askReason('Transfer tidak cocok', 'Alasan (dikirim ke klub lewat email)', { ok: 'Simpan' });
       if (!note) return;
       try { await api('console_bulk_verify', { p_payment: Number(b.dataset.no), p_ok: false, p_note: note }); JO.toast('Tersimpan dan email dikirim.'); reload(); } catch (e) { JO.toast(e.message, 'bad'); }
+    });
+    v.querySelectorAll('[data-paydel]').forEach((b) => b.onclick = async () => {
+      const bt = B.batch_list.find((x) => x.payments.some((p) => String(p.id) === b.dataset.paydel));
+      const p = bt.payments.find((x) => String(x.id) === b.dataset.paydel);
+      const r = await dialog({ title: 'Hapus bukti transfer?', ok: 'Hapus bukti', okClass: 'btn-bad',
+        body: `<p>${fmtRp(p.amount)} · tgl transfer ${esc(p.transfer_date || '–')} · diunggah ${esc(p.person || '')} ${dt(p.uploaded_at)} (${esc(bt.code)}).</p>
+          <p class="small muted">Rincian bukti tetap tercatat di Riwayat.</p>
+          <label class="f" for="pdr">Alasan (masuk Riwayat)</label><textarea id="pdr" placeholder="mis. unggahan ganda, sudah ada bukti yang cocok"></textarea>`,
+        onOk: (dl) => { const t = dl.querySelector('#pdr').value.trim(); if (t.length < 3) throw new Error('Tulis alasan yang jelas.');
+          return api('console_bulk_payment_delete', { p_payment: Number(b.dataset.paydel), p_reason: t }); } });
+      if (r) { JO.toast('Bukti dihapus.'); reload(); }
     });
     v.querySelectorAll('[data-aicb]').forEach((b) => b.onclick = async () => {
       const bt = B.batch_list.find((x) => x.id === b.dataset.aicb);
@@ -3787,7 +3798,7 @@
     wa_penerima_disimpan: 'Penerima WA disimpan', wa_pengaturan: 'Pengaturan WA diubah', wa_tes: 'Tes WA dikirim',
     massal_kode_dibuat: 'Kode massal dibuat', massal_kode_diganti: 'Kode massal diganti', massal_kode_dicabut: 'Kode massal dicabut',
     massal_diperpanjang: 'Masa pengisian massal diperpanjang', massal_batas_bayar: 'Batas bayar massal diperpanjang', massal_batch_dikirim: 'Batch massal dikirim',
-    massal_bukti_transfer: 'Bukti transfer massal diunggah', massal_transfer_cocok: 'Transfer massal cocok', massal_transfer_tidak_cocok: 'Transfer massal tidak cocok', massal_dihapus: 'Kode massal dihapus',
+    massal_bukti_transfer: 'Bukti transfer massal diunggah', massal_transfer_cocok: 'Transfer massal cocok', massal_transfer_tidak_cocok: 'Transfer massal tidak cocok', massal_bukti_dihapus: 'Bukti transfer massal dihapus', massal_dihapus: 'Kode massal dihapus',
     laporan_diunduh: 'Laporan pendaftaran diunduh',
     proyek_simpan: 'Data proyek disimpan', proyek_unggah: 'Data proyek diunggah', proyek_arsip: 'Data proyek diarsipkan', proyek_saklar: 'Modul proyek dinyalakan/dimatikan',
   };
