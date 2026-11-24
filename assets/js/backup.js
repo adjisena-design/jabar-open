@@ -191,20 +191,47 @@ hapus semua salinan sesuai jadwal penghapusan dokumen (Januari 2027).
         const parts = []; let cur = []; let curB = 0;
         files.forEach((f) => { const s = Number(f.size) || 0; if (cur.length && curB + s > PART_MAX) { parts.push(cur); cur = []; curB = 0; } cur.push(f); curB += s; });
         if (cur.length) parts.push(cur);
-        const st = stamp(); let total = 0; let failed = 0; let n = 0;
-        for (let i = 0; i < parts.length; i++) {
-          const entries = {};
-          for (const f of parts[i]) {
-            n++;
-            P.innerHTML = `Bagian <b>${i + 1}/${parts.length}</b> · berkas ${n}/${files.length}`;
-            try {
-              let url;
-              if (f.bucket === 'publik') url = JO.sb.storage.from('publik').getPublicUrl(f.name).data.publicUrl;
-              else url = await C.signed(f.bucket, f.name);
-              const r = await fetch(url); if (!r.ok) throw new Error(r.status);
-              entries[`${f.bucket}/${f.name}`] = [new Uint8Array(await r.arrayBuffer()), { level: 0 }];
-            } catch (x) { failed++; entries[`GAGAL/${f.bucket}/${f.name}.txt`] = enc('Gagal diunduh: ' + x.message); }
+        const st = stamp(); let total = 0; let failed = 0; let n = 0; let gotB = 0;
+        const t0 = Date.now();
+        // tautan bertanda tangan diminta per 100 berkas sekaligus (bukan satu per satu)
+        const urlFor = new Map();
+        const signBatch = async (list) => {
+          const need = list.filter((f) => f.bucket !== 'publik' && !urlFor.has(f.bucket + '/' + f.name));
+          const byB = {}; need.forEach((f) => { (byB[f.bucket] = byB[f.bucket] || []).push(f.name); });
+          for (const [bk, names] of Object.entries(byB)) {
+            for (let i = 0; i < names.length; i += 100) {
+              const { data, error } = await JO.sb.storage.from(bk).createSignedUrls(names.slice(i, i + 100), 3600);
+              if (error) continue;
+              (data || []).forEach((d) => { if (d.signedUrl && d.path) urlFor.set(bk + '/' + d.path, d.signedUrl); });
+            }
           }
+        };
+        const fetchOne = async (f) => {
+          let url = urlFor.get(f.bucket + '/' + f.name);
+          if (f.bucket === 'publik') url = JO.sb.storage.from('publik').getPublicUrl(f.name).data.publicUrl;
+          if (!url) url = await C.signed(f.bucket, f.name);
+          for (let attempt = 1; ; attempt++) {
+            try { const r = await fetch(url); if (!r.ok) throw new Error('HTTP ' + r.status); return new Uint8Array(await r.arrayBuffer()); }
+            catch (x) { if (attempt >= 3) throw x; await new Promise((res) => setTimeout(res, 1000 * attempt)); }
+          }
+        };
+        const CONC = 8;   // 8 unduhan berjalan bersamaan
+        for (let i = 0; i < parts.length; i++) {
+          const entries = {}; const list = parts[i];
+          await signBatch(list);
+          let next = 0;
+          const worker = async () => {
+            while (next < list.length) {
+              const f = list[next++];
+              try { const b = await fetchOne(f); entries[`${f.bucket}/${f.name}`] = [b, { level: 0 }]; gotB += b.length; }
+              catch (x) { failed++; entries[`GAGAL/${f.bucket}/${f.name}.txt`] = enc('Gagal diunduh: ' + x.message); }
+              n++;
+              const sec = (Date.now() - t0) / 1000; const rate = gotB / Math.max(sec, 1);
+              P.innerHTML = `Bagian <b>${i + 1}/${parts.length}</b> · berkas ${n}/${files.length} · ${mb(gotB)} dari ${mb(fBytes)} · ${mb(rate)}/detik`;
+            }
+          };
+          await Promise.all(Array.from({ length: Math.min(CONC, list.length) }, worker));
+          P.innerHTML = `Bagian <b>${i + 1}/${parts.length}</b> · menyusun ZIP…`;
           const zip = fl.zipSync(entries);
           total += save(zip, `jabar-open-berkas-${st}-bagian-${i + 1}-dari-${parts.length}.zip`);
           await new Promise((r) => setTimeout(r, 800));
