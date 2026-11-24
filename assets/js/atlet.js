@@ -56,17 +56,14 @@
   function card(x) {
     const cats = JO.lang === 'en' ? x.cats_en : x.cats_id;
     const av = x.kind === 'team' ? `<span class="av av-team">${icTeam}</span>`
-      : x.photo ? `<img class="av" src="${esc(x.photo)}" alt="" loading="lazy" width="56" height="56">` : `<span class="av av-ini" aria-hidden="true">${esc(initials(x.name))}</span>`;
+      : x.photo ? `<img class="av" src="${esc(x.photo)}" alt="" loading="lazy" width="104" height="104">` : `<span class="av av-ini" aria-hidden="true">${esc(initials(x.name))}</span>`;
     const avw = `<span class="avw">${av}${x.photo_hidden ? pdpBadge() : ''}</span>`;
-    const members = x.kind === 'team' && x.members && x.members.length
-      ? `<p class="ac-mem"><span class="sr-only">${esc(t('at_members'))}: </span>${esc(x.members.slice(0, 3).join(', '))}${x.members.length > 3 ? ` +${x.members.length - 3}` : ''}</p>` : '';
+    const second = x.kind === 'team' ? (x.members || []).join(', ') : x.region;
+    const allCats = (cats || []).join(' · ');
     const inner = `${avw}<div class="ac-body">
-        ${x.kind === 'team' ? `<span class="pill gold ac-tag">${esc(t('at_team'))}</span>` : ''}
         <h2 class="ac-name" title="${esc(x.name)}">${esc(x.name)}</h2>
-        <p class="ac-club" title="${esc(x.club)}">${esc(x.club)}</p>
-        ${x.kind === 'team' ? '' : `<p class="ac-meta">${icPin}<span>${esc(x.region)}<span class="dot" aria-hidden="true"></span><span class="nw">${esc(disc(x.discipline))}</span>${x.discipline !== 'AER' ? '' : `<span class="dot" aria-hidden="true"></span><span class="nw">${esc(gen(x.gender))}</span>`}</span></p>`}
-        ${members}
-        <p class="ac-cats" title="${esc((cats || []).join(' · '))}"><span>${esc(shortCat((cats || [])[0] || '', x.discipline))}</span>${(cats || []).length > 1 ? `<b>+${cats.length - 1}</b>` : ''}</p>
+        <p class="ac-sub"><span class="ac-club" title="${esc(x.club)}">${esc(x.club)}</span><span class="ac-city" title="${esc(second)}">${x.kind === 'team' ? `<span class="sr-only">${esc(t('at_members'))}: </span>` : ''}${esc(second)}</span></p>
+        <p class="ac-cat" title="${esc(allCats)}"><span>${esc((cats || [])[0] || '')}${(cats || []).length > 1 ? ` <b>+${cats.length - 1}</b>` : ''}</span></p>
       </div>`;
     return x.has_detail
       ? `<li><button type="button" class="acard is-link" data-kind="${x.kind}" data-id="${esc(x.id)}" aria-haspopup="dialog">${inner}<span class="ac-go"><span>${esc(t('at_view'))}</span>${icChev}</span></button></li>`
