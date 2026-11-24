@@ -45,6 +45,11 @@
   const icLock = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>';
   const icChev = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg>';
 
+  // nama kategori tanpa awalan disiplin (disiplin sudah tertulis di baris atas kartu)
+  function shortCat(c, d) {
+    const pre = DISC[d] ? DISC[d][JO.lang === 'en' ? 1 : 0] : '';
+    return pre && c.toLowerCase().startsWith(pre.toLowerCase() + ' ') ? c.slice(pre.length + 1) : c;
+  }
   function pdpBadge() {
     return `<span class="av-lock" tabindex="0" role="img" aria-label="${esc(t('at_pdp'))}" data-tip="${esc(t('at_pdp_card'))}">${icLock}</span>`;
   }
@@ -57,11 +62,11 @@
       ? `<p class="ac-mem"><span class="sr-only">${esc(t('at_members'))}: </span>${esc(x.members.slice(0, 3).join(', '))}${x.members.length > 3 ? ` +${x.members.length - 3}` : ''}</p>` : '';
     const inner = `${avw}<div class="ac-body">
         ${x.kind === 'team' ? `<span class="pill gold ac-tag">${esc(t('at_team'))}</span>` : ''}
-        <h2 class="ac-name">${esc(x.name)}</h2>
-        <p class="ac-club">${esc(x.club)}</p>
-        <p class="ac-meta">${icPin}<span>${esc(x.region)}<span class="dot" aria-hidden="true"></span><span class="nw">${esc(disc(x.discipline))}</span>${x.discipline === 'MAG' || x.discipline === 'WAG' ? '' : `<span class="dot" aria-hidden="true"></span><span class="nw">${esc(gen(x.gender))}</span>`}</span></p>
+        <h2 class="ac-name" title="${esc(x.name)}">${esc(x.name)}</h2>
+        <p class="ac-club" title="${esc(x.club)}">${esc(x.club)}</p>
+        ${x.kind === 'team' ? '' : `<p class="ac-meta">${icPin}<span>${esc(x.region)}<span class="dot" aria-hidden="true"></span><span class="nw">${esc(disc(x.discipline))}</span>${x.discipline !== 'AER' ? '' : `<span class="dot" aria-hidden="true"></span><span class="nw">${esc(gen(x.gender))}</span>`}</span></p>`}
         ${members}
-        <p class="ac-cats">${(cats || []).map((c) => `<span>${esc(c)}</span>`).join('')}</p>
+        <p class="ac-cats" title="${esc((cats || []).join(' · '))}"><span>${esc(shortCat((cats || [])[0] || '', x.discipline))}</span>${(cats || []).length > 1 ? `<b>+${cats.length - 1}</b>` : ''}</p>
       </div>`;
     return x.has_detail
       ? `<li><button type="button" class="acard is-link" data-kind="${x.kind}" data-id="${esc(x.id)}" aria-haspopup="dialog">${inner}<span class="ac-go"><span>${esc(t('at_view'))}</span>${icChev}</span></button></li>`
