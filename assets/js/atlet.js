@@ -27,6 +27,8 @@
     at_pending: ['Jadwal kategori ini belum diumumkan.', 'The schedule for this category has not been announced.'],
     at_exh: ['Eksibisi', 'Exhibition'], at_app_medals: ['Medali alat', 'Apparatus medals'],
     at_team_result: ['Hasil tim', 'Team result'], at_trophy: ['Piala', 'Trophy'],
+    at_pdp: ['Pas foto atlet berusia di bawah 10 tahun tidak ditampilkan untuk melindungi data pribadi anak, sesuai UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi.', 'Photos of athletes under 10 are not shown, to protect children\'s personal data under Indonesian Law No. 27 of 2022 on Personal Data Protection.'],
+    at_pdp_card: ['Foto tidak ditampilkan (UU PDP)', 'Photo not shown (data protection)'],
     at_err: ['Data tidak bisa dimuat. Coba lagi.', 'Could not load the data. Please try again.'],
   });
   const DISC = { MAG: ['Artistik Putra', "Men's Artistic"], WAG: ['Artistik Putri', "Women's Artistic"], RG: ['Ritmik', 'Rhythmic'], AER: ['Aerobik', 'Aerobic'] };
@@ -40,6 +42,7 @@
   const initials = (n) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
   const icTeam = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="8" cy="8" r="3"/><circle cx="16.5" cy="8.5" r="2.5"/><path d="M2.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5M14 14.3c.8-.4 1.6-.6 2.5-.6 2.3 0 4.2 1.6 4.8 4.3"/></svg>';
   const icPin = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 14.5s4.5-4.2 4.5-7.7A4.5 4.5 0 0 0 3.5 6.8c0 3.5 4.5 7.7 4.5 7.7z"/><circle cx="8" cy="6.8" r="1.6"/></svg>';
+  const icLock = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>';
   const icChev = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg>';
 
   function card(x) {
@@ -56,6 +59,7 @@
         <p class="ac-meta ac-disc"><span>${esc(disc(x.discipline))}</span><span class="dot" aria-hidden="true"></span><span>${esc(gen(x.gender))}</span></p>
         ${members}
         <p class="ac-cats">${(cats || []).map((c) => `<span>${esc(c)}</span>`).join('')}</p>
+        ${x.photo_hidden ? `<p class="ac-pdp">${icLock}<span>${esc(t('at_pdp_card'))}</span></p>` : ''}
       </div>`;
     return x.has_detail
       ? `<li><button type="button" class="acard is-link" data-kind="${x.kind}" data-id="${esc(x.id)}" aria-haspopup="dialog">${inner}<span class="ac-go"><span>${esc(t('at_view'))}</span>${icChev}</span></button></li>`
@@ -88,7 +92,7 @@
 
   function render() {
     const any = F.q || F.discipline || F.region || F.club || F.gender;
-    app.innerHTML = `<div class="page-head"><h1>${esc(t('at_title'))}</h1><p>${esc(t('at_lead'))}</p></div>
+    app.innerHTML = `<div class="page-head"><h1>${esc(t('at_title'))}</h1><p>${esc(t('at_lead'))}</p><p class="apdp small">${icLock}<span>${esc(t('at_pdp'))}</span></p></div>
       <section class="afilter" aria-label="${esc(t('at_q'))}">
         <div class="aq"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="9" r="6"/><path d="M14 14l4 4"/></svg>
           <label class="sr-only" for="aq">${esc(t('at_q'))}</label><input id="aq" type="search" placeholder="${esc(t('at_q'))}" value="${esc(F.q)}" autocomplete="off"></div>
@@ -162,7 +166,7 @@
     const x = items.find((i) => i.id === id && i.kind === kind); if (!x) return;
     if (!dlg) { dlg = document.createElement('dialog'); dlg.className = 'adlg'; document.body.appendChild(dlg); dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); }); }
     const head = `<header class="dh">${x.kind === 'team' ? `<span class="av av-team">${icTeam}</span>` : x.photo ? `<img class="av" src="${esc(x.photo)}" alt="">` : `<span class="av av-ini">${esc(initials(x.name))}</span>`}
-      <div><h2>${esc(x.name)}</h2><p class="small muted">${esc(x.club)} · ${esc(x.region)}<br>${esc(disc(x.discipline))} · ${esc(gen(x.gender))}</p></div>
+      <div><h2>${esc(x.name)}</h2><p class="small muted">${esc(x.club)} · ${esc(x.region)}<br>${esc(disc(x.discipline))} · ${esc(gen(x.gender))}</p>${x.photo_hidden ? `<p class="ac-pdp">${icLock}<span>${esc(t('at_pdp_card'))}</span></p>` : ''}</div>
       <button type="button" class="dx" aria-label="${esc(t('at_close'))}"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></header>`;
     dlg.innerHTML = head + '<div class="db"><div class="empty"><span class="spinner"></span></div></div>';
     dlg.querySelector('.dx').onclick = () => dlg.close();

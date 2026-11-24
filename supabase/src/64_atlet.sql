@@ -44,9 +44,10 @@ language sql stable set search_path = '' as $$
 $$;
 
 -- semua kartu (atlet + tim beregu) dalam satu bentuk
-create or replace function jo.dir_cards() returns table (
+drop function if exists jo.dir_cards();
+create function jo.dir_cards() returns table (
   kind text, id uuid, name text, gender text, discipline text, club text, region text,
-  cats_id text[], cats_en text[], photo text, members text[], has_detail boolean, haystack text)
+  cats_id text[], cats_en text[], photo text, members text[], has_detail boolean, haystack text, photo_hidden boolean)
 language sql stable set search_path = '' as $$
   with ath as (
     select a.id, a.full_name, a.gender, a.birth_date, a.photo_thumb, s.discipline,
@@ -69,7 +70,8 @@ language sql stable set search_path = '' as $$
            array_agg(distinct e.name_id) as cats_id, array_agg(distinct e.name_en) as cats_en,
            case when jo.photo_ok(ath.birth_date) then ath.photo_thumb end as photo,
            null::text[] as members,
-           bool_or(e.pub) as has_detail
+           bool_or(e.pub) as has_detail,
+           not jo.photo_ok(ath.birth_date) as photo_hidden
       from ath join ent e on e.athlete_id = ath.id
      group by ath.id, ath.full_name, ath.gender, ath.discipline, ath.club, ath.region, ath.birth_date, ath.photo_thumb
   ),
@@ -83,14 +85,17 @@ language sql stable set search_path = '' as $$
            (coalesce((select tl.published from jo.team_levels tl where tl.discipline = t.discipline and tl.level = t.level), false)
             or exists (select 1 from jo.team_members tm join jo.entries en on en.id = tm.entry_id
                         join jo.categories c on c.id = en.category_id
-                        where tm.team_id = t.id and (c.startlist_published or c.results_published))) as has_detail
+                        where tm.team_id = t.id and (c.startlist_published or c.results_published))) as has_detail,
+           false as photo_hidden
       from jo.teams t
       join jo.submissions s on s.id = t.submission_id
       left join jo.clubs k on k.id = s.club_id
      where s.status = 'lunas'
        and exists (select 1 from jo.team_members tm where tm.team_id = t.id and jo.dir_athlete_visible(tm.athlete_id))
   )
-  select x.*, lower(x.name || ' ' || x.club || ' ' || x.region || ' ' || coalesce(array_to_string(x.members, ' '), '')) as haystack
+  select x.kind, x.id, x.name, x.gender, x.discipline, x.club, x.region, x.cats_id, x.cats_en, x.photo, x.members, x.has_detail,
+         lower(x.name || ' ' || x.club || ' ' || x.region || ' ' || coalesce(array_to_string(x.members, ' '), '')) as haystack,
+         x.photo_hidden
     from (select * from acard union all select * from tcard) x
 $$;
 
@@ -132,7 +137,7 @@ begin
     'items', (select coalesce(jsonb_agg(jsonb_build_object(
         'kind', pg.kind, 'id', pg.id, 'name', pg.name, 'gender', pg.gender, 'discipline', pg.discipline,
         'club', pg.club, 'region', pg.region, 'cats_id', pg.cats_id, 'cats_en', pg.cats_en,
-        'photo', pg.photo, 'members', pg.members, 'has_detail', pg.has_detail)
+        'photo', pg.photo, 'photo_hidden', pg.photo_hidden, 'members', pg.members, 'has_detail', pg.has_detail)
         order by lower(pg.name), pg.kind, pg.id), '[]'::jsonb) from pg))
   into res;
   return res;

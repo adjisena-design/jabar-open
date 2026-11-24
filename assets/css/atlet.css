@@ -63,3 +63,8 @@
 .dteam{background:var(--gold-lt);border:1px solid #efdcaa;border-radius:var(--r-sm);padding:12px 14px;margin-top:12px}
 .dl-row{display:grid;grid-template-columns:76px 1fr;gap:10px;font-size:.92rem;padding:3px 0}
 .dl-k{color:var(--muted);font-size:.84rem;padding-top:1px}
+
+.ac-pdp{display:flex;align-items:center;gap:5px;margin:8px 0 0;font-size:.76rem;color:var(--muted)}
+.ac-pdp svg,.apdp svg{width:13px;height:13px;flex:none}
+.apdp{display:flex;align-items:flex-start;gap:7px;margin:10px 0 0;color:var(--muted);max-width:720px}
+.apdp svg{margin-top:3px}

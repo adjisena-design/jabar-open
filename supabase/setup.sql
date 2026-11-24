@@ -1226,10 +1226,14 @@ begin
       || jo.tr(l,'Tiga digit terakhir adalah kode unik yang mencocokkan pembayaran Anda dengan pendaftaran ini. Setelah membayar, unggah bukti pembayaran di halaman status.',
                  'The last three digits are a unique code that matches your payment to this registration. After paying, upload the payment proof on the status page.')
       || '</p><p style="background:#fdf3dc;border-left:4px solid #e4c87d;padding:10px 14px"><b>'
-      || jo.tr(l,'Penting: unggah bukti bayar paling lambat 15 menit setelah mendaftar','Important: upload the payment proof within 15 minutes of registering')
-      || '</b> (' || to_char(s.created_at at time zone 'Asia/Jakarta' + interval '15 minutes', 'HH24:MI') || ' WIB). '
-      || jo.tr(l,'Bila tidak, pendaftaran ini dihapus otomatis dan Anda perlu mendaftar ulang.',
-                 'Otherwise this registration is deleted automatically and you will need to register again.') || '</p>';
+      || case when coalesce(jo.rule_int('proof_minutes'), 15) > 0 then
+           jo.tr(l,'Penting: unggah bukti bayar paling lambat ' || jo.rule_int('proof_minutes') || ' menit setelah mendaftar',
+                   'Important: upload the payment proof within ' || jo.rule_int('proof_minutes') || ' minutes of registering')
+           || '</b> (' || to_char(s.created_at at time zone 'Asia/Jakarta' + make_interval(mins => jo.rule_int('proof_minutes')), 'HH24:MI') || ' WIB). '
+           || jo.tr(l,'Bila tidak, pendaftaran ini dihapus otomatis dan Anda perlu mendaftar ulang.',
+                      'Otherwise this registration is deleted automatically and you will need to register again.')
+         else jo.tr(l,'Penting: segera unggah bukti bayar setelah membayar.','Important: upload the payment proof right after paying.') || '</b>'
+         end || '</p>';
   else
     body := body || '<p>' || jo.tr(l,
       'Pendaftaran atlet internasional dibayar terpisah. Panitia akan menghubungi Anda melalui email ini untuk cara pembayaran.',
@@ -1395,7 +1399,9 @@ begin
       'team_max', coalesce(jo.setting_int('team_max'), 6),
       'team_counting', coalesce(jo.setting_int('team_counting'), 4),
       'team_levels', coalesce(jo.setting('team_levels'), '{}'::jsonb),
-      'qris_cap', coalesce(jo.setting_int('qris_cap'), 10000000)),
+      'qris_cap', coalesce(jo.setting_int('qris_cap'), 10000000),
+      'rules', jo.rules(),
+      'priangan_desc', jo.priangan_desc()),
     'payment', jsonb_build_object(
       'qris_image_url', jo.setting_text('qris_image_url'),
       'qris_merchant', jo.setting_text('qris_merchant'),
@@ -1434,19 +1440,25 @@ $$;
 -- ---------------------------------------------------------------------
 create or replace function jo.check_athlete_docs(a jsonb, p_label text, p_uid uuid) returns void
 language plpgsql stable set search_path = '' as $$
+-- Dokumen wajib/opsional per kewarganegaraan diatur di Konsol → Aturan pendaftaran (reg_rules.docs)
 declare k text;
+  v_nat text := case when coalesce(a->>'nationality','WNI') = 'WNA' then 'WNA' else 'WNI' end;
+  v_req jsonb := jo.rules()->'docs'->v_nat;
+  v_lbl jsonb := '{"akte":"Akte Kelahiran","passport":"paspor","ktp":"KTP","ijazah":"Ijazah","bpjs":"kartu BPJS Ketenagakerjaan"}';
 begin
-  if coalesce(a->>'nationality','WNI') = 'WNA' then
-    if coalesce(a->>'passport_path','') = '' then
-      raise exception '%: unggah paspor.', p_label using hint = 'ERR_ATHLETE_DOC';
+  -- pendaftaran massal (18 Nov 2026): boleh dikirim tanpa berkas; atlet ditandai berkas belum lengkap
+  if not jo.in_bulk() then
+  foreach k in array array['akte','passport','ktp','ijazah','bpjs'] loop
+    if v_req->>k = 'wajib' and coalesce(a->>(k || '_path'),'') = '' then
+      raise exception '%: unggah %.', p_label, v_lbl->>k using hint = 'ERR_ATHLETE_DOC';
     end if;
-  elsif coalesce(a->>'akte_path','') = '' then
-    raise exception '%: unggah Akte Kelahiran.', p_label using hint = 'ERR_ATHLETE_DOC';
+  end loop;
   end if;
-  if coalesce(a->>'photo_path','') = '' then
+  if not jo.in_bulk() and v_req->>'photo' = 'wajib' and coalesce(a->>'photo_path','') = '' then
     raise exception '%: unggah pas foto (wajib untuk Athlete Identification Card).', p_label using hint = 'ERR_ATHLETE_PHOTO';
   end if;
-  if coalesce(a->>'photo_thumb','') !~ '^data:image/jpeg;base64,[A-Za-z0-9+/=]+$' or length(a->>'photo_thumb') > 150000 then
+  if coalesce(a->>'photo_path','') <> ''
+     and (coalesce(a->>'photo_thumb','') !~ '^data:image/jpeg;base64,[A-Za-z0-9+/=]+$' or length(a->>'photo_thumb') > 150000) then
     raise exception '%: pas foto tidak terbaca. Unggah ulang pas foto (JPG atau PNG).', p_label using hint = 'ERR_ATHLETE_PHOTO';
   end if;
   foreach k in array array['akte_path','ktp_path','ijazah_path','passport_path','bpjs_path','photo_path'] loop
@@ -1465,16 +1477,17 @@ $$;
 -- v6: pendaftaran QRIS tanpa bukti bayar dalam 15 menit dihapus otomatis
 create or replace function jo.expire_unpaid() returns integer
 language plpgsql volatile set search_path = '' as $$
-declare r record; n integer := 0;
+declare r record; n integer := 0; v_min integer := coalesce(jo.rule_int('proof_minutes'), 15);
 begin
+  if v_min <= 0 then return 0; end if;   -- 0 = pendaftaran tanpa bukti bayar tidak dihapus otomatis
   for r in select id, code, contact_name, discipline, total_amount from jo.submissions
             where payment_method = 'qris' and status = 'menunggu_pembayaran' and proof_path is null
-              and created_at < now() - interval '15 minutes'
+              and created_at < now() - make_interval(mins => v_min)
             for update skip locked loop
     perform jo.purge_submission(r.id);
     perform jo.log(null, 'pendaftaran_kedaluwarsa', 'submission', r.id::text,
       jsonb_build_object('code', r.code, 'contact', r.contact_name, 'discipline', r.discipline, 'total', r.total_amount,
-                         'reason', 'Tidak ada bukti bayar dalam 15 menit'));
+                         'reason', 'Tidak ada bukti bayar dalam ' || v_min || ' menit'));
     n := n + 1;
   end loop;
   if n > 0 then
@@ -1584,7 +1597,7 @@ begin
   end if;
   perform jo.expire_unpaid();
 
-  if not jo.in_bulk() and (select count(*) from jo.rate_events where uid = v_uid and action = 'register' and at > now() - interval '1 hour') >= 12 then
+  if not jo.in_bulk() and (select count(*) from jo.rate_events where uid = v_uid and action = 'register' and at > now() - interval '1 hour') >= coalesce(jo.rule_int('rate_per_hour'), 12) then
     raise exception 'Terlalu banyak pendaftaran dari perangkat ini dalam satu jam. Coba lagi nanti.' using hint = 'ERR_RATE';
   end if;
 
@@ -1612,7 +1625,7 @@ begin
                   else '[]'::jsonb end;
   v_n_teams := jsonb_array_length(v_teams);
   if v_n_teams > 0 and not (jo.setting('team_levels') ? v_disc.code) then
-    raise exception 'Beregu hanya untuk Artistik Putri Level 1–6.' using hint = 'ERR_TEAM';
+    raise exception 'Beregu tidak tersedia untuk disiplin %.', v_disc.name_id using hint = 'ERR_TEAM';
   end if;
 
   -- Kontak
@@ -1736,7 +1749,7 @@ begin
       if length(trim(coalesce(a->'guardian'->>'name',''))) < 3
          or length(regexp_replace(coalesce(a->'guardian'->>'phone',''), '[^0-9]', '', 'g')) < 9
          or coalesce(a->'guardian'->>'email','') !~* '^[^@\s]+@[^@\s]+\.[^@\s]+$' then
-        raise exception 'Atlet %: atlet di bawah 18 tahun wajib mencantumkan nama, nomor WhatsApp, dan email orang tua/wali.', i using hint = 'ERR_GUARDIAN';
+        raise exception 'Atlet %: atlet di bawah % tahun wajib mencantumkan nama, nomor WhatsApp, dan email orang tua/wali.', i, coalesce(jo.rule_int('guardian_age'), 18) using hint = 'ERR_GUARDIAN';
       end if;
     end if;
 
@@ -1796,8 +1809,8 @@ begin
                   where ea.athlete_id = v_ath.id and en.category_id = v_cat.id) then
         raise exception '% terdaftar dua kali di kategori %.', v_ath.full_name, v_cat.name_id using hint = 'ERR_DUPLICATE';
       end if;
-      -- aturan jumlah nomor per atlet
-      if v_disc.code in ('MAG','WAG','RG') then
+      -- aturan jumlah nomor per atlet (Konsol → Aturan pendaftaran: disiplin yang membolehkan nomor pasangan tambahan)
+      if not coalesce(jo.rules()->'pair_with_individual' ? v_disc.code, false) then
         if exists (select 1 from jo.entry_athletes ea where ea.athlete_id = v_ath.id) then
           raise exception '% hanya boleh mengikuti satu kategori di disiplin ini.', v_ath.full_name using hint = 'ERR_ONE_CATEGORY';
         end if;
@@ -1808,9 +1821,9 @@ begin
           raise exception '% hanya boleh mengikuti satu nomor perorangan dan satu nomor pasangan.', v_ath.full_name using hint = 'ERR_ONE_CATEGORY';
         end if;
       end if;
-      -- kelayakan Priangan: WNI, alamat identitas di Jawa Barat, dan klub di Jawa Barat
-      if v_ath.nationality <> 'WNI' or coalesce(v_ath.province,'') <> 'Jawa Barat'
-         or (v_club_id is not null and coalesce(v_club.province,'') <> 'Jawa Barat') then
+      -- kelayakan kategori khusus daerah (Priangan), syarat diatur di Konsol → Aturan pendaftaran
+      if jo.priangan_reason(v_ath.nationality, v_ath.province,
+                            case when v_club_id is not null then coalesce(v_club.province,'') end) is not null then
         v_pri_ok := false;
       end if;
     end loop;
@@ -1820,8 +1833,8 @@ begin
       raise exception 'Kategori % adalah pasangan campuran: satu putra dan satu putri.', v_cat.name_id using hint = 'ERR_PAIR';
     end if;
 
-    -- batas peserta per klub per kategori
-    if v_club_id is not null and v_cat.max_per_club is not null then
+    -- batas peserta per klub per kategori (arahan TD); pendaftaran massal boleh melebihi, ditandai di konsol
+    if v_club_id is not null and v_cat.max_per_club is not null and not jo.in_bulk() then
       select count(*) into v_cnt
         from jo.entries en join jo.submissions s on s.id = en.submission_id
        where en.category_id = v_cat.id and en.status = 'aktif'
@@ -1836,7 +1849,7 @@ begin
       raise exception 'Priangan kini kategori tersendiri (khusus Ritmik). Pilih kategori Ritmik Priangan.' using hint = 'ERR_PRIANGAN';
     end if;
     if v_cat.jabar_only and not v_pri_ok then
-      raise exception '% khusus atlet WNI dengan alamat identitas di Jawa Barat dan klub di Jawa Barat.', v_cat.name_id using hint = 'ERR_PRIANGAN';
+      raise exception '%: %.', v_cat.name_id, jo.priangan_desc() using hint = 'ERR_PRIANGAN';
     end if;
 
     -- musik Ritmik (v6): satu tautan Google Drive untuk setiap nomor (alat) kategori, semua wajib
@@ -1998,7 +2011,7 @@ begin
           if length(trim(coalesce(a->'guardian'->>'name',''))) < 3
              or length(regexp_replace(coalesce(a->'guardian'->>'phone',''), '[^0-9]', '', 'g')) < 9
              or coalesce(a->'guardian'->>'email','') !~* '^[^@\s]+@[^@\s]+\.[^@\s]+$' then
-            raise exception 'Anggota %: pesenam di bawah 18 tahun wajib mencantumkan nama, nomor WhatsApp, dan email orang tua/wali.', i using hint = 'ERR_GUARDIAN';
+            raise exception 'Anggota %: pesenam di bawah % tahun wajib mencantumkan nama, nomor WhatsApp, dan email orang tua/wali.', i, coalesce(jo.rule_int('guardian_age'), 18) using hint = 'ERR_GUARDIAN';
           end if;
         end if;
         -- kategori usia di level ini (ditentukan dari tanggal lahir)
@@ -2010,7 +2023,7 @@ begin
         if v_cat.id is null then
           raise exception 'Anggota %: tidak ada kelompok usia % % yang sesuai dengan tanggal lahir %.', i, v_disc.name_id, v_level, to_char(v_mbirth, 'DD-MM-YYYY') using hint = 'ERR_ELIGIBILITY';
         end if;
-        if v_cat.max_per_club is not null then
+        if v_cat.max_per_club is not null and not jo.in_bulk() then
           select count(*) into v_cnt
             from jo.entries en join jo.submissions s on s.id = en.submission_id
            where en.category_id = v_cat.id and en.status = 'aktif'
@@ -2046,7 +2059,7 @@ begin
   v_base := v_base + v_team_amt;
 
   if v_any_minor and not coalesce((v_consents->>'guardian')::boolean, false) then
-    raise exception 'Persetujuan orang tua/wali wajib dicentang untuk atlet di bawah 18 tahun.' using hint = 'ERR_CONSENT';
+    raise exception 'Persetujuan orang tua/wali wajib dicentang untuk atlet di bawah % tahun.', coalesce(jo.rule_int('guardian_age'), 18) using hint = 'ERR_CONSENT';
   end if;
 
   -- nomor atlet per disiplin (MAG-001, ...)
@@ -2082,7 +2095,8 @@ begin
   return jsonb_build_object(
     'code', v_code, 'token', v_token, 'status', 'menunggu_pembayaran', 'payment_method', v_pm,
     'base_amount', v_base, 'team_amount', v_team_amt, 'priangan_amount', v_pri, 'unique_code', v_uc, 'total_amount', v_total,
-    'expires_at', case when v_pm = 'qris' then now() + interval '15 minutes' end);
+    'expires_at', case when v_pm = 'qris' and coalesce(jo.rule_int('proof_minutes'), 15) > 0
+                       then now() + make_interval(mins => coalesce(jo.rule_int('proof_minutes'), 15)) end);
 end $$;
 
 -- ---------------------------------------------------------------------
@@ -2142,7 +2156,8 @@ language sql stable set search_path = '' as $$
     'verify_note', case when s.status = 'perlu_perbaikan' then s.verify_note end,
     'created_at', s.created_at,
     'expires_at', case when s.payment_method = 'qris' and s.status = 'menunggu_pembayaran' and s.proof_path is null
-                       then s.created_at + interval '15 minutes' end,
+                            and coalesce(jo.rule_int('proof_minutes'), 15) > 0
+                       then s.created_at + make_interval(mins => coalesce(jo.rule_int('proof_minutes'), 15)) end,
     'payment', jsonb_build_object(
       'qris_image_url', jo.setting_text('qris_image_url'),
       'qris_merchant', jo.setting_text('qris_merchant'),
@@ -2154,7 +2169,7 @@ language sql stable set search_path = '' as $$
         'id', a.id, 'athlete_no', a.athlete_no, 'full_name', a.full_name, 'gender', a.gender,
         'birth_date', a.birth_date, 'nationality', a.nationality, 'province', a.province, 'kab_kota', a.kab_kota,
         'doc_status', a.doc_status, 'has_bpjs', a.bpjs_path is not null, 'photo_thumb', a.photo_thumb,
-        'aic_reissued_at', a.aic_reissued_at,
+        'aic_reissued_at', a.aic_reissued_at, 'docs_missing', to_jsonb(jo.athlete_docs_missing(a)),
         'docs', jsonb_build_object('akte', a.akte_path is not null, 'ktp', a.ktp_path is not null, 'ijazah', a.ijazah_path is not null,
                                    'passport', a.passport_path is not null, 'bpjs', a.bpjs_path is not null),
         'ticket_code', case when s.status = 'lunas' then a.ticket_code end
@@ -2326,6 +2341,7 @@ begin
     return jsonb_build_object('type', 'ticket', 'valid', s.status = 'lunas', 'status', s.status,
       'athlete_no', a.athlete_no, 'name', a.full_name, 'club', club, 'discipline', s.discipline,
       'photo', case when s.status = 'lunas' then a.photo_thumb end,
+      'docs_missing', case when s.status = 'lunas' then to_jsonb(jo.athlete_docs_missing(a)) end,
       'registered_by', case when s.status = 'lunas' then s.contact_name || coalesce(' (' || case s.contact_role
           when 'pemilik' then 'pemilik klub' when 'admin' then 'admin klub' when 'pelatih' then 'pelatih'
           when 'manajer' then 'manajer/official' end || ')', '') end,
@@ -2699,10 +2715,16 @@ begin
       s.total_amount, s.unique_code, s.status, s.payment_method, s.proof_uploaded_at, s.paid_at,
       (select b.code from jo.bulk_batches b where b.id = s.bulk_batch_id) as bulk_code,
       case when s.payment_method = 'qris' and s.status = 'menunggu_pembayaran' and s.proof_path is null
-           then s.created_at + interval '15 minutes' end as expires_at,
+                and coalesce(jo.rule_int('proof_minutes'), 15) > 0
+           then s.created_at + make_interval(mins => jo.rule_int('proof_minutes')) end as expires_at,
       (select count(*) from jo.athletes a where a.submission_id = s.id and a.doc_status = 'menunggu') as docs_pending,
       (select count(*) from jo.entries e where e.submission_id = s.id and e.priangan_status = 'menunggu') as priangan_pending,
-      exists (select 1 from jo.mutations m where m.submission_id = s.id and m.match_status in ('otomatis','manual')) as mutation_matched
+      exists (select 1 from jo.mutations m where m.submission_id = s.id and m.match_status in ('otomatis','manual')) as mutation_matched,
+      (select count(distinct ea.athlete_id) from jo.entries e join jo.entry_athletes ea on ea.entry_id = e.id
+         join jo.athletes a on a.id = ea.athlete_id join jo.categories cat on cat.id = e.category_id
+        where e.submission_id = s.id and e.status <> 'dibatalkan'
+          and (not cat.active or jo.category_mismatch(cat, a.gender, a.birth_date) is not null)) as rule_issues,
+      (select count(*) from jo.athletes a where a.submission_id = s.id and cardinality(jo.athlete_docs_missing(a)) > 0) as docs_missing
     from jo.submissions s left join jo.clubs c on c.id = s.club_id
     where (d is null or s.discipline = d)
       and (nullif(f->>'status','') is null or s.status = f->>'status')
@@ -2714,7 +2736,15 @@ begin
            or (f->>'flag' = 'docs' and exists (select 1 from jo.athletes a where a.submission_id = s.id and a.doc_status = 'menunggu') and s.status <> 'dibatalkan')
            or (f->>'flag' = 'priangan' and exists (select 1 from jo.entries e where e.submission_id = s.id and e.priangan_status = 'menunggu') and s.status <> 'dibatalkan')
            or (f->>'flag' = 'beregu' and exists (select 1 from jo.teams t where t.submission_id = s.id))
-           or (f->>'flag' = 'musik' and exists (select 1 from jo.entries e where e.submission_id = s.id and e.status <> 'dibatalkan' and e.music_status in ('menunggu','belum','tidak_bisa')) and s.status <> 'dibatalkan'))
+           or (f->>'flag' = 'musik' and exists (select 1 from jo.entries e where e.submission_id = s.id and e.status <> 'dibatalkan' and e.music_status in ('menunggu','belum','tidak_bisa')) and s.status <> 'dibatalkan')
+           or (f->>'flag' = 'aturan' and s.status <> 'dibatalkan' and exists (select 1 from jo.entries e join jo.entry_athletes ea on ea.entry_id = e.id
+                 join jo.athletes a on a.id = ea.athlete_id join jo.categories cat on cat.id = e.category_id
+                where e.submission_id = s.id and e.status <> 'dibatalkan'
+                  and (not cat.active or jo.category_mismatch(cat, a.gender, a.birth_date) is not null))))
+      and (nullif(f->>'category','') is null or exists (select 1 from jo.entries e where e.submission_id = s.id
+             and e.status <> 'dibatalkan' and e.category_id = (f->>'category')::integer))
+      and (coalesce(f->>'flag','') <> 'berkas' or (s.status <> 'dibatalkan'
+             and exists (select 1 from jo.athletes a where a.submission_id = s.id and cardinality(jo.athlete_docs_missing(a)) > 0)))
     order by s.created_at desc
     limit 1000) x);
 end $$;
@@ -3024,7 +3054,13 @@ begin
          from jo.entry_athletes ea join jo.entries e on e.id = ea.entry_id join jo.categories cat on cat.id = e.category_id
         where ea.athlete_id = a.id and e.status <> 'dibatalkan') as categories,
       a.id_doc_path, a.photo_path, a.akte_path, a.ktp_path, a.ijazah_path, a.passport_path, a.bpjs_path,
-      a.bpjs_path is not null as has_bpjs, a.aic_update_pending, a.aic_reissued_at
+      a.bpjs_path is not null as has_bpjs, a.aic_update_pending, a.aic_reissued_at,
+      (select string_agg(cat.name_id || ': ' || coalesce(case when not cat.active then 'kategori dinonaktifkan' end,
+                                                         jo.category_mismatch(cat, a.gender, a.birth_date)), '; ' order by cat.sort)
+         from jo.entry_athletes ea join jo.entries e on e.id = ea.entry_id join jo.categories cat on cat.id = e.category_id
+        where ea.athlete_id = a.id and e.status <> 'dibatalkan'
+          and (not cat.active or jo.category_mismatch(cat, a.gender, a.birth_date) is not null)) as rule_issue,
+      array_to_string(jo.athlete_docs_missing(a), ', ') as docs_missing, s.bulk_batch_id is not null as is_bulk
     from jo.athletes a join jo.submissions s on s.id = a.submission_id
     left join jo.clubs c on c.id = s.club_id
     where (d is null or s.discipline = d)
@@ -3032,7 +3068,10 @@ begin
       and (nullif(f->>'status','') is null or s.status = f->>'status')
       and (coalesce(f->>'q','') = '' or lower(a.full_name) like q or lower(coalesce(a.athlete_no,'')) like q
            or lower(coalesce(c.name,'')) like q or lower(coalesce(a.kab_kota,'')) like q)
-  ) x);
+      and (nullif(f->>'category','') is null or exists (select 1 from jo.entry_athletes ea join jo.entries e on e.id = ea.entry_id
+             where ea.athlete_id = a.id and e.status <> 'dibatalkan' and e.category_id = (f->>'category')::integer))
+  ) x where (coalesce(f->>'flag','') <> 'aturan' or x.rule_issue is not null)
+          and (coalesce(f->>'flag','') <> 'berkas' or coalesce(x.docs_missing, '') <> ''));
 end $$;
 
 -- ---------------------------------------------------------------------
@@ -5765,9 +5804,10 @@ language sql stable set search_path = '' as $$
 $$;
 
 -- semua kartu (atlet + tim beregu) dalam satu bentuk
-create or replace function jo.dir_cards() returns table (
+drop function if exists jo.dir_cards();
+create function jo.dir_cards() returns table (
   kind text, id uuid, name text, gender text, discipline text, club text, region text,
-  cats_id text[], cats_en text[], photo text, members text[], has_detail boolean, haystack text)
+  cats_id text[], cats_en text[], photo text, members text[], has_detail boolean, haystack text, photo_hidden boolean)
 language sql stable set search_path = '' as $$
   with ath as (
     select a.id, a.full_name, a.gender, a.birth_date, a.photo_thumb, s.discipline,
@@ -5790,7 +5830,8 @@ language sql stable set search_path = '' as $$
            array_agg(distinct e.name_id) as cats_id, array_agg(distinct e.name_en) as cats_en,
            case when jo.photo_ok(ath.birth_date) then ath.photo_thumb end as photo,
            null::text[] as members,
-           bool_or(e.pub) as has_detail
+           bool_or(e.pub) as has_detail,
+           not jo.photo_ok(ath.birth_date) as photo_hidden
       from ath join ent e on e.athlete_id = ath.id
      group by ath.id, ath.full_name, ath.gender, ath.discipline, ath.club, ath.region, ath.birth_date, ath.photo_thumb
   ),
@@ -5804,14 +5845,17 @@ language sql stable set search_path = '' as $$
            (coalesce((select tl.published from jo.team_levels tl where tl.discipline = t.discipline and tl.level = t.level), false)
             or exists (select 1 from jo.team_members tm join jo.entries en on en.id = tm.entry_id
                         join jo.categories c on c.id = en.category_id
-                        where tm.team_id = t.id and (c.startlist_published or c.results_published))) as has_detail
+                        where tm.team_id = t.id and (c.startlist_published or c.results_published))) as has_detail,
+           false as photo_hidden
       from jo.teams t
       join jo.submissions s on s.id = t.submission_id
       left join jo.clubs k on k.id = s.club_id
      where s.status = 'lunas'
        and exists (select 1 from jo.team_members tm where tm.team_id = t.id and jo.dir_athlete_visible(tm.athlete_id))
   )
-  select x.*, lower(x.name || ' ' || x.club || ' ' || x.region || ' ' || coalesce(array_to_string(x.members, ' '), '')) as haystack
+  select x.kind, x.id, x.name, x.gender, x.discipline, x.club, x.region, x.cats_id, x.cats_en, x.photo, x.members, x.has_detail,
+         lower(x.name || ' ' || x.club || ' ' || x.region || ' ' || coalesce(array_to_string(x.members, ' '), '')) as haystack,
+         x.photo_hidden
     from (select * from acard union all select * from tcard) x
 $$;
 
@@ -5853,7 +5897,7 @@ begin
     'items', (select coalesce(jsonb_agg(jsonb_build_object(
         'kind', pg.kind, 'id', pg.id, 'name', pg.name, 'gender', pg.gender, 'discipline', pg.discipline,
         'club', pg.club, 'region', pg.region, 'cats_id', pg.cats_id, 'cats_en', pg.cats_en,
-        'photo', pg.photo, 'members', pg.members, 'has_detail', pg.has_detail)
+        'photo', pg.photo, 'photo_hidden', pg.photo_hidden, 'members', pg.members, 'has_detail', pg.has_detail)
         order by lower(pg.name), pg.kind, pg.id), '[]'::jsonb) from pg))
   into res;
   return res;
@@ -5972,7 +6016,7 @@ end $$;
 --
 --  Alur: Inda/Owner membuat kode akses untuk satu klub -> klub (pemilik + maks. 2
 --  kolaborator) mengisi lembar atlet yang tersimpan di server -> kirim per batch
---  (batch pertama min. 30) -> transfer BCA (boleh dipecah, maks. 5) + unggah bukti
+--  (batch pertama min. 30) -> transfer Mandiri (boleh dipecah, maks. 5) + unggah bukti
 --  -> Inda memverifikasi -> batch lunas -> pendaftaran biasa per disiplin ikut lunas
 --  dan email AIC terkirim seperti biasa.
 --
@@ -6080,7 +6124,7 @@ insert into jo.settings (key, value) values
   ('bulk_max', '250'::jsonb),
   ('bulk_days', '7'::jsonb),
   ('bulk_wa', '"6282115596852"'::jsonb),
-  ('bulk_bank', '{"bank":"BCA","number":"1300030431533","name":"Inda Sopia","title":"Finance Manager Jabar Open 2026"}'::jsonb)
+  ('bulk_bank', '{"bank":"Mandiri","number":"1300030431533","name":"Inda Sopia","title":"Finance Manager Jabar Open 2026"}'::jsonb)
 on conflict (key) do nothing;
 
 -- ---------------------------------------------------------------------
@@ -6271,7 +6315,9 @@ language sql stable set search_path = '' as $$
       else '[]'::jsonb end,
     'club', case when b.club_id is not null then (select jsonb_build_object('id', c.id, 'name', c.name, 'kab_kota', c.kab_kota, 'province', c.province, 'country', c.country) from jo.clubs c where c.id = b.club_id)
                  else b.club_new end,
-    'locked', (b.expires_at is not null and now() > b.expires_at) or now() > jo.bulk_deadline())
+    'locked', (b.expires_at is not null and now() > b.expires_at) or now() > jo.bulk_deadline(),
+    'files_open', jo.bulk_files_open(b), 'files_until', jo.bulk_files_until(b),
+    'min', jo.bulk_cfg_int(b, 'min'), 'max', jo.bulk_cfg_int(b, 'max'), 'pay_hours', jo.bulk_cfg_int(b, 'pay_hours'))
 $$;
 
 -- membuka kode: hari pertama dibuka memulai masa berlaku 7 hari
@@ -6384,7 +6430,7 @@ begin
   return jsonb_build_object(
     'account', jo.bulk_public_json(b),
     'now', now(),
-    'rows', (select coalesce(jsonb_agg(jsonb_build_object('row_no', r.row_no, 'data', r.data, 'has_photo', r.photo_thumb is not null,
+    'rows', (select coalesce(jsonb_agg(jsonb_build_object('row_no', r.row_no, 'data', jo.bulk_row_data(r), 'has_photo', jo.bulk_row_has_photo(r),
               'batch_id', r.batch_id, 'updated_at', r.updated_at, 'updated_by', r.updated_by) order by r.row_no), '[]'::jsonb)
              from jo.bulk_rows r where r.bulk_id = b.id and (p_since is null or r.updated_at > p_since)),
     'deleted', case when p_since is not null then (select coalesce(jsonb_agg(q.n), '[]'::jsonb) from (
@@ -6403,16 +6449,18 @@ language plpgsql volatile security definer set search_path = '' as $$
 declare b jo.bulk_accounts;
 begin
   b := jo.bulk_auth(p_code, p_person, false);
-  return (select photo_thumb from jo.bulk_rows where bulk_id = b.id and row_no = p_row);
+  return (select coalesce((select a.photo_thumb from jo.athletes a where a.bulk_row_id = r.id and a.photo_thumb is not null limit 1), r.photo_thumb)
+            from jo.bulk_rows r where r.bulk_id = b.id and r.row_no = p_row);
 end $$;
 
 -- simpan beberapa baris: [{row_no, data, photo_thumb?, delete?}]
 create or replace function public.public_bulk_save(p_code text, p_person text, p_rows jsonb) returns jsonb
 language plpgsql volatile security definer set search_path = '' as $$
 declare b jo.bulk_accounts; v_uid uuid := auth.uid(); x jsonb; v_no integer; v_old jo.bulk_rows; v_name text; k text; v_path text;
-        v_max integer := coalesce(jo.setting_int('bulk_max'), 250); v_saved jsonb := '[]'::jsonb; v_thumb text; v_n integer := 0; v_del integer := 0;
+        v_max integer; v_saved jsonb := '[]'::jsonb; v_thumb text; v_n integer := 0; v_del integer := 0;
 begin
   b := jo.bulk_auth(p_code, p_person, true);
+  v_max := jo.bulk_cfg_int(b, 'max');
   v_name := jo.bulk_person_name(b, p_person);
   if jsonb_typeof(p_rows) <> 'array' or jsonb_array_length(p_rows) > 260 then
     raise exception 'Data tidak valid.' using hint = 'ERR_BULK_DATA';
@@ -6424,7 +6472,7 @@ begin
     end if;
     select * into v_old from jo.bulk_rows where bulk_id = b.id and row_no = v_no for update;
     if v_old.batch_id is not null then
-      raise exception 'Baris % sudah dikirim dalam batch dan terkunci. Koreksi lewat Inda.', v_no using hint = 'ERR_BULK_LOCKED';
+      raise exception 'Baris % sudah dikirim dalam batch dan terkunci. Berkas susulan diunggah lewat tombol dokumen; koreksi data lewat Inda.', v_no using hint = 'ERR_BULK_LOCKED';
     end if;
     if coalesce((x->>'delete')::boolean, false) then
       if v_old.id is not null then
@@ -6556,10 +6604,11 @@ end $$;
 create or replace function public.public_bulk_submit(p_code text, p_person text, p_rows integer[], p_split jsonb, p_confirm text) returns jsonb
 language plpgsql volatile security definer set search_path = '' as $$
 declare b jo.bulk_accounts; v_name text; v_no integer; v_batch jo.bulk_batches; v_disc text; v_res jsonb; v_sub jo.submissions;
-        v_total integer := 0; v_n integer; v_min integer := coalesce(jo.setting_int('bulk_min'), 30); v_amounts jsonb; v_sum integer;
+        v_total integer := 0; v_n integer; v_min integer; v_amounts jsonb; v_sum integer;
         v_msg text; v_hint text; v_codes jsonb := '[]'::jsonb; v_m text[]; v_row text;
 begin
   b := jo.bulk_auth(p_code, p_person, true);
+  v_min := jo.bulk_cfg_int(b, 'min');
   v_name := jo.bulk_person_name(b, p_person);
   if coalesce(p_confirm,'') <> 'SAYA SETUJU' then
     raise exception 'Centang pernyataan transfer sebelum mengirim.' using hint = 'ERR_CONSENT';
@@ -6584,7 +6633,7 @@ begin
   insert into jo.bulk_batches (bulk_id, no, code, person, due_at)
   values (b.id, coalesce((select max(no) from jo.bulk_batches where bulk_id = b.id), 0) + 1,
           jo.bulk_code_label(b) || '-B' || (coalesce((select max(no) from jo.bulk_batches where bulk_id = b.id), 0) + 1),
-          v_name, now() + interval '48 hours')
+          v_name, now() + make_interval(hours => jo.bulk_cfg_int(b, 'pay_hours')))
   returning * into v_batch;
   update jo.bulk_rows set batch_id = v_batch.id where bulk_id = b.id and row_no = any(p_rows);
 
@@ -6683,7 +6732,15 @@ language sql stable set search_path = '' as $$
     'unpaid_batches', (select count(*) from jo.bulk_batches bt where bt.bulk_id = b.id and bt.status = 'menunggu'),
     'docs_pending', (select count(*) from jo.athletes a join jo.submissions s on s.id = a.submission_id
                       join jo.bulk_batches bt on bt.id = s.bulk_batch_id
-                     where bt.bulk_id = b.id and s.status <> 'dibatalkan' and a.doc_status = 'menunggu'))
+                     where bt.bulk_id = b.id and s.status <> 'dibatalkan' and a.doc_status = 'menunggu'),
+    'docs_incomplete', (select count(*) from jo.athletes a join jo.submissions s on s.id = a.submission_id
+                      join jo.bulk_batches bt on bt.id = s.bulk_batch_id
+                     where bt.bulk_id = b.id and s.status <> 'dibatalkan' and cardinality(jo.athlete_docs_missing(a)) > 0),
+    'over_quota', jo.club_over_quota(b.club_id),
+    'files_until', b.files_until, 'files_open', jo.bulk_files_open(b), 'files_open_until', jo.bulk_files_until(b),
+    'event_start', jo.bulk_event_start(), 'deadline', jo.bulk_deadline(),
+    'settings', b.settings, 'cfg', jsonb_build_object('min', jo.bulk_cfg_int(b, 'min'), 'max', jo.bulk_cfg_int(b, 'max'), 'pay_hours', jo.bulk_cfg_int(b, 'pay_hours')),
+    'owner_role', b.owner_role)
 $$;
 
 create or replace function public.console_bulk_list() returns jsonb
@@ -6715,7 +6772,8 @@ begin
   if b.id is null then raise exception 'Data tidak ditemukan.'; end if;
   return jo.bulk_console_row(b) || jsonb_build_object(
     'manager', jo.bulk_is_manager(st),
-    'sheet', (select coalesce(jsonb_agg(jsonb_build_object('row_no', r.row_no, 'data', r.data, 'has_photo', r.photo_thumb is not null,
+    'admin', st.role in ('owner','superadmin'),
+    'sheet', (select coalesce(jsonb_agg(jsonb_build_object('row_no', r.row_no, 'data', jo.bulk_row_data(r), 'has_photo', jo.bulk_row_has_photo(r),
               'batch', (select code from jo.bulk_batches bt where bt.id = r.batch_id), 'updated_at', r.updated_at, 'updated_by', r.updated_by) order by r.row_no), '[]'::jsonb)
               from jo.bulk_rows r where r.bulk_id = b.id),
     'batch_list', jo.bulk_batches_json(b.id),
@@ -6803,16 +6861,15 @@ create or replace function public.console_bulk_extend(p_id uuid, p_days integer)
 language plpgsql volatile security definer set search_path = '' as $$
 declare st jo.staff; b jo.bulk_accounts;
 begin
-  st := jo.bulk_manager();
+  st := jo.bulk_admin();
   select * into b from jo.bulk_accounts where id = p_id for update;
   if b.id is null then raise exception 'Data tidak ditemukan.'; end if;
   if b.opened_at is null then raise exception 'Kode belum pernah dibuka klub; masa berlaku belum dimulai.'; end if;
-  if b.extended_days is not null then raise exception 'Kode ini sudah pernah diperpanjang. Perpanjangan hanya satu kali.'; end if;
-  if p_days not between 1 and 3 then raise exception 'Perpanjangan 1, 2, atau 3 hari.'; end if;
+  if p_days not between 1 and 30 then raise exception 'Perpanjangan 1 sampai 30 hari.'; end if;
   if b.expires_at >= jo.bulk_deadline() then raise exception 'Masa berlaku sudah sampai batas akhir pendaftaran.'; end if;
   update jo.bulk_accounts
      set expires_at = least(greatest(expires_at, now()) + make_interval(days => p_days), jo.bulk_deadline()),
-         extended_days = p_days, extended_by = st.id, extended_at = now(), reminded_at = null, updated_at = now()
+         extended_days = coalesce(extended_days, 0) + p_days, extended_by = st.id, extended_at = now(), reminded_at = null, updated_at = now()
    where id = b.id returning * into b;
   perform jo.bulk_add_log(b.id, st.name, 'diperpanjang', jsonb_build_object('days', p_days, 'expires_at', b.expires_at));
   perform jo.log(st.id, 'massal_diperpanjang', 'bulk', b.id::text, jsonb_build_object('code', jo.bulk_code_label(b), 'club', b.label, 'days', p_days));
@@ -6824,8 +6881,8 @@ create or replace function public.console_bulk_due(p_batch uuid, p_hours integer
 language plpgsql volatile security definer set search_path = '' as $$
 declare st jo.staff; bt jo.bulk_batches;
 begin
-  st := jo.bulk_manager();
-  if p_hours not in (24, 48) then raise exception 'Tambahan waktu 24 atau 48 jam.'; end if;
+  st := jo.bulk_admin();
+  if p_hours not between 1 and 336 then raise exception 'Tambahan waktu 1 sampai 336 jam.'; end if;
   update jo.bulk_batches set due_at = greatest(due_at, now()) + make_interval(hours => p_hours)
    where id = p_batch and status = 'menunggu' returning * into bt;
   if bt.id is null then raise exception 'Batch tidak ditemukan atau sudah selesai.'; end if;
@@ -7206,7 +7263,7 @@ begin
     if exists (select 1 from jo.entry_athletes ea join jo.entries e on e.id = ea.entry_id where ea.athlete_id = a.id and e.category_id = c.id) then
       raise exception '% sudah terdaftar di kategori %.', a.full_name, c.name_id;
     end if;
-    if s.discipline in ('MAG','WAG','RG') then
+    if not coalesce(jo.rules()->'pair_with_individual' ? s.discipline, false) then
       if exists (select 1 from jo.entry_athletes ea join jo.entries e on e.id = ea.entry_id where ea.athlete_id = a.id and e.status <> 'dibatalkan') then
         raise exception '% sudah punya kategori di disiplin ini (satu atlet satu kategori). Gunakan Pindah kategori.', a.full_name;
       end if;
@@ -9250,7 +9307,8 @@ begin
   end if;
   if v_group is not null and v_group not in ('ART','RG','AER') then raise exception 'Kelompok disiplin tidak dikenal.'; end if;
   if v_dummy and v_role not in ('asjur','verifikator') then raise exception 'Kode dummy hanya untuk Asisten Juri atau Verifikator Nilai.'; end if;
-  if v_role in ('asjur','verifikator') and v_group is null and nullif(p->>'discipline','') is null then
+  if v_dummy then v_group := null; end if;   -- kode dummy: satu kode untuk semua disiplin (18 Nov 2026)
+  if v_role in ('asjur','verifikator') and not v_dummy and v_group is null and nullif(p->>'discipline','') is null then
     raise exception 'Pilih disiplin untuk kode ini (Artistik, Ritmik, atau Aerobik).';
   end if;
   v_code := jo.new_staff_code();
@@ -9263,7 +9321,7 @@ begin
     jo.sha256(jo.norm_code(v_code)), right(v_code, 4), nullif(trim(coalesce(p->>'note','')),''), st.id,
     nullif(regexp_replace(coalesce(p->>'phone',''), '[^0-9+]', '', 'g'), ''),
     case when v_role = 'juri' then jo.norm_windows(p->'access_windows') end,
-    case when v_role in ('asjur','verifikator') then coalesce(v_group, jo.disc_group_of(nullif(p->>'discipline',''))) end,
+    case when v_role in ('asjur','verifikator') and not v_dummy then coalesce(v_group, jo.disc_group_of(nullif(p->>'discipline',''))) end,
     v_dummy)
   returning * into x;
   perform jo.log(st.id, 'kode_dibuat', 'staff', x.id::text, jsonb_build_object('name', x.name, 'role', x.role, 'discipline', x.discipline, 'disc_group', x.disc_group, 'dummy', x.is_dummy));
@@ -9298,7 +9356,7 @@ begin
     note = case when p ? 'note' then nullif(trim(p->>'note'),'') else note end,
     phone = case when p ? 'phone' then nullif(regexp_replace(coalesce(p->>'phone',''), '[^0-9+]', '', 'g'), '') else phone end,
     access_windows = case when x.role <> 'juri' then null when p ? 'access_windows' then jo.norm_windows(p->'access_windows') else access_windows end,
-    disc_group = case when x.role in ('asjur','verifikator') and p ? 'disc_group' then coalesce(nullif(upper(p->>'disc_group'),''), disc_group) else disc_group end
+    disc_group = case when x.is_dummy then null when x.role in ('asjur','verifikator') and p ? 'disc_group' then coalesce(nullif(upper(p->>'disc_group'),''), disc_group) else disc_group end
   where id = x.id;
   if coalesce((p->>'active')::boolean, true) = false then
     delete from jo.staff_sessions where staff_id = x.id;
@@ -9321,9 +9379,10 @@ create or replace function public.console_juri_switch(p_group text) returns json
 language plpgsql volatile security definer set search_path = '' as $$
 declare st jo.staff; v_group text := upper(coalesce(p_group,''));
 begin
-  st := jo.require_judging(array['owner','superadmin','td']);
+  st := jo.require_judging();
+  if not (st.role in ('owner','superadmin','td') or st.is_dummy) then raise exception 'Peran Anda tidak bisa mengganti disiplin.' using hint = 'ERR_FORBIDDEN'; end if;
   if v_group not in ('ART','RG','AER') then raise exception 'Disiplin tidak dikenal.'; end if;
-  if st.is_dummy or st.disc_group is not null or st.discipline is not null then
+  if st.disc_group is not null or st.discipline is not null then
     raise exception 'Kode Anda terkunci pada satu disiplin.' using hint = 'ERR_FORBIDDEN';
   end if;
   update jo.staff_sessions set disc_group = v_group where uid = auth.uid();
