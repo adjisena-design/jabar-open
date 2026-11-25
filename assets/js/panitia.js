@@ -1978,7 +1978,8 @@
   }
   function priDesc(p) {
     const parts = [p.athlete_province ? 'alamat identitas di ' + p.athlete_province : '', p.club_province ? 'klub di ' + p.club_province : ''].filter(Boolean);
-    return 'Khusus atlet' + (p.wni ? ' WNI' : '') + (parts.length ? ' dengan ' + parts.join(' dan ') : '') + (!p.wni && !parts.length ? ' (tanpa syarat tambahan)' : '');
+    return 'Khusus atlet' + (p.wni ? ' WNI' : '') + (parts.length ? ' dengan ' + parts.join(' dan ') : '') + (!p.wni && !parts.length ? ' (tanpa syarat tambahan)' : '')
+      + (p.wni && p.wna_club ? '; atlet WNA boleh bila klubnya ' + (p.club_province ? 'di ' + p.club_province : 'memenuhi syarat') : '');
   }
   const checkLink = (o) => '#/aturan/cek?' + new URLSearchParams(Object.entries(o).filter(([, x]) => x)).toString();
 
@@ -2207,6 +2208,7 @@
       <section class="card"><h2 style="font-size:1.05rem;margin:0 0 10px">Kategori khusus daerah (Priangan)</h2>
         <p class="small muted">Berlaku untuk kategori yang ditandai "Khusus daerah". Syarat saat ini: ${esc(priDesc(r.priangan))}.</p>
         <label class="check"><input type="checkbox" id="ru_pwni" ${r.priangan.wni ? 'checked' : ''} ${dis}><span>Khusus atlet WNI</span></label>
+        <label class="check"><input type="checkbox" id="ru_pwna" ${r.priangan.wna_club ? 'checked' : ''} ${dis}><span>Kecuali atlet WNA dari klub di provinsi klub di bawah (alamat identitas tidak dicek)</span></label>
         <div class="grid-2">
           <div class="field"><label class="f" for="ru_pap">Provinsi alamat identitas atlet</label>${provSel('ru_pap', r.priangan.athlete_province)}</div>
           <div class="field"><label class="f" for="ru_pcp">Provinsi klub</label>${provSel('ru_pcp', r.priangan.club_province)}</div></div></section>
@@ -2237,7 +2239,7 @@
       const rules = {
         pair_with_individual: [...box.querySelectorAll('[data-pwi]:checked')].map((x) => x.dataset.pwi),
         proof_minutes: Number(val('ru_pm')), rate_per_hour: Number(val('ru_rate')), guardian_age: Number(val('ru_ga')),
-        priangan: { wni: box.querySelector('#ru_pwni').checked, athlete_province: val('ru_pap'), club_province: val('ru_pcp') }, docs };
+        priangan: { wni: box.querySelector('#ru_pwni').checked, wna_club: box.querySelector('#ru_pwna').checked, athlete_province: val('ru_pap'), club_province: val('ru_pcp') }, docs };
       const settings = { max_athletes: Number(val('ru_max')), qris_cap: Number(val('ru_qris')), team_max: Number(val('ru_tmax')),
         team_counting: Number(val('ru_tcnt')), team_fee: Number(val('ru_tfee')), bulk_min: Number(val('ru_bmin')), bulk_max: Number(val('ru_bmax')),
         bulk_days: Number(val('ru_bday')), team_levels: Object.assign({}, s.team_levels || {}, { MAG: tl.MAG || [], WAG: tl.WAG || [] }) };

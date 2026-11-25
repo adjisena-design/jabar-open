@@ -59,7 +59,7 @@
     f_r4: 'Aerobic individual <small>IM / IW</small>', f_r5: 'Aerobic mixed pair <small>MP, per pair</small>',
     f_r6: "Women's Artistic team <small>Levels 1–6, per team, on top of individual fees</small>",
     f_pri_t: 'Rhythmic Priangan',
-    f_pri: 'A separate Rhythmic level below Amateur, only for Indonesian athletes with a West Java address from West Java clubs. No extra fee.',
+    f_pri: 'A separate Rhythmic level below Amateur, only for Indonesian athletes with a West Java address from West Java clubs; foreign athletes may enter through a West Java club. No extra fee.',
     f_s1t: 'The club fills in the form', f_s2t: 'Pay with QRIS', f_s3t: 'Upload payment proof', f_s4t: 'Receive athlete cards (AIC)',
     at_alt: 'A female gymnast in a split leap on the beam', photo: 'Photo',
     mc_eyebrow: 'Official merchandise', mc_soon: 'Coming soon', mc_title: 'Limited edition. <em>Worn with pride.</em>',

@@ -88,6 +88,8 @@
   const RL = () => (CFG && CFG.registration.rules) || {};
   function priOk(d) {
     const P = RL().priangan || { wni: true, athlete_province: 'Jawa Barat', club_province: 'Jawa Barat' };
+    // atlet WNA: cukup klubnya dari provinsi klub Priangan (bila diizinkan)
+    if (d.nationality === 'WNA' && P.wna_club) return !P.club_province || clubProvince() === P.club_province;
     if (P.wni !== false && d.nationality === 'WNA') return false;
     if (P.athlete_province && (d.nationality === 'WNA' ? '' : d.province) !== P.athlete_province) return false;
     if (P.club_province && clubProvince() !== P.club_province) return false;

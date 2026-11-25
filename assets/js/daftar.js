@@ -112,6 +112,7 @@
     err_one_cat: ['Satu atlet hanya boleh ikut satu kategori di disiplin ini (perorangan atau pasangan).', 'An athlete may enter only one category in this discipline (individual or pair).'],
     d_opt: ['(opsional)', '(optional)'], d_req: ['(wajib)', '(required)'], err_a_docreq: ['Unggah {d}.', 'Upload the {d}.'],
     pri_no_wna: ['Priangan hanya untuk atlet WNI.', 'Priangan is only for Indonesian athletes.'],
+    pri_no_wna_club: ['Atlet WNA boleh ikut Priangan hanya bila klubnya dari {pcp}.', 'Foreign athletes may enter Priangan only through a club from {pcp}.'],
     pair_title: ['Nomor pasangan campuran (MP)', 'Mixed pair (MP)'],
     pair_hint: ['Opsional. Pasangan terdiri dari satu putra dan satu putri dari atlet di pendaftaran ini. Biaya {fee} per pasangan.', 'Optional. A pair is one man and one woman from the athletes in this registration. Fee {fee} per pair.'],
     pair_add: ['Tambah pasangan', 'Add pair'], pair_m: ['Atlet putra', 'Male athlete'], pair_f: ['Atlet putri', 'Female athlete'],
@@ -288,6 +289,11 @@
   // Priangan: hanya alamat identitas atlet dan provinsi klub yang menentukan (bukan asal penanggung jawab)
   function priReason(a) {
     const P = RL().priangan || { wni: true, athlete_province: 'Jawa Barat', club_province: 'Jawa Barat' };
+    // atlet WNA: cukup klubnya dari provinsi klub Priangan (bila diizinkan di Konsol → Aturan pendaftaran)
+    if (a.nationality !== 'WNI' && P.wna_club) {
+      const wcp = clubProvince();
+      return P.club_province && wcp !== null && wcp !== P.club_province ? 'pri_no_wna_club' : null;
+    }
     if (P.wni !== false && a.nationality !== 'WNI') return 'pri_no_wna';
     if (P.athlete_province && (a.nationality === 'WNA' ? '' : a.province) !== P.athlete_province) return 'pri_no_ath';
     const cp = clubProvince();
