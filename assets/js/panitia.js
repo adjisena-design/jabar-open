@@ -368,7 +368,7 @@
   // ---------------- modul terpisah (proyek, backup) ----------------
   // Dimuat hanya saat halamannya dibuka. Galat di modul hanya tampil di halaman itu;
   // pendaftaran, verifikasi, dan penilaian tidak ikut terganggu.
-  const MOD_V = '2411j';
+  const MOD_V = '2511b';
   function loadModule(name) {
     window.JO_MOD = window.JO_MOD || {};
     if (window.JO_MOD[name]) return Promise.resolve(window.JO_MOD[name]);
@@ -410,7 +410,7 @@
     ['konsol-juri', 'Konsol juri ↗', () => isSuper() || isTD(), (v) => { location.href = '../juri/'; v.innerHTML = '<p class="empty">Membuka konsol juri…</p>'; }, 'pen', 'Pertandingan'],
     ['mitra', 'Calon mitra', () => ME && ['owner', 'superadmin', 'bendahara'].includes(ME.role), pageLeads, 'users', 'Proyek'],
     ['gantt', 'Gantt', () => pmView(), modPage('proyek', 'gantt'), 'gantt', 'Proyek'],
-    ['struktur', 'Struktur', () => pmView(), modPage('proyek', 'struktur'), 'org', 'Proyek'],
+    ['struktur', 'Struktur', () => pmOn() && isOwner(), modPage('proyek', 'struktur'), 'org', 'Proyek'],
     ['rab', 'RAB', () => pmFin(), modPage('proyek', 'rab'), 'coins', 'Proyek'],
     ['pendapatan', 'Pendapatan', () => pmFin(), modPage('proyek', 'pendapatan'), 'wallet', 'Proyek'],
     ['ledger', 'Ledger', () => isSuper(), pageLedger, 'wallet', 'Keuangan'],
@@ -3545,7 +3545,7 @@
         <option value="verifikator">Verifikator Nilai (konsol juri: verifikasi nilai, tayang live)</option>
         <option value="asjur-dummy">DUMMY Asisten Juri (simulasi, tidak tercatat)</option>
         <option value="verifikator-dummy">DUMMY Verifikator Nilai (simulasi, tidak tercatat)</option>
-        <option value="bendahara">Bendahara (hanya lihat & unduh: Gantt, Struktur, RAB, Pendapatan)</option>
+        <option value="bendahara">Bendahara (hanya lihat & unduh: Gantt, RAB, Pendapatan)</option>
         ${ME.role === 'owner' ? '<option value="superadmin">Superadmin (semua, termasuk ledger)</option>' : ''}</select></div>`}
       <div class="field" id="sdw" ${s && (s.role === 'asjur' || s.role === 'verifikator') ? 'hidden' : ''}><label class="f">Disiplin</label><select id="sd"><option value="">Semua disiplin</option>${DISCS.map((d) => `<option value="${d}" ${s && s.discipline === d ? 'selected' : ''}>${DN[d]}</option>`).join('')}</select></div>
       <p class="note info small" id="sdum" ${s && s.is_dummy ? '' : 'hidden'}>Kode DUMMY berlaku untuk <b>semua disiplin</b> (Artistik, Ritmik, Aerobik). Masuk lewat kotak disiplin mana pun di ${esc(JO.siteUrl())}juri/ dan ganti disiplin dari dalam konsol juri.</p>

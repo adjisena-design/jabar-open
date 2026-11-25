@@ -229,6 +229,7 @@
   async function struktur(v, C) {
     css(C);
     const ov = await C.api('console_pm_overview');
+    if (!ov.can_structure) { v.innerHTML = '<h1>Struktur</h1><p class="muted">Halaman ini hanya untuk owner.</p>'; return; }
     const can = ov.can_edit;
     const peng = ov.divisions.filter((d) => d.tier === 'pengarah');
     const pm = ov.divisions.filter((d) => d.tier === 'pm');
@@ -496,7 +497,8 @@
     });
     XLSX.utils.book_append_sheet(wb, sheet(g, [{ hidden: true, wch: 38 }, { wch: 5 }, { wch: 5 }, { wch: 22 }, { wch: 52 }, { wch: 22 }, { wch: 22 }, { wch: 24 }, { wch: 11 }, { wch: 11 }, { wch: 8 }, { wch: 10 }, { wch: 7 }, { wch: 12 }, { wch: 9 }, { wch: 13 }, { wch: 30 }, { wch: 24 }]), 'Gantt');
 
-    // ---- Struktur (dibaca saja; jumlah tugas pakai rumus) ----
+    // ---- Struktur (dibaca saja; jumlah tugas pakai rumus) — hanya owner ----
+    if (ov.can_structure) {
     const s = [['STRUKTUR · Jabar Open 2026'], ['Dibuat dari tab Gantt dan data divisi. Tab ini tidak dibaca saat unggah; ubah struktur di konsol.'], [],
       ['Divisi', 'Tingkat', 'Ketua / kepala', 'Jabatan', 'Anggota', 'Jumlah tugas', 'Tugas selesai', 'Keterangan']];
     ov.divisions.forEach((d) => {
@@ -507,6 +509,7 @@
       void r;
     });
     XLSX.utils.book_append_sheet(wb, sheet(s, [{ wch: 30 }, { wch: 16 }, { wch: 32 }, { wch: 30 }, { wch: 60 }, { wch: 12 }, { wch: 12 }, { wch: 60 }]), 'Struktur');
+    }
 
     if (fin) {
       const P = fin.params;
