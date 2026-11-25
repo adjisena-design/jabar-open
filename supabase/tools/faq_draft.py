@@ -73,9 +73,9 @@ ITEMS = [
 - Once the committee confirms the payment, the Athlete Identification Card (AIC) download link is emailed to the contact person."""),
 
     ('pendaftaran', 'batas-pendaftaran', 'Kapan batas akhir pendaftaran?',
-     """Pendaftaran dan pembayaran ditutup **27 November 2026 pukul 23.59 WIB**.""",
+     """Pendaftaran dan pembayaran ditutup **30 November 2026 pukul 23.59 WIB**.""",
      'When does registration close?',
-     """Registration and payment close on **27 November 2026 at 23:59 WIB (UTC+7)**."""),
+     """Registration and payment close on **30 November 2026 at 23:59 WIB (UTC+7)**."""),
 
     ('pendaftaran', 'biaya', 'Berapa biaya pendaftaran?',
      """- Artistik Putra / Putri: Rp750.000 per atlet

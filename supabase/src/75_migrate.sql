@@ -225,3 +225,8 @@ update jo.settings set value = '"2026-11-27T23:59:59+07:00"'::jsonb, updated_at 
  where key = 'registration_deadline' and value = '"2026-11-12T23:59:59+07:00"'::jsonb;
 update jo.settings set value = '"27 November 2026"'::jsonb, updated_at = now()
  where key = 'payment_deadline_label' and value = '"12 November 2026"'::jsonb;
+-- 25/11/2026: batas pendaftaran diperpanjang ke 30 November 2026 23.59 WIB
+update jo.settings set value = '"2026-11-30T23:59:59+07:00"'::jsonb, updated_at = now()
+ where key = 'registration_deadline' and value = '"2026-11-27T23:59:59+07:00"'::jsonb;
+update jo.settings set value = '"30 November 2026"'::jsonb, updated_at = now()
+ where key = 'payment_deadline_label' and value = '"27 November 2026"'::jsonb;

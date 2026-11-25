@@ -114,10 +114,10 @@
     if (P.prev7 > 0) {
       const ch = Math.round(((P.last7 - P.prev7) / P.prev7) * 100);
       add(ch >= 0 ? 'ok' : 'warn', `${n0(P.last7)} atlet baru dalam 7 hari terakhir (termasuk hari ini), ${ch >= 0 ? 'naik' : 'turun'} ${Math.abs(ch)}% dibanding 7 hari sebelumnya (${n0(P.prev7)} atlet).`,
-        ch < 0 && P.daysToDeadline > 0 ? `Dorong pendaftaran di sisa ${P.daysToDeadline} hari: unggahan pengingat batas 27 November di Instagram dan pesan ke klub yang belum mendaftar.` : null);
+        ch < 0 && P.daysToDeadline > 0 ? `Dorong pendaftaran di sisa ${P.daysToDeadline} hari: unggahan pengingat batas ${fDate(R.deadline)} di Instagram dan pesan ke klub yang belum mendaftar.` : null);
     } else add('info', `${n0(P.last7)} atlet baru dalam 7 hari terakhir.`);
     if (P.daysToDeadline > 0) {
-      add('info', `Pendaftaran ditutup dalam ${P.daysToDeadline} hari (27 November 2026, 23.59 WIB). Dengan laju 7 hari terakhir (sekitar ${P.perDay.toFixed(1).replace('.', ',')} atlet per hari), jumlah atlet diperkirakan mencapai sekitar ${n0(P.projected)} saat pendaftaran ditutup, belum termasuk draf pendaftaran massal.`);
+      add('info', `Pendaftaran ditutup dalam ${P.daysToDeadline} hari (${fDate(R.deadline)}, 23.59 WIB). Dengan laju 7 hari terakhir (sekitar ${P.perDay.toFixed(1).replace('.', ',')} atlet per hari), jumlah atlet diperkirakan mencapai sekitar ${n0(P.projected)} saat pendaftaran ditutup, belum termasuk draf pendaftaran massal.`);
     } else add('info', 'Masa pendaftaran sudah berakhir. Angka di laporan ini adalah angka akhir pendaftaran, kecuali ada koreksi panitia.');
 
     // pembayaran
@@ -144,7 +144,7 @@
     // pendaftaran massal
     P.bulk.filter((b) => b.draft_rows > 0).forEach((b) => add('warn',
       `${b.label} punya ${n0(b.draft_rows)} atlet di lembar pendaftaran massal yang belum dikirim${b.expires_at ? `; kode berlaku sampai ${fDateS(b.expires_at)}` : ''}. Atlet ini belum terhitung di laporan.`,
-      `Bendahara menghubungi ${b.label} agar mengirim lembar massal sebelum ${b.expires_at && new Date(b.expires_at) < new Date(R.deadline) ? fDateS(b.expires_at) : '27 November'}, atau memperpanjang kodenya bila perlu.`));
+      `Bendahara menghubungi ${b.label} agar mengirim lembar massal sebelum ${b.expires_at && new Date(b.expires_at) < new Date(R.deadline) ? fDateS(b.expires_at) : fDate(R.deadline)}, atau memperpanjang kodenya bila perlu.`));
     const notOpened = P.bulk.filter((b) => !b.opened_at);
     if (notOpened.length) add('info', `${notOpened.length} kode pendaftaran massal belum pernah dibuka klub: ${notOpened.map((b) => b.label).join(', ')}.`,
       `Tanyakan kepada ${notOpened.map((b) => b.label).join(', ')} apakah masih berencana mendaftar lewat jalur massal.`);
@@ -360,7 +360,7 @@
     text(`Data sampai ${fDT(R.generated_at)} · Gymnasium Arcamanik, 12–20 Desember 2026`, M, 54);
     font('normal', 7.2); doc.setTextColor(168, 191, 224); text(`Diunduh dari Konsol Panitia oleh ${R.generated_by || '-'}`, M, 58.6);
     // hitung mundur
-    const cd = [[P.daysToDeadline ? `H-${P.daysToDeadline}` : 'Ditutup', 'batas pendaftaran 27 Nov'], [P.daysToEvent ? `H-${P.daysToEvent}` : 'Berjalan', 'kejuaraan dimulai 12 Des']];
+    const cd = [[P.daysToDeadline ? `H-${P.daysToDeadline}` : 'Ditutup', `batas pendaftaran ${fDateS(R.deadline)}`], [P.daysToEvent ? `H-${P.daysToEvent}` : 'Berjalan', 'kejuaraan dimulai 12 Des']];
     cd.forEach(([a, b], i) => {
       const bx = PW - M - 36, by = 30 + i * 15;
       fill([34, 58, 98]); doc.roundedRect(bx, by, 36, 12.5, 1.6, 1.6, 'F');

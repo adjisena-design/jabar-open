@@ -661,7 +661,7 @@
           <h2>Teks berjalan di beranda</h2>
           <p class="small muted">Tampil sebagai pita bergerak di atas halaman utama gimnastikjabaropen2026.com. Berhenti saat disentuh atau disorot.</p>
           <div class="field"><label class="f" for="tk-text">Teks <span class="muted small" id="tk-n"></span></label>
-            <textarea id="tk-text" rows="3" maxlength="300" placeholder="Mis. Pendaftaran ditutup 27 November 2026 pukul 23.59 WIB. Pembayaran tetap bisa diunggah.">${esc(T.text || '')}</textarea></div>
+            <textarea id="tk-text" rows="3" maxlength="300" placeholder="Mis. Pendaftaran ditutup 30 November 2026 pukul 23.59 WIB. Pembayaran tetap bisa diunggah.">${esc(T.text || '')}</textarea></div>
           <div class="field"><label class="f" for="tk-link">Tautan (opsional)</label>
             <input id="tk-link" type="text" value="${esc(T.link || '')}" placeholder="daftar.html atau https://...">
             <small class="muted">Bila diisi, teks bisa diklik.</small></div>
@@ -1323,7 +1323,7 @@
   const bulkPortal = () => location.origin + '/massal.html';
   function bulkCodeMsg(it, code) {
     return `Halo${it.req_name ? ' ' + it.req_name : ''}, berikut kode akses Pendaftaran Massal Jabar Open 2026 untuk ${it.label}:\n\n${code}\n\n`
-      + `Buka ${bulkPortal()} lalu masukkan kode di atas. Kode berlaku 7 hari sejak pertama kali dibuka (paling lambat 27 November 2026), `
+      + `Buka ${bulkPortal()} lalu masukkan kode di atas. Kode berlaku 7 hari sejak pertama kali dibuka (paling lambat 30 November 2026), `
       + 'dipakai bersama pemilik dan maksimal 2 kolaborator. Mohon tidak dibagikan ke pihak lain. Terima kasih.';
   }
   async function showBulkCode(it, code, title) {
@@ -2732,7 +2732,7 @@
         clubName: d.querySelector('#nc2').selectedOptions[0].textContent }) });
     if (!r) return;
     const D = await api('console_nominative', { p_discipline: r.disc, p_club: r.club });
-    const g = [['JABAR OPEN 2026 - ARTISTIC GYMNASTICS'], [' Form Nominative'], ['', '', '', '', '', '', 'Deadline : 27 November 2026'],
+    const g = [['JABAR OPEN 2026 - ARTISTIC GYMNASTICS'], [' Form Nominative'], ['', '', '', '', '', '', 'Deadline : 30 November 2026'],
       ['NO', 'KLUB', 'NAMA', 'TANGGAL LAHIR', 'UMUR', 'MAG / WAG', 'LEVEL', 'KATEGORI', 'NO. ATLET', 'KODE PENDAFTARAN', 'STATUS'],
       ['', '', '', '(dd/mm/yyyy)']];
     D.gymnasts.forEach((x, i) => g.push([i + 1, x.club, x.name, fmtDMY(x.birth_date), x.age, x.discipline, x.level, x.category + (x.priangan ? ' + Priangan' : ''), x.athlete_no || '', x.code, ST[x.status] || x.status]));

@@ -185,7 +185,7 @@ Setelah demo dan sebelum peluncuran: jalankan `supabase/reset-data-uji.sql` di S
 
 ## 12. Modul Proyek, Bendahara, dan Backup darurat (versi 10)
 
-**Batas pendaftaran** diperpanjang ke **27 November 2026 pukul 23.59 WIB** (situs, FAQ, email, Nominative Form).
+**Batas pendaftaran** diperpanjang ke **27 November 2026 pukul 23.59 WIB** (situs, FAQ, email, Nominative Form), lalu ke **30 November 2026 pukul 23.59 WIB** (25 November 2026).
 
 **Modul Proyek** (menu Proyek di konsol) menggantikan workbook "RAB Jabar Open 2026 - Gabungan":
 

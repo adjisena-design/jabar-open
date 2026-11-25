@@ -35,7 +35,7 @@ begin
   select jsonb_build_object(
     'generated_at', v_now,
     'generated_by', st.name,
-    'deadline', '2026-11-27T23:59:00+07:00',
+    'deadline', coalesce(jo.setting_text('registration_deadline'), '2026-11-30T23:59:59+07:00'),
     'event_start', '2026-12-12',
     'opened', (select min(created_at) from jo.submissions),
 
