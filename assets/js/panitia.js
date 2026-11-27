@@ -2276,7 +2276,10 @@
         <div class="tabs">${myDiscs().map((k) => `<button data-d="${k}" aria-selected="${k === disc}">${DN[k]}</button>`).join('')}</div>
         ${d ? `<div class="row" style="margin-bottom:12px"><span>Pendaftaran ${DN[disc]}: <strong>${d.registration_open ? 'dibuka' : 'ditutup'}</strong></span>
           ${isSuper() ? `<button class="btn btn-ghost btn-sm" id="dtoggle">${d.registration_open ? 'Tutup pendaftaran disiplin ini' : 'Buka pendaftaran'}</button>` : ''}
-          <span class="small muted">Kontak: ${esc(d.contact_name || '-')} ${esc(d.contact_phone || '')}</span></div>` : ''}
+          <span class="small muted">Kontak: ${esc(d.contact_name || '-')} ${esc(d.contact_phone || '')}</span></div>
+        <div class="row" style="margin:-4px 0 12px;gap:14px;flex-wrap:wrap"><span class="small">Tutup otomatis: <strong>${d.close_at ? esc(dt(d.close_at)) + ' WIB' : 'tidak dijadwalkan'}</strong></span>
+          <span class="small">Batas bayar pendaftaran biasa: <strong>${d.pay_until ? esc(dt(d.pay_until)) + ' WIB' : 'tidak ada (ikut batas umum)'}</strong></span>
+          ${isSuper() ? '<button class="btn btn-ghost btn-sm" id="dsched">Ubah jadwal</button>' : ''}</div>` : ''}
         <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Kategori</th><th>Tahun lahir</th><th>Alat</th><th class="r">Biaya</th><th class="r">Terdaftar</th><th class="r">Lunas</th><th class="r">Priangan</th><th>Catatan</th><th></th></tr></thead><tbody>
         ${list.map((c) => {
           const warn = [];
@@ -2293,6 +2296,19 @@
       v.querySelectorAll('[data-d]').forEach((b) => b.onclick = () => { disc = b.dataset.d; draw(); });
       const dt_ = v.querySelector('#dtoggle');
       if (dt_) dt_.onclick = async () => { try { await api('console_update_discipline', { p_code: disc, p_patch: { registration_open: !d.registration_open } }); await refreshCats(); draw(); } catch (e) { JO.toast(e.message, 'bad'); } };
+      const ds_ = v.querySelector('#dsched');
+      if (ds_) ds_.onclick = async () => {
+        // datetime-local dalam WIB (UTC+7), dikirim sebagai waktu ber-zona +07:00
+        const loc = (x) => { if (!x) return ''; const t = new Date(new Date(x).getTime() + 7 * 3600e3); return t.toISOString().slice(0, 16); };
+        const iso = (x) => (x ? x + ':00+07:00' : '');
+        const r = await dialog({ title: `Jadwal ${DN[disc]}`, body: `
+          <div class="field"><label class="f" for="ds_close">Tutup pendaftaran otomatis (WIB)</label><input id="ds_close" type="datetime-local" value="${loc(d.close_at)}">
+            <p class="tiny muted">Pada waktu ini sakelar pendaftaran disiplin dimatikan otomatis. Kosongkan bila tidak dijadwalkan.</p></div>
+          <div class="field"><label class="f" for="ds_pay">Batas bayar pendaftaran biasa (WIB)</label><input id="ds_pay" type="datetime-local" value="${loc(d.pay_until)}">
+            <p class="tiny muted">Pendaftaran biasa (bukan massal, QRIS) yang belum mengunggah bukti bayar sampai waktu ini dibatalkan otomatis. Data tetap tersimpan dan bisa dipulihkan. Pendaftaran yang sudah mengunggah bukti tidak tersentuh. Batch pendaftaran massal ikut batas bayar massal.</p></div>`,
+          onOk: (x) => api('console_update_discipline', { p_code: disc, p_patch: { close_at: iso(x.querySelector('#ds_close').value), pay_until: iso(x.querySelector('#ds_pay').value) } }) });
+        if (r) { await refreshCats(); draw(); JO.toast('Jadwal disimpan.', 'ok'); }
+      };
       v.querySelectorAll('[data-edit]').forEach((b) => b.onclick = () => editCategory(CATS.categories.find((c) => c.id === Number(b.dataset.edit)), draw));
       v.querySelectorAll('[data-merge]').forEach((b) => b.onclick = () => mergeCategory(CATS.categories.find((c) => c.id === Number(b.dataset.merge)), draw));
     };

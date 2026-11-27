@@ -56,6 +56,7 @@
     next: ['Lanjut', 'Continue'], back: ['Kembali', 'Back'],
     q_disc: ['Disiplin', 'Discipline'],
     disc_closed: ['Pendaftaran ditutup', 'Registration closed'],
+    disc_closes: ['ditutup {d} WIB', 'closes {d} WIB (UTC+7)'],
     q_contact: ['Penanggung jawab dari klub', 'Club contact'],
     q_contact_hint: ['Pendaftaran hanya lewat klub: diisi pemilik, admin, pelatih, atau official klub. Konfirmasi, tagihan, dan AIC dikirim ke email ini.', "Registration is through clubs only: filled in by the club's owner, admin, coach or official. Confirmation, invoice and AIC are sent to this email."],
     c_name: ['Nama lengkap', 'Full name'], c_email: ['Email', 'Email'], c_phone: ['Nomor WhatsApp', 'WhatsApp number'], c_role: ['Peran di klub', 'Role in the club'],
@@ -281,6 +282,13 @@
     if (c.birth_year_max && y > c.birth_year_max) return t('why_max', { y: c.birth_year_max });
     return null;
   }
+  // batas bayar pendaftaran ini: per disiplin bila dijadwalkan, selain itu label umum
+  function payLabel(code) {
+    const dc = (String(code || '').match(/^JO26-([A-Z]+)-/) || [])[1] || S.discipline;
+    const d = (CFG.disciplines || []).find((x) => x.code === dc);
+    if (d && d.pay_until) return JO.fmtDateTime(d.pay_until) + ' WIB';
+    return CFG.registration.deadline_label || '30 November 2026';
+  }
   function clubProvince() {
     if (S.club.mode === 'existing') { const k = CFG.clubs.find((x) => x.id === S.club.id); return k ? k.province : ''; }
     if (S.club.mode === 'new') return S.club.abroad ? '' : S.club.province;
@@ -364,7 +372,8 @@
         const fees = [...new Set(CFG.categories.filter((c) => c.discipline === d.code).map((c) => c.fee))].sort((a, b) => a - b);
         const closed = !d.registration_open;
         const off = closed;
-        const sub = closed ? t('disc_closed') : fees.map(fmtRp).join(' / ') + (teamOK(d.code) ? (JO.lang === 'en' ? ' · team ' : ' · beregu ') + fmtRp(teamFee()) : '');
+        const soon = !closed && d.close_at && new Date(d.close_at) > new Date() ? ' · ' + t('disc_closes', { d: JO.fmtDateTime(d.close_at) }) : '';
+        const sub = closed ? t('disc_closed') : fees.map(fmtRp).join(' / ') + (teamOK(d.code) ? (JO.lang === 'en' ? ' · team ' : ' · beregu ') + fmtRp(teamFee()) : '') + soon;
         return `<label class="choice ${off ? 'disabled' : ''}"><input type="radio" name="disc" value="${d.code}" ${S.discipline === d.code && !off ? 'checked' : ''} ${off ? 'disabled' : ''}>
           <span><span class="c-title">${esc(dName(d))}</span><br>
           <span class="c-sub">${esc(JO.fmtDate(d.date_start, { day: 'numeric' }))}–${esc(JO.fmtDate(d.date_end))}</span><br>
@@ -1123,7 +1132,7 @@
               <tr><td>${esc(t('sum_uc'))}</td><td>${fmtRp(r.unique_code)}</td></tr>
             </tbody></table>
             <p class="small">${t('pay_steps')}</p>
-            <p class="small muted">${esc(t('pay_deadline', { d: CFG.registration.deadline_label || '30 November 2026' }))}</p>
+            <p class="small muted">${esc(t('pay_deadline', { d: payLabel(r.code) }))}</p>
           </div>
         </div>
       </section>
