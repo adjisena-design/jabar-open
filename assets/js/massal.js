@@ -427,7 +427,7 @@
       </section>
       <section class="card"><h2>Ketentuan</h2>
         <ol class="ms-steps">
-          <li>Isi satu lembar untuk semua atlet klub Anda: <b>minimal 10 atlet</b>, hanya <b>Artistik Putra, Artistik Putri, dan Ritmik</b>. Atlet putra dan putri boleh di lembar yang sama; sistem memisahkannya per disiplin saat dikirim.</li>
+          <li>Isi satu lembar untuk semua atlet klub Anda (boleh 1 atlet atau lebih), hanya <b>Artistik Putra, Artistik Putri, dan Ritmik</b>. Atlet putra dan putri boleh di lembar yang sama; sistem memisahkannya per disiplin saat dikirim.</li>
           <li>Pengisian, pengiriman, dan unggah bukti bayar paling lambat <b>Senin, 30 November 2026 pukul 23.59 WIB</b>. Setelah itu lembar terkunci.</li>
           <li>Batch yang belum dibayar sampai batas itu dibatalkan otomatis.</li>
           <li>Setelah pembayaran diverifikasi Inda, Athlete Identification Card (AIC) dikirim lewat email.</li>

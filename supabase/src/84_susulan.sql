@@ -1,6 +1,6 @@
 -- 27/11/2026: Pendaftaran Susulan (susulan.html) — akses khusus berkode untuk kelompok yang terlambat
 -- setelah penutupan awal Artistik & Ritmik. Mesin lembar = pendaftaran massal/pemulihan:
---   settings.mode = 'susulan', min 10 atlet, hanya disiplin di settings.disciplines (MAG, WAG, RG),
+--   settings.mode = 'susulan', min 1 atlet (diubah dari 10 pada 27/11 22.2x), hanya disiplin di settings.disciplines (MAG, WAG, RG),
 --   melewati sakelar penutupan disiplin, tetapi tetap tunduk pada masa berlaku (expires_at = batas pendaftaran,
 --   30 Nov 2026 23.59 WIB) untuk isi, kirim, dan unggah bukti bayar. Batch tanpa pembayaran dibatalkan
 --   otomatis oleh jo.deadline_tick() setelah bulk_pay_until (bisa dipulihkan).
@@ -86,7 +86,7 @@ begin
           nullif(trim(coalesce(p->'owner'->>'name', '')), ''), nullif(trim(coalesce(p->'owner'->>'phone', '')), ''),
           nullif(lower(trim(coalesce(p->'owner'->>'email', ''))), ''), nullif(trim(coalesce(p->'owner'->>'role', '')), ''),
           nullif(p->>'club_id', '')::uuid, case when nullif(p->>'club_id', '') is null then p->'club_new' end, v_until,
-          jsonb_build_object('mode', 'susulan', 'min', coalesce((p->>'min')::int, 10), 'max', 250, 'pay_hours', 48,
+          jsonb_build_object('mode', 'susulan', 'min', coalesce((p->>'min')::int, 1), 'max', 250, 'pay_hours', 48,
                              'disciplines', coalesce(p->'disciplines', '["MAG","WAG","RG"]'::jsonb), 'note', p->>'note'))
   returning * into b;
   perform jo.bulk_add_log(b.id, 'Panitia', 'akun_susulan_dibuat', jsonb_build_object('until', v_until));
