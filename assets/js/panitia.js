@@ -2277,7 +2277,7 @@
         ${d ? `<div class="row" style="margin-bottom:12px"><span>Pendaftaran ${DN[disc]}: <strong>${d.registration_open ? 'dibuka' : 'ditutup'}</strong></span>
           ${isSuper() ? `<button class="btn btn-ghost btn-sm" id="dtoggle">${d.registration_open ? 'Tutup pendaftaran disiplin ini' : 'Buka pendaftaran'}</button>` : ''}
           <span class="small muted">Kontak: ${esc(d.contact_name || '-')} ${esc(d.contact_phone || '')}</span></div>
-        <div class="row" style="margin:-4px 0 12px;gap:14px;flex-wrap:wrap"><span class="small">Tutup otomatis: <strong>${d.close_at ? esc(dt(d.close_at)) + ' WIB' : 'tidak dijadwalkan'}</strong></span>
+        <div class="row" style="margin:-4px 0 12px;gap:14px;flex-wrap:wrap"><span class="small">Tutup otomatis: <strong>${d.close_at ? esc(dt(d.close_at)) + ' WIB' : 'tidak dijadwalkan'}</strong>${d.close_shown_at && d.close_at && d.close_shown_at !== d.close_at ? ` <span class="muted">(diumumkan ke publik ${esc(dt(d.close_shown_at))} WIB)</span>` : ''}</span>
           <span class="small">Batas bayar pendaftaran biasa: <strong>${d.pay_until ? esc(dt(d.pay_until)) + ' WIB' : 'tidak ada (ikut batas umum)'}</strong></span>
           ${isSuper() ? '<button class="btn btn-ghost btn-sm" id="dsched">Ubah jadwal</button>' : ''}</div>` : ''}
         <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Kategori</th><th>Tahun lahir</th><th>Alat</th><th class="r">Biaya</th><th class="r">Terdaftar</th><th class="r">Lunas</th><th class="r">Priangan</th><th>Catatan</th><th></th></tr></thead><tbody>

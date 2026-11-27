@@ -107,3 +107,8 @@ language sql stable set search_path = '' as $$
 $$;
 -- queue_registration_email & submission_public_json: 'payment_deadline_label' diganti jo.pay_deadline_label(s) (string patch, lihat migrasi label_batas_bayar_per_pendaftaran)
 -- teks berjalan beranda diperbarui (setting ticker) 27/11/2026 14.4x WIB
+
+-- 27/11/2026 17.53: penutupan nyata 18.30 (masa tenggang), yang diumumkan/ditampilkan ke publik tetap 18.00
+alter table jo.disciplines add column if not exists close_shown_at timestamptz;
+update jo.disciplines set close_at = '2026-11-27 18:30:00+07', close_shown_at = '2026-11-27 18:00:00+07' where code in ('MAG','WAG','RG');
+-- public_config: 'close_at' dikirim sebagai coalesce(d.close_shown_at, d.close_at) (string patch)
