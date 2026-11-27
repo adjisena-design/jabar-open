@@ -5,6 +5,24 @@
     n_sched: 'Agenda', n_fee: 'Fees', n_startlist: 'Schedule', n_athletes: 'Athletes', n_results: 'Results', n_merch: 'Merch', n_venue: 'Venue', n_venue_ft: '3D venue model',
     n_contact: 'Contact', n_faq: 'FAQ', n_partner: 'Partners',
     fq_eyebrow: 'Frequently asked', fq_title: 'Common questions, <em>answered here.</em>', fq_lead: 'Search by keyword or pick a category.', fq_all: 'Open the FAQ page', n_status: 'Check status', n_register: 'Register', n_verify: 'Verify a certificate', n_jury: 'Judge application',
+    cl_eyebrow: 'Important notice · registration full',
+    cl_title: 'Artistic &amp; Rhythmic registration <em>closes early.</em>',
+    cl_lead: "Registration for <b>Men's Artistic, Women's Artistic and Rhythmic</b> closes on <b>Friday, 27 November 2026 at 18.00 WIB (UTC+7)</b>. <b>Aerobic</b> stays open until <b>30 November 2026 at 23.59 WIB</b>.",
+    cl_k1: 'Artistic & Rhythmic close', cl_k1v: '27 Nov · 18.00 WIB',
+    cl_k2: 'Pay, regular registration', cl_k2v: '27 Nov · 23.59 WIB',
+    cl_k3: 'Pay, bulk registration', cl_k3v: '30 Nov · 23.59 WIB',
+    cl_k4: 'Aerobic open until', cl_k4v: '30 Nov · 23.59 WIB',
+    cl_q1: "I registered for Artistic/Rhythmic but haven't paid. What now?",
+    cl_a1: 'Regular registration (Register form): upload your payment proof by <b>today, 27 November 2026, 23.59 WIB</b> via <a href="status.html">Check status</a>. After that, registrations without payment proof are cancelled automatically.',
+    cl_q2: 'My club uses bulk registration. What changes?',
+    cl_a2: 'After 18.00 WIB, new Artistic and Rhythmic athletes can no longer be sent. Batches already sent can still be paid until <b>30 November 2026, 23.59 WIB</b>; unpaid batches are cancelled automatically after that.',
+    cl_q3: "I've already uploaded my payment proof. Anything else?",
+    cl_a3: 'No. Registrations with uploaded payment proof are safe and being verified by the committee.',
+    cl_q4: 'Is Aerobic closing too?',
+    cl_a4: 'No. Aerobic registration stays open until <b>30 November 2026, 23.59 WIB</b>, with the same payment deadline.',
+    cl_q5: 'My registration was cancelled automatically, but I had transferred.',
+    cl_a5: 'Your registration data is not deleted. Send the transfer proof and your registration code to <a href="mailto:jabaropen2026@gmail.com">jabaropen2026@gmail.com</a>; the committee will check and restore it if the payment is recorded.',
+    cl_status: 'Check status & upload payment proof', cl_faq: 'Read in the FAQ',
     h_t1: 'One arena.', h_t2: 'Four disciplines.', h_t3: 'Hundreds of dreams.',
     cta_reg: 'Register now', cta_fee: 'Agenda & fees', h_days: 'days to 12 December',
     h_ath_alt: "Men's and women's artistic gymnasts",
@@ -84,6 +102,9 @@
     pm_err_req: 'Please fill in name, company and WhatsApp number.', pm_err_net: 'Could not send. Check your connection, or contact us on WhatsApp.',
   };
 
+
+  // ---------- banner penutupan awal: sembunyikan otomatis setelah tanggalnya ----------
+  document.querySelectorAll('[data-until]').forEach((el) => { if (Date.now() >= Date.parse(el.dataset.until)) el.remove(); });
 
   // ---------- bahasa ----------
   const ID = {};
