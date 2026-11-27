@@ -7,10 +7,12 @@
   const { esc, fmtRp, rpc } = JO;
   const R = window.JO_REGIONS;
   // Mode Pemulihan Pendaftaran (pulih.html): mesin yang sama, untuk pendaftaran yang gagal/terhapus padahal sudah membayar
-  const PULIH = !!window.JO_PULIH;
-  const PNAME = PULIH ? 'Pemulihan Pendaftaran' : 'Pendaftaran Massal';
-  const LS = PULIH ? 'jo_pulih' : 'jo_massal';
-  const STAFF = () => PULIH && CODE.toUpperCase().startsWith('PANITIA:');
+  const SUSULAN = !!window.JO_SUSULAN;   // Pendaftaran Susulan (susulan.html): lembar berkode untuk kelompok yang terlambat
+  const PULIH = !!window.JO_PULIH && !SUSULAN;
+  const SPECIAL = PULIH || SUSULAN;
+  const PNAME = SUSULAN ? 'Pendaftaran Susulan' : PULIH ? 'Pemulihan Pendaftaran' : 'Pendaftaran Massal';
+  const LS = SUSULAN ? 'jo_susulan' : PULIH ? 'jo_pulih' : 'jo_massal';
+  const STAFF = () => SPECIAL && CODE.toUpperCase().startsWith('PANITIA:');
   const app = document.getElementById('app');
 
   let CFG = null, INFO = null, CODE = '', PERSON = '', ACC = null, BATCHES = [], LOG = [], LAST_SYNC = null;
@@ -57,7 +59,7 @@
   }
   function waLink(text) { return `https://wa.me/${INFO.wa}?text=${encodeURIComponent(text)}`; }
   // Pemulihan: akses hanya diingat di tab yang sama (sessionStorage); membuka pulih.html baru selalu meminta kode / pilihan lembar
-  const STORE = () => (PULIH ? window.sessionStorage : window.localStorage);
+  const STORE = () => (SPECIAL ? window.sessionStorage : window.localStorage);
   function loadLS() { try { return JSON.parse(STORE().getItem(LS) || '{}'); } catch (e) { return {}; } }
   function saveLS() { try { STORE().setItem(LS, JSON.stringify({ code: CODE, person: PERSON })); } catch (e) { /* abaikan */ } }
   function personName() { const p = (ACC && ACC.people || []).find((x) => x.id === PERSON); return p ? p.name : ''; }
@@ -106,6 +108,8 @@
     return CFG.categories.filter((c) => c.discipline === d.discipline && c.entry_type === 'individual'
       && (String(c.id) === String(d.category_id) || !mism(c, d.gender, d.birth_date)));
   }
+  // disiplin yang boleh dipilih di lembar: lembar susulan memakai daftar khususnya, selain itu yang masih dibuka
+  const discOK = (x) => (ACC && Array.isArray(ACC.disciplines) ? ACC.disciplines.includes(x.code) : x.registration_open);
   const DISC_NAME = (code) => ((CFG.disciplines || []).find((x) => x.code === code) || {}).name_id || code;
   const FAQ_CAT = 'faq.html#kategori-tidak-muncul';
   function noCatMsg(d) {
@@ -344,7 +348,7 @@
     if (STAFF()) { PERSON = 'panitia'; saveLS(); return reloadAll(); }   // panitia: langsung ke lembar
     if (!ACC.setup) return drawSetup(true);
     if (!PERSON || !(ACC.people || []).some((p) => p.id === PERSON)) {
-      if (PULIH && (ACC.people || []).length === 1) { PERSON = ACC.people[0].id; saveLS(); return reloadAll(); }
+      if (SPECIAL && (ACC.people || []).length === 1) { PERSON = ACC.people[0].id; saveLS(); return reloadAll(); }
       return drawPerson();
     }
     return reloadAll();
@@ -353,6 +357,7 @@
   // ---------------- 1. pengantar & minta kode ----------------
   function drawIntro(err) {
     stopTimers();
+    if (SUSULAN) return drawSusulanIntro(err);
     if (PULIH) return drawPulihIntro(err);
     const discs = CFG.disciplines.filter((d) => d.registration_open);
     app.innerHTML = `<div class="ms-narrow">
@@ -404,6 +409,46 @@
       const text = `Halo Kak Inda, saya ${JO.nameCase(v('r_name'))} dari ${v('r_club')}, ${v('r_city')}. Kami ingin mendaftarkan sekitar ${n} atlet${d.length ? ' ' + d.join(', ') : ''} di Jabar Open 2026 lewat Pendaftaran Massal. Mohon dibuatkan kode aksesnya. Terima kasih.`;
       window.open(waLink(text), '_blank', 'noopener');
     };
+  }
+
+  // ---------------- 1c. pengantar Pendaftaran Susulan ----------------
+  function drawSusulanIntro(err) {
+    app.innerHTML = `<div class="ms-narrow">
+      <div class="page-head"><h1>Pendaftaran susulan</h1>
+        <p>Halaman khusus untuk klub yang <b>mendapat izin panitia</b> mendaftarkan atlet <b>Artistik Putra, Artistik Putri, atau Ritmik</b> setelah pendaftaran ditutup. Hanya bisa dibuka dengan kode akses dari panitia.</p></div>
+      ${err ? `<p class="note bad">${esc(err)}</p>` : ''}
+      <div id="pl-staff"></div>
+      <section class="card"><h2>Masukkan kode akses</h2>
+        <form id="f-code" class="ms-bar" style="margin:0">
+          <input id="code" class="input" style="flex:1;min-width:220px;text-transform:uppercase;letter-spacing:.06em" placeholder="SL-XXXX-XXXX-XXXX" autocomplete="off" required>
+          <button class="btn btn-dark" type="submit">Masuk</button>
+        </form>
+        <p class="small muted" style="margin:8px 0 0">Tautan dan kode akses dikirim panitia lewat WhatsApp, khusus untuk klub Anda. Tidak punya kode? <a target="_blank" rel="noopener" href="${esc(waLink('Halo Kak Inda, saya ingin menanyakan pendaftaran susulan Jabar Open 2026.'))}">Hubungi Inda</a>.</p>
+      </section>
+      <section class="card"><h2>Ketentuan</h2>
+        <ol class="ms-steps">
+          <li>Isi satu lembar untuk semua atlet klub Anda: <b>minimal 10 atlet</b>, hanya <b>Artistik Putra, Artistik Putri, dan Ritmik</b>. Atlet putra dan putri boleh di lembar yang sama; sistem memisahkannya per disiplin saat dikirim.</li>
+          <li>Pengisian, pengiriman, dan unggah bukti bayar paling lambat <b>Senin, 30 November 2026 pukul 23.59 WIB</b>. Setelah itu lembar terkunci.</li>
+          <li>Batch yang belum dibayar sampai batas itu dibatalkan otomatis.</li>
+          <li>Setelah pembayaran diverifikasi Inda, Athlete Identification Card (AIC) dikirim lewat email.</li>
+        </ol>
+        <p class="small muted" style="margin:0">Aerobik masih bisa didaftarkan lewat <a href="daftar.html">formulir pendaftaran biasa</a>.</p>
+      </section></div>`;
+    app.querySelector('#f-code').onsubmit = (e) => {
+      e.preventDefault();
+      CODE = app.querySelector('#code').value.trim().toUpperCase(); PERSON = ''; saveLS();
+      route();
+    };
+    // owner / superadmin yang sedang masuk konsol melihat semua lembar susulan
+    rpc('public_special_list', { p_mode: 'susulan' }).then((res) => {
+      if (!res || !res.staff) return;
+      const box = app.querySelector('#pl-staff'); if (!box) return;
+      box.innerHTML = `<section class="card"><h2>Lembar susulan (panitia)</h2>
+        <p class="small muted" style="margin-top:0">Anda masuk konsol sebagai owner/superadmin, jadi bisa membuka dan mengisi lembar mana pun tanpa kode.</p>
+        <div class="ms-list">${(res.items || []).map((x) => `<div><span><b>${esc(x.label)}</b> <span class="muted">${esc(x.code_label)} · ${x.rows} atlet · ${x.sent} terkirim</span></span>
+          <button class="btn btn-ghost btn-sm" data-akun="${esc(x.id)}">Buka</button></div>`).join('') || '<div class="muted">Belum ada lembar susulan.</div>'}</div></section>`;
+      box.querySelectorAll('[data-akun]').forEach((b) => b.onclick = () => { CODE = 'PANITIA:' + b.dataset.akun; PERSON = 'panitia'; saveLS(); route(); });
+    }).catch(() => { /* bukan panitia */ });
   }
 
   // ---------------- 1b. pengantar Pemulihan Pendaftaran ----------------
@@ -571,7 +616,7 @@
         <button role="tab" data-tab="sheet">Lembar atlet</button>
         <button role="tab" data-tab="batch">Batch &amp; pembayaran</button>
         <button role="tab" data-tab="log">Riwayat</button>
-        ${PERSON === 'pemilik' || (PULIH && PERSON === 'panitia') ? `<button role="tab" data-tab="club">${PULIH ? 'Data kontak &amp; klub' : 'Data klub'}</button>` : ''}
+        ${PERSON === 'pemilik' || (SPECIAL && PERSON === 'panitia') ? `<button role="tab" data-tab="club">${PULIH ? 'Data kontak &amp; klub' : 'Data klub'}</button>` : ''}
       </div>
       <div id="ms-body"></div>
       <datalist id="jabar-kab">${R.jabar.map((k) => `<option value="${esc(k)}">`).join('')}</datalist>`;
@@ -588,7 +633,7 @@
     const total = [...ROWS.values()].filter((r) => rowState(r) !== 'empty').length;
     const clockCls = ms == null ? '' : ms <= 0 ? 'bad' : ms < 2 * 86400000 ? 'warn' : '';
     const askExt = ms != null && ms < 2 * 86400000 && !ACC.extended_days;
-    el.innerHTML = `<div class="who"><b>${esc(clubName())}</b><small>${PULIH ? 'Pemulihan · ' : ''}${esc(ACC.code_label)} · ${esc(personName())}${STAFF() ? ' <span class="pill warn">Akses panitia</span>' : ''}</small></div>
+    el.innerHTML = `<div class="who"><b>${esc(clubName())}</b><small>${SUSULAN ? 'Susulan · ' : PULIH ? 'Pemulihan · ' : ''}${esc(ACC.code_label)} · ${esc(personName())}${STAFF() ? ' <span class="pill warn">Akses panitia</span>' : ''}</small></div>
       <span class="ms-clock ${clockCls}">${ms == null ? '' : ms <= 0 ? 'Masa pengisian berakhir ' + esc(fmtDT(ACC.expires_at)) : 'Sisa waktu pengisian: ' + leftText(ms)}</span>
       <span class="sp"></span>
       <span class="ms-save" data-save></span>
@@ -825,7 +870,7 @@
       ${td('nationality', sel('nationality', [['WNI', 'WNI'], ['WNA', 'WNA']], d.nationality || 'WNI'), 'w-n')}
       ${td('region', wna ? inp('region', d.country, 'placeholder="Negara"') : sel('region', [['', 'Pilih provinsi']].concat(R.provinces.map((p) => [p, p])), d.province), 'w-r')}
       ${td('kab_kota', wna ? '<input disabled placeholder="–">' : inp('kab_kota', d.kab_kota, d.province === 'Jawa Barat' ? 'list="jabar-kab" placeholder="Kab/kota"' : 'placeholder="Kab/kota"'), 'w-k')}
-      ${td('discipline', sel('discipline', [['', 'Pilih']].concat(CFG.disciplines.filter((x) => x.registration_open || x.code === d.discipline).map((x) => [x.code, x.name_id])), d.discipline), 'w-disc')}
+      ${td('discipline', sel('discipline', [['', 'Pilih']].concat(CFG.disciplines.filter((x) => discOK(x) || x.code === d.discipline).map((x) => [x.code, x.name_id])), d.discipline), 'w-disc')}
       ${td('category', catSel, 'w-cat')}
       ${td('extra', extra, 'w-x')}
       ${td('g_name', minor ? inp('g_name', d.g_name, 'placeholder="Nama"') : `<input disabled placeholder="${guardAge()}+">`, 'w-gn')}
@@ -1428,6 +1473,7 @@
   // ---------------- riwayat ----------------
   const LOGTXT = {
     kode_dibuat: 'Kode akses dibuat', kode_dibuka: PULIH ? 'Kode pertama kali dibuka' : 'Kode pertama kali dibuka; masa pengisian dimulai',
+    akun_susulan_dibuat: 'Panitia membuat lembar pendaftaran susulan',
     akun_pulih_dibuat: 'Panitia membuat lembar pemulihan dari data yang masih tersimpan', data_pemilik: 'Data pemilik dan klub diisi',
     data_pemilik_diubah: 'Data klub/kolaborator diubah', lembar_diubah: 'Mengisi lembar atlet', baris_dihapus: 'Menghapus baris', batch_dikirim: 'Mengirim batch',
     bukti_transfer: 'Mengunggah bukti transfer', transfer_cocok: 'Transfer diverifikasi', transfer_tidak_cocok: 'Transfer tidak cocok', batch_lunas: 'Batch lunas',
@@ -1460,11 +1506,11 @@
     } catch (e) {
       app.innerHTML = `<p class="note bad">${esc(errMsg(e))}</p>`; return;
     }
-    if (PULIH) { try { localStorage.removeItem(LS); } catch (e) { /* versi lama menyimpan di localStorage */ } }
+    if (SPECIAL) { try { localStorage.removeItem(LS); } catch (e) { /* versi lama menyimpan di localStorage */ } }
     const ls = loadLS(); CODE = ls.code || ''; PERSON = ls.person || '';
     if (JO.qs('kode')) { CODE = JO.qs('kode').toUpperCase(); PERSON = ''; saveLS(); }
-    if (PULIH && JO.qs('akun')) { CODE = 'PANITIA:' + JO.qs('akun'); PERSON = 'panitia'; saveLS(); }   // owner/superadmin dari konsol
-    if (PULIH && (JO.qs('kode') || JO.qs('akun')) && history.replaceState) history.replaceState(null, '', location.pathname);   // kode tidak tertinggal di riwayat/tangkapan layar
+    if (SPECIAL && JO.qs('akun')) { CODE = 'PANITIA:' + JO.qs('akun'); PERSON = 'panitia'; saveLS(); }   // owner/superadmin dari konsol
+    if (SPECIAL && (JO.qs('kode') || JO.qs('akun')) && history.replaceState) history.replaceState(null, '', location.pathname);   // kode tidak tertinggal di riwayat/tangkapan layar
     route();
   }
   init();
