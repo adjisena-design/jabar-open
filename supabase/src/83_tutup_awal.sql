@@ -112,3 +112,7 @@ $$;
 alter table jo.disciplines add column if not exists close_shown_at timestamptz;
 update jo.disciplines set close_at = '2026-11-27 18:30:00+07', close_shown_at = '2026-11-27 18:00:00+07' where code in ('MAG','WAG','RG');
 -- public_config: 'close_at' dikirim sebagai coalesce(d.close_shown_at, d.close_at) (string patch)
+
+-- 28/11/2026: perpanjangan batas bayar per pendaftaran (jo.submissions.pay_until_override), dipakai deadline_tick dan
+-- pay_deadline_label. Dipakai pertama untuk memulihkan 4 pendaftaran Playfield Kids Academy (MAG-0219, WAG-0218/0220/0221).
+alter table jo.submissions add column if not exists pay_until_override timestamptz;
